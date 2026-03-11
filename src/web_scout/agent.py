@@ -65,10 +65,11 @@ SYNTHESISER_INSTRUCTIONS = """\
 You are a web research synthesiser. Your job is to read the extracted contents
 from various web pages and produce a coherent narrative `synthesis` answering the query.
 
-Your output must address the query directly, mention any data gaps, and do not 
-fabricate information. If there are issues, caveats, or biases with the search 
-results that the user should know about (e.g., contradictory sources, outdated data), 
-mention them clearly in your synthesis.
+Rules:
+- Address the query directly, mention any data gaps, do not fabricate information.
+- Use inline markdown citations after each claim: [Source Title](URL).
+  Every factual statement must be attributed to at least one source.
+- If there are contradictions, caveats, or outdated data across sources, note them.
 """
 
 
@@ -330,19 +331,32 @@ async def run_web_research(
     scraped = groups["scraped"]
     scrape_failed = groups["scrape_failed"]
     snippet_only = groups["snippet_only"]
-    
+
+    import json as _json
+
+    scraped_json = [
+        {"url": entry.url, "title": entry.title or entry.url, "content": entry.content}
+        for entry in scraped
+    ]
+    snippet_json = [
+        {"url": entry.url, "title": entry.title or entry.url, "snippet": entry.content}
+        for entry in snippet_only
+        if entry.content
+    ]
+
     synth_prompt = f"Research Query: {query}\n\n"
     if domain_expertise:
         synth_prompt += f"Domain Expertise: {domain_expertise}\n\n"
-        
-    synth_prompt += "Here are the sources we successfully scraped and extracted:\n\n"
-    if not scraped:
-        synth_prompt += "(No sources were successfully scraped. You must state that no evidence was found.)\n"
+
+    if not scraped and not snippet_json:
+        synth_prompt += "(No sources were found. You must state that no evidence was found.)\n"
     else:
-        for i, entry in enumerate(scraped, 1):
-            synth_prompt += f"--- Source {i}: {entry.title or entry.url} ---\n{entry.content}\n\n"
-            
-    synth_prompt += "\n\nProvide the 'synthesis' of the findings directly answering the query.\n"
+        if scraped_json:
+            synth_prompt += f"Scraped sources (full extracts):\n{_json.dumps(scraped_json, indent=2)}\n\n"
+        if snippet_json:
+            synth_prompt += f"Additional sources (search snippets only):\n{_json.dumps(snippet_json, indent=2)}\n\n"
+
+    synth_prompt += "Provide the 'synthesis' of the findings directly answering the query.\n"
             
     synth_agent = Agent(
         name="synthesiser",
