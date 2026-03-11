@@ -1,0 +1,52 @@
+[tool.poetry]
+name = "web-scout-ai"
+version = "0.1.0"
+description = "Agentic web research tool — smarter than search, faster than deep research. Search, scrape, and synthesize web content using LLMs."
+authors = ["Riccardo Guolo"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/riccardoguolo/web-scout-ai"
+repository = "https://github.com/riccardoguolo/web-scout-ai"
+keywords = ["web-research", "ai-agent", "web-scraping", "llm", "search"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+    "Typing :: Typed",
+    "Framework :: Pydantic :: 2",
+]
+packages = [{ include = "web_scout", from = "src" }]
+
+[tool.poetry.scripts]
+web-scout-setup = "web_scout._setup:main"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+pydantic = ">=2.0"
+httpx = ">=0.24"
+litellm = ">=1.30"
+openai-agents = ">=0.0.7"
+crawl4ai = ">=0.5"
+docling = ">=2.0"
+docling-core = ">=2.0"
+duckduckgo-search = ">=5.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.0"
+pytest-asyncio = ">=0.23"
+ruff = ">=0.4"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
