@@ -2,7 +2,7 @@
 
 **The missing middle ground between web search APIs and deep research agents.**
 
-Most AI tools give you one of two options: fast search APIs that return shallow snippets, or heavyweight research agents that take minutes and cost dollars per query. `web-scout-ai` fills the gap — it searches, scrapes, reads documents, evaluates coverage, and synthesizes findings into a sourced answer, all in a single async call that typically completes in 15-40 seconds.
+Most AI tools give you one of two options: fast search APIs that return shallow snippets, or heavyweight research agents that take minutes and cost dollars per query. `web-scout-ai` fills the gap by giving you a streamlined pipeline that **automatically gets the right URLs** and **automatically handles complex file types**. It searches, scrapes, reads documents, evaluates coverage, and synthesizes findings into a sourced answer, all in a single async call that typically completes in 15-40 seconds.
 
 ```python
 from web_scout import run_web_research
@@ -18,6 +18,35 @@ print(result.synthesis)   # Coherent narrative with citations
 print(result.scraped)     # Full extracted content from each source
 print(result.queries)     # Every search query that was executed
 ```
+
+## Core Strengths
+
+### 1. Automatically Gets the Right URLs
+You don't need to manually feed it links. You pass a high-level question, and the tool:
+- Uses an LLM to generate targeted search engine queries.
+- Executes searches via Serper or DuckDuckGo.
+- Interleaves and ranks the resulting URLs.
+- Automatically evaluates if the scraped content fully answers the query. If there are gaps, it generates new search queries and fetches more URLs until the answer is complete.
+
+### 2. Automatically Handles Complex File Types
+Most web scrapers break on PDFs or single-page applications. `web-scout-ai` seamlessly handles:
+- **Static HTML** (fast HTTP fetches)
+- **JS-rendered SPAs** (headless Playwright browser)
+- **Real Documents** (PDFs, DOCX, PPTX, XLSX via `docling`)
+- **Scanned PDFs** (vision LLM fallback to extract text from screenshots)
+
+### 3. Plug-and-Play Tool for Any Agent
+Designed from the ground up to be called by other AI agents, not just as a standalone script.
+- **One Function Call:** A single `run_web_research` async function.
+- **Structured Output:** Returns a predictable Pydantic model (`WebResearchResult`).
+- **Framework Agnostic:** Works flawlessly with OpenAI Agents SDK, LangChain, LlamaIndex, or your custom agent loop.
+- **Model Agnostic:** Uses LiteLLM under the hood, so it works with OpenAI, Anthropic, Gemini, Groq, Mistral, or local models.
+
+### 4. Multiple Content Extraction Methods
+The tool doesn't just rely on search. It supports multiple ways to gather content:
+- **Open Web Search:** Queries search engines and scrapes the best results.
+- **Domain-Restricted Search:** Limits searches to specific websites (e.g., only `iucn.org` or `un.org`).
+- **Direct URL Extraction:** Skip the search step entirely and just extract and synthesize content from a specific webpage or document link.
 
 ## Why web-scout-ai?
 
@@ -44,7 +73,7 @@ print(result.queries)     # Every search query that was executed
 
 **It works with any LLM.** OpenAI, Anthropic, Google Gemini, Mistral, Groq, DeepSeek, Together, local models via Ollama — anything [LiteLLM](https://docs.litellm.ai/docs/providers) supports. No vendor lock-in. Mix and match providers across pipeline steps.
 
-**It's a single function call.** Designed as a tool for AI agents, not a framework you need to learn. One function, one result type, zero configuration beyond model names.
+**It's a single function call.** Designed as a plug-and-play tool for AI agents, not a framework you need to learn. One function, one result type, zero configuration beyond model names.
 
 ## How it works
 
