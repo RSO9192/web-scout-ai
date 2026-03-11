@@ -341,6 +341,8 @@ async def _scrape_html_browser(
         exclude_all_images=True,
         remove_overlay_elements=True,
         markdown_generator=md_generator,
+        wait_until="networkidle",
+        delay_before_return_html=1.0,
     )
     if wait_for:
         run_cfg.wait_for = wait_for
@@ -363,6 +365,8 @@ async def _scrape_html_browser(
             exclude_all_images=True,
             remove_overlay_elements=True,
             markdown_generator=md_generator,
+            wait_until="networkidle",
+            delay_before_return_html=1.0,
         )
         async with _suppress_crawl4ai_stdout():
             async with AsyncWebCrawler(verbose=False) as crawler:
