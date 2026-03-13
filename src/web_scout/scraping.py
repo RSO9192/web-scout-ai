@@ -28,7 +28,13 @@ import httpx
 from crawl4ai import AsyncWebCrawler, CacheMode, CrawlerRunConfig
 
 logger = logging.getLogger(__name__)
+
+# Silence noisy third-party loggers used internally by this module.
+# These produce excessive output at INFO/DEBUG level that is not useful to callers.
 logging.getLogger("docling").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("crawl4ai").setLevel(logging.WARNING)
 
 MAX_CONTENT_CHARS = 30_000
 
@@ -71,7 +77,7 @@ _FETCH_HEADERS = {
 }
 
 _MIN_PDF_TEXT_CHARS = 300
-_PDF_PAGE_RANGE = (1, 30)  # only process first 10 pages
+_PDF_PAGE_RANGE = (1, 50)  # only process first 50 pages
 
 
 # ---------------------------------------------------------------------------

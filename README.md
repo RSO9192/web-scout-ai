@@ -26,7 +26,7 @@ You don't need to manually feed it links. You pass a high-level question, and th
 - Uses an LLM to generate targeted search engine queries.
 - Executes searches via Serper or DuckDuckGo.
 - Interleaves and ranks the resulting URLs.
-- Automatically evaluates if the scraped content fully answers the query. If there are gaps, it generates new search queries and fetches more URLs until the answer is complete.
+- Automatically evaluates if the scraped content fully answers the query. If there are gaps, it first checks the unscraped backlog of search results already collected — scraping promising ones before running new searches. Only if the backlog is unpromising does it generate new targeted queries.
 
 ### 2. Automatically Handles Complex File Types
 Most web scrapers break on PDFs or single-page applications. `web-scout-ai` seamlessly handles:
@@ -67,7 +67,7 @@ The tool doesn't just rely on search. It supports multiple ways to gather conten
 
 **It handles real documents.** PDFs, DOCX, PPTX, XLSX — not just HTML. Government reports, academic papers, UN documents — the kind of sources that matter for serious research but that most tools silently skip.
 
-**It closes the loop.** Search → Scrape → Evaluate → Iterate → Synthesize. If the first round of sources doesn't fully answer the query, it generates new search queries targeting the gaps and scrapes more pages. Most tools stop after search.
+**It closes the loop.** Search → Scrape → Evaluate → Iterate → Synthesize. If the first round of sources doesn't fully answer the query, the evaluator first inspects the unscraped backlog of search results already collected. If any look promising for the missing information, they are scraped next — no new search round needed. Only if the backlog is unhelpful does it generate new targeted queries. Most tools stop after search.
 
 **It's deterministic.** No unbounded agentic loops. No unpredictable costs. The pipeline has a fixed structure with circuit breakers at every stage. You know what it will do and what it will cost.
 
@@ -90,7 +90,8 @@ Query
  │   ├─ DOCX/PPTX/XLSX → docling
  │   └─ Scanned PDFs → vision LLM fallback (screenshot → extract)
  ├─ Evaluate coverage (LLM) — are there gaps?
- │   └─ If gaps → generate targeted queries → search & scrape again
+ │   ├─ If gaps + backlog looks promising → scrape backlog URLs (skip new search)
+ │   └─ If gaps + backlog is unpromising → generate targeted queries → search & scrape again
  ├─ Synthesize findings (LLM)
  │
  └─ WebResearchResult
@@ -209,6 +210,27 @@ result = await run_web_research(query=..., models=..., search_backend="serper")
 # DuckDuckGo — zero config, no API key needed
 result = await run_web_research(query=..., models=..., search_backend="duckduckgo")
 ```
+
+### Research depth
+
+Control how thoroughly the tool searches and scrapes:
+
+```python
+# Standard (default) — 2 iterations, up to ~10 sources
+result = await run_web_research(query=..., models=..., research_depth="standard")
+
+# Deep — 3 iterations, up to ~28 sources, more search queries per round
+# Best for complex queries that need cross-referencing multiple technical sources
+result = await run_web_research(query=..., models=..., research_depth="deep")
+```
+
+| Parameter | Standard | Deep |
+| --- | --- | --- |
+| Max iterations | 2 | 3 |
+| Search queries (first round) | 3 | 5 |
+| Search queries (follow-up) | 2 | 4 |
+| URLs scraped (first round) | 6 | 12 |
+| URLs scraped (follow-up) | 4 | 8 |
 
 ### Domain expertise
 

@@ -1,0 +1,449 @@
+"""Benchmark: web-scout-ai vs OpenAI web search.
+
+Runs the same queries through both tools and compares results side by side.
+
+Usage:
+    conda run -p /path/to/env python tests/benchmark.py
+
+Requires:
+    - OPENAI_API_KEY (for OpenAI web search)
+    - At least one LLM provider key for web-scout-ai (GEMINI_API_KEY, etc.)
+    - Optional: SERPER_API_KEY (for web-scout-ai Serper backend, otherwise uses DuckDuckGo)
+"""
+
+import asyncio
+import json
+import os
+import time
+from dataclasses import dataclass, field, asdict
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+import litellm
+from pydantic import BaseModel, Field
+
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+
+# Queries to benchmark — edit or extend as needed
+BENCHMARK_QUERIES = [
+    # Specific data buried in technical reports/PDFs
+    "What are the projected sea level rise impacts on Venice specifically, including flood frequency projections and MOSE barrier effectiveness under different IPCC scenarios?",
+    # Requires reading actual legal/policy documents for specific provisions
+    "What specific Total Allowable Catch quotas has ICCAT set for Eastern Atlantic and Mediterranean bluefin tuna for each year from 2022 to 2026, and what were the scientific basis and stock assessment results behind each decision?",
+    # Cross-referencing multiple technical sources with specific quantitative data
+    "What is the current deforestation rate in the Brazilian Cerrado biome, what are the main commodity drivers, and what specific enforcement actions has IBAMA taken in the last two years?",
+]
+
+# web-scout-ai models (adjust to your available provider)
+WEB_SCOUT_MODELS = {
+    "web_researcher": "gemini/gemini-3-flash-preview",
+    "content_extractor": "gemini/gemini-3-flash-preview",
+    "vision_fallback": "gemini/gemini-3-flash-preview",
+}
+
+# web-scout-ai search backend: "serper" (needs SERPER_API_KEY)
+WEB_SCOUT_BACKEND = "serper"
+
+# OpenAI model for web search comparison
+OPENAI_MODEL = "gpt-5.4"
+
+# LLM judge model (evaluates both outputs)
+JUDGE_MODEL = "gemini/gemini-3-flash-preview"
+
+# Output directory
+OUTPUT_DIR = Path(__file__).parent / "benchmark_results"
+
+
+# ---------------------------------------------------------------------------
+# Result container
+# ---------------------------------------------------------------------------
+
+@dataclass
+class Evaluation:
+    source_discovery: int = 0          # 1-5: quality of URLs found
+    source_discovery_rationale: str = ""
+    extracted_content: int = 0         # 1-5: relevance and depth of per-source content
+    extracted_content_rationale: str = ""
+    synthesis_quality: int = 0         # 1-5: quality of the final synthesis
+    synthesis_quality_rationale: str = ""
+
+    @property
+    def overall(self) -> float:
+        return round((self.source_discovery + self.extracted_content + self.synthesis_quality) / 3, 1)
+
+
+@dataclass
+class ToolResult:
+    tool: str
+    query: str
+    synthesis: str = ""
+    sources: list = field(default_factory=list)
+    num_sources: int = 0
+    elapsed_seconds: float = 0.0
+    error: Optional[str] = None
+    evaluation: Optional[Evaluation] = None
+
+
+# ---------------------------------------------------------------------------
+# Runner: web-scout-ai
+# ---------------------------------------------------------------------------
+
+async def run_web_scout(query: str) -> ToolResult:
+    from web_scout import run_web_research
+
+    t0 = time.perf_counter()
+    try:
+        result = await run_web_research(
+            query=query,
+            models=WEB_SCOUT_MODELS,
+            search_backend=WEB_SCOUT_BACKEND,
+        )
+        elapsed = time.perf_counter() - t0
+        sources = [
+            {"url": s.url, "title": s.title, "content": s.content}
+            for s in result.scraped
+        ]
+        return ToolResult(
+            tool="web-scout-ai",
+            query=query,
+            synthesis=result.synthesis,
+            sources=sources,
+            num_sources=len(sources),
+            elapsed_seconds=round(elapsed, 1),
+        )
+    except Exception as e:
+        return ToolResult(
+            tool="web-scout-ai",
+            query=query,
+            elapsed_seconds=round(time.perf_counter() - t0, 1),
+            error=str(e),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Runner: OpenAI with WebSearchTool (agents SDK)
+# ---------------------------------------------------------------------------
+
+OPENAI_SYSTEM_PROMPT = """\
+You are an expert web researcher. Use the web search tool to find current, \
+authoritative information to answer the user's query.
+
+Rules:
+- Search the web thoroughly — use multiple searches if needed to cover the topic.
+- For each source you use, extract ALL specific facts, numbers, dates, names, and detailed \
+  context relevant to the query. Do NOT just note what the page is about — extract the actual data.
+- Provide a coherent, well-structured synthesis of your findings.
+- Use inline markdown citations after each claim: [Source Title](URL).
+  Every factual statement must be attributed to at least one source.
+- If there are contradictions or data gaps across sources, note them.
+- Do NOT fabricate information. ONLY report what you found in the search results.
+  Do NOT add facts, numbers, or claims from your own training data.
+  If the search results do not contain specific information, state that it was not found.
+- In the sources list, include the URL, title, and a comprehensive extraction of the \
+  relevant content from that source (up to 5000 characters per source).
+"""
+
+
+class WebSearchSource(BaseModel):
+    url: str = Field(description="Source URL")
+    title: str = Field(default="", description="Source title")
+    relevant_content: str = Field(
+        default="",
+        description=(
+            "Comprehensive extraction of all content from this source relevant to the query. "
+            "Include specific facts, numbers, dates, names, statistics, and detailed context. "
+            "Up to 5000 characters."
+        ),
+    )
+
+
+class OpenAIWebSearchOutput(BaseModel):
+    """Structured output for the OpenAI web search agent."""
+    synthesis: str = Field(description="Coherent synthesis answering the query with inline [Source](URL) citations.")
+    sources: list[WebSearchSource] = Field(
+        default_factory=list,
+        description="List of sources used, each with URL, title, and comprehensive relevant content extracted.",
+    )
+
+
+async def run_openai_websearch(query: str) -> ToolResult:
+    from agents import Agent, Runner, WebSearchTool, ModelSettings
+
+    agent = Agent(
+        name="openai_web_researcher",
+        model=OPENAI_MODEL,
+        tools=[WebSearchTool(search_context_size="high")],
+        instructions=OPENAI_SYSTEM_PROMPT,
+        model_settings=ModelSettings(parallel_tool_calls=False),
+        output_type=OpenAIWebSearchOutput,
+    )
+
+    t0 = time.perf_counter()
+    try:
+        result = await Runner.run(agent, query)
+        elapsed = time.perf_counter() - t0
+        output = result.final_output_as(OpenAIWebSearchOutput)
+        sources = [{"url": s.url, "title": s.title, "content": s.relevant_content} for s in output.sources]
+
+        return ToolResult(
+            tool=f"openai-websearch ({OPENAI_MODEL})",
+            query=query,
+            synthesis=output.synthesis,
+            sources=sources,
+            num_sources=len(sources),
+            elapsed_seconds=round(elapsed, 1),
+        )
+    except Exception as e:
+        return ToolResult(
+            tool=f"openai-websearch ({OPENAI_MODEL})",
+            query=query,
+            elapsed_seconds=round(time.perf_counter() - t0, 1),
+            error=str(e),
+        )
+
+
+# ---------------------------------------------------------------------------
+# LLM-as-Judge evaluation
+# ---------------------------------------------------------------------------
+
+JUDGE_SYSTEM_PROMPT = """\
+You are a strict, impartial evaluator of web research tool outputs.
+
+You will receive:
+- The original research QUERY
+- PER-SOURCE EXTRACTED CONTENT: the URL, title, and extracted content for each source
+- FINAL SYNTHESIS: the tool's synthesized answer
+
+Score the output on three dimensions (1-5 each):
+
+1. **Source Discovery** — How good are the URLs found?
+   Are they authoritative, directly relevant to the query, and diverse?
+   1 = no sources or entirely irrelevant URLs
+   2 = few sources, mostly tangential or low-quality sites
+   3 = some relevant sources but limited diversity or authority
+   4 = good selection of relevant, authoritative URLs
+   5 = excellent discovery of highly authoritative, diverse, directly relevant URLs
+
+2. **Extracted Content** — How relevant and detailed is the per-source extracted content?
+   Does each source's extracted content contain specific facts, data, and detail that
+   directly answers the query? Or is it shallow/generic?
+   1 = no extracted content or only generic snippets
+   2 = shallow extracts with minimal query-relevant data
+   3 = some relevant facts but missing key details
+   4 = good detail with concrete facts and data per source
+   5 = rich, comprehensive extracts with specific data directly answering the query
+
+3. **Synthesis Quality** — How well does the final synthesis answer the query?
+   Is it accurate, well-structured, comprehensive, and properly sourced?
+   1 = misses the point or mostly irrelevant
+   2 = addresses the topic but with major gaps or errors
+   3 = covers the main point but notable gaps remain
+   4 = solid answer with minor gaps
+   5 = comprehensive, well-structured, fully answers every aspect of the query
+
+Respond ONLY with valid JSON (no markdown fences):
+{
+  "source_discovery": <1-5>,
+  "source_discovery_rationale": "<1-2 sentences>",
+  "extracted_content": <1-5>,
+  "extracted_content_rationale": "<1-2 sentences>",
+  "synthesis_quality": <1-5>,
+  "synthesis_quality_rationale": "<1-2 sentences>"
+}
+"""
+
+
+async def evaluate_result(result: ToolResult) -> Evaluation:
+    """Use an LLM judge to score a single tool result."""
+    if result.error:
+        return Evaluation(
+            source_discovery=0, source_discovery_rationale="Tool errored.",
+            extracted_content=0, extracted_content_rationale="Tool errored.",
+            synthesis_quality=0, synthesis_quality_rationale="Tool errored.",
+        )
+
+    source_parts = []
+    for i, s in enumerate(result.sources, 1):
+        title = s.get('title', 'Untitled')
+        url = s['url']
+        content = s.get('content', '')
+        source_parts.append(f"--- Source {i}: {title} ({url}) ---\n{content[:3000]}")
+    source_block = "\n\n".join(source_parts) if source_parts else "(no sources)"
+
+    user_prompt = (
+        f"QUERY: {result.query}\n\n"
+        f"PER-SOURCE EXTRACTED CONTENT ({result.num_sources} sources):\n{source_block}\n\n"
+        f"FINAL SYNTHESIS:\n{result.synthesis}"
+    )
+
+    try:
+        response = await litellm.acompletion(
+            model=JUDGE_MODEL,
+            messages=[
+                {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.0,
+            max_tokens=1000,
+        )
+        raw = response.choices[0].message.content.strip()
+        # Strip markdown fences if present
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        scores = json.loads(raw)
+        print(f"  [judge] {result.tool}: sources={scores['source_discovery']} content={scores['extracted_content']} synthesis={scores['synthesis_quality']}")
+        return Evaluation(
+            source_discovery=scores["source_discovery"],
+            source_discovery_rationale=scores.get("source_discovery_rationale", ""),
+            extracted_content=scores["extracted_content"],
+            extracted_content_rationale=scores.get("extracted_content_rationale", ""),
+            synthesis_quality=scores["synthesis_quality"],
+            synthesis_quality_rationale=scores.get("synthesis_quality_rationale", ""),
+        )
+    except Exception as e:
+        print(f"  [judge] evaluation failed for {result.tool}: {e}")
+        return Evaluation()
+
+
+# ---------------------------------------------------------------------------
+# Comparison report
+# ---------------------------------------------------------------------------
+
+def build_markdown_report(results: list[ToolResult], queries: list[str]) -> str:
+    lines = [
+        "# Benchmark: web-scout-ai vs OpenAI web search",
+        f"\nDate: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        f"\nweb-scout-ai backend: {WEB_SCOUT_BACKEND}",
+        f"web-scout-ai models: {WEB_SCOUT_MODELS}",
+        f"OpenAI model: {OPENAI_MODEL}",
+        "",
+    ]
+
+    # Summary table
+    lines.append("## Summary\n")
+    lines.append("| Query | Tool | Sources | Time (s) | Ans. Len | Src Discovery | Extracted Content | Synthesis | Overall |")
+    lines.append("|-------|------|---------|----------|----------|---------------|-------------------|-----------|---------|")
+
+    by_query = {}
+    for r in results:
+        by_query.setdefault(r.query, []).append(r)
+
+    for query in queries:
+        for r in by_query.get(query, []):
+            q_short = query[:50] + "..." if len(query) > 50 else query
+            if r.error:
+                lines.append(f"| {q_short} | {r.tool} | - | {r.elapsed_seconds} | ERROR | - | - | - | - |")
+            else:
+                ev = r.evaluation or Evaluation()
+                lines.append(
+                    f"| {q_short} | {r.tool} | {r.num_sources} | {r.elapsed_seconds} "
+                    f"| {len(r.synthesis)} | {ev.source_discovery}/5 | {ev.extracted_content}/5 "
+                    f"| {ev.synthesis_quality}/5 | {ev.overall}/5 |"
+                )
+
+    # Detailed results
+    lines.append("\n---\n")
+    lines.append("## Detailed Results\n")
+
+    for i, query in enumerate(queries, 1):
+        lines.append(f"### Query {i}: {query}\n")
+        for r in by_query.get(query, []):
+            lines.append(f"#### {r.tool}\n")
+            if r.error:
+                lines.append(f"**ERROR:** {r.error}\n")
+                continue
+            ev = r.evaluation or Evaluation()
+            lines.append(f"- **Time:** {r.elapsed_seconds}s")
+            lines.append(f"- **Sources:** {r.num_sources}")
+            lines.append(f"- **Scores:** Source Discovery {ev.source_discovery}/5 | Extracted Content {ev.extracted_content}/5 | Synthesis {ev.synthesis_quality}/5 | **Overall {ev.overall}/5**")
+            lines.append(f"- **Source Discovery:** {ev.source_discovery_rationale}")
+            lines.append(f"- **Extracted Content:** {ev.extracted_content_rationale}")
+            lines.append(f"- **Synthesis Quality:** {ev.synthesis_quality_rationale}")
+            if r.sources:
+                lines.append("- **Source list:**")
+                for s in r.sources:
+                    title = s.get("title", "")
+                    lines.append(f"  - [{title}]({s['url']})" if title else f"  - {s['url']}")
+            lines.append(f"\n**Synthesis:**\n\n{r.synthesis}\n")
+        lines.append("---\n")
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+async def main():
+    print(f"Running benchmark with {len(BENCHMARK_QUERIES)} queries...")
+    print(f"  web-scout-ai backend: {WEB_SCOUT_BACKEND}")
+    print(f"  OpenAI model: {OPENAI_MODEL}")
+    print()
+
+    all_results: list[ToolResult] = []
+
+    for i, query in enumerate(BENCHMARK_QUERIES, 1):
+        print(f"[{i}/{len(BENCHMARK_QUERIES)}] {query}")
+
+        # Run both tools in parallel
+        ws_task = asyncio.create_task(run_web_scout(query))
+        oai_task = asyncio.create_task(run_openai_websearch(query))
+
+        ws_result, oai_result = await asyncio.gather(ws_task, oai_task)
+
+        print(f"  web-scout-ai:     {ws_result.elapsed_seconds}s, {ws_result.num_sources} sources"
+              + (f" ERROR: {ws_result.error}" if ws_result.error else ""))
+        print(f"  openai-websearch: {oai_result.elapsed_seconds}s, {oai_result.num_sources} sources"
+              + (f" ERROR: {oai_result.error}" if oai_result.error else ""))
+
+        # Evaluate both results with LLM judge
+        print(f"  Evaluating with {JUDGE_MODEL}...")
+        ws_eval, oai_eval = await asyncio.gather(
+            evaluate_result(ws_result),
+            evaluate_result(oai_result),
+        )
+        ws_result.evaluation = ws_eval
+        oai_result.evaluation = oai_eval
+
+        print(f"  web-scout-ai:     sources={ws_eval.source_discovery}/5  content={ws_eval.extracted_content}/5  synthesis={ws_eval.synthesis_quality}/5  overall={ws_eval.overall}/5")
+        print(f"  openai-websearch: sources={oai_eval.source_discovery}/5  content={oai_eval.extracted_content}/5  synthesis={oai_eval.synthesis_quality}/5  overall={oai_eval.overall}/5")
+        print()
+
+        all_results.extend([ws_result, oai_result])
+
+    # Save results
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # JSON (machine-readable)
+    json_path = OUTPUT_DIR / f"benchmark_{timestamp}.json"
+    serializable = []
+    for r in all_results:
+        d = asdict(r)
+        if r.evaluation:
+            d["evaluation"]["overall"] = r.evaluation.overall
+        serializable.append(d)
+    with open(json_path, "w") as f:
+        json.dump(serializable, f, indent=2)
+
+    # Markdown (human-readable)
+    md_path = OUTPUT_DIR / f"benchmark_{timestamp}.md"
+    report = build_markdown_report(all_results, BENCHMARK_QUERIES)
+    with open(md_path, "w") as f:
+        f.write(report)
+
+    print(f"Results saved to:")
+    print(f"  {json_path}")
+    print(f"  {md_path}")
+
+    # Print summary table to terminal
+    print()
+    print(report.split("## Detailed Results")[0])
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

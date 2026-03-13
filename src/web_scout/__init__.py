@@ -38,6 +38,35 @@ Public API
 
 __version__ = "0.1.0"
 
+import logging as _logging
+
+
+def configure_logging(level: int = _logging.INFO) -> None:
+    """Configure clean logging for web_scout.
+
+    Call this once at application startup to get structured log output from
+    the ``web_scout.*`` loggers with timestamps and level names.
+
+    Third-party loggers (httpx, crawl4ai, litellm, docling) are kept at
+    WARNING regardless of the requested level.
+
+    Args:
+        level: Log level for ``web_scout.*`` loggers (default ``INFO``).
+    """
+    handler = _logging.StreamHandler()
+    handler.setFormatter(
+        _logging.Formatter(
+            fmt="%(asctime)s  %(levelname)-8s  %(name)s: %(message)s",
+            datefmt="%H:%M:%S",
+        )
+    )
+    pkg_logger = _logging.getLogger("web_scout")
+    pkg_logger.setLevel(level)
+    if not pkg_logger.handlers:
+        pkg_logger.addHandler(handler)
+    pkg_logger.propagate = False
+
+
 from .agent import (
     DEFAULT_WEB_RESEARCH_MODELS,
     run_web_research,
@@ -52,6 +81,7 @@ from .tools import ResearchTracker
 
 __all__ = [
     "__version__",
+    "configure_logging",
     "DEFAULT_WEB_RESEARCH_MODELS",
     "run_web_research",
     "ResearchTracker",

@@ -10,6 +10,11 @@ Three input modes — all share a single linear pipeline:
 2. **Domain + query** — domain-restricted search -> parallel scrape -> optional deep scrape -> synthesis.
 3. **Direct URL** — skip search, extract a given URL directly -> optional deep scrape -> synthesis.
 
+Two research depth presets control how aggressively the pipeline searches:
+
+- ``"standard"`` (default) — 2 iterations, up to ~10 sources.
+- ``"deep"`` — 3 iterations, more search queries, up to ~28 sources.
+
 Public API
 ----------
 - ``run_web_research(query, models, ...)`` — full pipeline
@@ -44,7 +49,7 @@ logging.getLogger("litellm").setLevel(logging.WARNING)
 DEFAULT_WEB_RESEARCH_MODELS = {
     "web_researcher": "gemini/gemini-3-flash-preview",
     "content_extractor": "gemini/gemini-3-flash-preview",
-    "vision_fallback": "gemini/gemini-2.0-flash",
+    "vision_fallback": "gemini/gemini-3-flash-preview",
 }
 
 # ---------------------------------------------------------------------------
@@ -58,7 +63,10 @@ Generate highly effective search queries to find evidence for the user's researc
 
 COVERAGE_EVALUATOR_INSTRUCTIONS = """\
 You evaluate whether the provided extracted web content fully answers the research query.
-Be strict: if key specific data (like species names, numbers, thresholds) is requested but missing, it is not fully answered.\
+Be strict: if key specific data (like species names, numbers, thresholds) is requested but missing, it is not fully answered.
+If the query is NOT fully answered, review the provided "Unscraped Candidates" (search result snippets not yet scraped).
+- If any candidates look likely to contain the missing information, list their exact URLs in `promising_unscraped_urls` and set `needs_new_searches` to false.
+- If the candidates look useless or unrelated to the missing information, set `needs_new_searches` to true and leave `promising_unscraped_urls` empty.\
 """
 
 SYNTHESISER_INSTRUCTIONS = """\
@@ -66,6 +74,9 @@ You are a web research synthesiser. Your job is to read the extracted contents
 from various web pages and produce a coherent narrative `synthesis` answering the query.
 
 Rules:
+- ONLY use information that appears in the provided scraped sources. Do NOT add facts,
+  numbers, dates, or claims from your own training data. If the sources do not contain
+  the information, state that it was not found rather than filling in from memory.
 - Address the query directly, mention any data gaps, do not fabricate information.
 - Use inline markdown citations after each claim: [Source Title](URL).
   Every factual statement must be attributed to at least one source.
@@ -78,9 +89,43 @@ class SearchQueryGeneration(BaseModel):
     queries: List[str] = Field(description="List of search queries")
 
 class CoverageEvaluation(BaseModel):
-    """LLM output for evaluating if the scraped content answers the query."""
+    """LLM output for evaluating coverage and routing the next pipeline step.
+
+    After inspecting scraped content, the evaluator decides whether to scrape
+    promising URLs already in the backlog or run new web searches.
+    """
     fully_answered: bool = Field(description="True if the extracted content fully answers the original research query.")
     gaps: str = Field(description="If not fully answered, what specific information is still missing?")
+    promising_unscraped_urls: List[str] = Field(
+        default_factory=list,
+        description="If not fully answered, list exact URLs from the Unscraped Candidates that likely contain the missing information. Leave empty if none are promising.",
+    )
+    needs_new_searches: bool = Field(
+        default=True,
+        description="True if the unscraped candidates are insufficient and new web searches must be run. False if promising_unscraped_urls candidates are enough to try first.",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Research depth presets
+# ---------------------------------------------------------------------------
+
+_DEPTH_PRESETS = {
+    "standard": {
+        "max_iterations": 2,
+        "queries_first": 3,
+        "queries_followup": 2,
+        "urls_first": 6,
+        "urls_followup": 4,
+    },
+    "deep": {
+        "max_iterations": 3,
+        "queries_first": 5,
+        "queries_followup": 4,
+        "urls_first": 12,
+        "urls_followup": 8,
+    },
+}
 
 
 # ---------------------------------------------------------------------------
@@ -94,6 +139,7 @@ async def run_web_research(
     direct_url: Optional[str] = None,
     search_backend: str = "serper",
     domain_expertise: Optional[str] = None,
+    research_depth: str = "standard",
 ) -> WebResearchResult:
     """Run deterministic web research pipeline.
 
@@ -119,6 +165,9 @@ async def run_web_research(
         direct_url: Scrape this URL directly (disables web search).
         search_backend: ``"serper"`` (default) or ``"duckduckgo"``.
         domain_expertise: Optional area of expertise (e.g. "biodiversity").
+        research_depth: ``"standard"`` (default) or ``"deep"``. Deep mode
+            generates more search queries, scrapes more URLs per iteration,
+            and runs an extra iteration for better coverage on complex queries.
 
     Returns:
         ``WebResearchResult`` with URLs grouped by action (scraped,
@@ -126,6 +175,11 @@ async def run_web_research(
     """
     from .utils import get_model
     from .search_backends import DuckDuckGoBackend, SerperBackend
+
+    # Resolve depth preset
+    if research_depth not in _DEPTH_PRESETS:
+        raise ValueError(f"Unknown research_depth={research_depth!r}. Use 'standard' or 'deep'.")
+    depth = _DEPTH_PRESETS[research_depth]
 
     # Create shared tracker
     tracker = ResearchTracker()
@@ -147,9 +201,10 @@ async def run_web_research(
         vision_model=vision_model,
     )
 
-    logger.info("[pipeline] start  query=%r  backend=%s mode=%s", 
-                query[:80], search_backend, 
-                "direct" if direct_url else "domain" if include_domains else "open")
+    logger.info("[pipeline] start  query=%r  backend=%s mode=%s depth=%s",
+                query[:80], search_backend,
+                "direct" if direct_url else "domain" if include_domains else "open",
+                research_depth)
 
     if direct_url:
         # --- 1. DIRECT URL MODE ---
@@ -212,73 +267,91 @@ async def run_web_research(
             instructions=COVERAGE_EVALUATOR_INSTRUCTIONS + (f"\nDomain Expertise: {domain_expertise}" if domain_expertise else "")
         )
 
-        MAX_ITERATIONS = 2
-        for iteration in range(MAX_ITERATIONS):
+        # Routing state carried across iterations
+        needs_new_searches = True
+        promising_urls_from_evaluator: List[str] = []
+        missing_info = ""
+
+        for iteration in range(depth["max_iterations"]):
             logger.info("[pipeline] starting search iteration %d", iteration + 1)
 
-            if iteration == 0:
-                prompt = f"Research Query: {query}\nGenerate exactly 3 distinct search queries.\n"
-                if include_domains:
-                    prompt += f"Note: We will search exclusively within these domains: {', '.join(include_domains)}\n"
+            if iteration > 0 and not needs_new_searches:
+                # 2b-alt. Evaluator flagged promising unscraped URLs — skip search entirely
+                urls_to_scrape = promising_urls_from_evaluator
+                logger.info("[pipeline] skipping search; scraping %d evaluator-selected backlog URLs", len(urls_to_scrape))
+                extracted_contents = []
+                if urls_to_scrape:
+                    tasks = [scrape_tool(url) for url in urls_to_scrape]
+                    extracted_contents = await asyncio.gather(*tasks)
+                else:
+                    logger.info("[pipeline] no promising backlog URLs to scrape")
             else:
-                prompt = f"Research Query: {query}\n"
-                prompt += f"We have already scraped some content, but we are missing: {missing_info}\n"
-                prompt += "Generate exactly 2 new distinct search queries specifically targeting this missing information.\n"
-                if include_domains:
-                    prompt += f"Note: We will search exclusively within these domains: {', '.join(include_domains)}\n"
+                # 2b. Normal path: generate queries, search, triage, scrape
+                if iteration == 0:
+                    n_queries = depth["queries_first"]
+                    prompt = f"Research Query: {query}\nGenerate exactly {n_queries} distinct search queries.\n"
+                    if include_domains:
+                        prompt += f"Note: We will search exclusively within these domains: {', '.join(include_domains)}\n"
+                else:
+                    n_queries = depth["queries_followup"]
+                    prompt = f"Research Query: {query}\n"
+                    prompt += f"We have already scraped some content, but we are missing: {missing_info}\n"
+                    prompt += f"Generate exactly {n_queries} new distinct search queries specifically targeting this missing information.\n"
+                    if include_domains:
+                        prompt += f"Note: We will search exclusively within these domains: {', '.join(include_domains)}\n"
 
-            gen_res = await Runner.run(query_gen_agent, prompt, max_turns=1)
-            search_queries = gen_res.final_output_as(SearchQueryGeneration).queries
-            if not search_queries:
-                search_queries = [query]
-                
-            logger.info("[pipeline] generated %d queries: %s", len(search_queries), search_queries)
+                gen_res = await Runner.run(query_gen_agent, prompt, max_turns=1)
+                search_queries = gen_res.final_output_as(SearchQueryGeneration).queries
+                if not search_queries:
+                    search_queries = [query]
 
-            # 2c. Execute Searches in parallel
-            async def do_search(q: str):
-                try:
-                    resp = await backend.search(q, max_results=10, include_domains=include_domains)
-                    tracker.record_search(q, len(resp.results), include_domains, resp.results)
-                    return resp
-                except Exception as e:
-                    logger.error("[pipeline] search failed for %r: %s", q, e)
-                    return None
+                logger.info("[pipeline] generated %d queries: %s", len(search_queries), search_queries)
 
-            search_results = await asyncio.gather(*(do_search(q) for q in search_queries))
+                # 2c. Execute Searches in parallel
+                async def do_search(q: str):
+                    try:
+                        resp = await backend.search(q, max_results=10, include_domains=include_domains)
+                        tracker.record_search(q, len(resp.results), include_domains, resp.results)
+                        return resp
+                    except Exception as e:
+                        logger.error("[pipeline] search failed for %r: %s", q, e)
+                        return None
 
-            # 2d. Triage URLs
-            # Interleave results from the queries to get a diverse set of top URLs
-            unique_urls = OrderedDict()
-            max_urls_to_scrape = 6 if iteration == 0 else 4
-            idx = 0
-            
-            max_results_len = max([len(resp.results) for resp in search_results if resp] + [0])
-            
-            while len(unique_urls) < max_urls_to_scrape and idx < max_results_len:
-                for resp in search_results:
-                    if resp and idx < len(resp.results):
-                        url = resp.results[idx].url
-                        norm = tracker._normalize_url(url)
-                        # We must ensure we don't pick URLs we already scraped/tried
-                        if norm not in unique_urls and tracker._actions.get(norm, "snippet_only") == "snippet_only":
-                            unique_urls[norm] = url
-                        if len(unique_urls) >= max_urls_to_scrape:
-                            break
-                idx += 1
-                    
-            urls_to_scrape = list(unique_urls.values())
-            logger.info("[pipeline] selected %d new URLs to scrape", len(urls_to_scrape))
+                search_results = await asyncio.gather(*(do_search(q) for q in search_queries))
 
-            # 2e. Scrape & Extract in parallel
-            extracted_contents = []
-            if urls_to_scrape:
-                tasks = [scrape_tool(url) for url in urls_to_scrape]
-                extracted_contents = await asyncio.gather(*tasks)
-            else:
-                logger.info("[pipeline] no new URLs to scrape")
+                # 2d. Triage URLs
+                # Interleave results from the queries to get a diverse set of top URLs
+                unique_urls = OrderedDict()
+                max_urls_to_scrape = depth["urls_first"] if iteration == 0 else depth["urls_followup"]
+                idx = 0
+
+                max_results_len = max([len(resp.results) for resp in search_results if resp] + [0])
+
+                while len(unique_urls) < max_urls_to_scrape and idx < max_results_len:
+                    for resp in search_results:
+                        if resp and idx < len(resp.results):
+                            url = resp.results[idx].url
+                            norm = tracker._normalize_url(url)
+                            # We must ensure we don't pick URLs we already scraped/tried
+                            if norm not in unique_urls and tracker._actions.get(norm, "snippet_only") == "snippet_only":
+                                unique_urls[norm] = url
+                            if len(unique_urls) >= max_urls_to_scrape:
+                                break
+                    idx += 1
+
+                urls_to_scrape = list(unique_urls.values())
+                logger.info("[pipeline] selected %d new URLs to scrape", len(urls_to_scrape))
+
+                # 2e. Scrape & Extract in parallel
+                extracted_contents = []
+                if urls_to_scrape:
+                    tasks = [scrape_tool(url) for url in urls_to_scrape]
+                    extracted_contents = await asyncio.gather(*tasks)
+                else:
+                    logger.info("[pipeline] no new URLs to scrape")
 
             # 2f. Deepen (Domain Restricted Mode)
-            # If domain restricted, we might have hit index pages. 
+            # If domain restricted, we might have hit index pages.
             # If we didn't get enough good content, let's deepen on internal links
             if include_domains:
                 count_scraped = len(tracker.build_result_groups()["scraped"])
@@ -295,7 +368,7 @@ async def run_web_research(
                                         if tracker._normalize_url(l) not in tracker._actions:
                                             if l not in links_to_deepen:
                                                 links_to_deepen.append(l)
-                    
+
                     if links_to_deepen:
                         deep_links = links_to_deepen[:3]
                         logger.info("[pipeline] domain restricted deepening on %d links: %s", len(deep_links), deep_links)
@@ -303,28 +376,59 @@ async def run_web_research(
                         await asyncio.gather(*deep_tasks)
 
             # 2g. Evaluate Coverage
-            if iteration < MAX_ITERATIONS - 1:
+            if iteration < depth["max_iterations"] - 1:
                 scraped_entries = tracker.build_result_groups()["scraped"]
                 if not scraped_entries:
                     logger.info("[pipeline] 0 successful scrapes, doing another iteration")
                     missing_info = "Everything, no successful scrapes yet."
+                    needs_new_searches = True
                     continue
 
                 eval_prompt = f"Research Query: {query}\n\nScraped Content:\n"
                 for i, entry in enumerate(scraped_entries, 1):
                     eval_prompt += f"--- Source {i}: {entry.title or entry.url} ---\n{entry.content}\n\n"
-                    
+
+                snippet_only_entries = tracker.build_result_groups()["snippet_only"]
+                if snippet_only_entries:
+                    eval_prompt += "\nUnscraped Candidates (search snippets not yet scraped):\n"
+                    for i, entry in enumerate(snippet_only_entries, 1):
+                        eval_prompt += f"--- Candidate {i}: {entry.url} ---\n"
+                        if entry.title:
+                            eval_prompt += f"Title: {entry.title}\n"
+                        if entry.content:
+                            eval_prompt += f"Snippet: {entry.content}\n"
+                        eval_prompt += "\n"
+
                 eval_res = await Runner.run(evaluator_agent, eval_prompt, max_turns=1)
                 evaluation = eval_res.final_output_as(CoverageEvaluation)
-                
-                logger.info("[pipeline] coverage evaluation: fully_answered=%s, gaps=%r", 
-                            evaluation.fully_answered, evaluation.gaps)
-                
+
+                logger.info(
+                    "[pipeline] coverage evaluation: fully_answered=%s, gaps=%r, needs_new_searches=%s, promising_urls=%d",
+                    evaluation.fully_answered, evaluation.gaps,
+                    evaluation.needs_new_searches, len(evaluation.promising_unscraped_urls),
+                )
+
                 if evaluation.fully_answered:
                     logger.info("[pipeline] query fully answered, proceeding to synthesis")
                     break
                 else:
                     missing_info = evaluation.gaps
+                    needs_new_searches = evaluation.needs_new_searches
+
+                    # Validate evaluator's URL picks against actual snippet_only set (hallucination guard)
+                    snippet_norm_map = {
+                        tracker._normalize_url(e.url): e.url
+                        for e in snippet_only_entries
+                    }
+                    promising_urls_from_evaluator = [
+                        snippet_norm_map[tracker._normalize_url(u)]
+                        for u in evaluation.promising_unscraped_urls
+                        if tracker._normalize_url(u) in snippet_norm_map
+                    ][:depth["urls_followup"]]
+
+                    if not needs_new_searches and not promising_urls_from_evaluator:
+                        logger.info("[pipeline] evaluator said skip search but gave no valid backlog URLs; falling back to new searches")
+                        needs_new_searches = True
 
     # --- 3. SYNTHESIZE ---
     groups = tracker.build_result_groups()
