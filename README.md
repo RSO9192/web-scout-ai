@@ -77,6 +77,9 @@ The tool doesn't just rely on search. It supports multiple ways to gather conten
 
 ## How it works
 
+> An editable diagram of the full pipeline is available in [`pipeline-diagram.excalidraw`](pipeline-diagram.excalidraw).
+> Open it at [excalidraw.com](https://excalidraw.com) or with the [VS Code Excalidraw extension](https://marketplace.visualstudio.com/items?itemName=pomdtr.excalidraw-editor).
+
 ```
 Query
  │
