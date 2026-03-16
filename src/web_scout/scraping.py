@@ -134,31 +134,37 @@ async def _validate_url(url: str) -> Tuple[str, str]:
             try:
                 head = await client.head(url)
             except Exception as e:
-                return _SKIP, f"HEAD failed: {type(e).__name__}"
+                logger.debug("[validate] HEAD failed for %s: %s", url, e)
+                head = None
 
-            status = head.status_code
-            if status >= 400:
-                return _SKIP, f"HTTP {status}"
+            if head:
+                status = head.status_code
+                # 405 Method Not Allowed, 501 Not Implemented, 403 Forbidden might just mean HEAD is disabled
+                if status >= 400 and status not in (405, 501, 403):
+                    return _SKIP, f"HTTP {status}"
 
-            ct = head.headers.get("content-type", "").lower()
+                ct = head.headers.get("content-type", "").lower()
 
-            if any(ct.startswith(t) for t in _BINARY_CONTENT_TYPES):
-                return _SKIP, f"binary content-type: {ct}"
+                if any(ct.startswith(t) for t in _BINARY_CONTENT_TYPES):
+                    return _SKIP, f"binary content-type: {ct}"
 
-            if "application/json" in ct:
-                return _SKIP, "JSON API endpoint"
+                if "application/json" in ct:
+                    return _SKIP, "JSON API endpoint"
 
-            url_path = url.lower().split("?")[0]
-            if any(ct.startswith(t) for t in _DOC_CONTENT_TYPES) or any(
-                url_path.endswith(ext) for ext in _DOC_EXTENSIONS
-            ):
-                return _SCRAPE_DOC, ct
+                url_path = url.lower().split("?")[0]
+                if any(ct.startswith(t) for t in _DOC_CONTENT_TYPES) or any(
+                    url_path.endswith(ext) for ext in _DOC_EXTENSIONS
+                ):
+                    return _SCRAPE_DOC, ct
 
             # Step 2: fast GET for HTML content analysis
             try:
                 resp = await client.get(url)
             except Exception as e:
                 return _SKIP, f"GET failed: {type(e).__name__}"
+
+            if resp.status_code >= 400:
+                return _SKIP, f"HTTP {resp.status_code} on GET"
 
             final_ct = resp.headers.get("content-type", "").lower()
 
@@ -190,9 +196,14 @@ async def _validate_url(url: str) -> Tuple[str, str]:
             if text_chars < 300 and script_tags >= 3:
                 return _SCRAPE_JS, f"likely SPA ({size} chars HTML, {text_chars} text chars)"
 
-            # Soft 404
+            # Soft 404 check
+            title_match = re.search(r"<title[^>]*>(.*?)</title>", html, flags=re.IGNORECASE | re.DOTALL)
+            title_text = title_match.group(1).lower() if title_match else ""
+            if "404" in title_text and ("not found" in title_text or "error" in title_text):
+                return _SKIP, "soft 404 in title"
+
             lower = html.lower()
-            if any(
+            if text_chars < 1000 and any(
                 p in lower
                 for p in ["page not found", "404 error", "does not exist", "no longer available"]
             ):
@@ -306,7 +317,8 @@ def _append_internal_links(content: str, result, limit: int = 50) -> str:
     for match in re.finditer(r'\[([^\]]+)\]\((https?://[^\)]+)\)', content):
         text, href = match.groups()
         if text.strip() and href.strip() and text.lower() not in ("read more", "click here", "learn more"):
-            link_lines.append(f"- [{text.strip()}]({href.strip()})")
+            clean_text = text.strip().replace('\n', ' ')
+            link_lines.append(f"- [{clean_text}]({href.strip()})")
 
     for l in links:
         href = l.get("href", "") if isinstance(l, dict) else getattr(l, "href", "")

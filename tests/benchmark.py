@@ -21,7 +21,11 @@ from pathlib import Path
 from typing import Optional
 
 import litellm
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+
+# Load API keys from .env in the repo root
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 # ---------------------------------------------------------------------------
 # Config
@@ -63,16 +67,16 @@ OUTPUT_DIR = Path(__file__).parent / "benchmark_results"
 
 @dataclass
 class Evaluation:
-    source_discovery: int = 0          # 1-5: quality of URLs found
-    source_discovery_rationale: str = ""
-    extracted_content: int = 0         # 1-5: relevance and depth of per-source content
-    extracted_content_rationale: str = ""
-    synthesis_quality: int = 0         # 1-5: quality of the final synthesis
+    url_relevance: int = 0                       # 1-5: how appropriate the URLs are for the query
+    url_relevance_rationale: str = ""
+    tailored_comprehensiveness: int = 0          # 1-5: how well each URL's content answers the query specifically
+    tailored_comprehensiveness_rationale: str = ""
+    synthesis_quality: int = 0                   # 1-5: how well the synthesis answers the query in detail
     synthesis_quality_rationale: str = ""
 
     @property
     def overall(self) -> float:
-        return round((self.source_discovery + self.extracted_content + self.synthesis_quality) / 3, 1)
+        return round((self.url_relevance + self.tailored_comprehensiveness + self.synthesis_quality) / 3, 1)
 
 
 @dataclass
@@ -210,7 +214,10 @@ async def run_openai_websearch(query: str) -> ToolResult:
 # ---------------------------------------------------------------------------
 
 JUDGE_SYSTEM_PROMPT = """\
-You are a strict, impartial evaluator of web research tool outputs.
+You are a STRICT, impartial evaluator of web research tool outputs. You must be hard to impress.
+Your default assumption is that outputs are mediocre (score 2-3) unless you see clear evidence otherwise.
+Scores of 4 or 5 must be earned with specific, verifiable evidence. Never give 5/5 unless the output
+is genuinely exceptional with no meaningful gaps.
 
 You will receive:
 - The original research QUERY
@@ -219,39 +226,47 @@ You will receive:
 
 Score the output on three dimensions (1-5 each):
 
-1. **Source Discovery** — How good are the URLs found?
-   Are they authoritative, directly relevant to the query, and diverse?
-   1 = no sources or entirely irrelevant URLs
-   2 = few sources, mostly tangential or low-quality sites
-   3 = some relevant sources but limited diversity or authority
-   4 = good selection of relevant, authoritative URLs
-   5 = excellent discovery of highly authoritative, diverse, directly relevant URLs
+1. **URL Relevance** — Are the found URLs the right primary sources for this specific query?
+   Judge whether these URLs would plausibly contain the exact information requested (specific
+   data, reports, decisions) — not just whether the site is broadly related to the topic.
+   1 = URLs unrelated to the query topic
+   2 = URLs about the general topic but unlikely to contain the specific requested data
+   3 = Mix: some are genuinely the right source, others are tangential or secondary
+   4 = Most URLs are primary, authoritative sources directly relevant to the specific request
+   5 = Every URL is a primary, authoritative source for exactly the information requested
 
-2. **Extracted Content** — How relevant and detailed is the per-source extracted content?
-   Does each source's extracted content contain specific facts, data, and detail that
-   directly answers the query? Or is it shallow/generic?
-   1 = no extracted content or only generic snippets
-   2 = shallow extracts with minimal query-relevant data
-   3 = some relevant facts but missing key details
-   4 = good detail with concrete facts and data per source
-   5 = rich, comprehensive extracts with specific data directly answering the query
+2. **Tailored Comprehensiveness** — Does each URL's extracted content actually contain the
+   specific facts, numbers, decisions, or data the query asks for?
+   Look at what was actually EXTRACTED from each source. Generic topic coverage does NOT count.
+   The query demands specifics — if those specifics are absent from the extracts, score low.
+   1 = Extracts are empty, generic, or entirely off-topic for the query's specifics
+   2 = Extracts discuss the topic but lack the specific facts/numbers/data the query requires
+   3 = Some sources have relevant specifics but most extracts are surface-level
+   4 = Most sources yield concrete query-specific data (exact numbers, dates, decisions)
+   5 = All sources yield precise, query-specific data with no notable gaps
+   IMPORTANT: A longer extract is NOT better if it lacks the specific requested data.
 
-3. **Synthesis Quality** — How well does the final synthesis answer the query?
-   Is it accurate, well-structured, comprehensive, and properly sourced?
-   1 = misses the point or mostly irrelevant
-   2 = addresses the topic but with major gaps or errors
-   3 = covers the main point but notable gaps remain
-   4 = solid answer with minor gaps
-   5 = comprehensive, well-structured, fully answers every aspect of the query
+3. **Synthesis Quality** — Does the synthesis directly and accurately answer the query using
+   ONLY information from the provided extracted content?
+   CRITICAL RULE: Any claim in the synthesis that cannot be traced back to the provided
+   per-source extracted content must be treated as hallucinated/training-data fill and
+   penalized. A longer synthesis with fewer or shallower sources is a RED FLAG — it likely
+   contains fabricated or training-data content, not extracted facts.
+   1 = Misses the query or is mostly fabricated
+   2 = Partially answers but contains clear hallucinations or major gaps
+   3 = Mostly answers from sources but has notable unsourced claims or gaps
+   4 = Directly answers using extracted content, minor gaps or borderline claims only
+   5 = Fully answers every aspect of the query, every claim traceable to extracted content,
+       no padding or training-data fill, tight attribution throughout
 
 Respond ONLY with valid JSON (no markdown fences):
 {
-  "source_discovery": <1-5>,
-  "source_discovery_rationale": "<1-2 sentences>",
-  "extracted_content": <1-5>,
-  "extracted_content_rationale": "<1-2 sentences>",
+  "url_relevance": <1-5>,
+  "url_relevance_rationale": "<2-3 sentences citing specific evidence for your score>",
+  "tailored_comprehensiveness": <1-5>,
+  "tailored_comprehensiveness_rationale": "<2-3 sentences citing specific gaps or strengths>",
   "synthesis_quality": <1-5>,
-  "synthesis_quality_rationale": "<1-2 sentences>"
+  "synthesis_quality_rationale": "<2-3 sentences noting any unsourced claims or gaps>"
 }
 """
 
@@ -260,8 +275,8 @@ async def evaluate_result(result: ToolResult) -> Evaluation:
     """Use an LLM judge to score a single tool result."""
     if result.error:
         return Evaluation(
-            source_discovery=0, source_discovery_rationale="Tool errored.",
-            extracted_content=0, extracted_content_rationale="Tool errored.",
+            url_relevance=0, url_relevance_rationale="Tool errored.",
+            tailored_comprehensiveness=0, tailored_comprehensiveness_rationale="Tool errored.",
             synthesis_quality=0, synthesis_quality_rationale="Tool errored.",
         )
 
@@ -270,7 +285,7 @@ async def evaluate_result(result: ToolResult) -> Evaluation:
         title = s.get('title', 'Untitled')
         url = s['url']
         content = s.get('content', '')
-        source_parts.append(f"--- Source {i}: {title} ({url}) ---\n{content[:3000]}")
+        source_parts.append(f"--- Source {i}: {title} ({url}) ---\n{content}")
     source_block = "\n\n".join(source_parts) if source_parts else "(no sources)"
 
     user_prompt = (
@@ -288,19 +303,19 @@ async def evaluate_result(result: ToolResult) -> Evaluation:
             ],
             response_format={"type": "json_object"},
             temperature=0.0,
-            max_tokens=1000,
+            max_tokens=2000,
         )
         raw = response.choices[0].message.content.strip()
         # Strip markdown fences if present
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
         scores = json.loads(raw)
-        print(f"  [judge] {result.tool}: sources={scores['source_discovery']} content={scores['extracted_content']} synthesis={scores['synthesis_quality']}")
+        print(f"  [judge] {result.tool}: relevance={scores['url_relevance']} comprehensiveness={scores['tailored_comprehensiveness']} synthesis={scores['synthesis_quality']}")
         return Evaluation(
-            source_discovery=scores["source_discovery"],
-            source_discovery_rationale=scores.get("source_discovery_rationale", ""),
-            extracted_content=scores["extracted_content"],
-            extracted_content_rationale=scores.get("extracted_content_rationale", ""),
+            url_relevance=scores["url_relevance"],
+            url_relevance_rationale=scores.get("url_relevance_rationale", ""),
+            tailored_comprehensiveness=scores["tailored_comprehensiveness"],
+            tailored_comprehensiveness_rationale=scores.get("tailored_comprehensiveness_rationale", ""),
             synthesis_quality=scores["synthesis_quality"],
             synthesis_quality_rationale=scores.get("synthesis_quality_rationale", ""),
         )
@@ -325,7 +340,7 @@ def build_markdown_report(results: list[ToolResult], queries: list[str]) -> str:
 
     # Summary table
     lines.append("## Summary\n")
-    lines.append("| Query | Tool | Sources | Time (s) | Ans. Len | Src Discovery | Extracted Content | Synthesis | Overall |")
+    lines.append("| Query | Tool | Sources | Time (s) | Ans. Len | URL Relevance | Tailored Compreh. | Synthesis | Overall |")
     lines.append("|-------|------|---------|----------|----------|---------------|-------------------|-----------|---------|")
 
     by_query = {}
@@ -341,7 +356,7 @@ def build_markdown_report(results: list[ToolResult], queries: list[str]) -> str:
                 ev = r.evaluation or Evaluation()
                 lines.append(
                     f"| {q_short} | {r.tool} | {r.num_sources} | {r.elapsed_seconds} "
-                    f"| {len(r.synthesis)} | {ev.source_discovery}/5 | {ev.extracted_content}/5 "
+                    f"| {len(r.synthesis)} | {ev.url_relevance}/5 | {ev.tailored_comprehensiveness}/5 "
                     f"| {ev.synthesis_quality}/5 | {ev.overall}/5 |"
                 )
 
@@ -359,9 +374,9 @@ def build_markdown_report(results: list[ToolResult], queries: list[str]) -> str:
             ev = r.evaluation or Evaluation()
             lines.append(f"- **Time:** {r.elapsed_seconds}s")
             lines.append(f"- **Sources:** {r.num_sources}")
-            lines.append(f"- **Scores:** Source Discovery {ev.source_discovery}/5 | Extracted Content {ev.extracted_content}/5 | Synthesis {ev.synthesis_quality}/5 | **Overall {ev.overall}/5**")
-            lines.append(f"- **Source Discovery:** {ev.source_discovery_rationale}")
-            lines.append(f"- **Extracted Content:** {ev.extracted_content_rationale}")
+            lines.append(f"- **Scores:** URL Relevance {ev.url_relevance}/5 | Tailored Comprehensiveness {ev.tailored_comprehensiveness}/5 | Synthesis {ev.synthesis_quality}/5 | **Overall {ev.overall}/5**")
+            lines.append(f"- **URL Relevance:** {ev.url_relevance_rationale}")
+            lines.append(f"- **Tailored Comprehensiveness:** {ev.tailored_comprehensiveness_rationale}")
             lines.append(f"- **Synthesis Quality:** {ev.synthesis_quality_rationale}")
             if r.sources:
                 lines.append("- **Source list:**")
@@ -409,8 +424,8 @@ async def main():
         ws_result.evaluation = ws_eval
         oai_result.evaluation = oai_eval
 
-        print(f"  web-scout-ai:     sources={ws_eval.source_discovery}/5  content={ws_eval.extracted_content}/5  synthesis={ws_eval.synthesis_quality}/5  overall={ws_eval.overall}/5")
-        print(f"  openai-websearch: sources={oai_eval.source_discovery}/5  content={oai_eval.extracted_content}/5  synthesis={oai_eval.synthesis_quality}/5  overall={oai_eval.overall}/5")
+        print(f"  web-scout-ai:     relevance={ws_eval.url_relevance}/5  comprehensiveness={ws_eval.tailored_comprehensiveness}/5  synthesis={ws_eval.synthesis_quality}/5  overall={ws_eval.overall}/5")
+        print(f"  openai-websearch: relevance={oai_eval.url_relevance}/5  comprehensiveness={oai_eval.tailored_comprehensiveness}/5  synthesis={oai_eval.synthesis_quality}/5  overall={oai_eval.overall}/5")
         print()
 
         all_results.extend([ws_result, oai_result])

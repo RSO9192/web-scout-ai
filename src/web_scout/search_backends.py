@@ -106,7 +106,7 @@ class DuckDuckGoBackend(SearchBackend):
         fetch_count = max_results * 3 if include_domains else max_results
 
         def _sync_search() -> list:
-            return DDGS().text(effective_query, max_results=fetch_count)
+            return list(DDGS().text(effective_query, max_results=fetch_count))
 
         raw: list = []
         for attempt in range(self._MAX_RETRIES):

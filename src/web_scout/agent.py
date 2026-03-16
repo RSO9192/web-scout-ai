@@ -207,10 +207,12 @@ async def run_web_research(
                 research_depth)
 
     if direct_url:
+        from .models import SearchQuery
         # --- 1. DIRECT URL MODE ---
         logger.info("[pipeline] scraping direct URL: %s", direct_url)
         # Force a record of the query (since we didn't search) to keep logs clean
-        # but in direct mode we don't have search results
+        tracker._queries.append(SearchQuery(query=query, num_results_returned=1, domains_restricted=[]))
+        
         content = await scrape_tool(direct_url)
         
         # Deepen if relevant links are found
@@ -227,10 +229,11 @@ async def run_web_research(
                 direct_domain = direct_domain[4:]
                 
             same_domain_links = []
-            for l in links_to_deepen:
-                link_domain = urlparse(l).netloc.lower()
-                if link_domain == direct_domain or link_domain.endswith("." + direct_domain):
-                    same_domain_links.append(l)
+            if direct_domain:
+                for l in links_to_deepen:
+                    link_domain = urlparse(l).netloc.lower()
+                    if link_domain == direct_domain or link_domain.endswith("." + direct_domain):
+                        same_domain_links.append(l)
                     
             same_domain_links = same_domain_links[:3]
             if same_domain_links:
@@ -300,8 +303,13 @@ async def run_web_research(
                     if include_domains:
                         prompt += f"Note: We will search exclusively within these domains: {', '.join(include_domains)}\n"
 
-                gen_res = await Runner.run(query_gen_agent, prompt, max_turns=1)
-                search_queries = gen_res.final_output_as(SearchQueryGeneration).queries
+                try:
+                    gen_res = await Runner.run(query_gen_agent, prompt, max_turns=1)
+                    search_queries = gen_res.final_output_as(SearchQueryGeneration).queries
+                except Exception as e:
+                    logger.error("[pipeline] query generation failed: %s", e)
+                    search_queries = []
+                    
                 if not search_queries:
                     search_queries = [query]
 
@@ -399,8 +407,14 @@ async def run_web_research(
                             eval_prompt += f"Snippet: {entry.content}\n"
                         eval_prompt += "\n"
 
-                eval_res = await Runner.run(evaluator_agent, eval_prompt, max_turns=1)
-                evaluation = eval_res.final_output_as(CoverageEvaluation)
+                try:
+                    eval_res = await Runner.run(evaluator_agent, eval_prompt, max_turns=1)
+                    evaluation = eval_res.final_output_as(CoverageEvaluation)
+                except Exception as e:
+                    logger.error("[pipeline] coverage evaluation failed: %s", e)
+                    evaluation = CoverageEvaluation(
+                        fully_answered=False, gaps="Evaluator failed", promising_unscraped_urls=[], needs_new_searches=True
+                    )
 
                 logger.info(
                     "[pipeline] coverage evaluation: fully_answered=%s, gaps=%r, needs_new_searches=%s, promising_urls=%d",
@@ -470,8 +484,12 @@ async def run_web_research(
         model_settings=ModelSettings(extra_args={"reasoning_effort": "high"}),
     )
     
-    synth_res = await Runner.run(synth_agent, synth_prompt, max_turns=1)
-    output = synth_res.final_output_as(WebResearchResultRaw)
+    try:
+        synth_res = await Runner.run(synth_agent, synth_prompt, max_turns=1)
+        output = synth_res.final_output_as(WebResearchResultRaw)
+    except Exception as e:
+        logger.error("[pipeline] synthesis failed: %s", e)
+        output = WebResearchResultRaw(synthesis=f"Synthesis failed: {e}")
 
     logger.info(
         "[pipeline] done scraped=%d failed=%d snippet_only=%d queries=%d",
