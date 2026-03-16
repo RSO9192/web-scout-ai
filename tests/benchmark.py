@@ -55,7 +55,7 @@ WEB_SCOUT_BACKEND = "serper"
 OPENAI_MODEL = "gpt-5.4"
 
 # LLM judge model (evaluates both outputs)
-JUDGE_MODEL = "gemini/gemini-3-flash-preview"
+JUDGE_MODEL = "gpt-5.4"
 
 # Output directory
 OUTPUT_DIR = Path(__file__).parent / "benchmark_results"
@@ -248,16 +248,17 @@ Score the output on three dimensions (1-5 each):
 
 3. **Synthesis Quality** — Does the synthesis directly and accurately answer the query using
    ONLY information from the provided extracted content?
-   CRITICAL RULE: Any claim in the synthesis that cannot be traced back to the provided
-   per-source extracted content must be treated as hallucinated/training-data fill and
-   penalized. A longer synthesis with fewer or shallower sources is a RED FLAG — it likely
-   contains fabricated or training-data content, not extracted facts.
+   CRITICAL RULE: Before scoring, scan the synthesis for specific facts, numbers, and claims,
+   then check whether each one appears in the per-source extracted content above. Any specific
+   claim in the synthesis that is NOT present in the extracted content must be flagged as
+   training-data fill or hallucination and penalized. A synthesis that is significantly longer
+   than what the extracted content would support is a strong RED FLAG for training-data padding.
    1 = Misses the query or is mostly fabricated
-   2 = Partially answers but contains clear hallucinations or major gaps
-   3 = Mostly answers from sources but has notable unsourced claims or gaps
-   4 = Directly answers using extracted content, minor gaps or borderline claims only
-   5 = Fully answers every aspect of the query, every claim traceable to extracted content,
-       no padding or training-data fill, tight attribution throughout
+   2 = Partially answers but contains multiple unsourced specific claims or major gaps
+   3 = Mostly answers from sources but has notable unsourced facts or unnecessary padding
+   4 = Directly answers using extracted content, only minor gaps or borderline claims
+   5 = Fully answers every aspect of the query; every specific fact is traceable to the
+       extracted content; no padding or training-data fill; tight attribution throughout
 
 Respond ONLY with valid JSON (no markdown fences):
 {
@@ -309,7 +310,19 @@ async def evaluate_result(result: ToolResult) -> Evaluation:
         # Strip markdown fences if present
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        scores = json.loads(raw)
+        try:
+            scores = json.loads(raw)
+        except json.JSONDecodeError:
+            # Rationale strings sometimes contain unescaped characters that break JSON.
+            # Fall back to regex to extract the integer scores (they appear before the strings).
+            import re
+            scores = {}
+            for key in ("url_relevance", "tailored_comprehensiveness", "synthesis_quality"):
+                m = re.search(rf'"{key}"\s*:\s*([1-5])', raw)
+                if m:
+                    scores[key] = int(m.group(1))
+            if not scores:
+                raise
         print(f"  [judge] {result.tool}: relevance={scores['url_relevance']} comprehensiveness={scores['tailored_comprehensiveness']} synthesis={scores['synthesis_quality']}")
         return Evaluation(
             url_relevance=scores["url_relevance"],

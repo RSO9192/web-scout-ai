@@ -62,6 +62,10 @@ class WebResearchResult(BaseModel):
         default_factory=list,
         description="URLs where scraping was attempted but failed. content = error.",
     )
+    bot_detected: List[UrlEntry] = Field(
+        default_factory=list,
+        description="URLs blocked by bot-protection (Akamai, Cloudflare, etc.). content = error.",
+    )
     snippet_only: List[UrlEntry] = Field(
         default_factory=list,
         description="URLs from search results, not scraped. content = search snippet.",

@@ -14,18 +14,15 @@ Provides a single ``scrape_url`` function that:
 from __future__ import annotations
 
 import asyncio
-import contextlib
-import io
 import json
 import logging
 import os
 import re
-import sys
 from typing import Optional, Tuple
 from urllib.parse import urlparse
 
 import httpx
-from crawl4ai import AsyncWebCrawler, CacheMode, CrawlerRunConfig
+from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +157,9 @@ async def _validate_url(url: str) -> Tuple[str, str]:
             # Step 2: fast GET for HTML content analysis
             try:
                 resp = await client.get(url)
+            except httpx.TimeoutException:
+                # Server is slow but reachable — let the browser (longer timeout) try
+                return _SCRAPE_JS, "GET timed out — attempting browser scrape"
             except Exception as e:
                 return _SKIP, f"GET failed: {type(e).__name__}"
 
@@ -220,26 +220,6 @@ async def _validate_url(url: str) -> Tuple[str, str]:
 
 
 # ---------------------------------------------------------------------------
-# crawl4ai stdout suppression
-# ---------------------------------------------------------------------------
-
-@contextlib.asynccontextmanager
-async def _suppress_crawl4ai_stdout():
-    devnull_fd = os.open(os.devnull, os.O_WRONLY)
-    saved_fd = os.dup(1)
-    os.dup2(devnull_fd, 1)
-    os.close(devnull_fd)
-    saved_stdout = sys.stdout
-    sys.stdout = io.StringIO()
-    try:
-        yield
-    finally:
-        sys.stdout = saved_stdout
-        os.dup2(saved_fd, 1)
-        os.close(saved_fd)
-
-
-# ---------------------------------------------------------------------------
 # HTML scraping — fast HTTP path (no browser)
 # ---------------------------------------------------------------------------
 
@@ -261,14 +241,15 @@ async def _scrape_html_fast(url: str, query: str = "", vision_model: Optional[st
         exclude_all_images=True,
         remove_overlay_elements=True,
         markdown_generator=md_generator,
+        verbose=False,
     )
 
     try:
-        async with _suppress_crawl4ai_stdout():
-            async with AsyncWebCrawler(
-                crawler_strategy=AsyncHTTPCrawlerStrategy(), verbose=False
-            ) as crawler:
-                result = await crawler.arun(url=url, config=run_cfg)
+        async with AsyncWebCrawler(
+            crawler_strategy=AsyncHTTPCrawlerStrategy(),
+            config=BrowserConfig(verbose=False),
+        ) as crawler:
+            result = await crawler.arun(url=url, config=run_cfg)
     except Exception as e:
         logger.warning("[scrape-fast] HTTP strategy failed for %s: %s — falling back to browser", url, e)
         return await _scrape_html_browser(url, wait_for=None, query=query, vision_model=vision_model)
@@ -360,15 +341,26 @@ async def _scrape_html_browser(
         remove_overlay_elements=True,
         markdown_generator=md_generator,
         wait_until="networkidle",
+        page_timeout=45_000,
         delay_before_return_html=1.0,
+        verbose=False,
     )
     if wait_for:
         run_cfg.wait_for = wait_for
 
+    _browser_cfg = BrowserConfig(
+        verbose=False,
+        headless=True,
+        enable_stealth=True,
+        user_agent=(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+    )
     try:
-        async with _suppress_crawl4ai_stdout():
-            async with AsyncWebCrawler(verbose=False) as crawler:
-                result = await crawler.arun(url=url, config=run_cfg)
+        async with AsyncWebCrawler(config=_browser_cfg) as crawler:
+            result = await crawler.arun(url=url, config=run_cfg)
     except Exception as crawl_err:
         if "Download is starting" in str(crawl_err):
             logger.info("[scrape-browser] download intercepted, retrying as document → %s", url)
@@ -384,11 +376,12 @@ async def _scrape_html_browser(
             remove_overlay_elements=True,
             markdown_generator=md_generator,
             wait_until="networkidle",
+            page_timeout=45_000,
             delay_before_return_html=1.0,
+            verbose=False,
         )
-        async with _suppress_crawl4ai_stdout():
-            async with AsyncWebCrawler(verbose=False) as crawler:
-                result = await crawler.arun(url=url, config=run_cfg)
+        async with AsyncWebCrawler(config=_browser_cfg) as crawler:
+            result = await crawler.arun(url=url, config=run_cfg)
 
     if not result.success:
         return "", "", result.error_message or "Crawl failed"
@@ -436,8 +429,8 @@ async def _scrape_via_vision(url: str, query: str, vision_model: str) -> Tuple[s
             )
             page = await context.new_page()
             try:
-                await page.goto(url, timeout=25_000, wait_until="domcontentloaded")
-                await page.wait_for_timeout(1500)  # let JS settle
+                await page.goto(url, timeout=45_000, wait_until="networkidle")
+                await page.wait_for_timeout(8000)  # let JS / bot-challenge settle
             except Exception:
                 pass  # take screenshot regardless
             screenshot_bytes = await page.screenshot(type="png")  # viewport only (not full_page)
@@ -465,6 +458,8 @@ async def _scrape_via_vision(url: str, query: str, vision_model: str) -> Tuple[s
         content = (response.choices[0].message.content or "").strip()
         if not content:
             return "", "", "Vision extraction returned empty content"
+        if len(content) < 400:
+            return "", "", f"Vision extraction returned too little content ({len(content)} chars — page likely blocked)"
         return content, "", None
 
     except Exception as e:
@@ -590,6 +585,9 @@ async def scrape_url(
     if verdict == _SKIP:
         return "", "", f"Skipped: {detail}"
 
+    # Flag: plain-HTTP timed out + browser path used = Akamai/Cloudflare tarpit pattern
+    _likely_bot = verdict == _SCRAPE_JS and "GET timed out" in detail
+
     try:
         if verdict == _SCRAPE_DOC:
             logger.info("[scrape] document → %s", url)
@@ -605,9 +603,15 @@ async def scrape_url(
         return "", "", str(e)
 
     if error:
+        if _likely_bot:
+            logger.info("[scrape] bot_detected %s", url)
+            return "", title or "", f"bot_detected: {error}"
         return "", title or "", error
 
     if not content.strip():
+        if _likely_bot:
+            logger.info("[scrape] bot_detected %s", url)
+            return "", title or "", "bot_detected: Browser loaded page but returned empty content"
         return "", title or "", "Extraction returned empty content"
 
     if len(content) > MAX_CONTENT_CHARS:

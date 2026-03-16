@@ -48,7 +48,7 @@ def _snippet_quality(snippet: str) -> str:
 # ResearchTracker — tool-level URL/query bookkeeping
 # ---------------------------------------------------------------------------
 
-_ACTION_RANK = {"snippet_only": 1, "scrape_failed": 2, "scraped": 3}
+_ACTION_RANK = {"snippet_only": 1, "scrape_failed": 2, "bot_detected": 2, "scraped": 3}
 
 
 class ResearchTracker:
@@ -120,11 +120,20 @@ class ResearchTracker:
         entry = self._urls.setdefault(key, UrlEntry(url=url))
         entry.content = f"[scrape failed: {error}]"
 
+    def record_bot_detection(self, url: str, error: str):
+        from .models import UrlEntry
+
+        key = self._normalize_url(url)
+        self._upgrade_action(key, "bot_detected")
+        entry = self._urls.setdefault(key, UrlEntry(url=url))
+        entry.content = f"[bot detection: {error}]"
+
     def build_result_groups(self) -> dict:
-        """Group URLs by action: scraped, scrape_failed, snippet_only."""
+        """Group URLs by action: scraped, scrape_failed, bot_detected, snippet_only."""
         groups: Dict[str, list] = {
             "scraped": [],
             "scrape_failed": [],
+            "bot_detected": [],
             "snippet_only": [],
         }
         for key, entry in self._urls.items():
@@ -519,7 +528,10 @@ def create_scrape_and_extract_tool(
             if is_failure:
                 logger.info("[extract] no useful content from %s", url)
                 if tracker is not None:
-                    tracker.record_scrape_failure(url, content or "empty extraction")
+                    if "bot_detected:" in (content or ""):
+                        tracker.record_bot_detection(url, content)
+                    else:
+                        tracker.record_scrape_failure(url, content or "empty extraction")
                 msg = f"No relevant content found at {url}: {content}"
                 
                 if tracker is not None:

@@ -132,6 +132,43 @@ _DEPTH_PRESETS = {
 # Pipeline
 # ---------------------------------------------------------------------------
 
+import re as _re
+
+def _judge_synthesis(synthesis: str, valid_urls: set[str]) -> list[str]:
+    """Return a list of issue descriptions, empty if synthesis passes."""
+    issues = []
+
+    # 1. Detect bare URLs
+    # Strip out valid markdown links: [Title](URL)
+    text_without_md_links = _re.sub(r'\[[^\]]*\]\((https?://[^\s\)]+)\)', '', synthesis)
+    
+    # Find any remaining http(s):// strings, cleaning up trailing punctuation
+    bare_urls = [
+        m.group().rstrip('.,;)"\'')
+        for m in _re.finditer(r'https?://\S+', text_without_md_links)
+    ]
+    bare_urls = [u for u in bare_urls if u]
+
+    if bare_urls:
+        issues.append(
+            "Bare URLs found (must be wrapped as markdown links [Title](URL)): "
+            + ", ".join(bare_urls[:5])
+        )
+
+    # 2. Detect hallucinated URLs
+    md_link_urls = set(_re.findall(r'\[[^\]]*\]\((https?://[^\s\)]+)\)', synthesis))
+    
+    valid_norm = {ResearchTracker._normalize_url(u) for u in valid_urls}
+    
+    hallucinated = [u for u in md_link_urls if ResearchTracker._normalize_url(u) not in valid_norm]
+    if hallucinated:
+        issues.append(
+            "URLs cited that are NOT in the available sources (remove or replace): "
+            + ", ".join(hallucinated[:5])
+        )
+
+    return issues
+
 async def run_web_research(
     query: str,
     models: Dict[str, str],
@@ -448,6 +485,7 @@ async def run_web_research(
     groups = tracker.build_result_groups()
     scraped = groups["scraped"]
     scrape_failed = groups["scrape_failed"]
+    bot_detected = groups["bot_detected"]
     snippet_only = groups["snippet_only"]
 
     import json as _json
@@ -484,6 +522,14 @@ async def run_web_research(
         model_settings=ModelSettings(extra_args={"reasoning_effort": "high"}),
     )
     
+    valid_urls = {entry.url for entry in scraped + snippet_only}
+
+    if bot_detected:
+        logger.info(
+            "[pipeline] %d URL(s) blocked by bot-protection: %s",
+            len(bot_detected), [e.url for e in bot_detected],
+        )
+
     try:
         synth_res = await Runner.run(synth_agent, synth_prompt, max_turns=1)
         output = synth_res.final_output_as(WebResearchResultRaw)
@@ -491,15 +537,86 @@ async def run_web_research(
         logger.error("[pipeline] synthesis failed: %s", e)
         output = WebResearchResultRaw(synthesis=f"Synthesis failed: {e}")
 
+    # --- Judge: check synthesis and ask synthesiser to fix if needed ---
+    logger.info("[pipeline] running deterministic synthesis judge")
+    issues = _judge_synthesis(output.synthesis, valid_urls)
+    if issues and output.synthesis and not output.synthesis.startswith("Synthesis failed"):
+        for issue in issues:
+            logger.warning("[pipeline] judge issue: %s", issue)
+        logger.warning("[pipeline] retrying synthesis due to %d issue(s)", len(issues))
+        
+        feedback = (
+            "Your synthesis has the following citation issues that must be fixed:\n"
+            + "\n".join(f"- {issue}" for issue in issues)
+            + "\n\nPlease rewrite the synthesis fixing all issues. "
+            "Keep all factual content unchanged."
+        )
+        retry_prompt = synth_prompt + f"\n\nPrevious attempt:\n{output.synthesis}\n\n{feedback}"
+        try:
+            synth_res2 = await Runner.run(synth_agent, retry_prompt, max_turns=1)
+            output = synth_res2.final_output_as(WebResearchResultRaw)
+        except Exception as e:
+            logger.error("[pipeline] synthesis retry failed: %s", e)
+            # keep original output
+    elif not issues and output.synthesis and not output.synthesis.startswith("Synthesis failed"):
+        logger.info("[pipeline] synthesis passed judge with 0 issues")
+
     logger.info(
-        "[pipeline] done scraped=%d failed=%d snippet_only=%d queries=%d",
-        len(scraped), len(scrape_failed), len(snippet_only), len(tracker.queries)
+        "[pipeline] done scraped=%d failed=%d bot_detected=%d snippet_only=%d queries=%d",
+        len(scraped), len(scrape_failed), len(bot_detected), len(snippet_only), len(tracker.queries)
     )
-    
+
     return WebResearchResult(
         scraped=scraped,
         scrape_failed=scrape_failed,
+        bot_detected=bot_detected,
         snippet_only=snippet_only,
         queries=tracker.queries,
         synthesis=output.synthesis,
     )
+
+
+# ---------------------------------------------------------------------------
+# Quick manual test — run with: python -m web_scout.agent
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    import logging
+    from dotenv import load_dotenv
+    from pathlib import Path
+
+    load_dotenv(Path(__file__).parent.parent.parent / ".env")
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+
+    QUERY = "What are the main threats to coral reefs in Australia?"
+    MODELS = DEFAULT_WEB_RESEARCH_MODELS
+
+    async def _main():
+        result = await run_web_research(
+            query=QUERY,
+            models=MODELS,
+            search_backend="serper",  # free, no API key needed
+        )
+
+        print("\n" + "=" * 60)
+        print("SYNTHESIS")
+        print("=" * 60)
+        print(result.synthesis)
+
+        print("\n" + "=" * 60)
+        print(f"SOURCES ({len(result.scraped)} scraped)")
+        print("=" * 60)
+        for s in result.scraped:
+            print(f"  - {s.title or s.url}")
+            print(f"    {s.url}")
+
+        if result.scrape_failed:
+            print(f"\nFailed to scrape {len(result.scrape_failed)} URL(s).")
+
+        print("\n" + "=" * 60)
+        print(f"QUERIES ({len(result.queries)} executed)")
+        print("=" * 60)
+        for q in result.queries:
+            print(f"  - {q.query}")
+
+    asyncio.run(_main())
