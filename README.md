@@ -14,10 +14,6 @@
   One async call that finds the right URLs, reads real pages and documents, and returns a grounded synthesis with sources.
 </p>
 
-<p align="center">
-  <img src="assets/web-scout-social-card.svg" alt="web-scout-ai social preview" width="860" />
-</p>
-
 ## TL;DR
 
 `web-scout-ai` is for teams that want better-than-snippets web research without the latency and cost profile of full deep-research stacks.
