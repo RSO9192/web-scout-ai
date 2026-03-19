@@ -18,7 +18,7 @@ import asyncio
 import logging
 import re
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 
 from agents import Agent, ModelSettings, Runner, function_tool
 from pydantic import BaseModel, Field
@@ -50,6 +50,14 @@ def _snippet_quality(snippet: str) -> str:
 
 _ACTION_RANK = {"snippet_only": 1, "scrape_failed": 2, "bot_detected": 2, "scraped": 3}
 
+_TRACKING_PARAMS: frozenset = frozenset({
+    "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+    "utm_id", "utm_source_platform",
+    "fbclid", "gclid", "msclkid",
+    "mc_cid", "mc_eid",
+    "_ga", "ref",
+})
+
 
 class ResearchTracker:
     """Accumulates URL and query records from tool calls."""
@@ -69,8 +77,16 @@ class ResearchTracker:
     def _normalize_url(url: str) -> str:
         p = urlparse(url)
         scheme = "https" if p.scheme in ("http", "https") else p.scheme
+        if p.query:
+            filtered = [
+                (k, v) for k, v in parse_qsl(p.query, keep_blank_values=True)
+                if k.lower() not in _TRACKING_PARAMS
+            ]
+            query = urlencode(filtered)
+        else:
+            query = ""
         return urlunparse(
-            (scheme, p.netloc.lower(), p.path.rstrip("/"), p.params, p.query, "")
+            (scheme, p.netloc.lower(), p.path.rstrip("/"), p.params, query, "")
         )
 
     def _upgrade_action(self, key: str, new_action: str):
