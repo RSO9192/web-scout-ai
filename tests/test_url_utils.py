@@ -68,3 +68,31 @@ def test_normalize_url_http_to_https():
 
 def test_normalize_url_trailing_slash_stripped():
     assert ResearchTracker._normalize_url("https://example.com/page/") == "https://example.com/page"
+
+
+from web_scout.scraping import _is_blocked_domain
+
+
+def test_is_blocked_domain_reddit_blocked_by_default():
+    assert _is_blocked_domain("https://reddit.com/r/MachineLearning") is True
+
+
+def test_is_blocked_domain_reddit_allowed_when_in_allowed_set():
+    allowed = frozenset({"reddit.com"})
+    assert _is_blocked_domain("https://reddit.com/r/MachineLearning", allowed_domains=allowed) is False
+
+
+def test_is_blocked_domain_unrelated_domain_not_blocked():
+    assert _is_blocked_domain("https://wocat.net/en/database/") is False
+
+
+def test_is_blocked_domain_subdomain_blocked():
+    assert _is_blocked_domain("https://m.youtube.com/watch?v=abc") is True
+
+
+def test_is_blocked_domain_www_reddit_blocked_by_default():
+    assert _is_blocked_domain("https://www.reddit.com/r/science") is True
+
+
+def test_is_blocked_domain_allowed_set_empty_uses_full_blocklist():
+    assert _is_blocked_domain("https://twitter.com/user", allowed_domains=frozenset()) is True

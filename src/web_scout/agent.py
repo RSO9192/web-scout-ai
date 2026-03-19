@@ -233,6 +233,7 @@ async def run_web_research(
     search_backend: str = "serper",
     domain_expertise: Optional[str] = None,
     research_depth: str = "standard",
+    allowed_domains: Optional[List[str]] = None,
 ) -> WebResearchResult:
     """Run deterministic web research pipeline.
 
@@ -265,6 +266,10 @@ async def run_web_research(
         research_depth: ``"standard"`` (default) or ``"deep"``. Deep mode
             generates more search queries, scrapes more URLs per iteration,
             and runs an extra iteration for better coverage on complex queries.
+        allowed_domains: Domains to remove from the default block list (e.g.
+            ``["reddit.com"]`` to allow Reddit pages). The block list covers
+            social media and video platforms by default. Pass ``None`` (default)
+            to use the full block list unchanged.
 
     Returns:
         ``WebResearchResult`` with URLs grouped by action (scraped,
@@ -282,6 +287,10 @@ async def run_web_research(
     # "https://wocat.net/en/" or "www.wocat.net" and get correct results.
     if include_domains:
         include_domains = [_normalize_domain(d) for d in include_domains]
+
+    # Convert allowed_domains to frozenset, applying same normalization as include_domains
+    # so callers can pass "www.reddit.com" or "https://reddit.com" and get correct behaviour.
+    _allowed = frozenset(_normalize_domain(d) for d in allowed_domains) if allowed_domains else None
 
     # Create shared tracker
     tracker = ResearchTracker()
@@ -301,6 +310,7 @@ async def run_web_research(
         tracker=tracker,
         query=query,
         vision_model=vision_model,
+        allowed_domains=_allowed,
     )
 
     logger.info("[pipeline] start  query=%r  backend=%s mode=%s depth=%s",

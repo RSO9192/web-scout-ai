@@ -81,11 +81,14 @@ _PDF_PAGE_RANGE = (1, 50)  # only process first 50 pages
 # URL validation
 # ---------------------------------------------------------------------------
 
-def _is_blocked_domain(url: str) -> bool:
+def _is_blocked_domain(url: str, allowed_domains: Optional[frozenset] = None) -> bool:
     netloc = urlparse(url).netloc.lower()
     if netloc.startswith("www."):
         netloc = netloc[4:]
-    return any(netloc == d or netloc.endswith("." + d) for d in _BLOCKED_DOMAINS)
+    effective_blocked = _BLOCKED_DOMAINS
+    if allowed_domains:
+        effective_blocked = _BLOCKED_DOMAINS - allowed_domains
+    return any(netloc == d or netloc.endswith("." + d) for d in effective_blocked)
 
 
 def _is_json(text: str) -> bool:
@@ -114,13 +117,13 @@ _SCRAPE_JS = "SCRAPE_JS"       # SPA/JS page — use full browser
 _SCRAPE_DOC = "SCRAPE_DOC"     # document — use docling
 
 
-async def _validate_url(url: str) -> Tuple[str, str]:
+async def _validate_url(url: str, allowed_domains: Optional[frozenset] = None) -> Tuple[str, str]:
     """Validate a URL before scraping.
 
     Returns ``(verdict, detail)`` where verdict is one of:
     ``SKIP``, ``SCRAPE_HTML``, ``SCRAPE_JS``, ``SCRAPE_DOC``.
     """
-    if _is_blocked_domain(url):
+    if _is_blocked_domain(url, allowed_domains=allowed_domains):
         return _SKIP, "blocked domain"
 
     try:
@@ -561,6 +564,7 @@ async def scrape_url(
     wait_for: Optional[str] = None,
     query: str = "",
     vision_model: Optional[str] = None,
+    allowed_domains: Optional[frozenset] = None,
 ) -> Tuple[str, str, Optional[str]]:
     """Scrape a URL and return clean markdown content.
 
@@ -574,12 +578,14 @@ async def scrape_url(
         url: The URL to scrape.
         wait_for: Optional CSS selector for JS-rendered pages.
         query: Optional search query for BM25 content filtering.
+        allowed_domains: Frozenset of domain strings (e.g. ``frozenset({"reddit.com"})``)
+            to remove from the default blocked-domain list. ``None`` uses the full block list.
 
     Returns:
         Tuple of ``(markdown_content, page_title, error_or_none)``.
     """
     # Validate first
-    verdict, detail = await _validate_url(url)
+    verdict, detail = await _validate_url(url, allowed_domains=allowed_domains)
     logger.info("[scrape] validate %s → %s (%s)", url, verdict, detail)
 
     if verdict == _SKIP:

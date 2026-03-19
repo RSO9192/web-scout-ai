@@ -241,7 +241,7 @@ If scraping fails, set ``relevant_content`` to the error message verbatim.
 """
 
 
-def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None) -> Agent:
+def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None) -> Agent:
     """Build a content extractor sub-agent with a URL-locked scraping tool.
 
     The ``raw_scrape`` tool is a closure that captures ``url`` and ``wait_for``
@@ -259,7 +259,7 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         Validates the URL first (skips dead links, empty pages, binary files).
         Works with static HTML, JS-rendered pages, PDFs, DOCX, PPTX, XLSX.
         """
-        content, title, error = await _scrape_url(url, wait_for, query=query, vision_model=vision_model)
+        content, title, error = await _scrape_url(url, wait_for, query=query, vision_model=vision_model, allowed_domains=allowed_domains)
         if error:
             return f"[Scrape failed: {error}]"
         if not content.strip():
@@ -451,6 +451,7 @@ def create_scrape_and_extract_tool(
     query: str = "",
     max_concurrent: int = 3,
     vision_model: Optional[str] = None,
+    allowed_domains: Optional[frozenset] = None,
 ):
     """Create a scrape_and_extract function.
 
@@ -512,7 +513,7 @@ def create_scrape_and_extract_tool(
             logger.info("[extract] → %s", url)
     
             # Build a fresh extractor agent per call with url locked in the closure
-            extractor_agent = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model)
+            extractor_agent = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains)
     
             input_text = (
                 f"Research query: {query}\n"
