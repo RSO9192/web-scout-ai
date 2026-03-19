@@ -8,7 +8,8 @@ Three input modes — all share a single linear pipeline:
 
 1. **Query-only** — open web search -> triage -> parallel scrape -> synthesis.
 2. **Domain + query** — domain-restricted search -> parallel scrape -> optional deep scrape -> synthesis.
-3. **Direct URL** — skip search, extract a given URL directly -> optional deep scrape -> synthesis.
+3. **Direct URL** — skip search, extract a given URL directly -> hub detection
+   -> if list/database page: follow up to N item links + one pagination hop -> synthesis.
 
 Two research depth presets control how aggressively the pipeline searches:
 
@@ -224,7 +225,11 @@ async def run_web_research(
             (scanned PDFs, empty JS pages). Omit to keep the fallback
             disabled.
         include_domains: Restrict search to these domains.
-        direct_url: Scrape this URL directly (disables web search).
+        direct_url: Scrape this URL directly (disables web search). If the
+            page is detected as a database/list page (hub), the pipeline
+            automatically follows up to ``hub_deepening_cap`` item links
+            (10 for ``"standard"``, 15 for ``"deep"``) and performs one
+            hop of pagination when a "next page" link is present.
         search_backend: ``"serper"`` (default) or ``"duckduckgo"``.
         domain_expertise: Optional area of expertise (e.g. "biodiversity").
         research_depth: ``"standard"`` (default) or ``"deep"``. Deep mode

@@ -202,6 +202,15 @@ result = await run_web_research(
     models=models,
     direct_url="https://example.org/biodiversity-report.pdf",
 )
+
+# 3b. Direct URL to a database/list page — hub detection fires automatically.
+# The pipeline scrapes the list, follows up to 10 item links (standard depth)
+# or 15 (deep), and optionally follows one "next page" link for more candidates.
+result = await run_web_research(
+    query="sustainable land management technologies in Kenya",
+    models=models,
+    direct_url="https://wocat.net/en/database/list/?type=technology&country=ke",
+)
 ```
 
 ### Search backends
