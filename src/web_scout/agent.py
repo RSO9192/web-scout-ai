@@ -378,8 +378,11 @@ async def run_web_research(
                 if urls_to_scrape:
                     tasks = [scrape_tool(url) for url in urls_to_scrape]
                     extracted_contents = await asyncio.gather(*tasks)
+                    iter_results = list(zip(urls_to_scrape, extracted_contents))
                 else:
                     logger.info("[pipeline] no promising backlog URLs to scrape")
+                    extracted_contents = []
+                    iter_results = []
             else:
                 # 2b. Normal path: generate queries, search, triage, scrape
                 if iteration == 0:
@@ -447,21 +450,64 @@ async def run_web_research(
                 if urls_to_scrape:
                     tasks = [scrape_tool(url) for url in urls_to_scrape]
                     extracted_contents = await asyncio.gather(*tasks)
+                    iter_results = list(zip(urls_to_scrape, extracted_contents))
                 else:
                     logger.info("[pipeline] no new URLs to scrape")
+                    iter_results = []
 
             # 2f. Deepen (Domain Restricted Mode)
-            # If domain restricted, we might have hit index pages.
-            # If we didn't get enough good content, let's deepen on internal links
             if include_domains:
                 count_scraped = len(tracker.build_result_groups()["scraped"])
-                if count_scraped < 2 and extracted_contents:
+
+                # Detect hub pages in this iteration's results
+                hub_results = [
+                    (url, c) for url, c in iter_results
+                    if "**Page type: list**" in c
+                ]
+
+                if hub_results:
+                    # Hub deepening: collect LLM-ranked item links from all hub pages
+                    candidates = []
+                    for hub_url, hub_content in hub_results:
+                        if "**Relevant Links found on page:**" in hub_content:
+                            for line in hub_content.split("\n"):
+                                if line.startswith("- http") or (line.startswith("- [") and "http" in line):
+                                    l = line.split("](", 1)[-1].split(")", 1)[0] if "](" in line else line.replace("- ", "").strip()
+                                    if l:
+                                        parsed_netloc = urlparse(l).netloc.lower()
+                                        if any(parsed_netloc == d.lower() or parsed_netloc.endswith("." + d.lower()) for d in include_domains):
+                                            if tracker._normalize_url(l) not in tracker._actions:
+                                                if l not in candidates:
+                                                    candidates.append(l)
+
+                        # One-hop pagination per hub
+                        next_page = _find_next_page_url(hub_content, hub_url)
+                        if next_page and tracker._normalize_url(next_page) not in tracker._actions:
+                            logger.info("[pipeline] hub pagination (domain mode): %s", next_page)
+                            next_content = await scrape_tool(next_page)
+                            for line in next_content.split("\n"):
+                                if line.startswith("- http") or (line.startswith("- [") and "http" in line):
+                                    l = line.split("](", 1)[-1].split(")", 1)[0] if "](" in line else line.replace("- ", "").strip()
+                                    if l:
+                                        parsed_netloc = urlparse(l).netloc.lower()
+                                        if any(parsed_netloc == d.lower() or parsed_netloc.endswith("." + d.lower()) for d in include_domains):
+                                            if tracker._normalize_url(l) not in tracker._actions:
+                                                if l not in candidates:
+                                                    candidates.append(l)
+
+                    hub_cap = depth["hub_deepening_cap"]
+                    if candidates:
+                        logger.info("[pipeline] hub deepening (domain mode) on %d candidates (cap=%d)", len(candidates), hub_cap)
+                        deep_tasks = [scrape_tool(link) for link in candidates[:hub_cap]]
+                        await asyncio.gather(*deep_tasks)
+
+                elif count_scraped < 2 and extracted_contents:
+                    # Existing fallback: no hub detected, thin coverage — follow up to 3 links
                     links_to_deepen = []
                     for content in extracted_contents:
                         if "**Relevant Links found on page:**" in content:
                             for line in content.split("\n"):
                                 if line.startswith("- http") or (line.startswith("- [") and "http" in line):
-                                    # Use string manipulation to get clean URL
                                     l = line.split("](", 1)[-1].split(")", 1)[0] if "](" in line else line.replace("- ", "").strip()
                                     parsed_netloc = urlparse(l).netloc.lower()
                                     if any(parsed_netloc == d.lower() or parsed_netloc.endswith("." + d.lower()) for d in include_domains):
