@@ -287,7 +287,7 @@ async def run_web_research(
                 for line in content.split("\n"):
                     if line.startswith("- http") or (line.startswith("- [") and "http" in line):
                         l = line.split("](", 1)[-1].split(")", 1)[0] if "](" in line else line.replace("- ", "").strip()
-                        if l:
+                        if l and l not in candidates:
                             candidates.append(l)
 
             next_page = _find_next_page_url(content, direct_url)
