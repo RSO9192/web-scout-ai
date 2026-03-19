@@ -1,111 +1,50 @@
-# web-scout-ai
+<p align="center">
+  <img src="assets/web-scout-logo.svg" alt="web-scout-ai logo" width="900" />
+</p>
 
-**The missing middle ground between web search APIs and deep research agents.**
+<p align="center">
+  <a href="https://pypi.org/project/web-scout-ai/"><img src="https://img.shields.io/pypi/v/web-scout-ai?style=for-the-badge&logo=pypi&logoColor=white" alt="PyPI Version"></a>
+  <a href="https://pypi.org/project/web-scout-ai/"><img src="https://img.shields.io/pypi/dm/web-scout-ai?style=for-the-badge&logo=pypi&logoColor=white&label=PyPI%20downloads%2Fmonth" alt="PyPI Downloads per Month"></a>
+  <a href="https://pypi.org/project/web-scout-ai/"><img src="https://img.shields.io/pypi/pyversions/web-scout-ai?style=for-the-badge&logo=python&logoColor=white" alt="Python Versions"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0f172a?style=for-the-badge" alt="License"></a>
+</p>
 
-Most AI tools give you one of two options: fast search APIs that return shallow snippets, or heavyweight research agents that take minutes and cost dollars per query. `web-scout-ai` fills the gap by giving you a streamlined pipeline that **automatically gets the right URLs** and **automatically handles complex file types**. It searches, scrapes, reads documents, evaluates coverage, and synthesizes findings into a sourced answer, all in a single async call that typically completes in 15-40 seconds.
+<p align="center">
+  <strong>The missing middle ground between basic search APIs and heavyweight deep-research agents.</strong><br />
+  Ask one question, get real pages/documents, and receive a grounded synthesis with sources.
+</p>
 
-```python
-from web_scout import run_web_research
+## Why web-scout-ai
 
-result = await run_web_research(
-    query="What regulations protect mangrove ecosystems in Southeast Asia?",
-    models={
-        "web_researcher": "gemini/gemini-3.0-flash-preview",
-        "content_extractor": "gemini/gemini-3.0-flash-preview",
-    },
-)
-print(result.synthesis)   # Coherent narrative with citations
-print(result.scraped)     # Full extracted content from each source
-print(result.queries)     # Every search query that was executed
-```
+Most tools force a tradeoff:
+- Fast search APIs return shallow snippets.
+- Deep research agents can be slow, expensive, and hard to control.
 
-## Core Strengths
+`web-scout-ai` gives you a deterministic async pipeline that usually finishes in 15-40 seconds:
+- Generate targeted search queries
+- Search and rank URLs
+- Scrape web pages and real documents
+- Evaluate coverage and fill gaps
+- Return a synthesized answer with source content
 
-### 1. Automatically Gets the Right URLs
-You don't need to manually feed it links. You pass a high-level question, and the tool:
-- Uses an LLM to generate targeted search engine queries.
-- Executes searches via Serper or DuckDuckGo.
-- Interleaves and ranks the resulting URLs.
-- Automatically evaluates if the scraped content fully answers the query. If there are gaps, it first checks the unscraped backlog of search results already collected — scraping promising ones before running new searches. Only if the backlog is unpromising does it generate new targeted queries.
+## What Makes It Different
 
-### 2. Automatically Handles Complex File Types
-Most web scrapers break on PDFs or single-page applications. `web-scout-ai` seamlessly handles:
-- **Static HTML** (fast HTTP fetches)
-- **JS-rendered SPAs** (headless Playwright browser)
-- **Real Documents** (PDFs, DOCX, PPTX, XLSX via `docling`)
-- **Scanned PDFs** (vision LLM fallback to extract text from screenshots)
+### 1) It reads the source pages, not only snippets
+Instead of returning 200-character search previews, it extracts substantial query-relevant content from each source.
 
-### 3. Plug-and-Play Tool for Any Agent
-Designed from the ground up to be called by other AI agents, not just as a standalone script.
-- **One Function Call:** A single `run_web_research` async function.
-- **Structured Output:** Returns a predictable Pydantic model (`WebResearchResult`).
-- **Framework Agnostic:** Works flawlessly with OpenAI Agents SDK, LangChain, LlamaIndex, or your custom agent loop.
-- **Model Agnostic:** Uses LiteLLM under the hood, so it works with OpenAI, Anthropic, Gemini, Groq, Mistral, or local models.
+### 2) It handles real research documents
+Built-in support for:
+- Static HTML
+- JS-rendered SPAs via Playwright
+- PDFs, DOCX, PPTX, XLSX via `docling`
+- Scanned PDFs via a vision-model fallback
 
-### 4. Multiple Content Extraction Methods
-The tool doesn't just rely on search. It supports multiple ways to gather content:
-- **Open Web Search:** Queries search engines and scrapes the best results.
-- **Domain-Restricted Search:** Limits searches to specific websites (e.g., only `iucn.org` or `un.org`).
-- **Direct URL Extraction:** Skip the search step entirely and just extract and synthesize content from a specific webpage or document link.
+### 3) It closes the loop automatically
+Search -> Scrape -> Evaluate -> Iterate -> Synthesize.
+If coverage is incomplete, it first checks the existing backlog of collected results before issuing new searches.
 
-## Why web-scout-ai?
-
-### The problem with existing tools
-
-| Tool | What you get | What's missing |
-| --- | --- | --- |
-| **Tavily / Exa** | Search snippets via proprietary API | No actual page content. No synthesis. Vendor lock-in. Paid per query. |
-| **Jina Reader** | Single URL to markdown | No search. No multi-source reasoning. No synthesis. |
-| **Firecrawl** | Single URL to markdown (paid SaaS) | No search. No synthesis. Requires hosting or SaaS subscription. |
-| **ScrapeGraphAI** | LLM-driven single-page extraction | No web search. No cross-source synthesis. Single page at a time. |
-| **GPT-Researcher** | Deep multi-agent reports (2000+ words) | 1-3+ minutes per query. $0.05-0.10+ per report. Heavy LangChain dependency. Overkill for most questions. |
-| **LangChain/LlamaIndex tools** | Building blocks you wire together | No integrated pipeline. You build and maintain the glue code. |
-
-### What web-scout-ai does differently
-
-**It actually reads the pages.** Search APIs return 200-character snippets. web-scout-ai scrapes each page, extracts the relevant content with a dedicated LLM sub-agent, and returns ~5,000 characters of focused, query-relevant content per source — not just a snippet.
-
-**It handles real documents.** PDFs, DOCX, PPTX, XLSX — not just HTML. Government reports, academic papers, UN documents — the kind of sources that matter for serious research but that most tools silently skip.
-
-**It closes the loop.** Search → Scrape → Evaluate → Iterate → Synthesize. If the first round of sources doesn't fully answer the query, the evaluator first inspects the unscraped backlog of search results already collected. If any look promising for the missing information, they are scraped next — no new search round needed. Only if the backlog is unhelpful does it generate new targeted queries. Most tools stop after search.
-
-**It's deterministic.** No unbounded agentic loops. No unpredictable costs. The pipeline has a fixed structure with circuit breakers at every stage. You know what it will do and what it will cost.
-
-**It works with any LLM.** OpenAI, Anthropic, Google Gemini, Mistral, Groq, DeepSeek, Together, local models via Ollama — anything [LiteLLM](https://docs.litellm.ai/docs/providers) supports. No vendor lock-in. Mix and match providers across pipeline steps.
-
-**It's a single function call.** Designed as a plug-and-play tool for AI agents, not a framework you need to learn. One function, one result type, zero configuration beyond model names.
-
-## How it works
-
-> An editable diagram of the full pipeline is available in [`pipeline-diagram.excalidraw`](pipeline-diagram.excalidraw).
-> Open it at [excalidraw.com](https://excalidraw.com) or with the [VS Code Excalidraw extension](https://marketplace.visualstudio.com/items?itemName=pomdtr.excalidraw-editor).
-
-```
-Query
- │
- ├─ Generate search queries (LLM)
- ├─ Search the web (Serper or DuckDuckGo)
- ├─ Select best URLs (interleaved from multiple queries)
- ├─ Scrape & extract in parallel
- │   ├─ Static HTML → fast HTTP fetch (no browser)
- │   ├─ JS/SPA pages → Playwright browser
- │   ├─ PDFs → docling (text layer, no OCR)
- │   ├─ DOCX/PPTX/XLSX → docling
- │   └─ Scanned PDFs → vision LLM fallback (screenshot → extract)
- ├─ Evaluate coverage (LLM) — are there gaps?
- │   ├─ If gaps + backlog looks promising → scrape backlog URLs (skip new search)
- │   └─ If gaps + backlog is unpromising → generate targeted queries → search & scrape again
- ├─ Synthesize findings (LLM)
- │
- └─ WebResearchResult
-      ├─ synthesis: str (coherent answer)
-      ├─ scraped: list[UrlEntry] (sources with full extracted content)
-      ├─ scrape_failed: list[UrlEntry]
-      ├─ snippet_only: list[UrlEntry]
-      └─ queries: list[SearchQuery]
-```
-
-Every step has timeouts, circuit breakers, and deduplication. URL validation (HEAD + GET) skips dead links, paywalls, binary files, and blocked domains before any expensive processing starts.
+### 4) It fits agent workflows
+One async function (`run_web_research`), typed output (`WebResearchResult`), and provider flexibility through LiteLLM.
 
 ## Installation
 
@@ -114,9 +53,9 @@ pip install web-scout-ai
 web-scout-setup
 ```
 
-The first command installs all dependencies including document extraction (PDF, DOCX, PPTX, XLSX via docling) and both search backends (Serper and DuckDuckGo). The second command installs the Chromium browser needed for scraping JS-rendered pages.
+`web-scout-setup` installs Chromium for JS-rendered pages.
 
-## Quick start
+## Quick Start
 
 ```python
 import asyncio
@@ -134,7 +73,7 @@ async def main():
     print(result.synthesis)
 
     for source in result.scraped:
-        print(f"  - {source.title}: {source.url}")
+        print(f"- {source.title}: {source.url}")
 
 asyncio.run(main())
 ```
@@ -143,97 +82,84 @@ asyncio.run(main())
 
 ### Models
 
-Pass a `models` dict to configure which LLM handles each pipeline step. All model strings follow the [LiteLLM naming convention](https://docs.litellm.ai/docs/providers):
+All model ids follow [LiteLLM provider naming](https://docs.litellm.ai/docs/providers):
 
 ```python
 models = {
     # Required
-    "web_researcher": "openai/gpt-4o",              # query generation, coverage evaluation, synthesis
-    "content_extractor": "gemini/gemini-2.0-flash",  # page content extraction sub-agent
+    "web_researcher": "openai/gpt-4o",
+    "content_extractor": "gemini/gemini-2.0-flash",
 
-    # Optional overrides (default to web_researcher)
+    # Optional overrides (default: web_researcher)
     "query_generator": "anthropic/claude-sonnet-4-20250514",
     "coverage_evaluator": "openai/gpt-4o-mini",
     "synthesiser": "anthropic/claude-sonnet-4-20250514",
 
-    # Optional: vision fallback for scanned PDFs / empty JS pages
+    # Optional scanned-PDF / empty-page fallback
     "vision_fallback": "gemini/gemini-2.0-flash",
 }
 ```
 
-You can mix providers — e.g. use a cheap fast model for extraction and a stronger model for synthesis.
-
-### Environment variables
-
-Set the API key for your chosen provider(s):
+### Environment Variables
 
 ```bash
 # Search backend
-export SERPER_API_KEY="..."          # for Serper (Google results) — or use DuckDuckGo (free, no key)
+export SERPER_API_KEY="..."          # optional; use DuckDuckGo without a key
 
-# LLM providers (set the ones you use)
+# LLM providers (set only what you use)
 export OPENAI_API_KEY="..."
 export ANTHROPIC_API_KEY="..."
 export GEMINI_API_KEY="..."
 export MISTRAL_API_KEY="..."
 export GROQ_API_KEY="..."
-# ... any LiteLLM-supported provider
 ```
 
-### Research modes
+### Research Modes
 
 ```python
-# 1. Open web search (default)
-result = await run_web_research(
-    query="latest IPCC findings on sea level rise",
-    models=models,
-)
+# 1) Open web research (default)
+await run_web_research(query="latest IPCC findings on sea level rise", models=models)
 
-# 2. Domain-restricted search — only search within specific sites
-result = await run_web_research(
+# 2) Domain-restricted research
+await run_web_research(
     query="endemic species conservation programs",
     models=models,
     include_domains=["iucn.org", "wwf.org"],
 )
 
-# 3. Direct URL extraction — skip search, extract a specific page or document
-result = await run_web_research(
+# 3) Direct URL extraction (skip search)
+await run_web_research(
     query="key findings from this report",
     models=models,
     direct_url="https://example.org/biodiversity-report.pdf",
 )
 
-# 3b. Direct URL to a database/list page — hub detection fires automatically.
-# The pipeline scrapes the list, follows up to 10 item links (standard depth)
-# or 15 (deep), and optionally follows one "next page" link for more candidates.
-result = await run_web_research(
+# 4) Direct URL with list-page (hub) deepening
+await run_web_research(
     query="sustainable land management technologies in Kenya",
     models=models,
     direct_url="https://wocat.net/en/database/list/?type=technology&country=ke",
 )
 ```
 
-### Search backends
+### Search Backends
 
 ```python
-# Serper (default) — Google-quality results, requires SERPER_API_KEY
-result = await run_web_research(query=..., models=..., search_backend="serper")
+# Default: Serper (requires SERPER_API_KEY)
+await run_web_research(query=..., models=..., search_backend="serper")
 
-# DuckDuckGo — zero config, no API key needed
-result = await run_web_research(query=..., models=..., search_backend="duckduckgo")
+# Free: DuckDuckGo (no key)
+await run_web_research(query=..., models=..., search_backend="duckduckgo")
 ```
 
-### Research depth
-
-Control how thoroughly the tool searches and scrapes:
+### Research Depth
 
 ```python
-# Standard (default) — 2 iterations, up to ~10 sources
-result = await run_web_research(query=..., models=..., research_depth="standard")
+# Standard (default): usually up to ~10 sources
+await run_web_research(query=..., models=..., research_depth="standard")
 
-# Deep — 3 iterations, up to ~28 sources, more search queries per round
-# Best for complex queries that need cross-referencing multiple technical sources
-result = await run_web_research(query=..., models=..., research_depth="deep")
+# Deep: usually up to ~28 sources
+await run_web_research(query=..., models=..., research_depth="deep")
 ```
 
 | Parameter | Standard | Deep |
@@ -244,29 +170,47 @@ result = await run_web_research(query=..., models=..., research_depth="deep")
 | URLs scraped (first round) | 6 | 12 |
 | URLs scraped (follow-up) | 4 | 8 |
 
-### Domain expertise
-
-Provide domain context to improve query generation and synthesis quality:
+### Domain Expertise Hint
 
 ```python
-result = await run_web_research(
+await run_web_research(
     query="red list status of Panthera tigris subspecies",
     models=models,
     domain_expertise="conservation biology and IUCN Red List assessments",
 )
 ```
 
-## Use as an agent tool
+## Pipeline At A Glance
 
-`web-scout-ai` is designed to be called by AI agents. One function, structured output, async-native:
+Editable diagram: [`pipeline-diagram.excalidraw`](pipeline-diagram.excalidraw)
+
+```
+Query
+ │
+ ├─ Generate search queries (LLM)
+ ├─ Search web (Serper or DuckDuckGo)
+ ├─ Select best URLs
+ ├─ Scrape & extract in parallel
+ │   ├─ Static HTML
+ │   ├─ JS/SPA via Playwright
+ │   ├─ PDF/DOCX/PPTX/XLSX via docling
+ │   └─ Scanned PDFs via vision fallback
+ ├─ Evaluate coverage (LLM)
+ │   ├─ Scrape promising backlog URLs
+ │   └─ Or generate targeted follow-up queries
+ ├─ Synthesize findings (LLM)
+ │
+ └─ WebResearchResult
+```
+
+## Use As An Agent Tool
 
 ```python
-from agents import Agent, Runner, function_tool
+from agents import Agent, function_tool
 from web_scout import run_web_research
 
 @function_tool
 async def research(query: str) -> str:
-    """Search the web and return a synthesized answer with sources."""
     result = await run_web_research(
         query=query,
         models={
@@ -282,32 +226,29 @@ agent = Agent(
     name="researcher",
     model="gpt-4o",
     tools=[research],
-    instructions="Use the research tool to answer questions with up-to-date web information.",
+    instructions="Use research tool to answer with up-to-date web sources.",
 )
 ```
 
-Works with any agent framework — OpenAI Agents SDK, LangChain, LlamaIndex, or your own. It's just an async function that returns a Pydantic model.
-
-## Output structure
-
-`run_web_research` returns a `WebResearchResult`:
+## Output Schema
 
 ```python
 class WebResearchResult(BaseModel):
-    synthesis: str                     # Coherent narrative answering the query
-    scraped: list[UrlEntry]            # Sources with full extracted content (~5000 chars each)
-    scrape_failed: list[UrlEntry]      # URLs where scraping failed
-    snippet_only: list[UrlEntry]       # Search results not scraped (with snippets)
-    queries: list[SearchQuery]         # All search queries executed
+    synthesis: str
+    scraped: list[UrlEntry]
+    scrape_failed: list[UrlEntry]
+    snippet_only: list[UrlEntry]
+    queries: list[SearchQuery]
 ```
 
-Each `UrlEntry` contains `url`, `title`, and `content`. Each `SearchQuery` contains `query`, `num_results_returned`, and `domains_restricted`.
+`UrlEntry` contains `url`, `title`, and `content`.
+`SearchQuery` contains `query`, `num_results_returned`, and `domains_restricted`.
 
 ## Requirements
 
-- Python >= 3.10
-- An API key for at least one LLM provider
-- (Optional) `SERPER_API_KEY` for Google-quality search — or use DuckDuckGo for free
+- Python `>=3.10`
+- API key for at least one supported LLM provider
+- Optional `SERPER_API_KEY` (or use DuckDuckGo)
 
 ## License
 
