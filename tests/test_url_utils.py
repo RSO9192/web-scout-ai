@@ -1,5 +1,6 @@
 """Unit tests for URL/domain utility helpers."""
-from web_scout.agent import _normalize_domain
+from web_scout.agent import _normalize_domain, _find_next_page_url
+from web_scout.scraping import _is_blocked_domain
 from web_scout.tools import ResearchTracker
 
 
@@ -68,9 +69,6 @@ def test_normalize_url_http_to_https():
 
 def test_normalize_url_trailing_slash_stripped():
     assert ResearchTracker._normalize_url("https://example.com/page/") == "https://example.com/page"
-
-
-from web_scout.scraping import _is_blocked_domain
 
 
 def test_is_blocked_domain_reddit_blocked_by_default():
