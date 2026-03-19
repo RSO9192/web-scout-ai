@@ -94,3 +94,61 @@ def test_is_blocked_domain_www_reddit_blocked_by_default():
 
 def test_is_blocked_domain_allowed_set_empty_uses_full_blocklist():
     assert _is_blocked_domain("https://twitter.com/user", allowed_domains=frozenset()) is True
+
+
+# --- Additional _normalize_url coverage ---
+
+def test_normalize_url_preserves_empty_query():
+    url = "https://example.com/page?"
+    # Trailing ? should not leave a hanging separator
+    normalized = ResearchTracker._normalize_url(url)
+    assert normalized == "https://example.com/page"
+
+
+def test_normalize_url_idempotent():
+    url = "https://example.com/page?type=tech&country=ke"
+    assert ResearchTracker._normalize_url(url) == ResearchTracker._normalize_url(
+        ResearchTracker._normalize_url(url)
+    )
+
+
+def test_normalize_url_fragment_stripped():
+    # urlunparse already omits fragment (last component is "")
+    url = "https://example.com/page"
+    assert "#" not in ResearchTracker._normalize_url(url)
+
+
+# --- Additional _is_blocked_domain coverage ---
+
+def test_is_blocked_domain_linkedin_blocked():
+    assert _is_blocked_domain("https://linkedin.com/in/someone") is True
+
+
+def test_is_blocked_domain_allowed_set_only_removes_specified():
+    allowed = frozenset({"reddit.com"})
+    # twitter.com is still blocked even when reddit is allowed
+    assert _is_blocked_domain("https://twitter.com/user", allowed_domains=allowed) is True
+    assert _is_blocked_domain("https://reddit.com/r/foo", allowed_domains=allowed) is False
+
+
+# --- Additional _find_next_page_url realistic content ---
+
+def test_find_next_page_url_in_real_markdown_table():
+    content = (
+        "| Technology | Country |\n"
+        "| Agroforestry | KE |\n"
+        "\n"
+        "Page 1 of 3 — [Next](https://wocat.net/en/database/list/?page=2&type=technology)\n"
+    )
+    result = _find_next_page_url(content, "https://wocat.net/en/database/list/")
+    assert result == "https://wocat.net/en/database/list/?page=2&type=technology"
+
+
+def test_find_next_page_url_ignores_other_links_with_same_domain():
+    content = (
+        "[Home](https://wocat.net/) "
+        "[About](https://wocat.net/about) "
+        "[Next](https://wocat.net/list/?page=2)"
+    )
+    result = _find_next_page_url(content, "https://wocat.net/list/")
+    assert result == "https://wocat.net/list/?page=2"
