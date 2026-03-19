@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">web-scout-ai logo mark</title>
+  <desc id="desc">Square icon featuring a stylized globe, search lens, and document cue.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b132b"/>
+      <stop offset="100%" stop-color="#1b4965"/>
+    </linearGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#28c2ff"/>
+      <stop offset="100%" stop-color="#00d1b2"/>
+    </linearGradient>
+    <linearGradient id="lens" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffb703"/>
+      <stop offset="100%" stop-color="#fb8500"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#05101d" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+
+  <rect x="24" y="24" width="976" height="976" rx="210" fill="url(#bg)"/>
+
+  <g transform="translate(140,140)" filter="url(#shadow)">
+    <rect x="0" y="0" width="744" height="744" rx="168" fill="#0f1a32" stroke="#2f6f92" stroke-width="7"/>
+
+    <g transform="translate(94,92)">
+      <circle cx="275" cy="275" r="204" fill="none" stroke="url(#line)" stroke-width="34"/>
+      <ellipse cx="275" cy="275" rx="78" ry="204" fill="none" stroke="#5eead4" stroke-width="18" opacity="0.9"/>
+      <ellipse cx="275" cy="275" rx="204" ry="84" fill="none" stroke="#5eead4" stroke-width="18" opacity="0.84"/>
+      <path d="M71 275h408M275 71v408" stroke="#86efac" stroke-width="14" opacity="0.78"/>
+
+      <circle cx="404" cy="402" r="90" fill="none" stroke="url(#lens)" stroke-width="26"/>
+      <path d="M467 465l118 117" stroke="url(#lens)" stroke-linecap="round" stroke-width="34"/>
+
+      <g transform="translate(368,92)">
+        <rect x="0" y="0" width="132" height="166" rx="18" fill="#e2f3ff" opacity="0.96"/>
+        <path d="M98 0v36h34" fill="#b4dcf7"/>
+        <path d="M22 58h84M22 84h64M22 110h78" stroke="#1b4965" stroke-width="10" stroke-linecap="round"/>
+      </g>
+    </g>
+  </g>
+</svg>
