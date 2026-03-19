@@ -117,6 +117,7 @@ _DEPTH_PRESETS = {
         "queries_followup": 2,
         "urls_first": 6,
         "urls_followup": 4,
+        "hub_deepening_cap": 10,
     },
     "deep": {
         "max_iterations": 3,
@@ -124,6 +125,7 @@ _DEPTH_PRESETS = {
         "queries_followup": 4,
         "urls_first": 12,
         "urls_followup": 8,
+        "hub_deepening_cap": 15,
     },
 }
 
@@ -276,30 +278,60 @@ async def run_web_research(
         content = await scrape_tool(direct_url)
         
         # Deepen if relevant links are found
-        links_to_deepen = []
-        if "**Relevant Links found on page:**" in content:
-            for line in content.split("\n"):
-                if line.startswith("- http") or (line.startswith("- [") and "http" in line):
-                    l = line.split("](", 1)[-1].split(")", 1)[0] if "](" in line else line.replace("- ", "").strip()
-                    links_to_deepen.append(l)
-                    
-        if links_to_deepen:
-            direct_domain = urlparse(direct_url).netloc.lower()
-            if direct_domain.startswith("www."):
-                direct_domain = direct_domain[4:]
-                
-            same_domain_links = []
-            if direct_domain:
-                for l in links_to_deepen:
-                    link_domain = urlparse(l).netloc.lower()
-                    if link_domain == direct_domain or link_domain.endswith("." + direct_domain):
-                        same_domain_links.append(l)
-                    
-            same_domain_links = same_domain_links[:3]
-            if same_domain_links:
-                logger.info("[pipeline] deepening on %d links from direct URL", len(same_domain_links))
-                tasks = [scrape_tool(link) for link in same_domain_links]
+        is_hub = "**Page type: list**" in content
+
+        if is_hub:
+            # Hub page: collect LLM-ranked item links, one-hop pagination
+            candidates = []
+            if "**Relevant Links found on page:**" in content:
+                for line in content.split("\n"):
+                    if line.startswith("- http") or (line.startswith("- [") and "http" in line):
+                        l = line.split("](", 1)[-1].split(")", 1)[0] if "](" in line else line.replace("- ", "").strip()
+                        if l:
+                            candidates.append(l)
+
+            next_page = _find_next_page_url(content, direct_url)
+            if next_page:
+                logger.info("[pipeline] hub pagination: scraping next page %s", next_page)
+                next_content = await scrape_tool(next_page)
+                for line in next_content.split("\n"):
+                    if line.startswith("- http") or (line.startswith("- [") and "http" in line):
+                        l = line.split("](", 1)[-1].split(")", 1)[0] if "](" in line else line.replace("- ", "").strip()
+                        if l and l not in candidates:
+                            candidates.append(l)
+
+            hub_cap = depth["hub_deepening_cap"]
+            if candidates:
+                logger.info("[pipeline] hub deepening on %d candidate links (cap=%d)", len(candidates), hub_cap)
+                tasks = [scrape_tool(link) for link in candidates[:hub_cap]]
                 await asyncio.gather(*tasks)
+
+        else:
+            # Non-hub: existing behaviour — follow up to 3 same-domain links
+            links_to_deepen = []
+            if "**Relevant Links found on page:**" in content:
+                for line in content.split("\n"):
+                    if line.startswith("- http") or (line.startswith("- [") and "http" in line):
+                        l = line.split("](", 1)[-1].split(")", 1)[0] if "](" in line else line.replace("- ", "").strip()
+                        links_to_deepen.append(l)
+
+            if links_to_deepen:
+                direct_domain = urlparse(direct_url).netloc.lower()
+                if direct_domain.startswith("www."):
+                    direct_domain = direct_domain[4:]
+
+                same_domain_links = []
+                if direct_domain:
+                    for l in links_to_deepen:
+                        link_domain = urlparse(l).netloc.lower()
+                        if link_domain == direct_domain or link_domain.endswith("." + direct_domain):
+                            same_domain_links.append(l)
+
+                same_domain_links = same_domain_links[:3]
+                if same_domain_links:
+                    logger.info("[pipeline] deepening on %d links from direct URL", len(same_domain_links))
+                    tasks = [scrape_tool(link) for link in same_domain_links]
+                    await asyncio.gather(*tasks)
 
     else:
         # --- 2. SEARCH MODE (Open Web or Domain Restricted) ---
