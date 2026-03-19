@@ -17,7 +17,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional
 from urllib.parse import urlparse, urlunparse
 
 from agents import Agent, ModelSettings, Runner, function_tool
@@ -177,13 +177,22 @@ class _ExtractorOutput(BaseModel):
             "Maximum 5,000 characters."
         )
     )
+    page_type: Literal["list", "content"] = Field(
+        default="content",
+        description=(
+            'Set to "list" if this page is a database view, search results page, '
+            'index, or any page whose primary purpose is listing many items with links '
+            'to detail pages. Set to "content" for articles, reports, and detail pages.'
+        ),
+    )
     relevant_links: List[str] = Field(
         default_factory=list,
         description=(
-            "Up to 5 absolute URLs found in the page that are highly likely to contain "
-            "additional specific information for the research query (e.g., deeper data, "
-            "sub-reports, specific species pages). Return empty list if none."
-        )
+            "Up to 15 absolute URLs found in the page that are highly likely to contain "
+            "additional specific information for the research query. "
+            "If page_type is 'list', treat each visible item's detail-page link as a candidate "
+            "and rank by relevance to the query. Return up to 15."
+        ),
     )
 
 
@@ -201,9 +210,13 @@ You receive a URL and a research query. Your job:
    - Exclude navigation, ads, boilerplate, and completely off-topic sections.
    - If the content is very long, scan for the most relevant sections and extract them comprehensively.
 4. If you see links in the content that likely contain deeper details or sub-reports 
-   needed to fully answer the query, include up to 5 of them in ``relevant_links``.
+   needed to fully answer the query, include up to 15 of them in ``relevant_links``.
    Ensure they are absolute URLs (starting with http/https).
 5. Return a highly informative ``relevant_content`` of up to 5,000 characters.
+
+If the page is a list/database/search-results view (page_type = "list"), your primary job
+is to identify and rank the item links, not to extract prose. Return up to 15 item URLs in
+``relevant_links``, ordered by likely relevance to the research query.
 
 If the page contains no relevant information, set ``relevant_content`` to:
 "[No relevant content found for this query]"
@@ -550,8 +563,10 @@ def create_scrape_and_extract_tool(
                 
             header = f"# {title}\nSource: {url}\n\n" if title else f"Source: {url}\n\n"
             final_output = header + content
+            if output.page_type == "list":
+                final_output += "\n**Page type: list**"
             if links:
-                final_output += "\n\n**Relevant Links found on page:**\n" + "\n".join(f"- {lnk}" for lnk in links[:5])
+                final_output += "\n\n**Relevant Links found on page:**\n" + "\n".join(f"- {lnk}" for lnk in links[:15])
                 
             if tracker is not None:
                 count_scraped = len(tracker.build_result_groups()["scraped"])
