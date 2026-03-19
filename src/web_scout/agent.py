@@ -134,6 +134,9 @@ _DEPTH_PRESETS = {
 
 import re as _re
 
+_NEXT_PAGE_TOKENS: frozenset = frozenset({"next", "next page", "›", "»"})
+
+
 def _judge_synthesis(synthesis: str, valid_urls: set[str]) -> list[str]:
     """Return a list of issue descriptions, empty if synthesis passes."""
     issues = []
@@ -177,13 +180,12 @@ def _find_next_page_url(content: str, base_url: str) -> Optional[str]:
     Bare digits are intentionally excluded (too fragile).
     Returns the first matching same-domain URL, or None.
     """
-    _NEXT_TOKENS = {"next", "next page", "›", "»"}
     base_netloc = urlparse(base_url).netloc.lower()
 
     for match in _re.finditer(r'\[([^\]]*)\]\((https?://[^\s\)]+)\)', content):
         link_text = match.group(1).strip().lower()
         href = match.group(2)
-        if link_text in _NEXT_TOKENS:
+        if link_text in _NEXT_PAGE_TOKENS:
             href_netloc = urlparse(href).netloc.lower()
             if href_netloc == base_netloc:
                 return href
