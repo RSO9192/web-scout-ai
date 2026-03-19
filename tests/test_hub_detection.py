@@ -58,3 +58,28 @@ def test_find_next_page_url_no_pagination_link():
 
 def test_find_next_page_url_empty_content():
     assert _find_next_page_url("", "https://wocat.net/page/1") is None
+
+
+def test_find_next_page_url_relative_link():
+    """Relative [Next](/page/2) should resolve against base_url and match."""
+    content = "Results [Next](/en/database/list/?page=2) here"
+    result = _find_next_page_url(content, "https://wocat.net/en/database/list/")
+    assert result == "https://wocat.net/en/database/list/?page=2"
+
+
+def test_find_next_page_url_www_prefix_match():
+    """www.example.com and example.com should be treated as the same domain."""
+    content = "[Next](https://www.wocat.net/page/2)"
+    assert _find_next_page_url(content, "https://wocat.net/page/1") == "https://www.wocat.net/page/2"
+
+
+def test_find_next_page_url_anchor_not_matched():
+    """Fragment-only links (#section) must not be matched."""
+    content = "[Next](#section2)"
+    assert _find_next_page_url(content, "https://wocat.net/page/1") is None
+
+
+def test_find_next_page_url_mailto_not_matched():
+    """mailto: links must not be matched."""
+    content = "[Next](mailto:next@example.com)"
+    assert _find_next_page_url(content, "https://wocat.net/page/1") is None

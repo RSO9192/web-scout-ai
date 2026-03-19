@@ -27,7 +27,7 @@ import asyncio
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 from collections import OrderedDict
 
 from pydantic import BaseModel, Field
@@ -180,16 +180,30 @@ def _find_next_page_url(content: str, base_url: str) -> Optional[str]:
     """Scan markdown content for a 'next page' link on the same domain as base_url.
 
     Matches link text (case-insensitive) against: 'next', 'next page', '›', '»'.
+    Handles both absolute (https://...) and relative (/path) hrefs.
+    Normalizes www. prefix when comparing domains.
     Bare digits are intentionally excluded (too fragile).
     Returns the first matching same-domain URL, or None.
     """
-    base_netloc = urlparse(base_url).netloc.lower()
+    base_netloc = urlparse(base_url).netloc.lower().removeprefix("www.")
 
-    for match in _re.finditer(r'\[([^\]]*)\]\((https?://[^\s\)]+)\)', content):
+    # Expanded regex: match any href, not just https?:// absolute URLs
+    for match in _re.finditer(r'\[([^\]]*)\]\(([^\s\)\#][^\s\)]*)\)', content):
         link_text = match.group(1).strip().lower()
-        href = match.group(2)
+        href_raw = match.group(2)
+
+        # Skip non-navigable schemes
+        if href_raw.startswith(("mailto:", "javascript:", "tel:", "data:")):
+            continue
+
+        # Resolve relative hrefs against base_url; strip fragment before domain check
+        href = urljoin(base_url, href_raw)
+        href = href.split("#")[0]  # drop fragment (e.g. /page/2#top → /page/2)
+        if not href:
+            continue
+
         if link_text in _NEXT_PAGE_TOKENS:
-            href_netloc = urlparse(href).netloc.lower()
+            href_netloc = urlparse(href).netloc.lower().removeprefix("www.")
             if href_netloc == base_netloc:
                 return href
     return None
