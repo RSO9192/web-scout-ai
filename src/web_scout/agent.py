@@ -453,6 +453,7 @@ async def run_web_research(
                     iter_results = list(zip(urls_to_scrape, extracted_contents))
                 else:
                     logger.info("[pipeline] no new URLs to scrape")
+                    extracted_contents = []
                     iter_results = []
 
             # 2f. Deepen (Domain Restricted Mode)
