@@ -1,5 +1,6 @@
 """Unit tests for URL/domain utility helpers."""
 from web_scout.agent import _normalize_domain
+from web_scout.tools import ResearchTracker
 
 
 def test_normalize_domain_plain():
@@ -28,9 +29,6 @@ def test_normalize_domain_trailing_slash():
 
 def test_normalize_domain_uppercase():
     assert _normalize_domain("WOCAT.NET") == "wocat.net"
-
-
-from web_scout.tools import ResearchTracker
 
 
 def test_normalize_url_strips_utm_source():
