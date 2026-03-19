@@ -95,7 +95,7 @@ class DuckDuckGoBackend(SearchBackend):
         max_results: int = 5,
         include_domains: Optional[List[str]] = None,
     ) -> SearchResponse:
-        from ddgs import DDGS
+        from duckduckgo_search import DDGS
 
         effective_query = query
         if include_domains:

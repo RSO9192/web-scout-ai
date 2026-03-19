@@ -747,7 +747,7 @@ if __name__ == "__main__":
         result = await run_web_research(
             query=QUERY,
             models=MODELS,
-            search_backend="serper",  # free, no API key needed
+            search_backend="serper",
         )
 
         print("\n" + "=" * 60)
