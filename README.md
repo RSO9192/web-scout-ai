@@ -69,8 +69,8 @@ async def main():
     result = await run_web_research(
         query="What are the main threats to coral reefs worldwide?",
         models={
-            "web_researcher": "gemini/gemini-2.0-flash",
-            "content_extractor": "gemini/gemini-2.0-flash",
+            "web_researcher": "openai/gpt-5.4-mini",
+            "content_extractor": "gemini/gemini-3-flash-preview",
         },
     )
 
@@ -88,8 +88,8 @@ asyncio.run(main())
 result = await run_web_research(
     query="latest IPCC findings on sea level rise",
     models={
-        "web_researcher": "openai/gpt-4o",
-        "content_extractor": "gemini/gemini-2.0-flash",
+        "web_researcher": "openai/gpt-5.4-mini",
+        "content_extractor": "gemini/gemini-3-flash-preview",
     },
     search_backend="duckduckgo",       # or "serper"
     research_depth="standard",         # or "deep"
@@ -108,16 +108,16 @@ Model ids follow [LiteLLM provider naming](https://docs.litellm.ai/docs/provider
 ```python
 models = {
     # Required
-    "web_researcher": "openai/gpt-4o",
-    "content_extractor": "gemini/gemini-2.0-flash",
+    "web_researcher": "openai/gpt-5.4-mini",
+    "content_extractor": "gemini/gemini-3-flash-preview",
 
     # Optional step-specific overrides (default: web_researcher)
-    "query_generator": "anthropic/claude-sonnet-4-20250514",
-    "coverage_evaluator": "openai/gpt-4o-mini",
-    "synthesiser": "anthropic/claude-sonnet-4-20250514",
+    "query_generator": "openai/gpt-5.4-mini",
+    "coverage_evaluator": "openai/gpt-5.4-mini",
+    "synthesiser": "openai/gpt-5.4-mini",
 
     # Optional fallback for scanned PDFs / empty JS pages
-    "vision_fallback": "gemini/gemini-2.0-flash",
+    "vision_fallback": "gemini/gemini-3-flash-preview",
 }
 ```
 
@@ -225,8 +225,8 @@ async def research(query: str) -> str:
     result = await run_web_research(
         query=query,
         models={
-            "web_researcher": "gemini/gemini-2.0-flash",
-            "content_extractor": "gemini/gemini-2.0-flash",
+            "web_researcher": "openai/gpt-5.4-mini",
+            "content_extractor": "gemini/gemini-3-flash-preview",
         },
         search_backend="duckduckgo",
     )
@@ -235,7 +235,7 @@ async def research(query: str) -> str:
 
 agent = Agent(
     name="researcher",
-    model="gpt-4o",
+    model="gpt-5.4-mini",
     tools=[research],
     instructions="Use the research tool to answer with up-to-date web sources.",
 )
