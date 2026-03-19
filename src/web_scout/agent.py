@@ -209,6 +209,22 @@ def _find_next_page_url(content: str, base_url: str) -> Optional[str]:
     return None
 
 
+def _normalize_domain(d: str) -> str:
+    """Strip scheme, www., path, and trailing whitespace from a domain string.
+
+    Ensures include_domains entries like 'https://www.wocat.net/en/' are treated
+    identically to 'wocat.net'.
+    """
+    d = d.strip().lower()
+    if "://" in d:
+        d = urlparse(d).netloc
+    # Strip any path component
+    d = d.split("/")[0]
+    # Strip port (keep domain only)
+    d = d.split(":")[0]
+    return d.removeprefix("www.")
+
+
 async def run_web_research(
     query: str,
     models: Dict[str, str],
@@ -261,6 +277,11 @@ async def run_web_research(
     if research_depth not in _DEPTH_PRESETS:
         raise ValueError(f"Unknown research_depth={research_depth!r}. Use 'standard' or 'deep'.")
     depth = _DEPTH_PRESETS[research_depth]
+
+    # Normalize include_domains: strip scheme, www., paths so callers can pass
+    # "https://wocat.net/en/" or "www.wocat.net" and get correct results.
+    if include_domains:
+        include_domains = [_normalize_domain(d) for d in include_domains]
 
     # Create shared tracker
     tracker = ResearchTracker()
