@@ -30,6 +30,7 @@ crawl4ai = ">=0.5"
 docling = ">=2.0"
 docling-core = ">=2.0"
 duckduckgo-search = ">=5.0"
+tavily-python = ">=0.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.0"

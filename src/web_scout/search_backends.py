@@ -1,10 +1,12 @@
 """Pluggable search backends for web discovery.
 
-Provides a ``SearchBackend`` ABC with two concrete implementations:
+Provides a ``SearchBackend`` ABC with three concrete implementations:
 
 - ``DuckDuckGoBackend`` — zero-config, no API key needed
 - ``SerperBackend``     — Google-quality results via serper.dev
                           (requires ``SERPER_API_KEY`` env var)
+- ``TavilyBackend``     — AI-optimised search via tavily.com
+                          (requires ``TAVILY_API_KEY`` env var)
 """
 
 from __future__ import annotations
@@ -235,4 +237,55 @@ class SerperBackend(SearchBackend):
             related_searches=related,
             people_also_ask=paa,
             knowledge_graph=kg,
+        )
+
+
+class TavilyBackend(SearchBackend):
+    """AI-optimised search via Tavily.
+
+    Requires ``TAVILY_API_KEY`` environment variable.  Tavily natively
+    supports ``include_domains`` filtering, so no ``site:`` operator or
+    post-filtering is needed.
+    """
+
+    def __init__(self, api_key: str):
+        self._api_key = api_key
+
+    async def search(
+        self,
+        query: str,
+        max_results: int = 5,
+        include_domains: Optional[List[str]] = None,
+    ) -> SearchResponse:
+        from tavily import AsyncTavilyClient
+
+        client = AsyncTavilyClient(api_key=self._api_key)
+
+        kwargs: Dict = {
+            "query": query,
+            "max_results": max_results,
+            "search_depth": "basic",
+        }
+        if include_domains:
+            kwargs["include_domains"] = include_domains
+
+        data = await client.search(**kwargs)
+
+        results = [
+            SearchResult(
+                title=item.get("title", "Untitled"),
+                url=item.get("url", ""),
+                snippet=item.get("content", ""),
+                date=item.get("published_date", ""),
+                position=int(round(item.get("score", 0) * 100)),
+            )
+            for item in data.get("results", [])
+            if item.get("url")
+        ][:max_results]
+
+        related = data.get("related_searches", []) or []
+
+        return SearchResponse(
+            results=results,
+            related_searches=related,
         )
