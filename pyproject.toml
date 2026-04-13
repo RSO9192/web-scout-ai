@@ -1,17 +1,27 @@
 [tool.poetry]
 name = "web-scout-ai"
-version = "0.9.5"
+version = "0.9.6"
 description = "Agentic web research tool — smarter than search, faster than deep research. Search, scrape, and synthesize web content using LLMs."
 authors = ["Riccardo Soldan"]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/un-fao/web-scout-ai"
-keywords = ["web-research", "ai-agent", "web-scraping", "llm", "search"]
+repository = "https://github.com/RSO9192/web-scout-ai"
+keywords = [
+    "web-research", "ai-agent", "web-scraping", "llm", "search",
+    "rag", "crawling", "document-extraction", "pdf-extraction",
+    "playwright", "docling", "synthesis", "openai-agents",
+    "serper", "duckduckgo", "litellm", "grounded-research",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+    "Topic :: Text Processing :: Markup :: HTML",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
     "Typing :: Typed",
     "Framework :: Pydantic :: 2",
 ]

@@ -216,19 +216,48 @@ _EXTRACTOR_INSTRUCTIONS = """\
 You are a precise and comprehensive content extractor for web research.
 
 You receive a URL and a research query. Your job:
-1. Call ``raw_scrape`` **exactly once** to fetch the page content.
-   Do NOT call it again — one fetch is all you get.
-2. Read the content carefully.
-3. Extract ALL the portions that directly answer or are relevant to the research query.
-   - Include specific facts, numbers, dates, exact names (like species or locations), statistics, regulations, quotes, and full context.
-   - VERY IMPORTANT: Do NOT describe the page structure (e.g. "This page has a section on endemic flora"). Instead, extract the actual data (e.g. "The endemic flora listed are Species X, Species Y, and Species Z").
-   - Do NOT over-summarize! We need a detailed account of the relevant information.
-   - Exclude navigation, ads, boilerplate, and completely off-topic sections.
-   - If the content is very long, scan for the most relevant sections and extract them comprehensively.
-4. If you see links in the content that likely contain deeper details or sub-reports 
-   needed to fully answer the query, include up to 15 of them in ``relevant_links``.
-   Ensure they are absolute URLs (starting with http/https).
-5. Return a highly informative ``relevant_content`` of up to 5,000 characters.
+
+## Step 1 — Fetch the page
+Call ``raw_scrape`` to fetch the page content. Call it exactly once.
+
+## Step 2 — Check for a primary source document
+After reading the page, ask yourself: **is this a metadata or catalogue page that links to a primary source document?**
+
+Signs of a metadata/catalogue page:
+- A legal database record (e.g. FAOLEX, EUR-Lex, national law portals) with a link to the law or regulation PDF.
+- A library or repository entry with a link to the full report or paper PDF.
+- A dataset/publication index page with a link to the main document.
+
+**If yes: call ``scrape_linked_document`` with the URL of the primary document (PDF, DOCX, etc.).**
+- Use the single most important document link — the one that IS the primary source, not supplementary annexes.
+- Call it at most once.
+- Do NOT call it for navigation links, related documents, or secondary references.
+
+**If no:** skip this step and go straight to Step 3.
+
+Examples of when to call ``scrape_linked_document``:
+- FAOLEX page for a law → call it on the `.pdf` link that is the law text itself.
+- A UN treaty repository page → call it on the treaty PDF.
+- A report catalogue entry → call it on the full report PDF.
+
+Examples of when NOT to call it:
+- A regular article or blog post (the page IS the content).
+- A search results or list page.
+- A page where the PDF link is a supplementary annex, not the main document.
+
+## Step 3 — Extract relevant content
+From all the content you have gathered (page + document if fetched), extract everything that directly answers the research query:
+- Include specific facts, numbers, dates, exact names (species, locations), statistics, regulations, quotes, and full context.
+- VERY IMPORTANT: Do NOT describe the page structure. Extract the actual data.
+- Do NOT over-summarize. We need a detailed account of the relevant information.
+- Exclude navigation, ads, boilerplate, and completely off-topic sections.
+- If the content is very long, scan for the most relevant sections and extract them comprehensively.
+
+## Step 4 — Identify follow-up links
+If you see links likely to contain deeper details needed to answer the query, include up to 15 in ``relevant_links`` (absolute URLs only).
+
+## Step 5 — Return output
+Return a highly informative ``relevant_content`` of up to 5,000 characters.
 
 If the page is a list/database/search-results view (page_type = "list"), your primary job
 is to identify and rank the item links, not to extract prose. Return up to 15 item URLs in
@@ -238,6 +267,8 @@ If the page contains no relevant information, set ``relevant_content`` to:
 "[No relevant content found for this query]"
 
 If scraping fails, set ``relevant_content`` to the error message verbatim.
+
+Always write ``relevant_content`` and ``title`` in English, regardless of the source language.
 """
 
 
@@ -248,8 +279,13 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
     deterministically from the outer ``scrape_and_extract`` tool call.  The
     sub-agent LLM cannot scrape a different URL — it calls ``raw_scrape()``
     with no arguments and always fetches the correct page.
+
+    A second tool ``scrape_linked_document`` lets the extractor fetch one
+    primary source document (PDF, DOCX …) linked from the page, which is
+    essential for metadata/catalogue pages (e.g. FAOLEX law records) where
+    the page itself only contains a summary and the full text is in a document.
     """
-    from .scraping import scrape_url as _scrape_url
+    from .scraping import _SCRAPE_DOC, _scrape_document, _validate_url, scrape_url as _scrape_url
 
     @function_tool
     async def raw_scrape() -> str:
@@ -257,7 +293,8 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
 
         The URL is determined by the outer research task — no argument needed.
         Validates the URL first (skips dead links, empty pages, binary files).
-        Works with static HTML, JS-rendered pages, PDFs, DOCX, PPTX, XLSX.
+        Works with static HTML, JS-rendered pages, JSON endpoints, images,
+        PDFs, DOCX, PPTX, and XLSX.
         """
         content, title, error = await _scrape_url(url, wait_for, query=query, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages)
         if error:
@@ -267,10 +304,41 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         header = f"# {title}\nSource: {url}\n\n" if title else f"Source: {url}\n\n"
         return header + content
 
+    @function_tool
+    async def scrape_linked_document(document_url: str) -> str:
+        """Fetch and return the text content of a primary source document linked from the page.
+
+        Use this when the page you scraped is a metadata or catalogue record
+        (e.g. a FAOLEX law entry, a library repository page, a UN treaty record)
+        that links to the actual primary document (a law text, full report, treaty PDF, etc.).
+
+        Only call this for the single most important primary document — not for
+        supplementary annexes, navigation links, or secondary references.
+        Only accepts links that validate as real document resources, including
+        extensionless download URLs that return document content-types.
+
+        Args:
+            document_url: Absolute URL of the primary source document to fetch.
+        """
+        verdict, detail = await _validate_url(document_url, allowed_domains=allowed_domains)
+        if verdict != _SCRAPE_DOC:
+            return (
+                "[scrape_linked_document rejected: URL does not look like a primary "
+                f"document ({detail}): {document_url}]"
+            )
+        logger.info("[extract] scrape_linked_document → %s", document_url)
+        content, title, error = await _scrape_document(document_url, query=query, vision_model=vision_model, max_pdf_pages=max_pdf_pages)
+        if error:
+            return f"[Document scrape failed: {error}]"
+        if not content.strip():
+            return "[Document returned empty content]"
+        header = f"# {title}\nSource: {document_url}\n\n" if title else f"Source: {document_url}\n\n"
+        return header + content
+
     return Agent(
         name="content_extractor",
         model=model,
-        tools=[raw_scrape],
+        tools=[raw_scrape, scrape_linked_document],
         output_type=_ExtractorOutput,
         model_settings=ModelSettings(
             parallel_tool_calls=False,
@@ -457,10 +525,12 @@ def create_scrape_and_extract_tool(
     """Create a scrape_and_extract function.
 
     Internally runs a dedicated content extractor sub-agent that:
-    1. Calls ``raw_scrape`` (crawl4ai / docling) to fetch the page.
-    2. Reads the full raw content in its own isolated context.
-    3. Extracts and summarises only the portions relevant to the query.
-    4. Returns a detailed, comprehensive excerpt (~5,000 chars) to the main agent.
+    1. Calls ``raw_scrape`` to fetch the page through the unified router.
+    2. Optionally calls ``scrape_linked_document`` once for a primary source
+       document linked from a metadata page.
+    3. Reads the fetched content in its own isolated context.
+    4. Extracts and summarises only the portions relevant to the query.
+    5. Returns a detailed, comprehensive excerpt (~5,000 chars) to the main agent.
     """
     
     semaphore = asyncio.Semaphore(max_concurrent)
@@ -471,14 +541,14 @@ def create_scrape_and_extract_tool(
     ) -> str:
         """Scrape a URL and return a focused summary relevant to the research query.
 
-        Internally validates the URL (skips 404s, empty SPA shells, paywalls,
+        Internally validates the URL (skips 404s, auth walls, unsupported
         binary files) then runs a dedicated extractor sub-agent that fetches
-        the page with crawl4ai or docling and summarises the relevant content.
+        the page with the unified scraper and summarises the relevant content.
 
         Returns a detailed extraction of ~5,000 characters — never raw page content.
 
         Works with static HTML, JavaScript-rendered pages (SPAs, data portals),
-        PDFs, DOCX, PPTX, and XLSX.
+        JSON endpoints, image URLs, PDFs, DOCX, PPTX, and XLSX.
 
         Args:
             url: The URL to scrape and extract from.
@@ -523,7 +593,7 @@ def create_scrape_and_extract_tool(
             )
     
             try:
-                result = await Runner.run(extractor_agent, input_text, max_turns=3)
+                result = await Runner.run(extractor_agent, input_text, max_turns=5)
                 output = result.final_output_as(_ExtractorOutput)
             except Exception as e:
                 logger.error("[extract] sub-agent failed for %s: %s", url, e)

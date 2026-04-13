@@ -1,4 +1,4 @@
-"""Unified web scraping via crawl4ai (HTML/JS) + docling (documents).
+"""Unified web scraping via crawl4ai, docling, and vision fallbacks.
 
 Provides a single ``scrape_url`` function that:
 
@@ -8,7 +8,9 @@ Provides a single ``scrape_url`` function that:
 2. **Routes** to the appropriate handler based on content type:
    - Static HTML  → crawl4ai ``AsyncHTTPCrawlerStrategy`` (no browser)
    - JS/SPA pages → crawl4ai full browser (Playwright)
-   - Documents    → docling (PDF, DOCX, PPTX, XLSX, images)
+   - Documents    → docling (PDF, DOCX, PPTX, XLSX)
+   - JSON         → structured extraction
+   - Images       → vision extraction
 """
 
 from __future__ import annotations
@@ -16,10 +18,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import mimetypes
 import os
 import re
-from typing import Optional, Tuple
-from urllib.parse import urlparse
+from typing import Any, Optional, Tuple
+from urllib.parse import unquote, urlparse
 
 import httpx
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
@@ -49,9 +52,19 @@ _BLOCKED_DOMAINS = frozenset({
 })
 
 _BINARY_CONTENT_TYPES = (
-    "image/", "video/", "audio/",
+    "video/", "audio/",
     "application/zip", "application/octet-stream",
     "application/x-tar", "application/x-rar",
+)
+
+_IMAGE_CONTENT_TYPES = ("image/",)
+
+_JSON_CONTENT_TYPES = (
+    "application/json",
+    "application/geo+json",
+    "application/ld+json",
+    "application/vnd.api+json",
+    "text/json",
 )
 
 _DOC_CONTENT_TYPES = (
@@ -110,11 +123,141 @@ def _extract_text_from_html(html: str) -> str:
     return re.sub(r"\s+", " ", html).strip()
 
 
+def _normalize_content_type(value: str) -> str:
+    return value.split(";", 1)[0].strip().lower()
+
+
+def _filename_from_content_disposition(value: str) -> str:
+    if not value:
+        return ""
+
+    filename_star = re.search(r"filename\*\s*=\s*[^']*'[^']*'([^;]+)", value, flags=re.I)
+    if filename_star:
+        return unquote(filename_star.group(1).strip().strip('"'))
+
+    filename = re.search(r'filename\s*=\s*"([^"]+)"', value, flags=re.I)
+    if filename:
+        return filename.group(1).strip()
+
+    filename = re.search(r"filename\s*=\s*([^;]+)", value, flags=re.I)
+    if filename:
+        return filename.group(1).strip().strip('"')
+
+    return ""
+
+
+def _looks_like_document_resource(url: str, content_type: str = "", content_disposition: str = "") -> bool:
+    ct = _normalize_content_type(content_type)
+    url_path = url.lower().split("?", 1)[0].split("#", 1)[0]
+    if any(url_path.endswith(ext) for ext in _DOC_EXTENSIONS):
+        return True
+    if any(ct.startswith(t) for t in _DOC_CONTENT_TYPES):
+        return True
+    filename = _filename_from_content_disposition(content_disposition).lower()
+    return any(filename.endswith(ext) for ext in _DOC_EXTENSIONS)
+
+
+def _looks_like_pdf_resource(url: str, content_type: str = "", content_disposition: str = "") -> bool:
+    ct = _normalize_content_type(content_type)
+    url_path = url.lower().split("?", 1)[0].split("#", 1)[0]
+    if url_path.endswith(".pdf") or ct == "application/pdf":
+        return True
+    filename = _filename_from_content_disposition(content_disposition).lower()
+    return filename.endswith(".pdf")
+
+
+def _extract_hrefs_from_html(html: str) -> list[str]:
+    return [m.group(1).strip() for m in re.finditer(r'href=["\']([^"\']+)["\']', html, flags=re.I)]
+
+
+def _looks_like_auth_wall(html_lower: str) -> bool:
+    auth_markers = (
+        "sign in",
+        "log in",
+        "login required",
+        "subscribe to continue",
+        "subscription required",
+        "create an account",
+        "members only",
+        "access denied",
+    )
+    return any(marker in html_lower for marker in auth_markers)
+
+
+def _looks_like_metadata_page(html: str) -> bool:
+    lower = html.lower()
+    hrefs = _extract_hrefs_from_html(html)
+    if not hrefs:
+        return False
+
+    doc_links = [href for href in hrefs if _looks_like_document_resource(href)]
+    if doc_links:
+        return True
+
+    metadata_markers = (
+        "full text",
+        "download",
+        "document",
+        "report",
+        "dataset",
+        "publication",
+        "regulation",
+        "law",
+        "view details",
+        "metadata",
+        "repository",
+        "catalog",
+    )
+    return len(hrefs) >= 5 or any(marker in lower for marker in metadata_markers)
+
+
+def _trim_json_value(
+    value: Any,
+    *,
+    depth: int = 0,
+    max_depth: int = 4,
+    max_items: int = 20,
+    max_string_chars: int = 500,
+) -> Any:
+    if depth >= max_depth:
+        if isinstance(value, list):
+            return f"[list truncated: {len(value)} items]"
+        if isinstance(value, dict):
+            return f"{{object truncated: {len(value)} keys}}"
+        return value
+
+    if isinstance(value, dict):
+        items = list(value.items())
+        trimmed = {
+            str(k): _trim_json_value(v, depth=depth + 1, max_depth=max_depth, max_items=max_items, max_string_chars=max_string_chars)
+            for k, v in items[:max_items]
+        }
+        if len(items) > max_items:
+            trimmed["..."] = f"{len(items) - max_items} more keys omitted"
+        return trimmed
+
+    if isinstance(value, list):
+        trimmed = [
+            _trim_json_value(v, depth=depth + 1, max_depth=max_depth, max_items=max_items, max_string_chars=max_string_chars)
+            for v in value[:max_items]
+        ]
+        if len(value) > max_items:
+            trimmed.append(f"... {len(value) - max_items} more items omitted")
+        return trimmed
+
+    if isinstance(value, str) and len(value) > max_string_chars:
+        return value[:max_string_chars] + f"... [truncated, original length {len(value)}]"
+
+    return value
+
+
 # Verdict constants
 _SKIP = "SKIP"
 _SCRAPE_HTML = "SCRAPE_HTML"   # static HTML — use HTTP crawler (fast)
 _SCRAPE_JS = "SCRAPE_JS"       # SPA/JS page — use full browser
 _SCRAPE_DOC = "SCRAPE_DOC"     # document — use docling
+_SCRAPE_JSON = "SCRAPE_JSON"   # structured JSON endpoint
+_SCRAPE_IMAGE = "SCRAPE_IMAGE" # image URL — use vision extraction
 
 
 async def _validate_url(url: str, allowed_domains: Optional[frozenset] = None) -> Tuple[str, str]:
@@ -143,19 +286,17 @@ async def _validate_url(url: str, allowed_domains: Optional[frozenset] = None) -
                 if status >= 400 and status not in (405, 501, 403):
                     return _SKIP, f"HTTP {status}"
 
-                ct = head.headers.get("content-type", "").lower()
+                ct = _normalize_content_type(head.headers.get("content-type", ""))
+                cd = head.headers.get("content-disposition", "")
 
+                if _looks_like_document_resource(url, ct, cd):
+                    return _SCRAPE_DOC, ct
+                if any(ct.startswith(t) for t in _JSON_CONTENT_TYPES):
+                    return _SCRAPE_JSON, ct
+                if any(ct.startswith(t) for t in _IMAGE_CONTENT_TYPES):
+                    return _SCRAPE_IMAGE, ct
                 if any(ct.startswith(t) for t in _BINARY_CONTENT_TYPES):
                     return _SKIP, f"binary content-type: {ct}"
-
-                if "application/json" in ct:
-                    return _SKIP, "JSON API endpoint"
-
-                url_path = url.lower().split("?")[0]
-                if any(ct.startswith(t) for t in _DOC_CONTENT_TYPES) or any(
-                    url_path.endswith(ext) for ext in _DOC_EXTENSIONS
-                ):
-                    return _SCRAPE_DOC, ct
 
             # Step 2: fast GET for HTML content analysis
             try:
@@ -169,16 +310,17 @@ async def _validate_url(url: str, allowed_domains: Optional[frozenset] = None) -
             if resp.status_code >= 400:
                 return _SKIP, f"HTTP {resp.status_code} on GET"
 
-            final_ct = resp.headers.get("content-type", "").lower()
+            final_ct = _normalize_content_type(resp.headers.get("content-type", ""))
+            final_cd = resp.headers.get("content-disposition", "")
 
-            if "application/json" in final_ct or _is_json(resp.text):
-                return _SKIP, "JSON response"
-
+            if _looks_like_document_resource(url, final_ct, final_cd):
+                return _SCRAPE_DOC, final_ct
+            if any(final_ct.startswith(t) for t in _JSON_CONTENT_TYPES) or _is_json(resp.text):
+                return _SCRAPE_JSON, final_ct or "json-by-body-sniff"
+            if any(final_ct.startswith(t) for t in _IMAGE_CONTENT_TYPES):
+                return _SCRAPE_IMAGE, final_ct
             if any(final_ct.startswith(t) for t in _BINARY_CONTENT_TYPES):
                 return _SKIP, f"binary on GET: {final_ct}"
-
-            if any(final_ct.startswith(t) for t in _DOC_CONTENT_TYPES):
-                return _SCRAPE_DOC, final_ct
 
             # Analyse HTML content
             html = resp.text
@@ -186,18 +328,28 @@ async def _validate_url(url: str, allowed_domains: Optional[frozenset] = None) -
             script_tags = len(re.findall(r"<script", html, re.I))
             text = _extract_text_from_html(html)
             text_chars = len(text)
+            lower = html.lower()
 
             # Thin content: paywall, login wall, or near-empty page
             if text_chars < 150:
                 # Small SPA shell → needs JS rendering
                 if size < 8000 and script_tags >= 2:
                     return _SCRAPE_JS, f"SPA shell ({size} chars, {script_tags} scripts)"
-                # Thin static page: paywall, login wall, etc.
-                return _SKIP, f"thin content ({text_chars} text chars from {size} chars HTML)"
+                if _looks_like_auth_wall(lower):
+                    return _SKIP, f"auth/paywall wall ({text_chars} text chars from {size} chars HTML)"
+                if _looks_like_metadata_page(html):
+                    return _SCRAPE_HTML, f"short metadata page ({text_chars} text chars from {size} chars HTML)"
+                # Short pages can still be useful if the extractor needs to inspect links.
+                return _SCRAPE_HTML, f"short static HTML ({text_chars} text chars from {size} chars HTML)"
 
             # Larger SPA shell: reasonable HTML size but almost no real text
             if text_chars < 300 and script_tags >= 3:
                 return _SCRAPE_JS, f"likely SPA ({size} chars HTML, {text_chars} text chars)"
+
+            # Heavy JS app with low text density (e.g. Angular/React with nav-only static shell)
+            # 28+ scripts and <6% text density is a reliable SPA signal even with nav text present
+            if script_tags >= 15 and text_chars / size < 0.06:
+                return _SCRAPE_JS, f"likely SPA (density {text_chars/size:.1%}, {script_tags} scripts)"
 
             # Soft 404 check
             title_match = re.search(r"<title[^>]*>(.*?)</title>", html, flags=re.IGNORECASE | re.DOTALL)
@@ -205,7 +357,6 @@ async def _validate_url(url: str, allowed_domains: Optional[frozenset] = None) -
             if "404" in title_text and ("not found" in title_text or "error" in title_text):
                 return _SKIP, "soft 404 in title"
 
-            lower = html.lower()
             if text_chars < 1000 and any(
                 p in lower
                 for p in ["page not found", "404 error", "does not exist", "no longer available"]
@@ -470,6 +621,85 @@ async def _scrape_via_vision(url: str, query: str, vision_model: str) -> Tuple[s
         return "", "", f"Vision fallback failed: {e}"
 
 
+async def _scrape_json(url: str) -> Tuple[str, str, Optional[str]]:
+    """Fetch a JSON endpoint and return a trimmed markdown representation."""
+    try:
+        async with httpx.AsyncClient(
+            follow_redirects=True, timeout=20, headers=_FETCH_HEADERS
+        ) as client:
+            resp = await client.get(url)
+        resp.raise_for_status()
+
+        try:
+            data = resp.json()
+        except Exception:
+            data = json.loads(resp.text)
+
+        trimmed = _trim_json_value(data)
+        if isinstance(data, dict):
+            summary = f"Top-level object with {len(data)} keys."
+            extra = "Keys: " + ", ".join(map(str, list(data.keys())[:20]))
+        elif isinstance(data, list):
+            summary = f"Top-level array with {len(data)} items."
+            extra = ""
+        else:
+            summary = f"Top-level scalar of type {type(data).__name__}."
+            extra = ""
+
+        content = f"JSON extracted from {url}\n\n{summary}"
+        if extra:
+            content += f"\n{extra}"
+        content += "\n\n```json\n" + json.dumps(trimmed, ensure_ascii=False, indent=2) + "\n```"
+        title = url.rsplit("/", 1)[-1] or "JSON endpoint"
+        return content, title, None
+    except Exception as e:
+        return "", "", f"JSON extraction failed: {e}"
+
+
+async def _scrape_image(url: str, query: str = "", vision_model: Optional[str] = None) -> Tuple[str, str, Optional[str]]:
+    """Fetch an image URL and extract visible information with a vision model."""
+    if not vision_model:
+        return "", "", "Image URL requires vision_model for extraction"
+
+    import base64
+    import litellm
+
+    try:
+        async with httpx.AsyncClient(
+            follow_redirects=True, timeout=20, headers=_FETCH_HEADERS
+        ) as client:
+            resp = await client.get(url)
+        resp.raise_for_status()
+
+        content_type = _normalize_content_type(resp.headers.get("content-type", "")) or mimetypes.guess_type(url)[0] or "image/png"
+        image_b64 = base64.b64encode(resp.content).decode()
+        query_clause = f" relevant to: {query}" if query else ""
+        prompt = (
+            f"Extract all useful information{query_clause} from this image. "
+            "If it contains text, tables, charts, maps, labels, legends, or numeric values, capture them precisely. "
+            "Return clean plain text or markdown."
+        )
+        response = await litellm.acompletion(
+            model=vision_model,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:{content_type};base64,{image_b64}"}},
+                ],
+            }],
+            max_tokens=2000,
+        )
+        content = (response.choices[0].message.content or "").strip()
+        if not content:
+            return "", "", "Vision extraction returned empty content"
+        title = url.rsplit("/", 1)[-1] or "Image"
+        return content, title, None
+    except Exception as e:
+        logger.warning("[scrape-image] failed for %s: %s", url, e)
+        return "", "", f"Image extraction failed: {e}"
+
+
 # ---------------------------------------------------------------------------
 # Document scraping via docling
 # ---------------------------------------------------------------------------
@@ -524,8 +754,23 @@ async def _scrape_document(url: str, query: str = "", vision_model: Optional[str
     """
     title = url.rsplit("/", 1)[-1] or "Document"
     url_lower = url.lower().split("?")[0]
+    is_pdf = _looks_like_pdf_resource(url)
 
-    if url_lower.endswith(".pdf"):
+    if not is_pdf:
+        try:
+            async with httpx.AsyncClient(
+                follow_redirects=True, timeout=10, headers=_FETCH_HEADERS
+            ) as client:
+                head = await client.head(url)
+            is_pdf = _looks_like_pdf_resource(
+                url,
+                head.headers.get("content-type", ""),
+                head.headers.get("content-disposition", ""),
+            )
+        except Exception:
+            is_pdf = url_lower.endswith(".pdf")
+
+    if is_pdf:
         from docling.datamodel.pipeline_options import PdfPipelineOptions
         from docling.document_converter import DocumentConverter, PdfFormatOption
         from docling_core.types.io import DocumentStream
@@ -585,7 +830,7 @@ async def _scrape_document(url: str, query: str = "", vision_model: Optional[str
             )
         return content, title, None
 
-    # Non-PDF documents (DOCX, PPTX, XLSX, images)
+    # Non-PDF documents (DOCX, PPTX, XLSX)
     from docling.document_converter import DocumentConverter
 
     def _convert():
@@ -619,6 +864,8 @@ async def scrape_url(
     - ``SCRAPE_HTML``  → ``_scrape_html_fast`` (HTTP strategy, no browser)
     - ``SCRAPE_JS``    → ``_scrape_html_browser`` (full Playwright browser)
     - ``SCRAPE_DOC``   → ``_scrape_document`` (docling)
+    - ``SCRAPE_JSON``  → ``_scrape_json`` (structured JSON)
+    - ``SCRAPE_IMAGE`` → ``_scrape_image`` (vision extraction)
     - ``SKIP``         → returns error immediately, no scraping
 
     Args:
@@ -646,6 +893,12 @@ async def scrape_url(
         if verdict == _SCRAPE_DOC:
             logger.info("[scrape] document → %s", url)
             content, title, error = await _scrape_document(url, query=query, vision_model=vision_model, max_pdf_pages=max_pdf_pages)
+        elif verdict == _SCRAPE_JSON:
+            logger.info("[scrape] json → %s", url)
+            content, title, error = await _scrape_json(url)
+        elif verdict == _SCRAPE_IMAGE:
+            logger.info("[scrape] image → %s", url)
+            content, title, error = await _scrape_image(url, query=query, vision_model=vision_model)
         elif verdict == _SCRAPE_HTML:
             logger.info("[scrape] html-fast → %s", url)
             content, title, error = await _scrape_html_fast(url, query=query, vision_model=vision_model)

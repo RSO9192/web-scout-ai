@@ -45,8 +45,11 @@ Each selected URL is scraped and converted into a substantial query-relevant ext
 
 - Static HTML via fast HTTP
 - JS-rendered pages via Playwright
-- PDF, DOCX, PPTX, XLSX via `docling`
+- JSON endpoints via structured extraction
+- Image URLs via optional vision extraction
+- PDF, DOCX, PPTX, XLSX via `docling`, including extensionless download URLs detected from response headers
 - Bot-protected PDFs (e.g. Akamai) via Playwright browser download fallback
+- Short metadata/catalogue pages retained for extractor inspection instead of being dropped as thin pages
 - Scanned PDFs and empty JS pages via optional vision fallback
 
 ### It can deepen automatically
@@ -225,7 +228,7 @@ models = {
     "coverage_evaluator": "openai/gpt-5.4-mini",
     "synthesiser": "openai/gpt-5.4-mini",
 
-    # Optional fallback for scanned PDFs or empty JS pages
+    # Optional fallback for scanned PDFs, image URLs, or empty JS pages
     "vision_fallback": "gemini/gemini-3-flash-preview",
 }
 ```
@@ -277,8 +280,12 @@ Query
  +- Scrape and extract in parallel
  |   +- Static HTML
  |   +- JS/SPA via Playwright
+ |   +- JSON endpoints via structured extraction
+ |   +- Image URLs via vision extraction
  |   +- PDF/DOCX/PPTX/XLSX via docling
+ |   +- Extensionless document downloads via content-type/content-disposition sniffing
  |   +- Bot-protected PDFs via Playwright download fallback
+ |   +- Short metadata pages retained for linked-document follow-up
  |   +- Scanned PDFs via vision fallback
  +- Evaluate coverage (LLM)
  |   +- Reuse promising backlog URLs
