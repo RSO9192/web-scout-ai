@@ -74,7 +74,7 @@ _FETCH_HEADERS = {
 }
 
 _MIN_PDF_TEXT_CHARS = 300
-_PDF_PAGE_RANGE = (1, 50)  # only process first 50 pages
+_PDF_MAX_PAGES_DEFAULT = 50
 
 
 # ---------------------------------------------------------------------------
@@ -474,7 +474,48 @@ async def _scrape_via_vision(url: str, query: str, vision_model: str) -> Tuple[s
 # Document scraping via docling
 # ---------------------------------------------------------------------------
 
-async def _scrape_document(url: str, query: str = "", vision_model: Optional[str] = None) -> Tuple[str, str, Optional[str]]:
+async def _download_pdf_via_browser(url: str) -> Optional[bytes]:
+    """Download a PDF using a real Chromium browser via Playwright.
+
+    Used as a fallback when the plain httpx download is blocked (e.g. Akamai
+    bot-protection returns 403 to plain HTTP clients but serves the file to
+    real browsers).  Returns raw PDF bytes, or ``None`` on failure.
+    """
+    import os
+    import tempfile
+    from playwright.async_api import async_playwright
+
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context(
+                user_agent=_FETCH_HEADERS["User-Agent"],
+                accept_downloads=True,
+            )
+            page = await context.new_page()
+            tmp: Optional[str] = None
+            try:
+                async with page.expect_download(timeout=30_000) as dl_info:
+                    try:
+                        await page.goto(url, timeout=30_000)
+                    except Exception:
+                        pass  # "Download is starting" error is expected
+                download = await dl_info.value
+                with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+                    tmp = f.name
+                await download.save_as(tmp)
+                with open(tmp, "rb") as f:
+                    return f.read()
+            finally:
+                if tmp and os.path.exists(tmp):
+                    os.unlink(tmp)
+                await browser.close()
+    except Exception as e:
+        logger.warning("[scrape-doc] browser PDF download failed for %s: %s", url, e)
+        return None
+
+
+async def _scrape_document(url: str, query: str = "", vision_model: Optional[str] = None, max_pdf_pages: int = _PDF_MAX_PAGES_DEFAULT) -> Tuple[str, str, Optional[str]]:
     """Extract content from a document (PDF, DOCX, PPTX, XLSX) via docling.
 
     PDFs use a fast text-layer path (no OCR, no table detection) and are
@@ -493,6 +534,9 @@ async def _scrape_document(url: str, query: str = "", vision_model: Optional[str
         # Docling's internal URL fetcher uses a plain user-agent that is
         # often blocked by government/NGO servers, resulting in "not valid".
         # Downloading first and passing bytes via DocumentStream is reliable.
+        # If the plain httpx download is blocked (e.g. Akamai 403), fall back
+        # to a real Chromium browser download which passes TLS fingerprinting.
+        pdf_bytes: Optional[bytes] = None
         try:
             async with httpx.AsyncClient(
                 follow_redirects=True, timeout=20, headers=_FETCH_HEADERS
@@ -503,10 +547,12 @@ async def _scrape_document(url: str, query: str = "", vision_model: Optional[str
             if pdf_bytes[:4] != b'%PDF':
                 return "", "", f"URL did not return a PDF (got {dl_resp.headers.get('content-type','?')})"
         except Exception as e:
-            logger.warning("[scrape-doc] PDF download failed %s: %s — trying docling direct", url, e)
-            pdf_bytes = None
+            logger.warning("[scrape-doc] httpx PDF download failed %s: %s — trying browser download", url, e)
+            pdf_bytes = await _download_pdf_via_browser(url)
+            if pdf_bytes is None:
+                return "", "", f"PDF inaccessible (httpx: {e}; browser download also failed)"
 
-        def _convert_fast(pdf_bytes=pdf_bytes):
+        def _convert_fast(pdf_bytes: bytes = pdf_bytes):
             opts = PdfPipelineOptions(
                 do_ocr=False,
                 do_table_structure=False,
@@ -515,15 +561,12 @@ async def _scrape_document(url: str, query: str = "", vision_model: Optional[str
             converter = DocumentConverter(
                 format_options={"pdf": PdfFormatOption(pipeline_options=opts)}
             )
-            if pdf_bytes is not None:
-                import io as _io
-                filename = url.rsplit("/", 1)[-1].split("?")[0] or "document.pdf"
-                source = DocumentStream(name=filename, stream=_io.BytesIO(pdf_bytes))
-            else:
-                source = url  # fallback to direct URL
+            import io as _io
+            filename = url.rsplit("/", 1)[-1].split("?")[0] or "document.pdf"
+            source = DocumentStream(name=filename, stream=_io.BytesIO(pdf_bytes))
             result = converter.convert(
                 source,
-                page_range=_PDF_PAGE_RANGE,
+                page_range=(1, max_pdf_pages),
             )
             return result.document.export_to_markdown()
 
@@ -550,7 +593,10 @@ async def _scrape_document(url: str, query: str = "", vision_model: Optional[str
         result = converter.convert(url)
         return result.document.export_to_markdown()
 
-    content = await asyncio.to_thread(_convert)
+    try:
+        content = await asyncio.to_thread(_convert)
+    except Exception as e:
+        return "", "", f"Document conversion failed: {e}"
     content = _append_internal_links(content, None)
     return content, title, None
 
@@ -565,6 +611,7 @@ async def scrape_url(
     query: str = "",
     vision_model: Optional[str] = None,
     allowed_domains: Optional[frozenset] = None,
+    max_pdf_pages: int = _PDF_MAX_PAGES_DEFAULT,
 ) -> Tuple[str, str, Optional[str]]:
     """Scrape a URL and return clean markdown content.
 
@@ -580,6 +627,7 @@ async def scrape_url(
         query: Optional search query for BM25 content filtering.
         allowed_domains: Frozenset of domain strings (e.g. ``frozenset({"reddit.com"})``)
             to remove from the default blocked-domain list. ``None`` uses the full block list.
+        max_pdf_pages: Maximum number of pages to extract from PDFs. Defaults to 50.
 
     Returns:
         Tuple of ``(markdown_content, page_title, error_or_none)``.
@@ -597,7 +645,7 @@ async def scrape_url(
     try:
         if verdict == _SCRAPE_DOC:
             logger.info("[scrape] document → %s", url)
-            content, title, error = await _scrape_document(url, query=query, vision_model=vision_model)
+            content, title, error = await _scrape_document(url, query=query, vision_model=vision_model, max_pdf_pages=max_pdf_pages)
         elif verdict == _SCRAPE_HTML:
             logger.info("[scrape] html-fast → %s", url)
             content, title, error = await _scrape_html_fast(url, query=query, vision_model=vision_model)

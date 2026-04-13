@@ -143,6 +143,25 @@ class DuckDuckGoBackend(SearchBackend):
             domains_lower = [d.lower() for d in include_domains]
             results = [r for r in results if _domain_matches(r.url, domains_lower)]
 
+        # Quality guard: warn when results look off-topic (no query keyword overlaps).
+        # ddgs>=9.x ("Dux Distributed") is known to return irrelevant results from
+        # aggregated engines when rate-limited or when Bing result parsing fails.
+        if results and query:
+            query_words = {w.lower() for w in query.split() if len(w) > 3}
+            on_topic = [
+                r for r in results
+                if any(w in (r.title + " " + r.snippet).lower() for w in query_words)
+            ]
+            if on_topic:
+                results = on_topic
+            else:
+                logger.warning(
+                    "[DuckDuckGo] all %d result(s) appear off-topic for query %r — "
+                    "this is a known ddgs>=9.0 issue. Consider using search_backend='serper'.",
+                    len(results), query[:80],
+                )
+                results = []
+
         # DuckDuckGo doesn't provide related searches, PAA, or KG
         return SearchResponse(
             results=results[:max_results],

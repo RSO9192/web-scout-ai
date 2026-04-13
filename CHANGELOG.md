@@ -1,9 +1,30 @@
+<!-- markdownlint-disable MD024 -->
 # Changelog
 
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.9.5]
+
+### Added
+
+- **`max_pdf_pages` parameter on `run_web_research()`**: controls how many pages are extracted from PDFs (default: 50). Useful for reducing latency on large reports when only the opening sections are needed.
+
+### Fixed
+
+- **Playwright fallback for bot-protected PDFs**: when a plain httpx PDF download is blocked (e.g. Akamai returns 403), the scraper now falls back to a headless Chromium download via Playwright, which passes TLS fingerprinting checks. Previously, these downloads silently triggered a crash via the now-removed docling direct-URL fallback.
+- **Crash on PDF download failure**: the docling direct-URL fallback (`source = url`) has been removed. It could not succeed in any case that httpx already failed, and its unhandled exception surfaced as a confusing `ERROR` log. Failures now return a clean error string.
+- **Crash on non-PDF document conversion failure**: DOCX/PPTX/XLSX conversion via docling is now wrapped in a try/except, returning a clean error instead of propagating an unhandled exception to the caller.
+
+## [0.9.4]
+
+### Fixed
+
+- **DuckDuckGo dependency pinned to stable package**: replaced the `ddgs` dependency with `duckduckgo-search = ">=6.0,<9.0"`. The `ddgs` package only exists from version 9.x (a full rename and rewrite of `duckduckgo-search`) and its "Dux Distributed Global Search" aggregation mode returns completely irrelevant results when Bing parsing fails — including programming tutorial sites for biodiversity queries. The stable `duckduckgo-search` 6–8.x series is used instead.
+- **DuckDuckGo off-topic result guard**: `DuckDuckGoBackend` now checks whether returned results share at least one keyword with the query. Results that fail this check are dropped and a warning is logged, preventing the synthesis stage from receiving garbage sources.
+- **DuckDuckGo production warning**: selecting `search_backend="duckduckgo"` now emits a `WARNING` log explaining it is a development/fallback option only and that Serper should be used in production.
 
 ## [0.9.2]
 

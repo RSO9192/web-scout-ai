@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "web-scout-ai"
-version = "0.9.2"
+version = "0.9.5"
 description = "Agentic web research tool — smarter than search, faster than deep research. Search, scrape, and synthesize web content using LLMs."
 authors = ["Riccardo Soldan"]
 license = "MIT"
@@ -29,7 +29,7 @@ openai-agents = ">=0.0.7"
 crawl4ai = ">=0.5"
 docling = ">=2.0"
 docling-core = ">=2.0"
-duckduckgo-search = ">=5.0"
+duckduckgo-search = ">=6.0,<9.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.0"

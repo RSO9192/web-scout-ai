@@ -46,6 +46,7 @@ Each selected URL is scraped and converted into a substantial query-relevant ext
 - Static HTML via fast HTTP
 - JS-rendered pages via Playwright
 - PDF, DOCX, PPTX, XLSX via `docling`
+- Bot-protected PDFs (e.g. Akamai) via Playwright browser download fallback
 - Scanned PDFs and empty JS pages via optional vision fallback
 
 ### It can deepen automatically
@@ -128,6 +129,7 @@ result = await run_web_research(
     direct_url=None,                     # optional
     domain_expertise="climate science",  # optional
     allowed_domains=None,                # optional
+    max_pdf_pages=50,                    # optional, default 50
 )
 ```
 
@@ -276,6 +278,7 @@ Query
  |   +- Static HTML
  |   +- JS/SPA via Playwright
  |   +- PDF/DOCX/PPTX/XLSX via docling
+ |   +- Bot-protected PDFs via Playwright download fallback
  |   +- Scanned PDFs via vision fallback
  +- Evaluate coverage (LLM)
  |   +- Reuse promising backlog URLs

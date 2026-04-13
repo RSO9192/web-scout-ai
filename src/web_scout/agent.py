@@ -234,6 +234,7 @@ async def run_web_research(
     domain_expertise: Optional[str] = None,
     research_depth: str = "standard",
     allowed_domains: Optional[List[str]] = None,
+    max_pdf_pages: int = 50,
 ) -> WebResearchResult:
     """Run deterministic web research pipeline.
 
@@ -270,6 +271,8 @@ async def run_web_research(
             ``["reddit.com"]`` to allow Reddit pages). The block list covers
             social media and video platforms by default. Pass ``None`` (default)
             to use the full block list unchanged.
+        max_pdf_pages: Maximum number of pages to extract from PDFs. Defaults
+            to 50. Reduce for faster processing of large reports.
 
     Returns:
         ``WebResearchResult`` with URLs grouped by action (scraped,
@@ -311,6 +314,7 @@ async def run_web_research(
         query=query,
         vision_model=vision_model,
         allowed_domains=_allowed,
+        max_pdf_pages=max_pdf_pages,
     )
 
     logger.info("[pipeline] start  query=%r  backend=%s mode=%s depth=%s",
@@ -393,6 +397,12 @@ async def run_web_research(
                 raise ValueError("search_backend='serper' requires SERPER_API_KEY env var")
             backend = SerperBackend(key)
         elif search_backend == "duckduckgo":
+            logger.warning(
+                "[pipeline] DuckDuckGo backend selected — this is a development/fallback option only. "
+                "Result quality is significantly lower than Serper: no date, rank, PAA, or Knowledge Graph "
+                "metadata, and ddgs>=9.0 is known to return irrelevant results. "
+                "Set SERPER_API_KEY and use search_backend='serper' for production use."
+            )
             backend = DuckDuckGoBackend()
         else:
             raise ValueError(f"Unknown search_backend={search_backend!r}")
