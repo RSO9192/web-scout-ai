@@ -7,6 +7,7 @@ from web_scout.scraping import (
     _SCRAPE_HTML,
     _SCRAPE_IMAGE,
     _SCRAPE_JSON,
+    _download_pdf_bytes,
     _looks_like_document_resource,
     _trim_json_value,
     _validate_url,
@@ -91,6 +92,21 @@ async def test_validate_url_routes_extensionless_pdf_from_headers(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_validate_url_routes_direct_pdf_without_network(monkeypatch):
+    from web_scout import scraping
+
+    class _UnexpectedAsyncClient:
+        def __init__(self, *args, **kwargs):
+            raise AssertionError("network probe should not run for direct PDF URLs")
+
+    monkeypatch.setattr(scraping.httpx, "AsyncClient", _UnexpectedAsyncClient)
+
+    verdict, detail = await _validate_url("https://example.org/report.pdf")
+    assert verdict == _SCRAPE_DOC
+    assert detail == "document-by-url"
+
+
+@pytest.mark.asyncio
 async def test_validate_url_routes_json_response(monkeypatch):
     from web_scout import scraping
 
@@ -138,3 +154,38 @@ async def test_validate_url_keeps_short_metadata_pages(monkeypatch):
     verdict, detail = await _validate_url("https://example.org/record/10")
     assert verdict == _SCRAPE_HTML
     assert "metadata" in detail
+
+
+@pytest.mark.asyncio
+async def test_download_pdf_bytes_falls_back_to_raw_download(monkeypatch):
+    from web_scout import scraping
+
+    class _FailingAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url):
+            raise RuntimeError("Unsupported content-encoding: None")
+
+    monkeypatch.setattr(scraping.httpx, "AsyncClient", _FailingAsyncClient)
+    monkeypatch.setattr(
+        scraping,
+        "_download_binary_via_urllib",
+        lambda url: (b"%PDF-1.7 mock data", "application/pdf"),
+    )
+
+    async def _unexpected_browser_download(url):
+        raise AssertionError("browser fallback should not be needed")
+
+    monkeypatch.setattr(scraping, "_download_pdf_via_browser", _unexpected_browser_download)
+
+    pdf_bytes, error = await _download_pdf_bytes("https://example.org/report.pdf")
+
+    assert error is None
+    assert pdf_bytes == b"%PDF-1.7 mock data"

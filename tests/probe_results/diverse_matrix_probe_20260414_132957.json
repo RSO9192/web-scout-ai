@@ -1,0 +1,188 @@
+[
+  {
+    "name": "open_kenya_precip",
+    "mode": "open",
+    "query": "Kenya spatial patterns of precipitation change current status and recent trend",
+    "elapsed_seconds": 130.14,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 4,
+    "num_failed": 5,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4426,
+    "error": null,
+    "search_queries": [
+      "Kenya spatial patterns of precipitation change current status recent trend map study",
+      "Kenya rainfall change spatial distribution current status recent trends precipitation analysis",
+      "Kenya precipitation trends spatial variability recent changes current status climate study"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.nature.com/articles/s41598-024-63786-2",
+        "title": "Observations of enhanced rainfall variability in Kenya, East Africa",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://www.researchgate.net/figure/Map-of-study-area-showing-the-position-of-Kenya-and-the-spatial-distribution-of-rainfall_fig1_325120714",
+        "title": "Map of study area showing the position of Kenya and the spatial...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://link.springer.com/article/10.1007/s10113-023-02055-w",
+        "title": "Shifting climate zones and expanding tropical and arid climate ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://www.researchgate.net/figure/Spatial-distribution-of-total-rainfall-climatology-based-over-Kenya-longitude-34-E-42_fig4_311301478",
+        "title": "Spatial distribution of total rainfall climatology based over Kenya...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://www.sciencedirect.com/science/article/abs/pii/S1474706524002201",
+        "title": "Spatial-temporal seasonal and annual rainfall trends and variability ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "open_iccat_policy",
+    "mode": "open",
+    "query": "What specific Total Allowable Catch quotas has ICCAT set for Eastern Atlantic and Mediterranean bluefin tuna for each year from 2022 to 2026, and what were the scientific basis and stock assessment results behind each decision?",
+    "elapsed_seconds": 631.64,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 10,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 7354,
+    "error": null,
+    "search_queries": [
+      "ICCAT Eastern Atlantic and Mediterranean bluefin tuna TAC 2022 2023 2024 2025 2026 total allowable catch quota scientific advice stock assessment PDF",
+      "site:iccat.int bluefin tuna Eastern Atlantic Mediterranean TAC recommendation 2022 2023 2024 2025 2026 stock assessment SCRS report",
+      "ICCAT SCRS bluefin tuna stock assessment Eastern Atlantic Mediterranean 2022 2023 2024 2025 2026 quota decision scientific basis"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_venice_climate",
+    "mode": "open",
+    "query": "What are the projected sea level rise impacts on Venice specifically, including flood frequency projections and MOSE barrier effectiveness under different IPCC scenarios?",
+    "elapsed_seconds": 320.31,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 7,
+    "num_failed": 3,
+    "num_bot_detected": 0,
+    "synthesis_chars": 7072,
+    "error": null,
+    "search_queries": [
+      "Venice projected sea level rise impacts flood frequency projections MOSE barrier effectiveness IPCC scenarios site:.gov OR site:.edu OR site:.org",
+      "Venice flood frequency projection 2050 2100 MOSE barrier effectiveness under RCP SSP IPCC scenario sea level rise",
+      "Venice lagoon sea level rise study MOSE barriers future performance inundation frequency IPCC AR6 scenarios"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.frontiersin.org/journals/climate/articles/10.3389/fclim.2023.1330388/full",
+        "title": "Sea level and temperature extremes in a regulated Lagoon of Venice",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://www.mdpi.com/2072-4292/17/5/820",
+        "title": "Multi-Temporal Relative Sea Level Rise Scenarios up to 2150 for ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://www.researchgate.net/publication/389455171_Multi-Temporal_Relative_Sea_Level_Rise_Scenarios_up_to_2150_for_the_Venice_Lagoon_Italy",
+        "title": "(PDF) Multi-Temporal Relative Sea Level Rise Scenarios up to 2150 ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_iccat",
+    "mode": "domain",
+    "query": "ICCAT Eastern Atlantic Mediterranean bluefin tuna quotas 2022 2026 scientific basis",
+    "elapsed_seconds": 227.48,
+    "include_domains": [
+      "iccat.int"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 8,
+    "num_failed": 1,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3450,
+    "error": null,
+    "search_queries": [
+      "site:iccat.int bluefin tuna quota 2022 2026 scientific committee eastern Atlantic Mediterranean ICCAT",
+      "site:iccat.int ICCAT Eastern Atlantic Mediterranean bluefin tuna quotas 2022 2026 scientific basis",
+      "site:iccat.int 2022 2026 eastern Atlantic Mediterranean bluefin tuna quota scientific advice ICCAT"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.iccat.int/DocsComm/uploads/PA2_618_ENG_20251119102154.pdf",
+        "title": "UAPF Statement \u2013 ICCAT Recommendations Establishing a ...",
+        "error": "[scrape failed: [Scrape failed: PDF inaccessible (httpx: HTTPStatusError: Client error '404 Not Found' for url 'https://www.iccat.int/DocsComm/uploads/PA2_618_ENG_20251119102154.pdf'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404; raw-byte: HTTPError: HTTP Error 404: Not Found; browser download also failed)]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_ipcc",
+    "mode": "domain",
+    "query": "Venice sea level rise impacts flood frequency MOSE IPCC scenarios",
+    "elapsed_seconds": 227.9,
+    "include_domains": [
+      "ipcc.ch"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 9,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 5123,
+    "error": null,
+    "search_queries": [
+      "site:ipcc.ch Venice sea level rise flood frequency MOSE IPCC scenarios",
+      "site:ipcc.ch Venice flooding sea level rise impacts IPCC special report coastal cities",
+      "site:ipcc.ch Venice MOSE adaptation sea level rise projections flood risk report"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_meteo",
+    "mode": "domain",
+    "query": "Kenya precipitation current status recent trend state of the climate",
+    "elapsed_seconds": 226.88,
+    "include_domains": [
+      "meteo.go.ke"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 9,
+    "num_failed": 1,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4876,
+    "error": null,
+    "search_queries": [
+      "site:meteo.go.ke Kenya precipitation current status recent trend climate report",
+      "site:meteo.go.ke Kenya rainfall precipitation trend latest climate bulletin",
+      "site:meteo.go.ke Kenya state of the climate precipitation recent analysis"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://meteo.go.ke/publications/state-of-the-climate-report-2024/",
+        "title": "State of the Climate Report (2024) - Kenya Meteorological Department",
+        "error": "[scrape failed: [No relevant content found for this query on the specific page. The page appears to be a placeholder or index for the 'State of the Climate Report (2024)' and does not currently contain prose or data regarding precipitation status or climate trends for Kenya. However, it provides links to other climate services and reports.]]"
+      }
+    ],
+    "bot_detected": []
+  }
+]

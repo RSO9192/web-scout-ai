@@ -1,0 +1,208 @@
+[
+  {
+    "name": "open_kenya_precip",
+    "mode": "open",
+    "query": "Kenya spatial patterns of precipitation change current status and recent trend",
+    "elapsed_seconds": 93.19,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 4,
+    "num_failed": 6,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3666,
+    "error": null,
+    "search_queries": [
+      "Kenya rainfall spatial distribution change trends current status precipitation analysis",
+      "Kenya precipitation trend map spatial pattern recent changes climate study",
+      "Kenya spatial patterns of precipitation change current status recent trend study"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.researchgate.net/figure/Spatial-distribution-of-total-rainfall-climatology-based-over-Kenya-longitude-34-E-42_fig4_311301478",
+        "title": "Spatial distribution of total rainfall climatology based over Kenya...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://www.sciencedirect.com/science/article/pii/S2214581822001185",
+        "title": "Assessment of global reanalysis precipitation for hydrological ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://www.mdpi.com/2073-4433/14/11/1679",
+        "title": "Analysis of Changes in Rainfall Concentration over East Africa - MDPI",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://www.nature.com/articles/s41598-024-63786-2",
+        "title": "Observations of enhanced rainfall variability in Kenya, East Africa",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://phys.org/news/2023-04-shifting-climate-regions-hotter-drier.html",
+        "title": "New study finds shifting climate regions leading to hotter, drier ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 403 on GET]]"
+      },
+      {
+        "url": "https://link.springer.com/article/10.1007/s10113-023-02055-w",
+        "title": "Shifting climate zones and expanding tropical and arid climate ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "open_iccat_policy",
+    "mode": "open",
+    "query": "What specific Total Allowable Catch quotas has ICCAT set for Eastern Atlantic and Mediterranean bluefin tuna for each year from 2022 to 2026, and what were the scientific basis and stock assessment results behind each decision?",
+    "elapsed_seconds": 323.81,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 10,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 5472,
+    "error": null,
+    "search_queries": [
+      "site:iccat.int Eastern Atlantic Mediterranean bluefin tuna catch limits 2022 2023 2024 2025 2026 recommendation scientific committee stock assessment",
+      "ICCAT SCRS bluefin tuna stock assessment Eastern Atlantic Mediterranean 2022 2023 2024 2025 2026 quota recommendation summary",
+      "ICCAT bluefin tuna Total Allowable Catch 2022 2023 2024 2025 2026 Eastern Atlantic Mediterranean TAC quota scientific basis stock assessment PDF"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_venice_climate",
+    "mode": "open",
+    "query": "What are the projected sea level rise impacts on Venice specifically, including flood frequency projections and MOSE barrier effectiveness under different IPCC scenarios?",
+    "elapsed_seconds": 342.17,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 8,
+    "num_failed": 2,
+    "num_bot_detected": 0,
+    "synthesis_chars": 7073,
+    "error": null,
+    "search_queries": [
+      "Venice flooding projections MOSE barrier under IPCC scenarios sea level rise frequency of acqua alta report",
+      "Venice lagoon sea level rise impacts flood frequency 2050 2100 MOSE system effectiveness SSP RCP IPCC",
+      "Venice projected sea level rise flood frequency projections MOSE barrier effectiveness IPCC scenarios site:edu OR site:gov OR site:org"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.researchgate.net/publication/286394961_The_projected_MOSE_barriers_against_flooding_in_Venice_Italy_and_the_expected_global_sea-level_rise",
+        "title": "The projected \"MOSE\" barriers against flooding in Venice (Italy) and ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://www.mdpi.com/2072-4292/17/5/820",
+        "title": "Multi-Temporal Relative Sea Level Rise Scenarios up to 2150 for ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_iccat",
+    "mode": "domain",
+    "query": "ICCAT Eastern Atlantic Mediterranean bluefin tuna quotas 2022 2026 scientific basis",
+    "elapsed_seconds": 231.56,
+    "include_domains": [
+      "iccat.int"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 7,
+    "num_failed": 2,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4179,
+    "error": null,
+    "search_queries": [
+      "site:iccat.int bluefin tuna quota 2026 Eastern Atlantic Mediterranean ICCAT recommendation scientific basis",
+      "site:iccat.int ICCAT Eastern Atlantic Mediterranean bluefin tuna quotas 2022 2026 scientific basis",
+      "site:iccat.int ICCAT 2022 2026 bluefin tuna quota Eastern Atlantic Mediterranean science advice"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.iccat.int/DocsComm/uploads/PA2_618_ENG_20251119102154.pdf",
+        "title": "UAPF Statement \u2013 ICCAT Recommendations Establishing a ...",
+        "error": "[scrape failed: [Scrape failed: PDF inaccessible (httpx: HTTPStatusError: Client error '404 Not Found' for url 'https://www.iccat.int/DocsComm/uploads/PA2_618_ENG_20251119102154.pdf'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404; raw-byte: HTTPError: HTTP Error 404: Not Found; browser download also failed)]]"
+      },
+      {
+        "url": "https://www.iccat.int/Documents/SCRS/ExecSum/BFT_E_ENG.pdf",
+        "title": "[PDF] 88 9.6 BFT - Atlantic bluefin tuna In 2022, the ICCAT Commission ...",
+        "error": "[scrape failed: litellm.ServiceUnavailableError: GeminiException - {\n  \"error\": {\n    \"code\": 503,\n    \"message\": \"The service is currently unavailable.\",\n    \"status\": \"UNAVAILABLE\"\n  }\n}\n]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_ipcc",
+    "mode": "domain",
+    "query": "Venice sea level rise impacts flood frequency MOSE IPCC scenarios",
+    "elapsed_seconds": 248.49,
+    "include_domains": [
+      "ipcc.ch"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 10,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 5446,
+    "error": null,
+    "search_queries": [
+      "site:ipcc.ch Venice sea level rise flood frequency MOSE scenarios",
+      "site:ipcc.ch Venice flooding impacts sea level rise IPCC assessment report",
+      "site:ipcc.ch Venice Adriatic coastal flooding future sea level rise scenario"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_meteo",
+    "mode": "domain",
+    "query": "Kenya precipitation current status recent trend state of the climate",
+    "elapsed_seconds": 348.41,
+    "include_domains": [
+      "meteo.go.ke"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 14,
+    "num_failed": 4,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4632,
+    "error": null,
+    "search_queries": [
+      "site:meteo.go.ke Kenya rainfall precipitation anomaly recent trend state of the climate",
+      "site:meteo.go.ke Kenya precipitation current status recent trend climate report",
+      "site:meteo.go.ke Kenya climate outlook precipitation status recent weather bulletin"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://meteo.go.ke/publications/state-of-the-climate-report-2025/",
+        "title": "State of the Climate Report (2025) - Kenya Meteorological Department",
+        "error": "[scrape failed: [Scrape failed: Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/web-agent/lib/python3.13/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://meteo.go.ke/publications/state-of-the-climate-report-2025/\", waiting until \"networkidle\"]]"
+      },
+      {
+        "url": "https://meteo.go.ke/Services/agrometeorology/",
+        "title": "",
+        "error": "[scrape failed: [Scrape failed: Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/web-agent/lib/python3.13/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://meteo.go.ke/Services/agrometeorology/\", waiting until \"networkidle\"]]"
+      },
+      {
+        "url": "https://meteo.go.ke/the-climate-of-our-cities/",
+        "title": "",
+        "error": "[scrape failed: [No relevant content found for this query on this specific page. The page appears to be a structural shell or landing page that does not currently display text-based climate data, precipitation trends, or state of the climate reports. For current precipitation status and historical climate trends in Kenya, please refer to the specific Climate and Climate Change service sections or the official Maprooms linked below.]]"
+      },
+      {
+        "url": "https://meteo.go.ke/mapviewer",
+        "title": "",
+        "error": "[scrape failed: [Scrape failed: Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/web-agent/lib/python3.13/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://meteo.go.ke/mapviewer\", waiting until \"networkidle\"]]"
+      }
+    ],
+    "bot_detected": []
+  }
+]

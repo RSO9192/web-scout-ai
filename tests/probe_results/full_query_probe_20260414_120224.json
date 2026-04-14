@@ -1,0 +1,78 @@
+[
+  {
+    "query": "Kenya interannual variability and long-term trends in precipitation current status and recent trend",
+    "elapsed_seconds": 159.34,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 4,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4793,
+    "error": null,
+    "search_queries": [
+      "Kenya climate precipitation trends recent studies interannual variability long term rainfall",
+      "Kenya rainfall variability trend analysis interannual annual precipitation 2000 2024",
+      "Kenya precipitation interannual variability long-term trends current status recent trend"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.nature.com/articles/s41598-024-63786-2",
+        "title": "Observations of enhanced rainfall variability in Kenya, East Africa",
+        "content_chars": 2914,
+        "preview": "Research on Kenya's precipitation between 1981 and 2021 reveals substantial shifts in interannual variability and long-term trends, particularly at the national and county levels. ### Current Status of Rainfall Regime - **Bimodal Pattern:**"
+      },
+      {
+        "url": "https://geog.ufl.edu/2026/02/23/rainfall-africa/",
+        "title": "Interannual rainfall variability presents critical challenges across eastern Africa - Geography",
+        "content_chars": 1742,
+        "preview": "This page from the University of Florida Department of Geography features research titled \"Interannual rainfall variability presents critical challenges across eastern Africa.\" The study involves researchers from the UF Department of Geogra"
+      },
+      {
+        "url": "https://www.icpac.net/documents/829/s43017-023-00397-x_1.pdf",
+        "title": "Drivers and Impacts of Eastern African Rainfall Variability",
+        "content_chars": 3246,
+        "preview": "### Precipitation Patterns and Seasonality in Kenya Kenya experiences a bimodal rainfall pattern driven by the movement of the Intertropical Convergence Zone (ITCZ): - **Long Rains (March\u2013May, MAM):** The more intense of the two seasons, su"
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6684806/",
+        "title": "Long-term trends in rainfall and temperature using high-resolution climate datasets in East Africa",
+        "content_chars": 3016,
+        "preview": "This study analyzes long-term trends in rainfall (1981\u20132016) and temperature (1979\u20132010) in Kenya using high-resolution gridded datasets (CHIRPS for rainfall and Observational-Reanalysis Hybrid for temperature). ### Precipitation Status and"
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/",
+        "title": "Observations of Enhanced Rainfall Variability in Kenya, East Africa (1981\u20132021)",
+        "content_chars": 3338,
+        "preview": "Detailed research on Kenya\u2019s precipitation from 1981 to 2021 reveals a significant increase in interannual, seasonal, and intraseasonal variability, particularly after 2013. ### 1. General Trends and Variability (1981\u20132021) * **Enhanced Var"
+      },
+      {
+        "url": "https://www.nature.com/articles/s41598-019-47933-8",
+        "title": "Long-term trends in rainfall and temperature using high-resolution climate datasets in East Africa | Scientific Reports",
+        "content_chars": 2683,
+        "preview": "The study analyzes long-term trends (1981\u20132016 for rainfall; 1979\u20132010 for temperature) and variability in Kenya and East Africa using high-resolution gridded datasets (CHIRPS and OR). ### Precipitation Trends and Current Status in Kenya * "
+      }
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.mdpi.com/2073-4433/17/1/85",
+        "title": "Sub-Seasonal Rainfall Variability and Atmospheric Dynamics ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 403 on GET]. Access to the requested URL (https://www.mdpi.com/2073-4433/17/1/85) was denied by the server. This often occurs due to automated bot protection on the publisher's website. Note: The URL provided (Vol. 17, Issue 1) appears to refer to a future publication year (2026), whereas the research query 'Kenya interannual variability and long-term trends in precipitation' matches an existing article published in 2024: 'Interannual Variability and Trends of Precipitation over Kenya' in Atmosphere 2024, 15(1), 85.]"
+      },
+      {
+        "url": "https://www.researchgate.net/publication/377799564_Seasonal_Variability_of_Rainfall_and_Thunderstorm_Patterns_in_Kenya",
+        "title": "Seasonal Variability of Rainfall and Thunderstorm Patterns in Kenya",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 403 on GET]]"
+      },
+      {
+        "url": "https://jeas.agropublishers.com/2018/03/rainfall-variability-over-kenya-1950-2012/",
+        "title": "Rainfall Variability over Kenya (1950-2012)",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 500]]"
+      },
+      {
+        "url": "https://www.mdpi.com/2073-4433/15/5/609",
+        "title": "Investigation of the Historical Trends and Variability of Rainfall ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 403 on GET]]"
+      }
+    ],
+    "bot_detected": []
+  }
+]

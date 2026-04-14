@@ -26,14 +26,16 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re as _re
 from typing import Any, Dict, List, Optional
-from urllib.parse import urlparse, urljoin
+from urllib.parse import parse_qsl, urlparse, urljoin
 from collections import OrderedDict
 
 from pydantic import BaseModel, Field
 
 from agents import Agent, ModelSettings, Runner
 from .models import WebResearchResult, WebResearchResultRaw
+from .scraping import _is_blocked_domain
 from .tools import ResearchTracker, create_scrape_and_extract_tool
 
 logger = logging.getLogger(__name__)
@@ -51,6 +53,7 @@ DEFAULT_WEB_RESEARCH_MODELS = {
     "web_researcher": "gemini/gemini-3-flash-preview",
     "content_extractor": "gemini/gemini-3-flash-preview",
     "vision_fallback": "gemini/gemini-3-flash-preview",
+    "followup_selector": "gemini/gemini-3-flash-preview",
 }
 
 # ---------------------------------------------------------------------------
@@ -107,6 +110,14 @@ class CoverageEvaluation(BaseModel):
     )
 
 
+class FollowupSelection(BaseModel):
+    """LLM output for selecting the best follow-up URLs from a same-domain set."""
+    selected_urls: List[str] = Field(
+        default_factory=list,
+        description="Exact URLs chosen from the provided candidate list only, ordered best-first.",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Research depth presets
 # ---------------------------------------------------------------------------
@@ -130,14 +141,57 @@ _DEPTH_PRESETS = {
     },
 }
 
+async def _gather_scrapes(tasks: list) -> list:
+    """Run scrape coroutines concurrently; concurrency is bounded inside the scrape tool."""
+    return await asyncio.gather(*tasks)
+
 
 # ---------------------------------------------------------------------------
 # Pipeline
 # ---------------------------------------------------------------------------
 
-import re as _re
-
 _NEXT_PAGE_TOKENS: frozenset = frozenset({"next", "next page", "›", "»"})
+_DOCUMENT_EXTENSIONS: tuple[str, ...] = (".pdf", ".docx", ".pptx", ".xlsx", ".doc", ".xls", ".ppt")
+_FOLLOWUP_POSITIVE_TOKENS: tuple[str, ...] = (
+    "report", "document", "publication", "bulletin", "factsheet", "assessment",
+    "recommendation", "summary", "execsum", "study", "analysis", "trend",
+    "state-of-the-climate", "climatology", "monitoring", "dataset",
+    "download", "article", "paper",
+)
+_FOLLOWUP_NEGATIVE_TOKENS: tuple[str, ...] = (
+    "service", "services", "forecast", "daily-forecast", "weekly-forecast",
+    "seasonal-forecast", "weather-warning", "weather-warnings", "warning",
+    "warnings", "home", "homepage", "contact", "about", "vision-statement",
+    "department-history", "geography-research", "mapviewer",
+)
+_FOLLOWUP_GENERIC_SEGMENTS: frozenset[str] = frozenset({
+    "publications", "publication", "our-products", "products", "services",
+    "service", "weather", "climate", "resources", "library", "documents",
+})
+_FOLLOWUP_LIST_SEGMENTS: frozenset[str] = frozenset({
+    "search", "results", "list", "listing", "archive", "archives", "browse",
+    "catalog", "catalogue", "collection", "collections", "publications",
+    "publications-full", "database",
+})
+_FOLLOWUP_DETAIL_TOKENS: tuple[str, ...] = (
+    "report", "document", "publication", "article", "paper", "brief",
+    "factsheet", "assessment", "analysis", "countrybrief", "record",
+    "item", "handle", "bitstream",
+)
+_DATA_PORTAL_TOKENS: tuple[str, ...] = ("maproom", "dataset", "data", "api", "csv", "thredds")
+_QUERY_DATA_HINTS: tuple[str, ...] = (
+    "dataset", "data portal", "maproom", "api", "csv", "download data", "timeseries",
+    "time series", "gridded", "grid", "raster",
+)
+_QUERY_REPORT_HINTS: tuple[str, ...] = (
+    "report", "trend", "variability", "assessment", "analysis", "current status",
+    "recent trend", "state of the climate", "bulletin",
+)
+_QUERY_STOPWORDS: frozenset[str] = frozenset({
+    "the", "and", "for", "with", "from", "into", "that", "this", "those", "these",
+    "current", "recent", "status", "long", "term", "change", "changes", "pattern",
+    "patterns", "spatial", "interannual", "variability", "trend", "trends",
+})
 
 
 def _judge_synthesis(synthesis: str, valid_urls: set[str]) -> list[str]:
@@ -209,6 +263,235 @@ def _find_next_page_url(content: str, base_url: str) -> Optional[str]:
     return None
 
 
+def _is_same_domain(url: str, domain: str) -> bool:
+    netloc = urlparse(url).netloc.lower().split(":", 1)[0].removeprefix("www.")
+    return bool(netloc) and (netloc == domain or netloc.endswith("." + domain))
+
+
+def _looks_like_document_url(url: str) -> bool:
+    path = urlparse(url).path.lower()
+    return any(path.endswith(ext) for ext in _DOCUMENT_EXTENSIONS)
+
+
+def _query_prefers_data_pages(query: str) -> bool:
+    query_lower = query.lower()
+    return any(token in query_lower for token in _QUERY_DATA_HINTS)
+
+
+def _query_prefers_report_pages(query: str) -> bool:
+    query_lower = query.lower()
+    return any(token in query_lower for token in _QUERY_REPORT_HINTS)
+
+
+def _extract_query_keywords(query: str) -> set[str]:
+    return {
+        token
+        for token in _re.findall(r"[a-z0-9]{4,}", query.lower())
+        if token not in _QUERY_STOPWORDS
+    }
+
+
+def _looks_like_paginated_index_page(url: str) -> bool:
+    parsed = urlparse(url)
+    segments = [seg.lower() for seg in parsed.path.split("/") if seg]
+    query_params = {k.lower() for k, _ in parse_qsl(parsed.query, keep_blank_values=True)}
+    has_list_segment = any(seg in _FOLLOWUP_LIST_SEGMENTS for seg in segments)
+    has_pagination_param = bool(query_params & {"page", "p", "start", "offset", "tab", "sort"})
+    return has_list_segment and has_pagination_param
+
+
+def _looks_like_identifier_detail_page(path_segments: list[str]) -> bool:
+    if not path_segments:
+        return False
+    terminal = path_segments[-1]
+    return (
+        any(token in terminal for token in ("10.", "doi", "handle"))
+        or any(char.isdigit() for char in terminal)
+        or any(token in "/".join(path_segments) for token in ("handle", "record", "item", "bitstream"))
+    )
+
+
+def _score_followup_candidate(query: str, url: str) -> int:
+    parsed = urlparse(url)
+    path = parsed.path.strip("/")
+    path_segments = [seg.lower() for seg in path.split("/") if seg and seg.lower() not in {"index", "index.html"}]
+    joined = "/".join(path_segments)
+    normalized_joined = joined.replace("_", "-")
+    terminal = joined.rsplit("/", 1)[-1] if joined else ""
+    query_lower = query.lower()
+    query_keywords = _extract_query_keywords(query)
+
+    score = 0
+    if _looks_like_paginated_index_page(url):
+        score -= 12
+    if _looks_like_document_url(url):
+        score += 3
+    if any(token in normalized_joined for token in ("report", "bulletin", "assessment", "analysis", "state-of-the-climate")):
+        score += 6
+    if any(token in normalized_joined for token in ("publication", "document", "download")):
+        score += 4
+    if any(token in normalized_joined for token in _FOLLOWUP_DETAIL_TOKENS):
+        score += 3
+    has_negative_token = any(token in normalized_joined for token in _FOLLOWUP_NEGATIVE_TOKENS)
+    if has_negative_token:
+        score -= 10
+        if _looks_like_document_url(url):
+            score -= 6
+    if terminal in _FOLLOWUP_GENERIC_SEGMENTS or joined in _FOLLOWUP_GENERIC_SEGMENTS:
+        score -= 8
+    if terminal in _FOLLOWUP_LIST_SEGMENTS:
+        score -= 8
+    if any(token in normalized_joined for token in _DATA_PORTAL_TOKENS):
+        score += 5 if _query_prefers_data_pages(query) else -6
+    if _query_prefers_report_pages(query) and any(token in normalized_joined for token in ("report", "publication", "document")):
+        score += 4
+    if query_keywords:
+        overlap = sum(1 for token in query_keywords if token in normalized_joined)
+        score += min(overlap, 3) * 2
+    if _looks_like_identifier_detail_page(path_segments):
+        score += 2
+    if "kenya" in query_lower and "kenya" in normalized_joined:
+        score += 2
+    return score
+
+
+def _rank_followup_candidates(query: str, candidates: list[str]) -> list[str]:
+    ranked: list[tuple[int, int, str]] = []
+    seen: set[str] = set()
+    for idx, url in enumerate(candidates):
+        norm = ResearchTracker._normalize_url(url)
+        if norm in seen:
+            continue
+        seen.add(norm)
+        score = _score_followup_candidate(query, url)
+        if score > 0:
+            ranked.append((score, idx, url))
+    ranked.sort(key=lambda item: (-item[0], item[1]))
+    return [url for _, _, url in ranked]
+
+
+def _is_promising_followup_url(url: str, base_domain: str, query: str = "") -> bool:
+    """Heuristic filter for follow-up links discovered inside scraped pages."""
+    if not _is_same_domain(url, base_domain):
+        return False
+
+    parsed = urlparse(url)
+    path = parsed.path.strip("/")
+    if not path and not parsed.query:
+        return False
+
+    lower_url = url.lower()
+    segments = [seg.lower() for seg in path.split("/") if seg]
+    if not segments:
+        return False
+
+    terminal = segments[-1]
+    non_index_segments = [seg for seg in segments if seg not in {"index", "index.html"}]
+    joined = "/".join(non_index_segments)
+    normalized_joined = joined.replace("_", "-")
+
+    if terminal in _FOLLOWUP_NEGATIVE_TOKENS:
+        return False
+    if _looks_like_paginated_index_page(url):
+        return False
+    if terminal in _FOLLOWUP_GENERIC_SEGMENTS and len(non_index_segments) <= 2:
+        return False
+    if joined in _FOLLOWUP_GENERIC_SEGMENTS:
+        return False
+    if non_index_segments and non_index_segments[0] in _FOLLOWUP_NEGATIVE_TOKENS:
+        if not any(tok in normalized_joined for tok in _FOLLOWUP_POSITIVE_TOKENS):
+            return False
+    if any(tok in normalized_joined for tok in _DATA_PORTAL_TOKENS):
+        return _query_prefers_data_pages(query)
+
+    # Shallow generic pages are poor follow-up targets unless they clearly
+    # expose a document or data endpoint via the query string.
+    if len(non_index_segments) <= 2 and not parsed.query:
+        return _score_followup_candidate(query, url) > 3
+
+    return _score_followup_candidate(query, url) > 0
+
+
+def _extract_links_from_markdown(content: str) -> list[str]:
+    """Extract all HTTP(S) URLs from markdown content regardless of position or formatting."""
+    seen: set[str] = set()
+    links: list[str] = []
+    # Match [text](url) first, then bare URLs not inside a markdown link
+    for m in _re.finditer(r'\]\((https?://[^\s)]+)\)|(https?://\S+)', content):
+        url = m.group(1) or m.group(2)
+        url = url.rstrip(".,;)>\"'")
+        if url and url not in seen:
+            seen.add(url)
+            links.append(url)
+    return links
+
+
+async def _rerank_followup_urls(
+    *,
+    query: str,
+    parent_url: str,
+    parent_content: str,
+    candidates: list[str],
+    cap: int,
+    model: Any,
+) -> list[str]:
+    """Use a small LLM to choose the most promising follow-up URLs."""
+    ranked_candidates = _rank_followup_candidates(query, candidates)
+    if not ranked_candidates:
+        return []
+    shortlist = ranked_candidates[: max(cap * 3, cap)]
+    if len(candidates) <= cap or len(shortlist) == 1:
+        return shortlist[:cap]
+
+    candidate_norm_map = OrderedDict(
+        (ResearchTracker._normalize_url(url), url) for url in shortlist
+    )
+    parent_excerpt = " ".join(parent_content.split())[:1800]
+    prompt = (
+        f"Research query: {query}\n"
+        f"Parent page: {parent_url}\n"
+        f"Parent excerpt:\n{parent_excerpt}\n\n"
+        f"Select up to {cap} URLs from this candidate list that are MOST likely to directly answer the query.\n"
+        "Prefer report pages, document downloads, and specific detail pages with concrete evidence.\n"
+        "Only choose data portals, datasets, or maproom pages when the query explicitly looks data-oriented.\n"
+        "Avoid homepages, generic navigation pages, category/list pages, service hubs, and operational forecast/warning pages.\n"
+        "Return exact URLs from the list only.\n\n"
+        "Candidates:\n" + "\n".join(f"- {url}" for url in shortlist)
+    )
+    selector = Agent(
+        name="followup_selector",
+        model=model,
+        output_type=FollowupSelection,
+        model_settings=ModelSettings(),
+        instructions=(
+            "You rank same-domain follow-up URLs for a web research pipeline. "
+            "Only select from the provided candidates. "
+            "Return the few URLs most likely to contain direct evidence for the query."
+        ),
+    )
+    try:
+        result = await Runner.run(selector, prompt, max_turns=1)
+        raw_selected = result.final_output_as(FollowupSelection).selected_urls
+    except Exception as e:
+        logger.warning("[pipeline] follow-up URL reranker failed for %s: %s", parent_url, e)
+        return shortlist[:cap]
+
+    selected: list[str] = []
+    for url in raw_selected:
+        norm = ResearchTracker._normalize_url(url)
+        original = candidate_norm_map.get(norm)
+        if original and original not in selected:
+            selected.append(original)
+        if len(selected) >= cap:
+            break
+
+    if not selected:
+        return shortlist[:cap]
+
+    logger.info("[pipeline] reranked %d follow-up candidates for %s → %d selected", len(shortlist), parent_url, len(selected))
+    return selected
+
+
 def _normalize_domain(d: str) -> str:
     """Strip scheme, www., path, and trailing whitespace from a domain string.
 
@@ -223,6 +506,34 @@ def _normalize_domain(d: str) -> str:
     # Strip port (keep domain only)
     d = d.split(":")[0]
     return d.removeprefix("www.")
+
+
+def _build_allowed_domain_set(
+    allowed_domains: Optional[List[str]] = None,
+    include_domains: Optional[List[str]] = None,
+    direct_url: Optional[str] = None,
+) -> Optional[frozenset[str]]:
+    """Build the effective allow-list for blocked-domain overrides.
+
+    Explicit user intent should override the default blocklist:
+    - `allowed_domains` opt specific domains back in manually
+    - `include_domains` means domain-restricted mode, so those domains are allowed
+    - `direct_url` means the explicitly requested URL's domain is allowed
+    """
+    effective: set[str] = set()
+
+    if allowed_domains:
+        effective.update(_normalize_domain(d) for d in allowed_domains)
+    if include_domains:
+        effective.update(_normalize_domain(d) for d in include_domains)
+    if direct_url:
+        effective.add(_normalize_domain(direct_url))
+
+    return frozenset(effective) if effective else None
+
+
+def _is_domain_mode_candidate(url: str, include_domains: list[str], query: str) -> bool:
+    return any(_is_promising_followup_url(url, domain, query=query) for domain in include_domains)
 
 
 async def run_web_research(
@@ -291,9 +602,15 @@ async def run_web_research(
     if include_domains:
         include_domains = [_normalize_domain(d) for d in include_domains]
 
-    # Convert allowed_domains to frozenset, applying same normalization as include_domains
-    # so callers can pass "www.reddit.com" or "https://reddit.com" and get correct behaviour.
-    _allowed = frozenset(_normalize_domain(d) for d in allowed_domains) if allowed_domains else None
+    # Explicit user intent should override the default blocked-domain list:
+    # - allowed_domains: manual opt-in
+    # - include_domains: domain-restricted mode
+    # - direct_url: explicitly requested URL
+    _allowed = _build_allowed_domain_set(
+        allowed_domains=allowed_domains,
+        include_domains=include_domains,
+        direct_url=direct_url,
+    )
 
     # Create shared tracker
     tracker = ResearchTracker()
@@ -304,6 +621,7 @@ async def run_web_research(
     query_gen_model = get_model(models.get("query_generator", fallback_model))
     evaluator_model = get_model(models.get("coverage_evaluator", fallback_model))
     synth_model = get_model(models.get("synthesiser", fallback_model))
+    followup_model = get_model(models.get("followup_selector", DEFAULT_WEB_RESEARCH_MODELS["followup_selector"]))
     extractor_model = get_model(models.get("content_extractor", DEFAULT_WEB_RESEARCH_MODELS["content_extractor"]))
     vision_model = models.get("vision_fallback", DEFAULT_WEB_RESEARCH_MODELS["vision_fallback"])
 
@@ -337,38 +655,41 @@ async def run_web_research(
         if is_hub:
             # Hub page: collect LLM-ranked item links, one-hop pagination
             candidates = []
-            if "**Relevant Links found on page:**" in content:
-                for line in content.split("\n"):
-                    if line.startswith("- http") or (line.startswith("- [") and "http" in line):
-                        l = line.split("](", 1)[-1].split(")", 1)[0] if "](" in line else line.replace("- ", "").strip()
-                        if l and l not in candidates:
-                            candidates.append(l)
+            for l in _extract_links_from_markdown(content):
+                if l and l not in candidates:
+                    candidates.append(l)
 
             next_page = _find_next_page_url(content, direct_url)
             if next_page:
                 logger.info("[pipeline] hub pagination: scraping next page %s", next_page)
                 next_content = await scrape_tool(next_page)
-                for line in next_content.split("\n"):
-                    if line.startswith("- http") or (line.startswith("- [") and "http" in line):
-                        l = line.split("](", 1)[-1].split(")", 1)[0] if "](" in line else line.replace("- ", "").strip()
-                        if l and l not in candidates:
-                            candidates.append(l)
+                for l in _extract_links_from_markdown(next_content):
+                    if l and l not in candidates:
+                        candidates.append(l)
 
             hub_cap = depth["hub_deepening_cap"]
             if candidates:
-                logger.info("[pipeline] hub deepening on %d candidate links (cap=%d)", len(candidates), hub_cap)
-                tasks = [scrape_tool(link) for link in candidates[:hub_cap]]
-                await asyncio.gather(*tasks)
+                chosen = await _rerank_followup_urls(
+                    query=query,
+                    parent_url=direct_url,
+                    parent_content=content,
+                    candidates=candidates,
+                    cap=hub_cap,
+                    model=followup_model,
+                )
+                logger.info("[pipeline] hub deepening on %d candidate links (cap=%d)", len(chosen), hub_cap)
+                tasks = [scrape_tool(link) for link in chosen]
+                await _gather_scrapes(tasks)
 
         else:
-            # Non-hub: existing behaviour — follow up to 3 same-domain links
-            links_to_deepen = []
-            if "**Relevant Links found on page:**" in content:
-                for line in content.split("\n"):
-                    if line.startswith("- http") or (line.startswith("- [") and "http" in line):
-                        l = line.split("](", 1)[-1].split(")", 1)[0] if "](" in line else line.replace("- ", "").strip()
-                        links_to_deepen.append(l)
+            # Non-hub: only deepen HTML pages; explicit document URLs are already
+            # the target artifact and usually should not fan out into site chrome.
+            if _looks_like_document_url(direct_url):
+                links_to_deepen = []
+            else:
+                links_to_deepen = _extract_links_from_markdown(content)
 
+            # Existing behaviour — follow up to 3 same-domain links
             if links_to_deepen:
                 direct_domain = urlparse(direct_url).netloc.lower()
                 if direct_domain.startswith("www."):
@@ -377,15 +698,21 @@ async def run_web_research(
                 same_domain_links = []
                 if direct_domain:
                     for l in links_to_deepen:
-                        link_domain = urlparse(l).netloc.lower()
-                        if link_domain == direct_domain or link_domain.endswith("." + direct_domain):
+                        if _is_promising_followup_url(l, direct_domain, query=query):
                             same_domain_links.append(l)
 
-                same_domain_links = same_domain_links[:3]
                 if same_domain_links:
-                    logger.info("[pipeline] deepening on %d links from direct URL", len(same_domain_links))
-                    tasks = [scrape_tool(link) for link in same_domain_links]
-                    await asyncio.gather(*tasks)
+                    chosen = await _rerank_followup_urls(
+                        query=query,
+                        parent_url=direct_url,
+                        parent_content=content,
+                        candidates=same_domain_links,
+                        cap=min(3, len(same_domain_links)),
+                        model=followup_model,
+                    )
+                    logger.info("[pipeline] deepening on %d links from direct URL", len(chosen))
+                    tasks = [scrape_tool(link) for link in chosen]
+                    await _gather_scrapes(tasks)
 
     else:
         # --- 2. SEARCH MODE (Open Web or Domain Restricted) ---
@@ -437,7 +764,7 @@ async def run_web_research(
                 extracted_contents = []
                 if urls_to_scrape:
                     tasks = [scrape_tool(url) for url in urls_to_scrape]
-                    extracted_contents = await asyncio.gather(*tasks)
+                    extracted_contents = await _gather_scrapes(tasks)
                     iter_results = list(zip(urls_to_scrape, extracted_contents))
                 else:
                     logger.info("[pipeline] no promising backlog URLs to scrape")
@@ -495,6 +822,8 @@ async def run_web_research(
                         if resp and idx < len(resp.results):
                             url = resp.results[idx].url
                             norm = tracker._normalize_url(url)
+                            if include_domains and not _is_domain_mode_candidate(url, include_domains, query):
+                                continue
                             # We must ensure we don't pick URLs we already scraped/tried
                             if norm not in unique_urls and tracker._actions.get(norm, "snippet_only") == "snippet_only":
                                 unique_urls[norm] = url
@@ -509,7 +838,7 @@ async def run_web_research(
                 extracted_contents = []
                 if urls_to_scrape:
                     tasks = [scrape_tool(url) for url in urls_to_scrape]
-                    extracted_contents = await asyncio.gather(*tasks)
+                    extracted_contents = await _gather_scrapes(tasks)
                     iter_results = list(zip(urls_to_scrape, extracted_contents))
                 else:
                     logger.info("[pipeline] no new URLs to scrape")
@@ -530,57 +859,72 @@ async def run_web_research(
                     # Hub deepening: collect LLM-ranked item links from all hub pages
                     candidates = []
                     for hub_url, hub_content in hub_results:
-                        if "**Relevant Links found on page:**" in hub_content:
-                            for line in hub_content.split("\n"):
-                                if line.startswith("- http") or (line.startswith("- [") and "http" in line):
-                                    l = line.split("](", 1)[-1].split(")", 1)[0] if "](" in line else line.replace("- ", "").strip()
-                                    if l:
-                                        parsed_netloc = urlparse(l).netloc.lower()
-                                        if any(parsed_netloc == d.lower() or parsed_netloc.endswith("." + d.lower()) for d in include_domains):
-                                            if tracker._normalize_url(l) not in tracker._actions:
-                                                if l not in candidates:
-                                                    candidates.append(l)
+                        for l in _extract_links_from_markdown(hub_content):
+                            if l:
+                                parsed_netloc = urlparse(l).netloc.lower()
+                                if any(parsed_netloc == d.lower() or parsed_netloc.endswith("." + d.lower()) for d in include_domains):
+                                    if tracker._normalize_url(l) not in tracker._actions and any(
+                                        _is_promising_followup_url(l, d.lower(), query=query) for d in include_domains
+                                    ):
+                                        if l not in candidates:
+                                            candidates.append(l)
 
                         # One-hop pagination per hub
                         next_page = _find_next_page_url(hub_content, hub_url)
                         if next_page and tracker._normalize_url(next_page) not in tracker._actions:
                             logger.info("[pipeline] hub pagination (domain mode): %s", next_page)
                             next_content = await scrape_tool(next_page)
-                            for line in next_content.split("\n"):
-                                if line.startswith("- http") or (line.startswith("- [") and "http" in line):
-                                    l = line.split("](", 1)[-1].split(")", 1)[0] if "](" in line else line.replace("- ", "").strip()
-                                    if l:
-                                        parsed_netloc = urlparse(l).netloc.lower()
-                                        if any(parsed_netloc == d.lower() or parsed_netloc.endswith("." + d.lower()) for d in include_domains):
-                                            if tracker._normalize_url(l) not in tracker._actions:
-                                                if l not in candidates:
-                                                    candidates.append(l)
+                            for l in _extract_links_from_markdown(next_content):
+                                if l:
+                                    parsed_netloc = urlparse(l).netloc.lower()
+                                    if any(parsed_netloc == d.lower() or parsed_netloc.endswith("." + d.lower()) for d in include_domains):
+                                        if tracker._normalize_url(l) not in tracker._actions and any(
+                                            _is_promising_followup_url(l, d.lower(), query=query) for d in include_domains
+                                        ):
+                                            if l not in candidates:
+                                                candidates.append(l)
 
                     hub_cap = depth["hub_deepening_cap"]
                     if candidates:
-                        logger.info("[pipeline] hub deepening (domain mode) on %d candidates (cap=%d)", len(candidates), hub_cap)
-                        deep_tasks = [scrape_tool(link) for link in candidates[:hub_cap]]
-                        await asyncio.gather(*deep_tasks)
+                        chosen = await _rerank_followup_urls(
+                            query=query,
+                            parent_url=hub_results[0][0],
+                            parent_content=hub_results[0][1],
+                            candidates=candidates,
+                            cap=hub_cap,
+                            model=followup_model,
+                        )
+                        logger.info("[pipeline] hub deepening (domain mode) on %d candidates (cap=%d)", len(chosen), hub_cap)
+                        deep_tasks = [scrape_tool(link) for link in chosen]
+                        await _gather_scrapes(deep_tasks)
 
                 elif count_scraped < 2 and extracted_contents:
                     # Existing fallback: no hub detected, thin coverage — follow up to 3 links
                     links_to_deepen = []
                     for content in extracted_contents:
-                        if "**Relevant Links found on page:**" in content:
-                            for line in content.split("\n"):
-                                if line.startswith("- http") or (line.startswith("- [") and "http" in line):
-                                    l = line.split("](", 1)[-1].split(")", 1)[0] if "](" in line else line.replace("- ", "").strip()
-                                    parsed_netloc = urlparse(l).netloc.lower()
-                                    if any(parsed_netloc == d.lower() or parsed_netloc.endswith("." + d.lower()) for d in include_domains):
-                                        if tracker._normalize_url(l) not in tracker._actions:
-                                            if l not in links_to_deepen:
-                                                links_to_deepen.append(l)
+                        for l in _extract_links_from_markdown(content):
+                            parsed_netloc = urlparse(l).netloc.lower()
+                            if any(parsed_netloc == d.lower() or parsed_netloc.endswith("." + d.lower()) for d in include_domains):
+                                if tracker._normalize_url(l) not in tracker._actions and any(
+                                    _is_promising_followup_url(l, d.lower(), query=query) for d in include_domains
+                                ):
+                                    if l not in links_to_deepen:
+                                        links_to_deepen.append(l)
 
                     if links_to_deepen:
-                        deep_links = links_to_deepen[:3]
+                        parent_url = next((url for url, _ in iter_results if url), include_domains[0])
+                        parent_content = next((c for _, c in iter_results if c), "")
+                        deep_links = await _rerank_followup_urls(
+                            query=query,
+                            parent_url=parent_url,
+                            parent_content=parent_content,
+                            candidates=links_to_deepen,
+                            cap=min(3, len(links_to_deepen)),
+                            model=followup_model,
+                        )
                         logger.info("[pipeline] domain restricted deepening on %d links: %s", len(deep_links), deep_links)
                         deep_tasks = [scrape_tool(link) for link in deep_links]
-                        await asyncio.gather(*deep_tasks)
+                        await _gather_scrapes(deep_tasks)
 
             # 2g. Evaluate Coverage
             if iteration < depth["max_iterations"] - 1:
@@ -638,6 +982,15 @@ async def run_web_research(
                         for u in evaluation.promising_unscraped_urls
                         if tracker._normalize_url(u) in snippet_norm_map
                     ][:depth["urls_followup"]]
+                    promising_urls_from_evaluator = [
+                        u for u in promising_urls_from_evaluator
+                        if not _is_blocked_domain(u, allowed_domains=_allowed)
+                    ]
+                    if include_domains:
+                        promising_urls_from_evaluator = [
+                            u for u in promising_urls_from_evaluator
+                            if _is_domain_mode_candidate(u, include_domains, query)
+                        ]
 
                     if not needs_new_searches and not promising_urls_from_evaluator:
                         logger.info("[pipeline] evaluator said skip search but gave no valid backlog URLs; falling back to new searches")
@@ -647,6 +1000,9 @@ async def run_web_research(
     groups = tracker.build_result_groups()
     scraped = groups["scraped"]
     scrape_failed = groups["scrape_failed"]
+    blocked_by_policy = groups["blocked_by_policy"]
+    source_http_error = groups["source_http_error"]
+    scraped_irrelevant = groups["scraped_irrelevant"]
     bot_detected = groups["bot_detected"]
     snippet_only = groups["snippet_only"]
 
@@ -691,6 +1047,11 @@ async def run_web_research(
             "[pipeline] %d URL(s) blocked by bot-protection: %s",
             len(bot_detected), [e.url for e in bot_detected],
         )
+    if blocked_by_policy:
+        logger.info(
+            "[pipeline] %d URL(s) skipped by policy: %s",
+            len(blocked_by_policy), [e.url for e in blocked_by_policy],
+        )
 
     try:
         synth_res = await Runner.run(synth_agent, synth_prompt, max_turns=1)
@@ -724,13 +1085,17 @@ async def run_web_research(
         logger.info("[pipeline] synthesis passed judge with 0 issues")
 
     logger.info(
-        "[pipeline] done scraped=%d failed=%d bot_detected=%d snippet_only=%d queries=%d",
-        len(scraped), len(scrape_failed), len(bot_detected), len(snippet_only), len(tracker.queries)
+        "[pipeline] done scraped=%d failed=%d blocked=%d source_http=%d irrelevant=%d bot_detected=%d snippet_only=%d queries=%d",
+        len(scraped), len(scrape_failed), len(blocked_by_policy), len(source_http_error),
+        len(scraped_irrelevant), len(bot_detected), len(snippet_only), len(tracker.queries)
     )
 
     return WebResearchResult(
         scraped=scraped,
         scrape_failed=scrape_failed,
+        blocked_by_policy=blocked_by_policy,
+        source_http_error=source_http_error,
+        scraped_irrelevant=scraped_irrelevant,
         bot_detected=bot_detected,
         snippet_only=snippet_only,
         queries=tracker.queries,

@@ -20,6 +20,7 @@ import re
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional
 from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 
+import litellm
 from agents import Agent, ModelSettings, Runner, function_tool
 from pydantic import BaseModel, Field
 
@@ -28,13 +29,36 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_TRANSIENT_LLM_ERRORS = (
+    litellm.ServiceUnavailableError,
+    litellm.RateLimitError,
+    litellm.APIConnectionError,
+    litellm.BadGatewayError,
+)
+_RETRY_DELAYS = (1.0, 2.0, 4.0)
+
+
+async def _run_with_retry(agent: Agent, input_text: str, max_turns: int = 15) -> Any:
+    """Run Runner.run() with exponential backoff on transient LLM errors."""
+    last_exc: Exception = RuntimeError("unreachable")
+    for delay in (*_RETRY_DELAYS, None):
+        try:
+            return await Runner.run(agent, input_text, max_turns=max_turns)
+        except _TRANSIENT_LLM_ERRORS as e:
+            last_exc = e
+            if delay is None:
+                raise
+            await asyncio.sleep(delay)
+    raise last_exc  # unreachable, satisfies type checkers
+
 
 # ---------------------------------------------------------------------------
 # Snippet quality heuristic
 # ---------------------------------------------------------------------------
 
 _DIGIT_PATTERN = re.compile(r"\d")
-_ERROR_TITLE_RE = re.compile(r"^Error[:\s|\-]", re.IGNORECASE)
+_ERROR_TITLE_RE = re.compile(r"^Error[:\s\-]", re.IGNORECASE)
+_HTTP_ERROR_RE = re.compile(r"\bHTTP\s+\d{3}\b", re.IGNORECASE)
 
 
 def _snippet_quality(snippet: str) -> str:
@@ -48,7 +72,15 @@ def _snippet_quality(snippet: str) -> str:
 # ResearchTracker — tool-level URL/query bookkeeping
 # ---------------------------------------------------------------------------
 
-_ACTION_RANK = {"snippet_only": 1, "scrape_failed": 2, "bot_detected": 2, "scraped": 3}
+_ACTION_RANK = {
+    "snippet_only": 1,
+    "scrape_failed": 2,
+    "blocked_by_policy": 2,
+    "source_http_error": 2,
+    "scraped_irrelevant": 2,
+    "bot_detected": 2,
+    "scraped": 3,
+}
 
 _TRACKING_PARAMS: frozenset = frozenset({
     "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
@@ -136,6 +168,30 @@ class ResearchTracker:
         entry = self._urls.setdefault(key, UrlEntry(url=url))
         entry.content = f"[scrape failed: {error}]"
 
+    def record_blocked_by_policy(self, url: str, error: str):
+        from .models import UrlEntry
+
+        key = self._normalize_url(url)
+        self._upgrade_action(key, "blocked_by_policy")
+        entry = self._urls.setdefault(key, UrlEntry(url=url))
+        entry.content = f"[blocked by policy: {error}]"
+
+    def record_source_http_error(self, url: str, error: str):
+        from .models import UrlEntry
+
+        key = self._normalize_url(url)
+        self._upgrade_action(key, "source_http_error")
+        entry = self._urls.setdefault(key, UrlEntry(url=url))
+        entry.content = f"[source http error: {error}]"
+
+    def record_scraped_irrelevant(self, url: str, error: str):
+        from .models import UrlEntry
+
+        key = self._normalize_url(url)
+        self._upgrade_action(key, "scraped_irrelevant")
+        entry = self._urls.setdefault(key, UrlEntry(url=url))
+        entry.content = f"[scraped but irrelevant: {error}]"
+
     def record_bot_detection(self, url: str, error: str):
         from .models import UrlEntry
 
@@ -149,6 +205,9 @@ class ResearchTracker:
         groups: Dict[str, list] = {
             "scraped": [],
             "scrape_failed": [],
+            "blocked_by_policy": [],
+            "source_http_error": [],
+            "scraped_irrelevant": [],
             "bot_detected": [],
             "snippet_only": [],
         }
@@ -210,6 +269,19 @@ class _ExtractorOutput(BaseModel):
             "and rank by relevance to the query. Return up to 15."
         ),
     )
+
+
+def _classify_failure_action(content: str, title: str) -> str:
+    lower = content.lower()
+    if "bot_detected:" in content:
+        return "bot_detected"
+    if "skipped: blocked domain" in lower:
+        return "blocked_by_policy"
+    if content.startswith("[No relevant content") or content.startswith("No relevant content"):
+        return "scraped_irrelevant"
+    if _HTTP_ERROR_RE.search(content) or "get failed:" in lower or "connecterror" in lower:
+        return "source_http_error"
+    return "scrape_failed"
 
 
 _EXTRACTOR_INSTRUCTIONS = """\
@@ -326,7 +398,6 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
                 "[scrape_linked_document rejected: URL does not look like a primary "
                 f"document ({detail}): {document_url}]"
             )
-        logger.info("[extract] scrape_linked_document → %s", document_url)
         content, title, error = await _scrape_document(document_url, query=query, vision_model=vision_model, max_pdf_pages=max_pdf_pages)
         if error:
             return f"[Document scrape failed: {error}]"
@@ -531,6 +602,7 @@ def create_scrape_and_extract_tool(
     """
     
     semaphore = asyncio.Semaphore(max_concurrent)
+    in_flight: Dict[str, asyncio.Future[str]] = {}
     
     async def scrape_and_extract(
         url: str,
@@ -552,116 +624,152 @@ def create_scrape_and_extract_tool(
             wait_for: Optional CSS selector to wait for on JS-rendered pages.
                 Only use for known data portals. Omit when in doubt.
         """
-        async with semaphore:
-            if tracker is not None:
-                if tracker.scrape_count >= 25:
-                    return (
-                        "CIRCUIT BREAKER: You have scraped 25 URLs. "
-                        "You MUST STOP scraping and synthesize your findings immediately."
-                    )
-                # Dedup: if this URL was already attempted, return the cached result immediately.
-                # Never retry a URL — if it failed, move on to the next candidate.
-                norm = tracker._normalize_url(url)
-                if norm in tracker._actions:
-                    action = tracker._actions[norm]
-                    cached = tracker._urls.get(norm)
-                    if action == "scraped" and cached:
-                        return f"[Already scraped — cached result] {cached.content[:800]}"
-                    elif action == "scrape_failed":
-                        cached_msg = (cached.content or "scrape failed") if cached else "scrape failed"
-                        return f"[Already attempted this URL — it failed: {cached_msg[:200]}. Move on to a different URL.]"
-                tracker.scrape_count += 1
-    
-            _wait_for = (
-                wait_for
-                if wait_for and wait_for.lower() not in ("null", "none", "")
-                else None
-            )
-    
-            logger.info("[extract] → %s", url)
-    
-            # Build a fresh extractor agent per call with url locked in the closure
-            extractor_agent = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages)
-    
-            input_text = (
-                f"Research query: {query}\n"
-                f"URL: {url}\n\n"
-                f"Call raw_scrape() to fetch the page, then extract relevant content."
-            )
-    
+        norm = tracker._normalize_url(url) if tracker is not None else url
+
+        if tracker is not None:
+            if tracker.scrape_count >= 25:
+                return (
+                    "CIRCUIT BREAKER: You have scraped 25 URLs. "
+                    "You MUST STOP scraping and synthesize your findings immediately."
+                )
+            if norm in tracker._actions:
+                action = tracker._actions[norm]
+                cached = tracker._urls.get(norm)
+                if action == "scraped" and cached:
+                    return f"[Already scraped — cached result] {cached.content[:800]}"
+                if action in {
+                    "scrape_failed",
+                    "blocked_by_policy",
+                    "source_http_error",
+                    "scraped_irrelevant",
+                    "bot_detected",
+                }:
+                    cached_msg = (cached.content or action) if cached else action
+                    return f"[Already attempted this URL — it failed: {cached_msg[:200]}. Move on to a different URL.]"
+
+        existing = in_flight.get(norm)
+        if existing is not None:
             try:
-                result = await Runner.run(extractor_agent, input_text, max_turns=15)
-                output = result.final_output_as(_ExtractorOutput)
+                return await asyncio.shield(existing)
             except Exception as e:
-                logger.error("[extract] sub-agent failed for %s: %s", url, e)
-                if tracker is not None:
-                    tracker.record_scrape_failure(url, str(e))
                 return f"Failed to extract content from {url}: {e}"
-    
-            content = output.relevant_content.strip()
-            title = output.title.strip()
-            links = output.relevant_links
-    
-            # Treat diagnostic placeholders and error titles as failures.
-            # Covers: explicit sentinel strings, LLM paraphrases of errors,
-            # and titles like "Error: Could not access document" or "Error | 403".
-            _content_lower = content.lower()
-            _short = len(content) < 400
-            is_failure = (
-                not content
-                or content.startswith("[No relevant content")
-                or content.startswith("[Scrape failed")
-                or content.startswith("Scrape failed")
-                or content.startswith("[Page returned empty")
-                or (_ERROR_TITLE_RE.match(title) and _short)
-                or ("is not valid" in _content_lower and _short)
-                or ("could not access" in _content_lower and _short)
-                or ("not found" in _content_lower and ("404" in content or "http" in _content_lower) and _short)
-                or ("page not found" in _content_lower and _short)
-                or ("access denied" in _content_lower and _short)
-                or ("403" in content and ("forbidden" in _content_lower or "error" in _content_lower or "skipped" in _content_lower) and _short)
-                or ("skipped" in _content_lower and "http" in _content_lower and _short)
-            )
-    
-            if is_failure:
-                logger.info("[extract] no useful content from %s", url)
+
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future[str] = loop.create_future()
+        in_flight[norm] = future
+
+        try:
+            async with semaphore:
                 if tracker is not None:
-                    if "bot_detected:" in (content or ""):
-                        tracker.record_bot_detection(url, content)
+                    tracker.scrape_count += 1
+
+                _wait_for = (
+                    wait_for
+                    if wait_for and wait_for.lower() not in ("null", "none", "")
+                    else None
+                )
+
+                # Build a fresh extractor agent per call with url locked in the closure
+                extractor_agent = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages)
+
+                input_text = (
+                    f"Research query: {query}\n"
+                    f"URL: {url}\n\n"
+                    f"Call raw_scrape() to fetch the page, then extract relevant content."
+                )
+
+                try:
+                    result = await _run_with_retry(extractor_agent, input_text, max_turns=15)
+                    output = result.final_output_as(_ExtractorOutput)
+                except Exception as e:
+                    logger.error("[extract] sub-agent failed for %s: %s", url, e)
+                    if tracker is not None:
+                        tracker.record_scrape_failure(url, str(e))
+                    final_output = f"Failed to extract content from {url}: {e}"
+                    future.set_result(final_output)
+                    return final_output
+
+                content = output.relevant_content.strip()
+                title = output.title.strip()
+                links = output.relevant_links
+
+                # Treat diagnostic placeholders and error titles as failures.
+                # Covers: explicit sentinel strings, LLM paraphrases of errors,
+                # and titles like "Error: Could not access document" or "Error | 403".
+                _content_lower = content.lower()
+                _short = len(content) < 400
+                is_failure = (
+                    not content
+                    or content.startswith("[No relevant content")
+                    or content.startswith("[Scrape failed")
+                    or content.startswith("Scrape failed")
+                    or content.startswith("[Page returned empty")
+                    or (_ERROR_TITLE_RE.match(title) and _short)
+                    or ("is not valid" in _content_lower and _short)
+                    or ("could not access" in _content_lower and _short)
+                    or ("not found" in _content_lower and ("404" in content or "http" in _content_lower) and _short)
+                    or ("page not found" in _content_lower and _short)
+                    or ("access denied" in _content_lower and _short)
+                    or ("403" in content and ("forbidden" in _content_lower or "error" in _content_lower or "skipped" in _content_lower) and _short)
+                    or ("skipped" in _content_lower and "http" in _content_lower and _short)
+                )
+
+                if is_failure:
+                    action = _classify_failure_action(content or "", title)
+                    if action in {"scraped_irrelevant", "blocked_by_policy"}:
+                        logger.debug("[extract] %s %s", action, url)
+                    elif action in {"source_http_error", "bot_detected"}:
+                        logger.info("[extract] %s %s", action, url)
                     else:
-                        tracker.record_scrape_failure(url, content or "empty extraction")
-                msg = f"No relevant content found at {url}: {content}"
-                
+                        logger.info("[extract] scrape_failed %s", url)
+                    if tracker is not None:
+                        if action == "bot_detected":
+                            tracker.record_bot_detection(url, content)
+                        elif action == "blocked_by_policy":
+                            tracker.record_blocked_by_policy(url, content)
+                        elif action == "source_http_error":
+                            tracker.record_source_http_error(url, content)
+                        elif action == "scraped_irrelevant":
+                            tracker.record_scraped_irrelevant(url, content)
+                        else:
+                            tracker.record_scrape_failure(url, content or "empty extraction")
+                    final_output = f"No relevant content found at {url}: {content}"
+
+                    if tracker is not None:
+                        count_scraped = len(tracker.build_result_groups()["scraped"])
+                        if count_scraped < 2:
+                            final_output += (
+                                "\n\n⚠ REMINDER: You MUST successfully scrape AT LEAST 2 high-quality sources "
+                                f"before synthesising and finishing. You currently have {count_scraped} "
+                                "successful scrape(s). You MUST find other URLs and scrape them!"
+                            )
+                    future.set_result(final_output)
+                    return final_output
+
+                if tracker is not None:
+                    tracker.record_scrape(url, title, content)
+
+                header = f"# {title}\nSource: {url}\n\n" if title else f"Source: {url}\n\n"
+                final_output = header + content
+                if output.page_type == "list":
+                    final_output += "\n**Page type: list**"
+                if links:
+                    final_output += "\n\n**Relevant Links found on page:**\n" + "\n".join(f"- {lnk}" for lnk in links[:15])
+
                 if tracker is not None:
                     count_scraped = len(tracker.build_result_groups()["scraped"])
                     if count_scraped < 2:
-                        msg += (
+                        final_output += (
                             "\n\n⚠ REMINDER: You MUST successfully scrape AT LEAST 2 high-quality sources "
-                            f"before synthesising and finishing. You currently have {count_scraped} "
-                            "successful scrape(s). You MUST find other URLs and scrape them!"
+                            "before synthesising and finishing. You currently have "
+                            f"{count_scraped} successful scrape(s)."
                         )
-                return msg
-    
-            logger.info("[extract] ok  %s (%d chars)", url, len(content))
-            if tracker is not None:
-                tracker.record_scrape(url, title, content)
-                
-            header = f"# {title}\nSource: {url}\n\n" if title else f"Source: {url}\n\n"
-            final_output = header + content
-            if output.page_type == "list":
-                final_output += "\n**Page type: list**"
-            if links:
-                final_output += "\n\n**Relevant Links found on page:**\n" + "\n".join(f"- {lnk}" for lnk in links[:15])
-                
-            if tracker is not None:
-                count_scraped = len(tracker.build_result_groups()["scraped"])
-                if count_scraped < 2:
-                    final_output += (
-                        "\n\n⚠ REMINDER: You MUST successfully scrape AT LEAST 2 high-quality sources "
-                        "before synthesising and finishing. You currently have "
-                        f"{count_scraped} successful scrape(s)."
-                    )
-    
-            return final_output
+
+                future.set_result(final_output)
+                return final_output
+        finally:
+            if not future.done():
+                future.set_exception(RuntimeError("scrape aborted unexpectedly"))
+            in_flight.pop(norm, None)
 
     return scrape_and_extract

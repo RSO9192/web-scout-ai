@@ -1,0 +1,17 @@
+{
+  "elapsed_seconds": 522.16,
+  "scraped_urls": [
+    "https://meteo.go.ke/documents/3009/State_of_the_Climate_Report_2025.pdf",
+    "https://meteo.go.ke/publications/state-of-the-climate-report-2025/",
+    "https://meteo.go.ke/our-products/state-of-the-climate-kenya-report/",
+    "https://meteo.go.ke/documents/1353/State_of_the_Climate_Kenya_2024_v1.pdf",
+    "https://meteo.go.ke/",
+    "http://kmddl.meteo.go.ke:8081/maproom/Climatology/Climate_Analysis/extRainfall.html",
+    "https://meteo.go.ke/our-products/flood-bulletin/",
+    "https://meteo.go.ke/publications/"
+  ],
+  "scrape_failed_urls": [
+    "https://meteo.go.ke/our-products/dekadal-agrometeorological-bulletin/"
+  ],
+  "bot_detected_urls": []
+}

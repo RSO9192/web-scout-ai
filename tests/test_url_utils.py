@@ -1,5 +1,11 @@
 """Unit tests for URL/domain utility helpers."""
-from web_scout.agent import _normalize_domain, _find_next_page_url
+from web_scout.agent import (
+    _build_allowed_domain_set,
+    _find_next_page_url,
+    _is_promising_followup_url,
+    _normalize_domain,
+    _rank_followup_candidates,
+)
 from web_scout.scraping import _is_blocked_domain
 from web_scout.tools import ResearchTracker
 
@@ -30,6 +36,131 @@ def test_normalize_domain_trailing_slash():
 
 def test_normalize_domain_uppercase():
     assert _normalize_domain("WOCAT.NET") == "wocat.net"
+
+
+def test_build_allowed_domain_set_from_direct_url():
+    allowed = _build_allowed_domain_set(direct_url="https://www.sciencedirect.com/science/article/pii/S2214581825005567")
+    assert allowed == frozenset({"sciencedirect.com"})
+
+
+def test_build_allowed_domain_set_from_include_domains():
+    allowed = _build_allowed_domain_set(include_domains=["https://www.nature.com", "iccat.int"])
+    assert allowed == frozenset({"nature.com", "iccat.int"})
+
+
+def test_build_allowed_domain_set_merges_all_sources():
+    allowed = _build_allowed_domain_set(
+        allowed_domains=["reddit.com"],
+        include_domains=["www.nature.com"],
+        direct_url="https://www.sciencedirect.com/science/article/pii/S2214581825005567",
+    )
+    assert allowed == frozenset({"reddit.com", "nature.com", "sciencedirect.com"})
+
+
+def test_is_promising_followup_url_rejects_homepage():
+    assert _is_promising_followup_url("https://meteo.go.ke/", "meteo.go.ke") is False
+
+
+def test_is_promising_followup_url_rejects_generic_service_page():
+    assert _is_promising_followup_url("https://meteo.go.ke/Services/climate/", "meteo.go.ke") is False
+
+
+def test_is_promising_followup_url_rejects_forecast_page():
+    assert _is_promising_followup_url("https://meteo.go.ke/forecast/seasonal-forecast", "meteo.go.ke") is False
+
+
+def test_is_promising_followup_url_rejects_warning_page():
+    assert _is_promising_followup_url("https://meteo.go.ke/weather-warnings/heavy-rainfall-1/", "meteo.go.ke") is False
+
+
+def test_is_promising_followup_url_allows_publication_detail():
+    assert _is_promising_followup_url(
+        "https://meteo.go.ke/publications/state-of-the-climate-report-2025/",
+        "meteo.go.ke",
+    ) is True
+
+
+def test_is_promising_followup_url_allows_document_download():
+    assert _is_promising_followup_url(
+        "https://meteo.go.ke/documents/3009/State_of_the_Climate_Report_2025.pdf",
+        "meteo.go.ke",
+        query="Kenya precipitation current status and recent trend",
+    ) is True
+
+
+def test_is_promising_followup_url_rejects_off_query_forecast_document():
+    assert _is_promising_followup_url(
+        "https://meteo.go.ke/documents/2537/March-April-May_MAM_2026_Seasonal_Weather_Forecast.pdf",
+        "meteo.go.ke",
+        query="Kenya precipitation current status and recent trend state of the climate",
+    ) is False
+
+
+def test_is_promising_followup_url_rejects_publications_list_page():
+    assert _is_promising_followup_url(
+        "https://meteo.go.ke/publications/",
+        "meteo.go.ke",
+        query="Kenya precipitation current status and recent trend",
+    ) is False
+
+
+def test_is_promising_followup_url_rejects_maproom_for_report_query():
+    assert _is_promising_followup_url(
+        "http://kmddl.meteo.go.ke:8081/maproom/Climatology/index.html",
+        "meteo.go.ke",
+        query="Kenya precipitation current status and recent trend",
+    ) is False
+
+
+def test_is_promising_followup_url_allows_maproom_for_data_query():
+    assert _is_promising_followup_url(
+        "http://kmddl.meteo.go.ke:8081/maproom/Climatology/index.html",
+        "meteo.go.ke",
+        query="Kenya precipitation dataset maproom time series",
+    ) is True
+
+
+def test_is_promising_followup_url_rejects_paginated_publications_index():
+    assert _is_promising_followup_url(
+        "https://www.fao.org/markets-and-trade/publications/publications-full/83/en?page=18&tabInx=0",
+        "fao.org",
+        query="Kenya drought impacts on agriculture current status and recent trend",
+    ) is False
+
+
+def test_is_promising_followup_url_allows_repository_detail_page():
+    assert _is_promising_followup_url(
+        "https://openknowledge.fao.org/handle/20.500.14283/am882e",
+        "fao.org",
+        query="Kenya drought impacts on agriculture current status and recent trend",
+    ) is True
+
+
+def test_rank_followup_candidates_prefers_report_pages_for_report_queries():
+    ranked = _rank_followup_candidates(
+        "Kenya precipitation current status and recent trend report",
+        [
+            "http://kmddl.meteo.go.ke:8081/maproom/Climatology/index.html",
+            "https://meteo.go.ke/publications/state-of-the-climate-report-2025/",
+            "https://meteo.go.ke/documents/3009/State_of_the_Climate_Report_2025.pdf",
+        ],
+    )
+    assert ranked == [
+        "https://meteo.go.ke/documents/3009/State_of_the_Climate_Report_2025.pdf",
+        "https://meteo.go.ke/publications/state-of-the-climate-report-2025/",
+    ]
+
+
+def test_rank_followup_candidates_rejects_paginated_indexes_and_off_query_docs():
+    ranked = _rank_followup_candidates(
+        "Kenya drought impacts on agriculture current status and recent trend",
+        [
+            "https://www.fao.org/markets-and-trade/publications/publications-full/83/en?page=18&tabInx=0",
+            "https://meteo.go.ke/documents/2537/March-April-May_MAM_2026_Seasonal_Weather_Forecast.pdf",
+            "https://openknowledge.fao.org/handle/20.500.14283/am882e",
+        ],
+    )
+    assert ranked == ["https://openknowledge.fao.org/handle/20.500.14283/am882e"]
 
 
 def test_normalize_url_strips_utm_source():
@@ -84,6 +215,10 @@ def test_is_blocked_domain_unrelated_domain_not_blocked():
     assert _is_blocked_domain("https://wocat.net/en/database/") is False
 
 
+def test_is_blocked_domain_arxiv_not_blocked():
+    assert _is_blocked_domain("https://arxiv.org/abs/1706.03762") is False
+
+
 def test_is_blocked_domain_subdomain_blocked():
     assert _is_blocked_domain("https://m.youtube.com/watch?v=abc") is True
 
@@ -122,6 +257,22 @@ def test_normalize_url_fragment_stripped():
 
 def test_is_blocked_domain_linkedin_blocked():
     assert _is_blocked_domain("https://linkedin.com/in/someone") is True
+
+
+def test_is_blocked_domain_sciencedirect_blocked():
+    assert _is_blocked_domain("https://www.sciencedirect.com/science/article/pii/S2214581825005567") is True
+
+
+def test_is_blocked_domain_nature_blocked():
+    assert _is_blocked_domain("https://www.nature.com/articles/s41598-024-63786-2") is True
+
+
+def test_is_blocked_domain_publisher_allowed_when_in_allowed_set():
+    allowed = frozenset({"sciencedirect.com"})
+    assert _is_blocked_domain(
+        "https://www.sciencedirect.com/science/article/pii/S2214581825005567",
+        allowed_domains=allowed,
+    ) is False
 
 
 def test_is_blocked_domain_allowed_set_only_removes_specified():

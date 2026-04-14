@@ -1,0 +1,78 @@
+[
+  {
+    "query": "Kenya interannual variability and long-term trends in precipitation current status and recent trend",
+    "elapsed_seconds": 227.35,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 4,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3932,
+    "error": null,
+    "search_queries": [
+      "Kenya precipitation interannual variability trend analysis recent status climate change",
+      "site:edu OR site:gov Kenya rainfall long-term trends interannual variability precipitation study",
+      "Kenya interannual variability long-term trends precipitation current status recent trend"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.nature.com/articles/s41598-024-63786-2",
+        "title": "Observations of enhanced rainfall variability in Kenya, East Africa (1981\u20132021)",
+        "content_chars": 2738,
+        "preview": "A study of Kenyan rainfall from 1981 to 2021 reveals substantial shifts in interannual variability and long-term trends, with significant changes occurring in the last decade. ### Current Status and Recent Trends - **Increased Variability S"
+      },
+      {
+        "url": "https://www.icpac.net/documents/829/s43017-023-00397-x_1.pdf",
+        "title": "Drivers and impacts of Eastern African rainfall variability",
+        "content_chars": 3318,
+        "preview": "### Seasonal Cycle and Variability in Kenya Kenya experiences a bimodal rainfall pattern driven primarily by the Intertropical Convergence Zone (ITCZ). The 'Long Rains' occur from March to May (MAM) and are typically the more intense season"
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/",
+        "title": "Observations of enhanced rainfall variability in Kenya, East Africa",
+        "content_chars": 3312,
+        "preview": "### Current Status and Recent Trends in Kenya Precipitation (1981\u20132021) **1. Enhanced Variability (Post-2013)** * **General Trend:** Since 2013, Kenya has experienced a significant increase in seasonal and intraseasonal rainfall variability"
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6684806/",
+        "title": "Long-term trends in rainfall and temperature using high-resolution climate datasets in East Africa",
+        "content_chars": 2883,
+        "preview": "Based on the analysis of high-resolution climate datasets (CHIRPS for rainfall 1981\u20132016 and OR for temperature 1979\u20132010), the following trends and variability in Kenya's precipitation were identified: ### Current Status and Interannual Va"
+      },
+      {
+        "url": "https://legacy.geog.ucsb.edu/current-climate-trend-analysis-of-kenya-by-chris-funk/",
+        "title": "Current Climate Trend Analysis of Kenya by Chris Funk | UC Geography",
+        "content_chars": 2588,
+        "preview": "Detailed climate trend analysis for Kenya, conducted by Dr. Chris Funk and the UCSB Climate Hazards Group (CHG), identifies significant long-term declines in precipitation and shifts in temperature patterns between 1960 and 2009. ### Long-T"
+      },
+      {
+        "url": "https://www.climatecentre.org/wp-content/uploads/RCCC-Country-profiles-Kenya_2022-V2-Final.pdf",
+        "title": "Kenya Climate Factsheet (2022) - Climate Centre",
+        "content_chars": 2959,
+        "preview": "Kenya's climate is characterized by significant spatial and temporal variability in precipitation, driven by topography and large-scale climate systems. ### Current Precipitation Status and Climatology - **Bimodal Rainfall Pattern:** Most o"
+      }
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://geog.ufl.edu/2026/02/23/rainfall-africa/",
+        "title": "Interannual rainfall variability presents critical challenges across ...",
+        "error": "[scrape failed: [Scrape failed: Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/web-agent/lib/python3.13/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://geog.ufl.edu/2026/02/23/rainfall-africa/\", waiting until \"networkidle\"]]"
+      },
+      {
+        "url": "https://www.sciencedirect.com/science/article/pii/S2214581825005567",
+        "title": "Attribution analysis of interannual variability and long-term trends in ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 403 on GET]]"
+      },
+      {
+        "url": "https://meteo.go.ke/documents/1353/State_of_the_Climate_Kenya_2024_v1.pdf",
+        "title": "[PDF] STATE OF THE CLIMATE KENYA 2024",
+        "error": "[scrape failed: [Scrape failed: PDF inaccessible (httpx: ; raw-byte: <urlopen error _ssl.c:1015: The handshake operation timed out>; browser download also failed)]]"
+      },
+      {
+        "url": "https://rmets.onlinelibrary.wiley.com/doi/10.1002/joc.4438",
+        "title": "Trends in mean and extreme precipitation in the Mount Kenya ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 403 on GET]]"
+      }
+    ],
+    "bot_detected": []
+  }
+]

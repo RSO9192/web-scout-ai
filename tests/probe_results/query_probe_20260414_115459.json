@@ -1,0 +1,91 @@
+[
+  {
+    "query": "Kenya interannual variability and long-term trends in precipitation current status and recent trend",
+    "num_results": 0,
+    "elapsed_seconds": 0.92,
+    "urls": []
+  },
+  {
+    "query": "Kenya spatial patterns of precipitation change current status and recent trend",
+    "num_results": 6,
+    "elapsed_seconds": 150.11,
+    "urls": [
+      {
+        "rank": 1,
+        "title": "Voyage Kenya | Partir en vacances au Kenya | Routard.com",
+        "url": "https://www.routard.com/fr/guide/afrique/kenya",
+        "snippet": "Pr\u00e9parez votre voyage au Kenya : incontournables et itin\u00e9raires, infos culturelles et pratiques, id\u00e9es voyage, photos et forum.",
+        "validate_verdict": "SCRAPE_JS",
+        "validate_detail": "likely SPA (density 3.1%, 131 scripts)",
+        "scrape_title": "",
+        "scrape_error": "Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/web-agent/lib/python3.13/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://www.routard.com/fr/guide/afrique/kenya\", waiting until \"networkidle\"\n\n\nCode context:\n 773                                   tag=\"GOTO\",\n 774                                   params={\"url\": url},\n 775                               )\n 776                               response = None\n 777                           else:\n 778 \u2192                             raise RuntimeError(f\"Failed on navigating ACS-GOTO:\\n{str(e)}\")\n 779   \n 780                       # \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n 781                       # Walk the redirect chain.  Playwright returns only the last\n 782                       # hop, so we trace the `request.redirected_from` links until the\n 783                       # first response that differs from the final one and surface its",
+        "content_chars": 0,
+        "elapsed_seconds": 49.0,
+        "preview": ""
+      },
+      {
+        "rank": 2,
+        "title": "Kenya - Itin\u00e9raires conseill\u00e9s - Routard.com",
+        "url": "https://www.routard.com/fr/guide/a/itineraires-conseilles/afrique/kenya",
+        "snippet": "Nos suggestions d'itin\u00e9raires et de circuits en fonction de la dur\u00e9e de votre s\u00e9jour Kenya.",
+        "validate_verdict": "SCRAPE_JS",
+        "validate_detail": "likely SPA (density 2.6%, 121 scripts)",
+        "scrape_title": "",
+        "scrape_error": "Blocked by anti-bot protection: Structural: no <body> tag (9848 bytes)",
+        "content_chars": 0,
+        "elapsed_seconds": 5.74,
+        "preview": ""
+      },
+      {
+        "rank": 3,
+        "title": "Kenya : les incontournables | Que faire, que voir, que visiter",
+        "url": "https://www.routard.com/fr/guide/top/afrique/kenya",
+        "snippet": "Avec routard.com, toutes les informations Incontournables pour pr\u00e9parer votre voyage au Kenya. Carte Kenya, formalit\u00e9, m\u00e9t\u00e9o Kenya, activit\u00e9s, suggestions d'itin\u00e9raire, photos des plus beaux ...",
+        "validate_verdict": "SCRAPE_JS",
+        "validate_detail": "likely SPA (density 2.3%, 108 scripts)",
+        "scrape_title": "",
+        "scrape_error": "Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/web-agent/lib/python3.13/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://www.routard.com/fr/guide/top/afrique/kenya\", waiting until \"networkidle\"\n\n\nCode context:\n 773                                   tag=\"GOTO\",\n 774                                   params={\"url\": url},\n 775                               )\n 776                               response = None\n 777                           else:\n 778 \u2192                             raise RuntimeError(f\"Failed on navigating ACS-GOTO:\\n{str(e)}\")\n 779   \n 780                       # \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n 781                       # Walk the redirect chain.  Playwright returns only the last\n 782                       # hop, so we trace the `request.redirected_from` links until the\n 783                       # first response that differs from the final one and surface its",
+        "content_chars": 0,
+        "elapsed_seconds": 46.61,
+        "preview": ""
+      },
+      {
+        "rank": 4,
+        "title": "Kenya - Vie pratique sur place - Routard.com",
+        "url": "https://www.routard.com/fr/guide/a/vie-pratique/afrique/kenya",
+        "snippet": "Les infos pratiques pour votre s\u00e9jour Kenya : d\u00e9calage horaire, prises \u00e9lectriques, horaires, t\u00e9l\u00e9phone et Internet.",
+        "validate_verdict": "SCRAPE_JS",
+        "validate_detail": "likely SPA (density 3.5%, 126 scripts)",
+        "scrape_title": "",
+        "scrape_error": "Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/web-agent/lib/python3.13/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://www.routard.com/fr/guide/a/vie-pratique/afrique/kenya\", waiting until \"networkidle\"\n\n\nCode context:\n 773                                   tag=\"GOTO\",\n 774                                   params={\"url\": url},\n 775                               )\n 776                               response = None\n 777                           else:\n 778 \u2192                             raise RuntimeError(f\"Failed on navigating ACS-GOTO:\\n{str(e)}\")\n 779   \n 780                       # \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n 781                       # Walk the redirect chain.  Playwright returns only the last\n 782                       # hop, so we trace the `request.redirected_from` links until the\n 783                       # first response that differs from the final one and surface its",
+        "content_chars": 0,
+        "elapsed_seconds": 48.53,
+        "preview": ""
+      }
+    ]
+  },
+  {
+    "query": "Kenya precipitation interannual variability long-term trend report",
+    "num_results": 0,
+    "elapsed_seconds": 0.32,
+    "urls": []
+  },
+  {
+    "query": "Kenya rainfall spatial patterns climate change recent trend",
+    "num_results": 0,
+    "elapsed_seconds": 0.21,
+    "urls": []
+  },
+  {
+    "query": "Kenya precipitation anomalies trends pdf site:meteo.go.ke",
+    "num_results": 0,
+    "elapsed_seconds": 4.08,
+    "urls": []
+  },
+  {
+    "query": "State of the climate Kenya precipitation trends rainfall variability",
+    "num_results": 0,
+    "elapsed_seconds": 0.23,
+    "urls": []
+  }
+]

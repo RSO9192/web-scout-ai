@@ -1,0 +1,29 @@
+{
+  "elapsed_seconds": 472.4,
+  "scraped_urls": [
+    "https://meteo.go.ke/documents/3009/State_of_the_Climate_Report_2025.pdf",
+    "https://meteo.go.ke/",
+    "http://kmddl.meteo.go.ke:8081/maproom/Climatology/index.html",
+    "https://meteo.go.ke/documents/1353/State_of_the_Climate_Kenya_2024_v1.pdf",
+    "https://meteo.go.ke/publications/state-of-the-climate-report-2025/",
+    "https://meteo.go.ke/documents/2537/March-April-May_MAM_2026_Seasonal_Weather_Forecast.pdf",
+    "https://meteo.go.ke/Services/climate/",
+    "https://meteo.go.ke/publications/state-of-the-climate-report-2024/",
+    "https://meteo.go.ke/our-products/seasonal-forecast/",
+    "https://meteo.go.ke/our-products/state-of-the-climate-kenya-report/",
+    "https://meteo.go.ke/Services/hydrometeorology/",
+    "https://meteo.go.ke/organization/projects/enhancing-climate-change-resilience-in-east-africa/",
+    "https://meteo.go.ke/our-products/monthly-agrometeorological-bulletin/",
+    "https://meteo.go.ke/Services/agrometeorology/",
+    "https://meteo.go.ke/our-stations/"
+  ],
+  "scrape_failed_urls": [
+    "https://meteo.go.ke/weather-warnings/heavy-rainfall-1/",
+    "https://meteo.go.ke/organization/projects/weather-and-climate-information-services-for-africa-wiser-ii/",
+    "https://meteo.go.ke/the-climate-of-our-cities/",
+    "https://meteo.go.ke/mapviewer"
+  ],
+  "bot_detected_urls": [
+    "http://kmddl.meteo.go.ke:8081/maproom/Climatology/Climate_Monitoring/index.html"
+  ]
+}

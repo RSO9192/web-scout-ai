@@ -1,0 +1,255 @@
+[
+  {
+    "name": "open_q1",
+    "query": "Kenya interannual variability and long-term trends in precipitation current status and recent trend",
+    "mode": "open",
+    "elapsed_seconds": 160.68,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 4,
+    "num_failed": 6,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3879,
+    "error": null,
+    "search_queries": [
+      "Kenya rainfall interannual variability long-term precipitation trends recent studies",
+      "Kenya interannual variability long-term trends precipitation current status recent trend",
+      "Kenya precipitation trends interannual variability climate change recent analysis"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.mdpi.com/2073-4433/17/1/85",
+        "title": "Sub-Seasonal Rainfall Variability and Atmospheric Dynamics ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://www.nature.com/articles/s41598-024-63786-2",
+        "title": "Observations of enhanced rainfall variability in Kenya, East Africa",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://www.sciencedirect.com/science/article/pii/S2214581825003222",
+        "title": "Increased water availability and high flows in an ungauged Kenyan ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://www.sciencedirect.com/science/article/pii/S2214581825005567",
+        "title": "Attribution analysis of interannual variability and long-term trends in ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://rmets.onlinelibrary.wiley.com/doi/10.1002/joc.4438",
+        "title": "Trends in mean and extreme precipitation in the Mount Kenya ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://uonjournals.uonbi.ac.ke/index.php/jsep/article/download/1239/1394",
+        "title": "[PDF] Analysis of 30 years' historical climate change trends and variability ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: GET failed: ConnectError]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "open_q2",
+    "query": "Kenya spatial patterns of precipitation change current status and recent trend",
+    "mode": "open",
+    "elapsed_seconds": 120.71,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 3,
+    "num_failed": 7,
+    "num_bot_detected": 0,
+    "synthesis_chars": 2393,
+    "error": null,
+    "search_queries": [
+      "Kenya rainfall spatial distribution change analysis recent trend precipitation",
+      "Kenya precipitation change spatial patterns current status recent trends",
+      "Kenya climate precipitation trends map spatial variability current status"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.nature.com/articles/s41598-024-63786-2",
+        "title": "Observations of enhanced rainfall variability in Kenya, East Africa",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://www.researchgate.net/figure/Spatial-distribution-of-projected-changes-in-extreme-high-precipitation-indicators-for_fig9_389366994",
+        "title": "Spatial distribution of projected changes in extreme high ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://www.sciencedirect.com/science/article/abs/pii/S1474706524002201",
+        "title": "Spatial-temporal seasonal and annual rainfall trends and variability ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://phys.org/news/2023-04-shifting-climate-regions-hotter-drier.html",
+        "title": "New study finds shifting climate regions leading to hotter, drier ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 403 on GET]]"
+      },
+      {
+        "url": "https://www.tandfonline.com/doi/full/10.1080/17538947.2024.2447342",
+        "title": "Spatiotemporal analysis of drought patterns and trends across Africa",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://link.springer.com/article/10.1007/s10113-023-02055-w",
+        "title": "Shifting climate zones and expanding tropical and arid climate ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://cgspace.cgiar.org/server/api/core/bitstreams/c9cf0b41-8e3e-4b21-8535-fc9ac641a694/content",
+        "title": "[PDF] Climate variability and climate change and their impacts on Kenya's ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 429]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "open_q3",
+    "query": "State of the climate Kenya precipitation trends rainfall variability",
+    "mode": "open",
+    "elapsed_seconds": 167.37,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 8,
+    "num_failed": 2,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4244,
+    "error": null,
+    "search_queries": [
+      "Kenya state of the climate precipitation rainfall trends variability report PDF",
+      "Kenya climate precipitation trends rainfall variability State of the Climate report",
+      "Kenya rainfall variability precipitation trends climate change evidence site:.org OR site:.gov"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.researchgate.net/publication/347216646_Trends_In_Climate_Variables_Temperature_And_Rainfall_And_Local_Perceptions_Of_Climate_Change_In_Lamu_Kenya",
+        "title": "(PDF) Trends In Climate Variables (Temperature And Rainfall) And ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://www.jstor.org/stable/27255112",
+        "title": "Analysis of rainfall and temperature trends and variability in semi ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_meteo_q1",
+    "query": "Kenya interannual variability and long-term trends in precipitation current status and recent trend",
+    "mode": "domain",
+    "elapsed_seconds": 262.35,
+    "include_domains": [
+      "meteo.go.ke"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 11,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4409,
+    "error": null,
+    "search_queries": [
+      "site:meteo.go.ke rainfall variability trends in precipitation Kenya annual interannual report",
+      "site:meteo.go.ke Kenya precipitation trend analysis climate report rainfall variability",
+      "site:meteo.go.ke Kenya interannual variability long-term trends precipitation current status recent trend"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_open_sources_q2",
+    "query": "Kenya spatial patterns of precipitation change current status and recent trend",
+    "mode": "domain",
+    "elapsed_seconds": 220.12,
+    "include_domains": [
+      "icpac.net",
+      "pmc.ncbi.nlm.nih.gov",
+      "geog.ucsb.edu",
+      "climatecentre.org"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 9,
+    "num_failed": 1,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4484,
+    "error": null,
+    "search_queries": [
+      "site:geog.ucsb.edu OR site:climatecentre.org Kenya precipitation change spatial pattern current status trend",
+      "site:icpac.net Kenya precipitation spatial patterns change current status recent trend",
+      "site:pmc.ncbi.nlm.nih.gov Kenya spatial patterns of precipitation change recent trend climate"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.icpac.net/documents/265/Kenya-Climate_baselines_Report_ACREI-Print_Copy_sVprJAj.pdf",
+        "title": "[PDF] Baseline Statistics for Taita Taveta, Kenya - ICPAC",
+        "error": "[scrape failed: [Scrape failed: PDF inaccessible (httpx: HTTPStatusError: Redirect response '304 Not Modified' for url 'https://www.icpac.net/documents/265/Kenya-Climate_baselines_Report_ACREI-Print_Copy_sVprJAj.pdf' For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/304; raw-byte: HTTPError: HTTP Error 304: Not Modified; browser download also failed)]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_meteo_pdf",
+    "query": "Kenya precipitation current status and recent trend",
+    "mode": "direct",
+    "elapsed_seconds": 34.26,
+    "include_domains": [],
+    "direct_url": "https://meteo.go.ke/documents/1353/State_of_the_Climate_Kenya_2024_v1.pdf",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 2409,
+    "error": null,
+    "search_queries": [
+      "Kenya precipitation current status and recent trend"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_ucsb_page",
+    "query": "Kenya precipitation current status and long-term trend",
+    "mode": "direct",
+    "elapsed_seconds": 85.88,
+    "include_domains": [],
+    "direct_url": "https://legacy.geog.ucsb.edu/current-climate-trend-analysis-of-kenya-by-chris-funk/",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 1613,
+    "error": null,
+    "search_queries": [
+      "Kenya precipitation current status and long-term trend"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_icpac_pdf",
+    "query": "Kenya rainfall variability and regional drivers",
+    "mode": "direct",
+    "elapsed_seconds": 71.41,
+    "include_domains": [],
+    "direct_url": "https://www.icpac.net/documents/829/s43017-023-00397-x_1.pdf",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3930,
+    "error": null,
+    "search_queries": [
+      "Kenya rainfall variability and regional drivers"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  }
+]

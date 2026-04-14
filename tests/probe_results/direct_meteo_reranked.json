@@ -1,0 +1,10 @@
+{
+  "elapsed_seconds": 59.68,
+  "scraped_urls": [
+    "https://meteo.go.ke/documents/1353/State_of_the_Climate_Kenya_2024_v1.pdf"
+  ],
+  "scrape_failed_urls": [
+    "https://meteo.go.ke/maproom"
+  ],
+  "bot_detected_urls": []
+}

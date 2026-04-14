@@ -22,6 +22,7 @@ import mimetypes
 import os
 import re
 from typing import Any, Optional, Tuple
+from urllib.request import Request, urlopen
 from urllib.parse import unquote, urlparse
 
 import httpx
@@ -49,6 +50,21 @@ _BLOCKED_DOMAINS = frozenset({
     "linkedin.com", "tiktok.com",
     "reddit.com",
     "scholar.google.com",
+    "sciencedirect.com",
+    "mdpi.com",
+    "nature.com",
+    "springer.com",
+    "link.springer.com",
+    "wiley.com",
+    "onlinelibrary.wiley.com",
+    "researchgate.net",
+    "tandfonline.com",
+    "sagepub.com",
+    "cambridge.org",
+    "jstor.org",
+    "frontiersin.org",
+    "journals.plos.org",
+    "academic.oup.com",
 })
 
 _BINARY_CONTENT_TYPES = (
@@ -88,6 +104,10 @@ _FETCH_HEADERS = {
 
 _MIN_PDF_TEXT_CHARS = 300
 _PDF_MAX_PAGES_DEFAULT = 50
+_VALIDATION_TIMEOUT = httpx.Timeout(20.0, connect=15.0)
+_DOCUMENT_DOWNLOAD_TIMEOUT = httpx.Timeout(45.0, connect=20.0)
+_URLLIB_DOWNLOAD_TIMEOUT = 45
+_PDF_DOWNLOAD_RETRIES = 2
 
 
 # ---------------------------------------------------------------------------
@@ -268,16 +288,17 @@ async def _validate_url(url: str, allowed_domains: Optional[frozenset] = None) -
     """
     if _is_blocked_domain(url, allowed_domains=allowed_domains):
         return _SKIP, "blocked domain"
+    if _looks_like_document_resource(url):
+        return _SCRAPE_DOC, "document-by-url"
 
     try:
         async with httpx.AsyncClient(
-            follow_redirects=True, timeout=12, headers=_FETCH_HEADERS
+            follow_redirects=True, timeout=_VALIDATION_TIMEOUT, headers=_FETCH_HEADERS
         ) as client:
             # Step 1: HEAD request
             try:
                 head = await client.head(url)
             except Exception as e:
-                logger.debug("[validate] HEAD failed for %s: %s", url, e)
                 head = None
 
             if head:
@@ -369,7 +390,6 @@ async def _validate_url(url: str, allowed_domains: Optional[frozenset] = None) -
         return _SKIP, "timeout during validation"
     except Exception as e:
         # If validation itself fails, let the scraper try anyway
-        logger.warning("[validate] error for %s: %s", url, e)
         return _SCRAPE_JS, f"validation error ({e}) — attempting browser scrape"
 
 
@@ -401,15 +421,12 @@ async def _scrape_html_fast(url: str, query: str = "", vision_model: Optional[st
     try:
         async with AsyncWebCrawler(
             crawler_strategy=AsyncHTTPCrawlerStrategy(),
-            config=BrowserConfig(verbose=False),
         ) as crawler:
             result = await crawler.arun(url=url, config=run_cfg)
-    except Exception as e:
-        logger.warning("[scrape-fast] HTTP strategy failed for %s: %s — falling back to browser", url, e)
+    except Exception:
         return await _scrape_html_browser(url, wait_for=None, query=query, vision_model=vision_model)
 
     if not result.success:
-        logger.info("[scrape-fast] HTTP strategy got no result for %s — falling back to browser", url)
         return await _scrape_html_browser(url, wait_for=None, query=query, vision_model=vision_model)
 
     md = result.markdown
@@ -418,7 +435,6 @@ async def _scrape_html_fast(url: str, query: str = "", vision_model: Optional[st
 
     # If HTTP strategy returned thin content, the page likely needs JS
     if len(content.strip()) < 200:
-        logger.info("[scrape-fast] thin content from HTTP strategy for %s — falling back to browser", url)
         return await _scrape_html_browser(url, wait_for=None, query=query, vision_model=vision_model)
 
     title = (result.metadata or {}).get("title", "")
@@ -517,13 +533,11 @@ async def _scrape_html_browser(
             result = await crawler.arun(url=url, config=run_cfg)
     except Exception as crawl_err:
         if "Download is starting" in str(crawl_err):
-            logger.info("[scrape-browser] download intercepted, retrying as document → %s", url)
             return await _scrape_document(url, query=query, vision_model=vision_model)
         raise
 
     # If wait_for caused timeout, retry without it
     if not result.success and wait_for:
-        logger.warning("wait_for=%r failed for %s — retrying without it", wait_for, url)
         run_cfg = CrawlerRunConfig(
             cache_mode=CacheMode.BYPASS,
             exclude_all_images=True,
@@ -534,8 +548,11 @@ async def _scrape_html_browser(
             delay_before_return_html=1.0,
             verbose=False,
         )
-        async with AsyncWebCrawler(config=_browser_cfg) as crawler:
-            result = await crawler.arun(url=url, config=run_cfg)
+        try:
+            async with AsyncWebCrawler(config=_browser_cfg) as crawler:
+                result = await crawler.arun(url=url, config=run_cfg)
+        except Exception as e:
+            return "", "", f"Browser retry failed: {e}"
 
     if not result.success:
         return "", "", result.error_message or "Crawl failed"
@@ -555,7 +572,6 @@ async def _scrape_html_browser(
         and "404" in lower
     ):
         if vision_model:
-            logger.info("[scrape-browser] empty/404 content, trying vision fallback → %s", url)
             return await _scrape_via_vision(url, query=query, vision_model=vision_model)
         return "", "", "Page loaded but returned empty or 404 content"
 
@@ -577,18 +593,23 @@ async def _scrape_via_vision(url: str, query: str, vision_model: str) -> Tuple[s
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(
-                viewport={"width": 1280, "height": 900},
-                user_agent=_FETCH_HEADERS["User-Agent"],
-            )
-            page = await context.new_page()
             try:
-                await page.goto(url, timeout=45_000, wait_until="networkidle")
-                await page.wait_for_timeout(8000)  # let JS / bot-challenge settle
-            except Exception:
-                pass  # take screenshot regardless
-            screenshot_bytes = await page.screenshot(type="png")  # viewport only (not full_page)
-            await browser.close()
+                context = await browser.new_context(
+                    viewport={"width": 1280, "height": 900},
+                    user_agent=_FETCH_HEADERS["User-Agent"],
+                )
+                try:
+                    page = await context.new_page()
+                    try:
+                        await page.goto(url, timeout=45_000, wait_until="networkidle")
+                        await page.wait_for_timeout(8000)  # let JS / bot-challenge settle
+                    except Exception:
+                        pass  # take screenshot regardless
+                    screenshot_bytes = await page.screenshot(type="png")  # viewport only (not full_page)
+                finally:
+                    await context.close()
+            finally:
+                await browser.close()
 
         screenshot_b64 = base64.b64encode(screenshot_bytes).decode()
         query_clause = f" relevant to: {query}" if query else ""
@@ -617,7 +638,6 @@ async def _scrape_via_vision(url: str, query: str, vision_model: str) -> Tuple[s
         return content, "", None
 
     except Exception as e:
-        logger.warning("[scrape-vision] failed for %s: %s", url, e)
         return "", "", f"Vision fallback failed: {e}"
 
 
@@ -696,7 +716,6 @@ async def _scrape_image(url: str, query: str = "", vision_model: Optional[str] =
         title = url.rsplit("/", 1)[-1] or "Image"
         return content, title, None
     except Exception as e:
-        logger.warning("[scrape-image] failed for %s: %s", url, e)
         return "", "", f"Image extraction failed: {e}"
 
 
@@ -718,31 +737,89 @@ async def _download_pdf_via_browser(url: str) -> Optional[bytes]:
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(
-                user_agent=_FETCH_HEADERS["User-Agent"],
-                accept_downloads=True,
-            )
-            page = await context.new_page()
-            tmp: Optional[str] = None
             try:
-                async with page.expect_download(timeout=30_000) as dl_info:
+                context = await browser.new_context(
+                    user_agent=_FETCH_HEADERS["User-Agent"],
+                    accept_downloads=True,
+                )
+                try:
+                    page = await context.new_page()
+                    tmp: Optional[str] = None
                     try:
-                        await page.goto(url, timeout=30_000)
-                    except Exception:
-                        pass  # "Download is starting" error is expected
-                download = await dl_info.value
-                with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
-                    tmp = f.name
-                await download.save_as(tmp)
-                with open(tmp, "rb") as f:
-                    return f.read()
+                        async with page.expect_download(timeout=60_000) as dl_info:
+                            try:
+                                await page.goto(url, timeout=60_000)
+                            except Exception:
+                                pass  # "Download is starting" error is expected
+                        download = await dl_info.value
+                        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+                            tmp = f.name
+                        await download.save_as(tmp)
+                        with open(tmp, "rb") as f:
+                            return f.read()
+                    finally:
+                        if tmp and os.path.exists(tmp):
+                            os.unlink(tmp)
+                finally:
+                    await context.close()
             finally:
-                if tmp and os.path.exists(tmp):
-                    os.unlink(tmp)
                 await browser.close()
-    except Exception as e:
-        logger.warning("[scrape-doc] browser PDF download failed for %s: %s", url, e)
+    except Exception:
         return None
+
+
+def _download_binary_via_urllib(url: str) -> tuple[bytes, str]:
+    """Download raw bytes while tolerating broken content-encoding headers."""
+    req = Request(url, headers=_FETCH_HEADERS)
+    with urlopen(req, timeout=_URLLIB_DOWNLOAD_TIMEOUT) as resp:
+        content_type = resp.headers.get("content-type", "?")
+        return resp.read(), content_type
+
+
+def _format_exception(e: Exception) -> str:
+    message = str(e).strip()
+    return f"{type(e).__name__}: {message}" if message else type(e).__name__
+
+
+async def _download_pdf_bytes(url: str) -> Tuple[Optional[bytes], Optional[str]]:
+    """Download PDF bytes with progressively more tolerant fallbacks."""
+    httpx_error: Optional[Exception] = None
+    urllib_error: Optional[Exception] = None
+
+    for attempt in range(_PDF_DOWNLOAD_RETRIES):
+        try:
+            async with httpx.AsyncClient(
+                follow_redirects=True, timeout=_DOCUMENT_DOWNLOAD_TIMEOUT, headers=_FETCH_HEADERS
+            ) as client:
+                dl_resp = await client.get(url)
+            dl_resp.raise_for_status()
+            pdf_bytes = dl_resp.content
+            if pdf_bytes[:4] != b"%PDF":
+                return None, f"URL did not return a PDF (got {dl_resp.headers.get('content-type','?')})"
+            return pdf_bytes, None
+        except Exception as e:
+            httpx_error = e
+            if attempt < _PDF_DOWNLOAD_RETRIES - 1:
+                await asyncio.sleep(1.0 * (attempt + 1))
+
+    for attempt in range(_PDF_DOWNLOAD_RETRIES):
+        try:
+            pdf_bytes, content_type = await asyncio.to_thread(_download_binary_via_urllib, url)
+            if pdf_bytes[:4] != b"%PDF":
+                return None, f"URL did not return a PDF (got {content_type})"
+            return pdf_bytes, None
+        except Exception as e:
+            urllib_error = e
+            if attempt < _PDF_DOWNLOAD_RETRIES - 1:
+                await asyncio.sleep(1.0 * (attempt + 1))
+
+    pdf_bytes = await _download_pdf_via_browser(url)
+    if pdf_bytes is None:
+        return (
+            None,
+            f"PDF inaccessible (httpx: {_format_exception(httpx_error) if httpx_error else '?'}; raw-byte: {_format_exception(urllib_error) if urllib_error else '?'}; browser download also failed)",
+        )
+    return pdf_bytes, None
 
 
 async def _scrape_document(url: str, query: str = "", vision_model: Optional[str] = None, max_pdf_pages: int = _PDF_MAX_PAGES_DEFAULT) -> Tuple[str, str, Optional[str]]:
@@ -759,7 +836,7 @@ async def _scrape_document(url: str, query: str = "", vision_model: Optional[str
     if not is_pdf:
         try:
             async with httpx.AsyncClient(
-                follow_redirects=True, timeout=10, headers=_FETCH_HEADERS
+                follow_redirects=True, timeout=_VALIDATION_TIMEOUT, headers=_FETCH_HEADERS
             ) as client:
                 head = await client.head(url)
             is_pdf = _looks_like_pdf_resource(
@@ -771,33 +848,18 @@ async def _scrape_document(url: str, query: str = "", vision_model: Optional[str
             is_pdf = url_lower.endswith(".pdf")
 
     if is_pdf:
+        pdf_bytes, error = await _download_pdf_bytes(url)
+        if error:
+            return "", "", error
+
         from docling.datamodel.pipeline_options import PdfPipelineOptions
         from docling.document_converter import DocumentConverter, PdfFormatOption
         from docling_core.types.io import DocumentStream
 
-        # Download the PDF ourselves with a browser user-agent.
-        # Docling's internal URL fetcher uses a plain user-agent that is
-        # often blocked by government/NGO servers, resulting in "not valid".
-        # Downloading first and passing bytes via DocumentStream is reliable.
-        # If the plain httpx download is blocked (e.g. Akamai 403), fall back
-        # to a real Chromium browser download which passes TLS fingerprinting.
-        pdf_bytes: Optional[bytes] = None
-        try:
-            async with httpx.AsyncClient(
-                follow_redirects=True, timeout=20, headers=_FETCH_HEADERS
-            ) as client:
-                dl_resp = await client.get(url)
-            dl_resp.raise_for_status()
-            pdf_bytes = dl_resp.content
-            if pdf_bytes[:4] != b'%PDF':
-                return "", "", f"URL did not return a PDF (got {dl_resp.headers.get('content-type','?')})"
-        except Exception as e:
-            logger.warning("[scrape-doc] httpx PDF download failed %s: %s — trying browser download", url, e)
-            pdf_bytes = await _download_pdf_via_browser(url)
-            if pdf_bytes is None:
-                return "", "", f"PDF inaccessible (httpx: {e}; browser download also failed)"
-
         def _convert_fast(pdf_bytes: bytes = pdf_bytes):
+            import gc
+            import io as _io
+
             opts = PdfPipelineOptions(
                 do_ocr=False,
                 do_table_structure=False,
@@ -806,21 +868,26 @@ async def _scrape_document(url: str, query: str = "", vision_model: Optional[str
             converter = DocumentConverter(
                 format_options={"pdf": PdfFormatOption(pipeline_options=opts)}
             )
-            import io as _io
             filename = url.rsplit("/", 1)[-1].split("?")[0] or "document.pdf"
             source = DocumentStream(name=filename, stream=_io.BytesIO(pdf_bytes))
             result = converter.convert(
                 source,
                 page_range=(1, max_pdf_pages),
             )
-            return result.document.export_to_markdown()
+            # Extract markdown before releasing references — pypdfium2 child
+            # objects (pages) must be GC'd before their parent PdfDocument.
+            # Explicit deletion + gc.collect() enforces that order.
+            markdown = result.document.export_to_markdown()
+            del result
+            del converter
+            gc.collect()
+            return markdown
 
         content = await asyncio.to_thread(_convert_fast)
         content = _append_internal_links(content, None)
         
         if len(content.strip()) < _MIN_PDF_TEXT_CHARS:
             if vision_model:
-                logger.info("[scrape-doc] scanned PDF, trying vision fallback → %s", url)
                 return await _scrape_via_vision(url, query=query, vision_model=vision_model)
             return (
                 f"[Image-only or scanned PDF — no extractable text layer. "
@@ -881,7 +948,6 @@ async def scrape_url(
     """
     # Validate first
     verdict, detail = await _validate_url(url, allowed_domains=allowed_domains)
-    logger.info("[scrape] validate %s → %s (%s)", url, verdict, detail)
 
     if verdict == _SKIP:
         return "", "", f"Skipped: {detail}"
@@ -891,19 +957,14 @@ async def scrape_url(
 
     try:
         if verdict == _SCRAPE_DOC:
-            logger.info("[scrape] document → %s", url)
             content, title, error = await _scrape_document(url, query=query, vision_model=vision_model, max_pdf_pages=max_pdf_pages)
         elif verdict == _SCRAPE_JSON:
-            logger.info("[scrape] json → %s", url)
             content, title, error = await _scrape_json(url)
         elif verdict == _SCRAPE_IMAGE:
-            logger.info("[scrape] image → %s", url)
             content, title, error = await _scrape_image(url, query=query, vision_model=vision_model)
         elif verdict == _SCRAPE_HTML:
-            logger.info("[scrape] html-fast → %s", url)
             content, title, error = await _scrape_html_fast(url, query=query, vision_model=vision_model)
         else:  # SCRAPE_JS
-            logger.info("[scrape] html-browser → %s", url)
             content, title, error = await _scrape_html_browser(url, wait_for, query=query, vision_model=vision_model)
     except Exception as e:
         logger.error("[scrape] failed %s: %s", url, e)
@@ -924,5 +985,4 @@ async def scrape_url(
     if len(content) > MAX_CONTENT_CHARS:
         content = content[:MAX_CONTENT_CHARS] + f"\n\n[Truncated at {MAX_CONTENT_CHARS:,} chars]"
 
-    logger.info("[scrape] ok   %s (%d chars)", url, len(content))
     return content, title or "", None

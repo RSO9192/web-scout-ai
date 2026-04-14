@@ -79,7 +79,7 @@ def _domain_matches(url: str, allowed_domains: List[str]) -> bool:
 
 
 class DuckDuckGoBackend(SearchBackend):
-    """Meta-search via the ``ddgs`` library (DuckDuckGo + other engines).
+    """Meta-search via the ``duckduckgo-search`` library.
 
     Zero-config — no API key needed.  Uses the ``site:`` operator for
     domain filtering plus post-filtering to ensure strictness.

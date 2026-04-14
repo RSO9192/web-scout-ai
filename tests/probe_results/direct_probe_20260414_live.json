@@ -1,0 +1,76 @@
+[
+  {
+    "name": "direct_meteo_2024",
+    "url": "https://meteo.go.ke/documents/1353/State_of_the_Climate_Kenya_2024_v1.pdf",
+    "elapsed_seconds": 138.68,
+    "num_scraped": 2,
+    "num_failed": 1,
+    "num_bot_detected": 0,
+    "scrape_failed": [
+      {
+        "url": "https://meteo.go.ke/node/1353",
+        "title": "",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 404]]"
+      }
+    ]
+  },
+  {
+    "name": "direct_meteo_2025",
+    "url": "https://meteo.go.ke/documents/3009/State_of_the_Climate_Report_2025.pdf",
+    "elapsed_seconds": 94.07,
+    "num_scraped": 1,
+    "num_failed": 3,
+    "num_bot_detected": 0,
+    "scrape_failed": [
+      {
+        "url": "https://meteo.go.ke/forecast/seasonal-forecast",
+        "title": "",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 404]]"
+      },
+      {
+        "url": "https://meteo.go.ke/forecast/daily-forecast",
+        "title": "",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 404]]"
+      },
+      {
+        "url": "https://meteo.go.ke/",
+        "title": "",
+        "error": "[scrape failed: [Scrape failed: Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/web-agent/lib/python3.13/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://meteo.go.ke/\", waiting until \"networkidle\"]]"
+      }
+    ]
+  },
+  {
+    "name": "direct_ucsb",
+    "url": "https://legacy.geog.ucsb.edu/current-climate-trend-analysis-of-kenya-by-chris-funk/",
+    "elapsed_seconds": 55.63,
+    "num_scraped": 1,
+    "num_failed": 3,
+    "num_bot_detected": 0,
+    "scrape_failed": [
+      {
+        "url": "https://legacy.geog.ucsb.edu/department-history/",
+        "title": "",
+        "error": "[scrape failed: [No relevant content found for this query]]"
+      },
+      {
+        "url": "https://legacy.geog.ucsb.edu/vision-statement/",
+        "title": "",
+        "error": "[scrape failed: [No relevant content found for this query]]"
+      },
+      {
+        "url": "https://legacy.geog.ucsb.edu/geography-research/",
+        "title": "",
+        "error": "[scrape failed: [No relevant content found for this query]]"
+      }
+    ]
+  },
+  {
+    "name": "direct_icpac",
+    "url": "https://www.icpac.net/documents/829/s43017-023-00397-x_1.pdf",
+    "elapsed_seconds": 70.93,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "scrape_failed": []
+  }
+]

@@ -62,6 +62,18 @@ class WebResearchResult(BaseModel):
         default_factory=list,
         description="URLs where scraping was attempted but failed. content = error.",
     )
+    blocked_by_policy: List[UrlEntry] = Field(
+        default_factory=list,
+        description="URLs skipped due to the package block policy. content = policy reason.",
+    )
+    source_http_error: List[UrlEntry] = Field(
+        default_factory=list,
+        description="URLs that failed due to source-side HTTP/network errors. content = error.",
+    )
+    scraped_irrelevant: List[UrlEntry] = Field(
+        default_factory=list,
+        description="URLs that were fetched but did not contain content relevant to the query. content = reason.",
+    )
     bot_detected: List[UrlEntry] = Field(
         default_factory=list,
         description="URLs blocked by bot-protection (Akamai, Cloudflare, etc.). content = error.",

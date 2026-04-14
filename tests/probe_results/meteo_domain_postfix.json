@@ -1,0 +1,18 @@
+{
+  "elapsed_seconds": 215.23,
+  "scraped_urls": [
+    "https://meteo.go.ke/documents/3009/State_of_the_Climate_Report_2025.pdf",
+    "https://meteo.go.ke/documents/1353/State_of_the_Climate_Kenya_2024_v1.pdf",
+    "https://meteo.go.ke/documents/2537/March-April-May_MAM_2026_Seasonal_Weather_Forecast.pdf",
+    "https://meteo.go.ke/publications/state-of-the-climate-report-kenya-2022/",
+    "https://meteo.go.ke/",
+    "https://meteo.go.ke/documents/802/SoC_Kenya_2023_1.pdf",
+    "https://meteo.go.ke/publications/state-of-the-climate-report-2025/",
+    "https://meteo.go.ke/our-products/state-of-the-climate-kenya-report/",
+    "https://meteo.go.ke/publications/state-of-the-climate-report-2024/",
+    "https://meteo.go.ke/publications/",
+    "https://meteo.go.ke/weather/daily-table/nairobi/"
+  ],
+  "scrape_failed_urls": [],
+  "bot_detected_urls": []
+}

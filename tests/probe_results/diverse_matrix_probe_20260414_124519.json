@@ -1,0 +1,54 @@
+[
+  {
+    "name": "open_kenya_precip",
+    "mode": "open",
+    "query": "Kenya spatial patterns of precipitation change current status and recent trend",
+    "elapsed_seconds": 336.79,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 4,
+    "num_failed": 6,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3691,
+    "error": null,
+    "search_queries": [
+      "Kenya precipitation change map current status recent trend spatial distribution rainfall trends study",
+      "Kenya rainfall change spatial patterns recent trends precipitation variability across regions analysis",
+      "Kenya spatial patterns of precipitation change current status recent trends spatial analysis rainfall variability"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.researchgate.net/figure/Spatial-distribution-of-total-rainfall-climatology-based-over-Kenya-longitude-34-E-42_fig4_311301478",
+        "title": "Spatial distribution of total rainfall climatology based over Kenya...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://phys.org/news/2023-04-shifting-climate-regions-hotter-drier.html",
+        "title": "New study finds shifting climate regions leading to hotter, drier ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 403 on GET]]"
+      },
+      {
+        "url": "https://www.nature.com/articles/s41598-024-63786-2",
+        "title": "Observations of enhanced rainfall variability in Kenya, East Africa",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://www.sciencedirect.com/science/article/abs/pii/S1364682618306941",
+        "title": "Evaluation of spatiotemporal variability of rainfall over Kenya from ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://www.researchgate.net/publication/311301478_Analysis_of_Spatial_and_Temporal_Patterns_of_Rainfall_Variations_over_Kenya",
+        "title": "Analysis of Spatial and Temporal Patterns of Rainfall Variations over ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: blocked domain]]"
+      },
+      {
+        "url": "https://jeas.agropublishers.com/2018/03/rainfall-variability-over-kenya-1950-2012/",
+        "title": "Rainfall Variability over Kenya (1950-2012)",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 500]]"
+      }
+    ],
+    "bot_detected": []
+  }
+]

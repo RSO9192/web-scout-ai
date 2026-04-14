@@ -1,0 +1,135 @@
+[
+  {
+    "name": "open_kenya_precip",
+    "mode": "open",
+    "query": "Kenya spatial patterns of precipitation change current status and recent trend",
+    "elapsed_seconds": 107.73,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 4,
+    "num_failed": 6,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3872,
+    "error": null,
+    "search_queries": [
+      "Kenya spatial patterns of precipitation change current status recent trend",
+      "Kenya precipitation change map spatial pattern trend analysis current status",
+      "Kenya rainfall spatial distribution change trends precipitation variability recent studies"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://onlinelibrary.wiley.com/doi/10.1155/adme/4895679",
+        "title": "Gridded Datasets for Comparative Analysis of Rainfall Patterns Over ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 403 on GET]]"
+      },
+      {
+        "url": "https://www.sciencedirect.com/science/article/abs/pii/S1474706524002201",
+        "title": "Spatial-temporal seasonal and annual rainfall trends and variability ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 403 on GET]]"
+      },
+      {
+        "url": "https://phys.org/news/2023-04-shifting-climate-regions-hotter-drier.html",
+        "title": "New study finds shifting climate regions leading to hotter, drier ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 403 on GET]]"
+      },
+      {
+        "url": "https://www.mdpi.com/2077-0472/14/8/1415",
+        "title": "Spatial\u2013Temporal Analysis of Impacts of Climate Variability on ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 403 on GET]]"
+      },
+      {
+        "url": "https://www.sciencedirect.com/science/article/abs/pii/S1364682618306941",
+        "title": "Evaluation of spatiotemporal variability of rainfall over Kenya from ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 403 on GET]]"
+      },
+      {
+        "url": "https://www.researchgate.net/figure/Spatial-distribution-of-projected-changes-in-extreme-high-precipitation-indicators-for_fig9_389366994",
+        "title": "Spatial distribution of projected changes in extreme high ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 403 on GET]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "open_iccat_policy",
+    "mode": "open",
+    "query": "What specific Total Allowable Catch quotas has ICCAT set for Eastern Atlantic and Mediterranean bluefin tuna for each year from 2022 to 2026, and what were the scientific basis and stock assessment results behind each decision?",
+    "elapsed_seconds": 622.26,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 10,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 6654,
+    "error": null,
+    "search_queries": [
+      "ICCAT bluefin tuna Eastern Atlantic Mediterranean TAC decision 2022 2026 annual quota scientific committee stock assessment results meeting report",
+      "ICCAT total allowable catch Eastern Atlantic Mediterranean bluefin tuna 2022 2023 2024 2025 2026 quota scientific basis stock assessment recommendation pdf",
+      "ICCAT recommendation eastern atlantic and mediterranean bluefin tuna quota 2022 2026 scientific advice stock assessment ICCAT SCRS report"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_venice_climate",
+    "mode": "open",
+    "query": "What are the projected sea level rise impacts on Venice specifically, including flood frequency projections and MOSE barrier effectiveness under different IPCC scenarios?",
+    "elapsed_seconds": 311.17,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 7,
+    "num_failed": 3,
+    "num_bot_detected": 0,
+    "synthesis_chars": 5873,
+    "error": null,
+    "search_queries": [
+      "Venice projected sea level rise impacts flood frequency projections MOSE barrier effectiveness IPCC scenarios",
+      "Venice lagoon sea level rise flood frequency under SSP1-2.6 SSP2-4.5 SSP5-8.5 MOSE barriers study",
+      "IPCC scenarios Venice MOSE effectiveness projected flooding frequency high tide future sea level rise"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.researchgate.net/publication/286394961_The_projected_MOSE_barriers_against_flooding_in_Venice_Italy_and_the_expected_global_sea-level_rise",
+        "title": "The projected \"MOSE\" barriers against flooding in Venice (Italy) and ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 403 on GET]]"
+      },
+      {
+        "url": "https://www.sciencedirect.com/science/article/abs/pii/S0378383921000831",
+        "title": "How long the Mo.S.E. barriers will be effective in protecting all urban ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 403 on GET]]"
+      },
+      {
+        "url": "https://www.mdpi.com/2072-4292/17/5/820",
+        "title": "Multi-Temporal Relative Sea Level Rise Scenarios up to 2150 for ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: HTTP 403 on GET]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_iccat",
+    "mode": "domain",
+    "query": "ICCAT Eastern Atlantic Mediterranean bluefin tuna quotas 2022 2026 scientific basis",
+    "elapsed_seconds": 243.66,
+    "include_domains": [
+      "iccat.int"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 10,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4435,
+    "error": null,
+    "search_queries": [
+      "site:iccat.int ICCAT Eastern Atlantic Mediterranean bluefin tuna quota 2022 2026 scientific basis",
+      "site:iccat.int ICCAT SCRS bluefin tuna Eastern Atlantic Mediterranean 2022 2026 quota scientific basis",
+      "site:iccat.int ICCAT bluefin tuna quotas 2022 2026 Eastern Atlantic Mediterranean scientific advice recommendation"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  }
+]

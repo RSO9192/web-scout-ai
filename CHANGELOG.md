@@ -6,36 +6,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.9]
+## [1.0.2]
 
 ### Added
 
+- Better logging and better failed url classification
 - **Structured JSON extraction**: URLs that return JSON payloads are now routed to a dedicated extractor instead of being skipped outright. The scraper returns a trimmed, readable markdown representation of the payload for downstream extraction.
 - **Image URL extraction**: direct image URLs can now be routed through the optional vision fallback model, allowing extraction from charts, maps, scans, and image-only sources when a vision-capable model is configured.
+- **`max_pdf_pages` parameter on `run_web_research()`**: controls how many pages are extracted from PDFs (default: 50). Useful for reducing latency on large reports when only the opening sections are needed.
+- **Transient LLM error retry**: the content extractor now retries automatically on transient provider errors (`ServiceUnavailableError`, `RateLimitError`, `APIConnectionError`, `BadGatewayError`) with exponential backoff (1 s → 2 s → 4 s delays, up to 4 total attempts). Transient 503/502/429 responses no longer cause a URL to be immediately marked as `scrape_failed`.
 - **Routing tests for content-type handling**: added coverage for extensionless document downloads, JSON endpoints, image URLs, and short metadata pages that should not be discarded as thin content.
 
 ### Changed
 
 - **Document detection now uses response headers**: primary documents are no longer identified only by filename suffix. The router now inspects `Content-Type` and `Content-Disposition`, which allows extensionless repository and signed download URLs to be treated as documents.
 - **Thin-page validation is less aggressive for metadata records**: short repository and catalogue pages are now preserved when they look like metadata pages or document landing pages, allowing the extractor to follow linked primary documents.
-- **Extractor tool docs and README updated for release**: public docs now describe JSON/image routing, extensionless document support, and metadata-page retention.
+- **Hub deepening cap now honoured**: the depth-preset hub caps (10 for `standard`, 15 for `deep`) were previously silently overridden to 3 at both hub call sites. The preset values are now respected. Non-hub fallback deepening (same-domain links from a direct URL, or thin-coverage domain mode) intentionally retains a cap of 3.
+- **Follow-up link extraction improved**: `_extract_links_from_markdown` now uses regex scanning across the full content instead of only matching line-leading list items. Links embedded mid-sentence, in indented blocks, or as bare URLs are now captured, improving hub deepening and follow-up candidate quality.
+- **Log noise reduced**: scraping logs are now limited to bot-detected URLs and scrape failures. Routing decisions, intermediate fallbacks, and successful scrapes are no longer logged at `INFO` level, keeping production logs actionable.
 
 ### Fixed
 
+- **Playwright browser context leak in PDF download and vision fallback**: `_download_pdf_via_browser` and `_scrape_via_vision` both called `browser.close()` without first calling `context.close()`, and had no outer `try/finally` around the browser launch itself. Playwright `BrowserContext` objects are now always explicitly closed before the browser, in all exit paths including exceptions.
+- **`asyncio.Future` left pending on unexpected scrape exceptions**: if an exception bypassed both inner `try/except` blocks inside the scrape tool, the `Future` stored in `in_flight` was removed from the dict but never resolved, leaving concurrent callers awaiting `asyncio.shield()` to hang indefinitely. The `finally` block now always resolves the future.
+- **pypdfium2 GC ordering in docling PDF conversion**: child objects (pages) were being garbage-collected after their parent `PdfDocument` had already been finalized, triggering an `AssertionError` in pypdfium2's `_close_template`. The conversion wrapper now explicitly deletes the result and converter objects before calling `gc.collect()`, enforcing the correct cleanup order.
+- **`BrowserConfig` passed to HTTP-only crawler**: `_scrape_html_fast` was passing a `BrowserConfig` to `AsyncWebCrawler` when using `AsyncHTTPCrawlerStrategy`, which does not launch a browser and does not accept a browser config. The argument is removed.
+- **Browser retry path had no exception handling**: the second `AsyncWebCrawler` call in `_scrape_html_browser` (triggered when `wait_for` causes a timeout) was not wrapped in a `try/except`. Exceptions now return a clean error tuple instead of propagating uncaught.
+- **Playwright fallback for bot-protected PDFs**: when a plain httpx PDF download is blocked (e.g. Akamai returns 403), the scraper now falls back to a headless Chromium download via Playwright. Previously, these downloads silently triggered a crash via the now-removed docling direct-URL fallback.
+- **Crash on PDF download failure**: the docling direct-URL fallback (`source = url`) has been removed. It could not succeed in any case that httpx already failed, and its unhandled exception surfaced as a confusing `ERROR` log. Failures now return a clean error string.
+- **Crash on non-PDF document conversion failure**: DOCX/PPTX/XLSX conversion via docling is now wrapped in a `try/except`, returning a clean error instead of propagating an unhandled exception to the caller.
 - **Linked-document extraction rejected valid extensionless downloads**: `scrape_linked_document` now validates whether a URL actually resolves to a document instead of requiring a visible `.pdf`/`.docx` suffix.
 - **Version metadata mismatch**: package version metadata is now aligned across `pyproject.toml` and `src/web_scout/__init__.py`.
-
-## [0.9.5]
-
-### Added
-
-- **`max_pdf_pages` parameter on `run_web_research()`**: controls how many pages are extracted from PDFs (default: 50). Useful for reducing latency on large reports when only the opening sections are needed.
-
-### Fixed
-
-- **Playwright fallback for bot-protected PDFs**: when a plain httpx PDF download is blocked (e.g. Akamai returns 403), the scraper now falls back to a headless Chromium download via Playwright, which passes TLS fingerprinting checks. Previously, these downloads silently triggered a crash via the now-removed docling direct-URL fallback.
-- **Crash on PDF download failure**: the docling direct-URL fallback (`source = url`) has been removed. It could not succeed in any case that httpx already failed, and its unhandled exception surfaced as a confusing `ERROR` log. Failures now return a clean error string.
-- **Crash on non-PDF document conversion failure**: DOCX/PPTX/XLSX conversion via docling is now wrapped in a try/except, returning a clean error instead of propagating an unhandled exception to the caller.
 
 ## [0.9.4]
 
