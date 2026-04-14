@@ -175,7 +175,13 @@ class SerperBackend(SearchBackend):
     Requires ``SERPER_API_KEY`` environment variable.  Returns Google-quality
     results with rich snippets.  The ``site:`` operator is natively strict
     in Google, so no post-filtering is needed.
+
+    Retries up to ``_MAX_RETRIES`` times on HTTP 429 (rate-limit) or 5xx
+    (transient server errors) with exponential backoff.
     """
+
+    _MAX_RETRIES = 3
+    _BASE_DELAY = 1.0  # seconds; doubles each retry
 
     def __init__(self, api_key: str):
         self._api_key = api_key
@@ -193,17 +199,30 @@ class SerperBackend(SearchBackend):
             site_clause = " OR ".join(f"site:{d}" for d in include_domains)
             effective_query = f"({site_clause}) {query}"
 
+        last_exc: Optional[Exception] = None
+        data: dict = {}
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(
-                "https://google.serper.dev/search",
-                headers={
-                    "X-API-KEY": self._api_key,
-                    "Content-Type": "application/json",
-                },
-                json={"q": effective_query, "num": max_results},
-            )
-            resp.raise_for_status()
-            data = resp.json()
+            for attempt in range(self._MAX_RETRIES):
+                resp = await client.post(
+                    "https://google.serper.dev/search",
+                    headers={
+                        "X-API-KEY": self._api_key,
+                        "Content-Type": "application/json",
+                    },
+                    json={"q": effective_query, "num": max_results},
+                )
+                if resp.status_code in (429, 500, 502, 503, 504) and attempt < self._MAX_RETRIES - 1:
+                    delay = self._BASE_DELAY * (2 ** attempt)
+                    reason = "rate-limited" if resp.status_code == 429 else f"server error {resp.status_code}"
+                    logger.warning(
+                        "[Serper] %s (attempt %d/%d), retrying in %.1fs",
+                        reason, attempt + 1, self._MAX_RETRIES, delay,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                resp.raise_for_status()
+                data = resp.json()
+                break
 
         results = [
             SearchResult(

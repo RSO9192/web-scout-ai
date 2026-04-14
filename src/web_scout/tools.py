@@ -340,10 +340,7 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         model=model,
         tools=[raw_scrape, scrape_linked_document],
         output_type=_ExtractorOutput,
-        model_settings=ModelSettings(
-            parallel_tool_calls=False,
-            extra_args={"reasoning_effort": "high"},
-        ),
+        model_settings=ModelSettings(),
         instructions=_EXTRACTOR_INSTRUCTIONS,
     )
 
@@ -593,7 +590,7 @@ def create_scrape_and_extract_tool(
             )
     
             try:
-                result = await Runner.run(extractor_agent, input_text, max_turns=5)
+                result = await Runner.run(extractor_agent, input_text, max_turns=15)
                 output = result.final_output_as(_ExtractorOutput)
             except Exception as e:
                 logger.error("[extract] sub-agent failed for %s: %s", url, e)
