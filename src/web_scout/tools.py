@@ -38,7 +38,7 @@ _TRANSIENT_LLM_ERRORS = (
 _RETRY_DELAYS = (1.0, 2.0, 4.0)
 
 
-async def _run_with_retry(agent: Agent, input_text: str, max_turns: int = 15) -> Any:
+async def _run_with_retry(agent: Agent, input_text: str, max_turns: int = 30) -> Any:
     """Run Runner.run() with exponential backoff on transient LLM errors."""
     last_exc: Exception = RuntimeError("unreachable")
     for delay in (*_RETRY_DELAYS, None):
@@ -344,7 +344,7 @@ Always write ``relevant_content`` and ``title`` in English, regardless of the so
 """
 
 
-def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50) -> Agent:
+def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000) -> Agent:
     """Build a content extractor sub-agent with a URL-locked scraping tool.
 
     The ``raw_scrape`` tool is a closure that captures ``url`` and ``wait_for``
@@ -368,7 +368,7 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         Works with static HTML, JS-rendered pages, JSON endpoints, images,
         PDFs, DOCX, PPTX, and XLSX.
         """
-        content, title, error = await _scrape_url(url, wait_for, query=query, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages)
+        content, title, error = await _scrape_url(url, wait_for, query=query, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars)
         if error:
             return f"[Scrape failed: {error}]"
         if not content.strip():
@@ -589,6 +589,7 @@ def create_scrape_and_extract_tool(
     vision_model: Optional[str] = None,
     allowed_domains: Optional[frozenset] = None,
     max_pdf_pages: int = 50,
+    max_content_chars: int = 30_000,
 ):
     """Create a scrape_and_extract function.
 
@@ -670,7 +671,7 @@ def create_scrape_and_extract_tool(
                 )
 
                 # Build a fresh extractor agent per call with url locked in the closure
-                extractor_agent = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages)
+                extractor_agent = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars)
 
                 input_text = (
                     f"Research query: {query}\n"
@@ -679,7 +680,7 @@ def create_scrape_and_extract_tool(
                 )
 
                 try:
-                    result = await _run_with_retry(extractor_agent, input_text, max_turns=15)
+                    result = await _run_with_retry(extractor_agent, input_text, max_turns=30)
                     output = result.final_output_as(_ExtractorOutput)
                 except Exception as e:
                     logger.error("[extract] sub-agent failed for %s: %s", url, e)

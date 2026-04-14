@@ -628,7 +628,6 @@ async def _scrape_via_vision(url: str, query: str, vision_model: str) -> Tuple[s
                     {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{screenshot_b64}"}},
                 ],
             }],
-            max_tokens=2000,
         )
         content = (response.choices[0].message.content or "").strip()
         if not content:
@@ -708,7 +707,6 @@ async def _scrape_image(url: str, query: str = "", vision_model: Optional[str] =
                     {"type": "image_url", "image_url": {"url": f"data:{content_type};base64,{image_b64}"}},
                 ],
             }],
-            max_tokens=2000,
         )
         content = (response.choices[0].message.content or "").strip()
         if not content:
@@ -924,6 +922,7 @@ async def scrape_url(
     vision_model: Optional[str] = None,
     allowed_domains: Optional[frozenset] = None,
     max_pdf_pages: int = _PDF_MAX_PAGES_DEFAULT,
+    max_content_chars: int = MAX_CONTENT_CHARS,
 ) -> Tuple[str, str, Optional[str]]:
     """Scrape a URL and return clean markdown content.
 
@@ -942,6 +941,7 @@ async def scrape_url(
         allowed_domains: Frozenset of domain strings (e.g. ``frozenset({"reddit.com"})``)
             to remove from the default blocked-domain list. ``None`` uses the full block list.
         max_pdf_pages: Maximum number of pages to extract from PDFs. Defaults to 50.
+        max_content_chars: Maximum characters to return per page. Defaults to 30,000.
 
     Returns:
         Tuple of ``(markdown_content, page_title, error_or_none)``.
@@ -982,7 +982,7 @@ async def scrape_url(
             return "", title or "", "bot_detected: Browser loaded page but returned empty content"
         return "", title or "", "Extraction returned empty content"
 
-    if len(content) > MAX_CONTENT_CHARS:
-        content = content[:MAX_CONTENT_CHARS] + f"\n\n[Truncated at {MAX_CONTENT_CHARS:,} chars]"
+    if len(content) > max_content_chars:
+        content = content[:max_content_chars] + f"\n\n[Truncated at {max_content_chars:,} chars]"
 
     return content, title or "", None

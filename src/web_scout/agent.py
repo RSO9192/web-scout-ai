@@ -470,7 +470,7 @@ async def _rerank_followup_urls(
         ),
     )
     try:
-        result = await Runner.run(selector, prompt, max_turns=1)
+        result = await Runner.run(selector, prompt)
         raw_selected = result.final_output_as(FollowupSelection).selected_urls
     except Exception as e:
         logger.warning("[pipeline] follow-up URL reranker failed for %s: %s", parent_url, e)
@@ -546,6 +546,7 @@ async def run_web_research(
     research_depth: str = "standard",
     allowed_domains: Optional[List[str]] = None,
     max_pdf_pages: int = 50,
+    max_content_chars: int = 30_000,
 ) -> WebResearchResult:
     """Run deterministic web research pipeline.
 
@@ -584,6 +585,9 @@ async def run_web_research(
             to use the full block list unchanged.
         max_pdf_pages: Maximum number of pages to extract from PDFs. Defaults
             to 50. Reduce for faster processing of large reports.
+        max_content_chars: Maximum characters to return per scraped page.
+            Defaults to 30,000. Increase for more complete content at the cost
+            of higher token usage.
 
     Returns:
         ``WebResearchResult`` with URLs grouped by action (scraped,
@@ -633,6 +637,7 @@ async def run_web_research(
         vision_model=vision_model,
         allowed_domains=_allowed,
         max_pdf_pages=max_pdf_pages,
+        max_content_chars=max_content_chars,
     )
 
     logger.info("[pipeline] start  query=%r  backend=%s mode=%s depth=%s",
@@ -786,7 +791,7 @@ async def run_web_research(
                         prompt += f"Note: We will search exclusively within these domains: {', '.join(include_domains)}\n"
 
                 try:
-                    gen_res = await Runner.run(query_gen_agent, prompt, max_turns=1)
+                    gen_res = await Runner.run(query_gen_agent, prompt)
                     search_queries = gen_res.final_output_as(SearchQueryGeneration).queries
                 except Exception as e:
                     logger.error("[pipeline] query generation failed: %s", e)
@@ -951,7 +956,7 @@ async def run_web_research(
                         eval_prompt += "\n"
 
                 try:
-                    eval_res = await Runner.run(evaluator_agent, eval_prompt, max_turns=1)
+                    eval_res = await Runner.run(evaluator_agent, eval_prompt)
                     evaluation = eval_res.final_output_as(CoverageEvaluation)
                 except Exception as e:
                     logger.error("[pipeline] coverage evaluation failed: %s", e)
@@ -1054,7 +1059,7 @@ async def run_web_research(
         )
 
     try:
-        synth_res = await Runner.run(synth_agent, synth_prompt, max_turns=1)
+        synth_res = await Runner.run(synth_agent, synth_prompt)
         output = synth_res.final_output_as(WebResearchResultRaw)
     except Exception as e:
         logger.error("[pipeline] synthesis failed: %s", e)
@@ -1076,7 +1081,7 @@ async def run_web_research(
         )
         retry_prompt = synth_prompt + f"\n\nPrevious attempt:\n{output.synthesis}\n\n{feedback}"
         try:
-            synth_res2 = await Runner.run(synth_agent, retry_prompt, max_turns=1)
+            synth_res2 = await Runner.run(synth_agent, retry_prompt)
             output = synth_res2.final_output_as(WebResearchResultRaw)
         except Exception as e:
             logger.error("[pipeline] synthesis retry failed: %s", e)
