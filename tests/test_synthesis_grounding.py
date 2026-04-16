@@ -14,8 +14,9 @@ def _make_entry(url: str, content: str = "") -> UrlEntry:
 
 
 def test_instructions_forbid_training_data():
-    assert "training" in SYNTHESISER_INSTRUCTIONS.lower()
-    assert "not" in SYNTHESISER_INSTRUCTIONS.lower()
+    lower = SYNTHESISER_INSTRUCTIONS.lower()
+    assert "training" in lower
+    assert "do not" in lower or "no training data" in lower
 
 
 def test_instructions_require_gap_reporting():
@@ -40,7 +41,7 @@ def test_synth_prompt_includes_source_count():
         source_http_error=[],
         domain_expertise=None,
     )
-    assert "1" in prompt
+    assert "You have 1 successfully scraped source" in prompt
 
 
 def test_synth_prompt_includes_failure_context_when_failures_exist():

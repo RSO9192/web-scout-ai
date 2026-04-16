@@ -601,8 +601,7 @@ def _build_synth_prompt(
     for e in bot_detected:
         failure_lines.append(f"  - {e.url} [bot-blocked: content could not be read]")
     for e in blocked_by_policy:
-        from urllib.parse import urlparse as _urlparse
-        domain = _urlparse(e.url).netloc.lower()
+        domain = urlparse(e.url).netloc.lower()
         failure_lines.append(f"  - {domain} [policy-blocked: not attempted]")
     for e in scrape_failed + source_http_error:
         failure_lines.append(f"  - {e.url} [failed: {(e.content or '')[:80]}]")
