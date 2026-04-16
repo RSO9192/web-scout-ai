@@ -83,9 +83,11 @@ def test_build_summary_row_with_scores():
     assert "42.5" in row
     assert "4/5" in row
     assert "3.7" in row  # overall = (4+3+4)/3 = 3.7
+    assert row.count("|") == 11  # 10 columns → 11 pipes
 
 
 def test_build_summary_row_error():
     result = ToolResult(tool="web-scout-ai", query="q", error="timeout", elapsed_seconds=5.0)
     row = build_summary_row(result)
     assert "ERROR" in row
+    assert row.count("|") == 11  # 10 columns → 11 pipes

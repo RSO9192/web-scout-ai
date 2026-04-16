@@ -132,7 +132,7 @@ def build_summary_row(result: "ToolResult") -> str:
     q_short = result.query[:55] + "…" if len(result.query) > 55 else result.query
     if result.error:
         return (
-            f"| {q_short} | {result.tool} | - | - | - | {result.elapsed_seconds} | ERROR | - | - | - | - |"
+            f"| {q_short} | {result.tool} | - | - | - | {result.elapsed_seconds} | ERROR | - | - | - |"
         )
     ev = result.evaluation or Evaluation()
     num_failed = len([f for f in result.failures if f.category in ("scrape_failed", "source_http_error")])
