@@ -39,6 +39,11 @@ Public API
 __version__ = "1.0.4"
 
 import logging as _logging
+import os as _os
+
+
+# Avoid LiteLLM's import-time network probe and fallback warning.
+_os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "true")
 
 
 def configure_logging(level: int = _logging.INFO) -> None:

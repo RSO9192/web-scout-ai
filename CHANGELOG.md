@@ -6,10 +6,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.4]
+## [1.0.5]
 
 ### Changed
 
+- Suppress crawl4ai logs
 - **Synthesis grounding rules tightened**: `SYNTHESISER_INSTRUCTIONS` now contains three explicit, absolute directives — NO TRAINING DATA, REPORT GAPS, and THIN COVERAGE — that prevent the synthesiser model from filling missing evidence with training-data knowledge. Previously the instructions said "only use scraped sources" but the phrasing was weak enough that models routinely violated it when scraped content was thin.
 - **Synthesis prompt includes failure context**: the prompt sent to the synthesiser now lists all sources that could not be accessed (bot-blocked, policy-blocked, or failed URLs) in a dedicated section, so the model knows why coverage is limited and cannot plausibly hallucinate content from those sources. A source count and explicit thin-coverage warning are prepended when fewer than three sources were successfully scraped.
 - **Open-access and abstract-available scientific publishers unblocked**: `frontiersin.org`, `mdpi.com`, `journals.plos.org` (fully open-access) and `researchgate.net`, `nature.com`, `academic.oup.com` (abstract always accessible, often full text) are removed from the default blocked-domain list. These publishers are primary sources for many research queries and were incorrectly treated as thin-content domains. Consistently paywalled publishers (`sciencedirect.com`, `springer.com`, `wiley.com`, `cambridge.org`, `jstor.org`, `tandfonline.com`, `sagepub.com`) remain blocked.

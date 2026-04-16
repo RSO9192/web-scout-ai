@@ -110,6 +110,11 @@ _URLLIB_DOWNLOAD_TIMEOUT = 45
 _PDF_DOWNLOAD_RETRIES = 2
 
 
+def _quiet_browser_config(**overrides: Any) -> BrowserConfig:
+    """Build a crawl4ai BrowserConfig that suppresses its own startup banners."""
+    return BrowserConfig(verbose=False, **overrides)
+
+
 # ---------------------------------------------------------------------------
 # URL validation
 # ---------------------------------------------------------------------------
@@ -420,6 +425,7 @@ async def _scrape_html_fast(url: str, query: str = "", vision_model: Optional[st
 
     try:
         async with AsyncWebCrawler(
+            config=_quiet_browser_config(),
             crawler_strategy=AsyncHTTPCrawlerStrategy(),
         ) as crawler:
             result = await crawler.arun(url=url, config=run_cfg)
@@ -518,8 +524,7 @@ async def _scrape_html_browser(
     if wait_for:
         run_cfg.wait_for = wait_for
 
-    _browser_cfg = BrowserConfig(
-        verbose=False,
+    _browser_cfg = _quiet_browser_config(
         headless=True,
         enable_stealth=True,
         user_agent=(
