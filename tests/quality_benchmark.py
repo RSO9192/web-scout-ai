@@ -78,11 +78,13 @@ class Evaluation:
     tailored_comprehensiveness_rationale: str = ""
     synthesis_quality: int = 0
     synthesis_quality_rationale: str = ""
+    extraction_coverage: int = 0
+    extraction_coverage_rationale: str = ""
 
     @property
     def overall(self) -> float:
         return round(
-            (self.url_relevance + self.tailored_comprehensiveness + self.synthesis_quality) / 3,
+            (self.url_relevance + self.tailored_comprehensiveness + self.synthesis_quality + self.extraction_coverage) / 4,
             1,
         )
 
@@ -147,7 +149,7 @@ def build_summary_row(result: "ToolResult") -> str:
     q_short = result.query[:55] + "…" if len(result.query) > 55 else result.query
     if result.error:
         return (
-            f"| {q_short} | {result.tool} | - | - | - | - | {result.elapsed_seconds} | ERROR | - | - | - |"
+            f"| {q_short} | {result.tool} | - | - | - | - | {result.elapsed_seconds} | ERROR | - | - | - | - |"
         )
     ev = result.evaluation or Evaluation()
     num_failed = len([f for f in result.failures if f.category in ("scrape_failed", "source_http_error")])
@@ -159,7 +161,7 @@ def build_summary_row(result: "ToolResult") -> str:
     return (
         f"| {q_short} | {result.tool} | {scrape_rate} | {num_failed} | {num_bot} "
         f"| {depth_str} | {result.elapsed_seconds} | {ev.url_relevance}/5 | {ev.tailored_comprehensiveness}/5 "
-        f"| {ev.synthesis_quality}/5 | {ev.overall}/5 |"
+        f"| {ev.synthesis_quality}/5 | {ev.extraction_coverage}/5 | {ev.overall}/5 |"
     )
 
 # ---------------------------------------------------------------------------
@@ -314,7 +316,7 @@ You will receive:
 - PER-SOURCE EXTRACTED CONTENT: the URL, title, and extracted content for each source
 - FINAL SYNTHESIS: the tool's synthesized answer
 
-Score the output on three dimensions (1-5 each):
+Score the output on FOUR dimensions (1-5 each):
 
 1. **URL Relevance** — Are the found URLs the right primary sources for this specific query?
    Judge whether these URLs would plausibly contain the exact information requested (specific
@@ -350,6 +352,19 @@ Score the output on three dimensions (1-5 each):
    5 = Fully answers every aspect of the query; every specific fact is traceable to the
        extracted content; no padding or training-data fill; tight attribution throughout
 
+4. **Extraction Coverage** — How much raw evidence was actually gathered: number of sources
+   AND depth of content extracted from each?
+   This dimension rewards breadth (many sources) AND depth (substantial content per source).
+   Count the sources provided and inspect how long and specific each extract is.
+   1 = 0-1 sources, or all extracts are very thin (under 200 chars) / generic metadata
+   2 = 2-3 sources with mostly shallow extracts, or 1-2 sources with moderate depth
+   3 = 3-5 sources with moderate per-source content, or 2-3 sources with deep extracts
+   4 = 5+ sources with substantial per-source content (1,000+ chars of specific material each)
+   5 = 6+ sources, most with deep and specific extracts (2,000+ chars of query-relevant material)
+   NOTE: This dimension evaluates the raw gathering — not whether the content answers the query
+   (that is covered by dimensions 1 and 2). A tool that reads more pages and extracts more text
+   from each page scores higher here even if the synthesis later falls short.
+
 Respond ONLY with valid JSON (no markdown fences):
 {
   "url_relevance": <1-5>,
@@ -357,7 +372,9 @@ Respond ONLY with valid JSON (no markdown fences):
   "tailored_comprehensiveness": <1-5>,
   "tailored_comprehensiveness_rationale": "<2-3 sentences citing specific gaps or strengths>",
   "synthesis_quality": <1-5>,
-  "synthesis_quality_rationale": "<2-3 sentences noting any unsourced claims or gaps>"
+  "synthesis_quality_rationale": "<2-3 sentences noting any unsourced claims or gaps>",
+  "extraction_coverage": <1-5>,
+  "extraction_coverage_rationale": "<2-3 sentences on source count and per-source content depth>"
 }
 """
 
@@ -403,7 +420,7 @@ async def evaluate_result(result: ToolResult) -> Evaluation:
             scores = json.loads(raw)
         except json.JSONDecodeError:
             scores = {}
-            for key in ("url_relevance", "tailored_comprehensiveness", "synthesis_quality"):
+            for key in ("url_relevance", "tailored_comprehensiveness", "synthesis_quality", "extraction_coverage"):
                 m = re.search(rf'"{key}"\s*:\s*([1-5])', raw)
                 if m:
                     scores[key] = int(m.group(1))
@@ -413,7 +430,8 @@ async def evaluate_result(result: ToolResult) -> Evaluation:
             f"  [judge] {result.tool}: "
             f"relevance={scores['url_relevance']} "
             f"comprehensiveness={scores['tailored_comprehensiveness']} "
-            f"synthesis={scores['synthesis_quality']}"
+            f"synthesis={scores['synthesis_quality']} "
+            f"coverage={scores.get('extraction_coverage', '?')}"
         )
         return Evaluation(
             url_relevance=scores["url_relevance"],
@@ -422,6 +440,8 @@ async def evaluate_result(result: ToolResult) -> Evaluation:
             tailored_comprehensiveness_rationale=scores.get("tailored_comprehensiveness_rationale", ""),
             synthesis_quality=scores["synthesis_quality"],
             synthesis_quality_rationale=scores.get("synthesis_quality_rationale", ""),
+            extraction_coverage=scores.get("extraction_coverage", 0),
+            extraction_coverage_rationale=scores.get("extraction_coverage_rationale", ""),
         )
     except Exception as e:
         print(f"  [judge] evaluation failed for {result.tool}: {e}")
@@ -445,9 +465,9 @@ def build_report(results: list, queries: list) -> str:
     lines.append("## Summary\n")
     lines.append(
         "| Query | Tool | Scraped | Failed | Bot | Avg Depth | Time (s) "
-        "| URL Rel | Compreh | Synthesis | Overall |"
+        "| URL Rel | Compreh | Synthesis | Coverage | Overall |"
     )
-    lines.append("|-------|------|---------|--------|-----|-----------|----------|---------|---------|-----------|---------|")
+    lines.append("|-------|------|---------|--------|-----|-----------|----------|---------|---------|-----------|----------|---------|")
 
     by_query: dict = {}
     for r in results:
@@ -508,7 +528,8 @@ def build_report(results: list, queries: list) -> str:
             lines.append(
                 f"**Scores:** URL Relevance {ev.url_relevance}/5 | "
                 f"Tailored Comprehensiveness {ev.tailored_comprehensiveness}/5 | "
-                f"Synthesis {ev.synthesis_quality}/5 | **Overall {ev.overall}/5**\n"
+                f"Synthesis {ev.synthesis_quality}/5 | "
+                f"Extraction Coverage {ev.extraction_coverage}/5 | **Overall {ev.overall}/5**\n"
             )
             if ev.url_relevance_rationale:
                 lines.append(f"- **URL Relevance:** {ev.url_relevance_rationale}")
@@ -516,6 +537,8 @@ def build_report(results: list, queries: list) -> str:
                 lines.append(f"- **Tailored Comprehensiveness:** {ev.tailored_comprehensiveness_rationale}")
             if ev.synthesis_quality_rationale:
                 lines.append(f"- **Synthesis Quality:** {ev.synthesis_quality_rationale}")
+            if ev.extraction_coverage_rationale:
+                lines.append(f"- **Extraction Coverage:** {ev.extraction_coverage_rationale}")
             lines.append("")
 
             lines.append(f"**Synthesis:**\n\n{r.synthesis}\n")

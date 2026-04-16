@@ -95,6 +95,7 @@ def test_build_summary_row_with_scores():
         url_relevance=4,
         tailored_comprehensiveness=3,
         synthesis_quality=4,
+        extraction_coverage=4,
     )
     result = ToolResult(
         tool="web-scout-ai",
@@ -113,12 +114,12 @@ def test_build_summary_row_with_scores():
     assert "7/9" in row  # scrape_rate: 7 scraped out of 9 attempted
     assert "42.5" in row
     assert "4/5" in row
-    assert "3.7" in row  # overall = (4+3+4)/3 = 3.7
-    assert row.count("|") == 12  # 11 columns → 12 pipes
+    assert "3.8" in row  # overall = (4+3+4+4)/4 = 3.75 → 3.8
+    assert row.count("|") == 13  # 12 columns → 13 pipes
 
 
 def test_build_summary_row_error():
     result = ToolResult(tool="web-scout-ai", query="q", error="timeout", elapsed_seconds=5.0)
     row = build_summary_row(result)
     assert "ERROR" in row
-    assert row.count("|") == 12  # 11 columns → 12 pipes
+    assert row.count("|") == 13  # 12 columns → 13 pipes
