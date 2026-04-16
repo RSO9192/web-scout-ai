@@ -36,11 +36,10 @@ Public API
 - ``ResearchTracker`` — URL/query bookkeeping
 """
 
-__version__ = "1.0.4"
+__version__ = "1.0.5"
 
 import logging as _logging
 import os as _os
-
 
 # Avoid LiteLLM's import-time network probe and fallback warning.
 _os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "true")
@@ -72,17 +71,17 @@ def configure_logging(level: int = _logging.INFO) -> None:
     pkg_logger.propagate = False
 
 
-from .agent import (
+from .agent import (  # noqa: E402
     DEFAULT_WEB_RESEARCH_MODELS,
     run_web_research,
 )
-from .models import (
+from .models import (  # noqa: E402
     SearchQuery,
     UrlEntry,
     WebResearchResult,
     WebResearchResultRaw,
 )
-from .tools import ResearchTracker
+from .tools import ResearchTracker  # noqa: E402
 
 __all__ = [
     "__version__",

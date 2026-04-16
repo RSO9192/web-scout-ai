@@ -27,13 +27,13 @@ import asyncio
 import logging
 import os
 import re as _re
-from typing import Any, Dict, List, Optional
-from urllib.parse import parse_qsl, urlparse, urljoin
 from collections import OrderedDict
-
-from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Optional
+from urllib.parse import parse_qsl, urljoin, urlparse
 
 from agents import Agent, ModelSettings, Runner
+from pydantic import BaseModel, Field
+
 from .models import WebResearchResult, WebResearchResultRaw
 from .scraping import _is_blocked_domain
 from .tools import ResearchTracker, create_scrape_and_extract_tool
@@ -221,7 +221,7 @@ def _judge_synthesis(synthesis: str, valid_urls: set[str]) -> list[str]:
     # 1. Detect bare URLs
     # Strip out valid markdown links: [Title](URL)
     text_without_md_links = _re.sub(r'\[[^\]]*\]\((https?://[^\s\)]+)\)', '', synthesis)
-    
+
     # Find any remaining http(s):// strings, cleaning up trailing punctuation
     bare_urls = [
         m.group().rstrip('.,;)"\'')
@@ -237,9 +237,9 @@ def _judge_synthesis(synthesis: str, valid_urls: set[str]) -> list[str]:
 
     # 2. Detect hallucinated URLs
     md_link_urls = set(_re.findall(r'\[[^\]]*\]\((https?://[^\s\)]+)\)', synthesis))
-    
+
     valid_norm = {ResearchTracker._normalize_url(u) for u in valid_urls}
-    
+
     hallucinated = [u for u in md_link_urls if ResearchTracker._normalize_url(u) not in valid_norm]
     if hallucinated:
         issues.append(
@@ -400,7 +400,6 @@ def _is_promising_followup_url(url: str, base_domain: str, query: str = "") -> b
     if not path and not parsed.query:
         return False
 
-    lower_url = url.lower()
     segments = [seg.lower() for seg in path.split("/") if seg]
     if not segments:
         return False
@@ -687,8 +686,8 @@ async def run_web_research(
         ``WebResearchResult`` with URLs grouped by action (scraped,
         scrape_failed, snippet_only) and query metadata.
     """
-    from .utils import get_model
     from .search_backends import DuckDuckGoBackend, SerperBackend
+    from .utils import get_model
 
     # Resolve depth preset
     if research_depth not in _DEPTH_PRESETS:
@@ -712,10 +711,10 @@ async def run_web_research(
 
     # Create shared tracker
     tracker = ResearchTracker()
-    
+
     # Allow fallback to "web_researcher" for backward compatibility
     fallback_model = models.get("web_researcher", DEFAULT_WEB_RESEARCH_MODELS["web_researcher"])
-    
+
     query_gen_model = get_model(models.get("query_generator", fallback_model))
     evaluator_model = get_model(models.get("coverage_evaluator", fallback_model))
     synth_model = get_model(models.get("synthesiser", fallback_model))
@@ -745,26 +744,26 @@ async def run_web_research(
         logger.info("[pipeline] scraping direct URL: %s", direct_url)
         # Force a record of the query (since we didn't search) to keep logs clean
         tracker._queries.append(SearchQuery(query=query, num_results_returned=1, domains_restricted=[]))
-        
+
         content = await scrape_tool(direct_url)
-        
+
         # Deepen if relevant links are found
         is_hub = "**Page type: list**" in content
 
         if is_hub:
             # Hub page: collect LLM-ranked item links, one-hop pagination
             candidates = []
-            for l in _extract_links_from_markdown(content):
-                if l and l not in candidates:
-                    candidates.append(l)
+            for link in _extract_links_from_markdown(content):
+                if link and link not in candidates:
+                    candidates.append(link)
 
             next_page = _find_next_page_url(content, direct_url)
             if next_page:
                 logger.info("[pipeline] hub pagination: scraping next page %s", next_page)
                 next_content = await scrape_tool(next_page)
-                for l in _extract_links_from_markdown(next_content):
-                    if l and l not in candidates:
-                        candidates.append(l)
+                for link in _extract_links_from_markdown(next_content):
+                    if link and link not in candidates:
+                        candidates.append(link)
 
             hub_cap = depth["hub_deepening_cap"]
             if candidates:
@@ -796,9 +795,9 @@ async def run_web_research(
 
                 same_domain_links = []
                 if direct_domain:
-                    for l in links_to_deepen:
-                        if _is_promising_followup_url(l, direct_domain, query=query):
-                            same_domain_links.append(l)
+                    for link in links_to_deepen:
+                        if _is_promising_followup_url(link, direct_domain, query=query):
+                            same_domain_links.append(link)
 
                 if same_domain_links:
                     chosen = await _rerank_followup_urls(
@@ -815,7 +814,7 @@ async def run_web_research(
 
     else:
         # --- 2. SEARCH MODE (Open Web or Domain Restricted) ---
-        
+
         # 2a. Setup Search Backend
         if search_backend == "serper":
             key = os.getenv("SERPER_API_KEY", "")
@@ -890,7 +889,7 @@ async def run_web_research(
                 except Exception as e:
                     logger.error("[pipeline] query generation failed: %s", e)
                     search_queries = []
-                    
+
                 if not search_queries:
                     search_queries = [query]
 
@@ -958,30 +957,30 @@ async def run_web_research(
                     # Hub deepening: collect LLM-ranked item links from all hub pages
                     candidates = []
                     for hub_url, hub_content in hub_results:
-                        for l in _extract_links_from_markdown(hub_content):
-                            if l:
-                                parsed_netloc = urlparse(l).netloc.lower()
+                        for link in _extract_links_from_markdown(hub_content):
+                            if link:
+                                parsed_netloc = urlparse(link).netloc.lower()
                                 if any(parsed_netloc == d.lower() or parsed_netloc.endswith("." + d.lower()) for d in include_domains):
-                                    if tracker._normalize_url(l) not in tracker._actions and any(
-                                        _is_promising_followup_url(l, d.lower(), query=query) for d in include_domains
+                                    if tracker._normalize_url(link) not in tracker._actions and any(
+                                        _is_promising_followup_url(link, d.lower(), query=query) for d in include_domains
                                     ):
-                                        if l not in candidates:
-                                            candidates.append(l)
+                                        if link not in candidates:
+                                            candidates.append(link)
 
                         # One-hop pagination per hub
                         next_page = _find_next_page_url(hub_content, hub_url)
                         if next_page and tracker._normalize_url(next_page) not in tracker._actions:
                             logger.info("[pipeline] hub pagination (domain mode): %s", next_page)
                             next_content = await scrape_tool(next_page)
-                            for l in _extract_links_from_markdown(next_content):
-                                if l:
-                                    parsed_netloc = urlparse(l).netloc.lower()
+                            for link in _extract_links_from_markdown(next_content):
+                                if link:
+                                    parsed_netloc = urlparse(link).netloc.lower()
                                     if any(parsed_netloc == d.lower() or parsed_netloc.endswith("." + d.lower()) for d in include_domains):
-                                        if tracker._normalize_url(l) not in tracker._actions and any(
-                                            _is_promising_followup_url(l, d.lower(), query=query) for d in include_domains
+                                        if tracker._normalize_url(link) not in tracker._actions and any(
+                                            _is_promising_followup_url(link, d.lower(), query=query) for d in include_domains
                                         ):
-                                            if l not in candidates:
-                                                candidates.append(l)
+                                            if link not in candidates:
+                                                candidates.append(link)
 
                     hub_cap = depth["hub_deepening_cap"]
                     if candidates:
@@ -1001,14 +1000,14 @@ async def run_web_research(
                     # Existing fallback: no hub detected, thin coverage — follow up to 3 links
                     links_to_deepen = []
                     for content in extracted_contents:
-                        for l in _extract_links_from_markdown(content):
-                            parsed_netloc = urlparse(l).netloc.lower()
+                        for link in _extract_links_from_markdown(content):
+                            parsed_netloc = urlparse(link).netloc.lower()
                             if any(parsed_netloc == d.lower() or parsed_netloc.endswith("." + d.lower()) for d in include_domains):
-                                if tracker._normalize_url(l) not in tracker._actions and any(
-                                    _is_promising_followup_url(l, d.lower(), query=query) for d in include_domains
+                                if tracker._normalize_url(link) not in tracker._actions and any(
+                                    _is_promising_followup_url(link, d.lower(), query=query) for d in include_domains
                                 ):
-                                    if l not in links_to_deepen:
-                                        links_to_deepen.append(l)
+                                    if link not in links_to_deepen:
+                                        links_to_deepen.append(link)
 
                     if links_to_deepen:
                         parent_url = next((url for url, _ in iter_results if url), include_domains[0])
@@ -1115,7 +1114,7 @@ async def run_web_research(
         source_http_error=source_http_error,
         domain_expertise=domain_expertise,
     )
-            
+
     synth_agent = Agent(
         name="synthesiser",
         model=synth_model,
@@ -1123,7 +1122,7 @@ async def run_web_research(
         instructions=SYNTHESISER_INSTRUCTIONS,
         model_settings=ModelSettings(extra_args={"reasoning_effort": "high"}),
     )
-    
+
     # Only scraped URLs are valid citation targets. Snippet-only URLs are context
     # in the prompt but the synthesiser is instructed not to create markdown citations
     # for them — this prevents the model from using a real-looking snippet URL as
@@ -1155,7 +1154,7 @@ async def run_web_research(
         for issue in issues:
             logger.warning("[pipeline] judge issue: %s", issue)
         logger.warning("[pipeline] retrying synthesis due to %d issue(s)", len(issues))
-        
+
         feedback = (
             "Your synthesis has the following citation issues that must be fixed:\n"
             + "\n".join(f"- {issue}" for issue in issues)
@@ -1197,8 +1196,9 @@ async def run_web_research(
 
 if __name__ == "__main__":
     import logging
-    from dotenv import load_dotenv
     from pathlib import Path
+
+    from dotenv import load_dotenv
 
     load_dotenv(Path(__file__).parent.parent.parent / ".env")
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")

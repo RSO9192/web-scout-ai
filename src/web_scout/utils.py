@@ -7,7 +7,6 @@ from typing import Union
 
 from agents.extensions.models.litellm_model import LitellmModel
 
-
 # Map of LiteLLM provider prefixes to their environment variable names.
 # See https://docs.litellm.ai/docs/providers for the full list.
 _PROVIDER_ENV_KEYS: dict[str, list[str]] = {

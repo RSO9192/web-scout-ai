@@ -199,7 +199,6 @@ class SerperBackend(SearchBackend):
             site_clause = " OR ".join(f"site:{d}" for d in include_domains)
             effective_query = f"({site_clause}) {query}"
 
-        last_exc: Optional[Exception] = None
         data: dict = {}
         async with httpx.AsyncClient(timeout=15) as client:
             for attempt in range(self._MAX_RETRIES):

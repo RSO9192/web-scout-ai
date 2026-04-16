@@ -18,7 +18,7 @@ import asyncio
 import logging
 import re
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional
-from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import litellm
 from agents import Agent, ModelSettings, Runner, function_tool
@@ -95,7 +95,6 @@ class ResearchTracker:
     """Accumulates URL and query records from tool calls."""
 
     def __init__(self):
-        from .models import SearchQuery, UrlEntry
 
         self._urls: Dict[str, UrlEntry] = {}
         self._actions: Dict[str, str] = {}
@@ -357,7 +356,8 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
     essential for metadata/catalogue pages (e.g. FAOLEX law records) where
     the page itself only contains a summary and the full text is in a document.
     """
-    from .scraping import _SCRAPE_DOC, _scrape_document, _validate_url, scrape_url as _scrape_url
+    from .scraping import _SCRAPE_DOC, _scrape_document, _validate_url
+    from .scraping import scrape_url as _scrape_url
 
     @function_tool
     async def raw_scrape() -> str:
@@ -601,10 +601,10 @@ def create_scrape_and_extract_tool(
     4. Extracts and summarises only the portions relevant to the query.
     5. Returns a detailed, comprehensive excerpt (~5,000 chars) to the main agent.
     """
-    
+
     semaphore = asyncio.Semaphore(max_concurrent)
     in_flight: Dict[str, asyncio.Future[str]] = {}
-    
+
     async def scrape_and_extract(
         url: str,
         wait_for: Optional[str] = None,

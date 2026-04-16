@@ -22,8 +22,8 @@ import mimetypes
 import os
 import re
 from typing import Any, Optional, Tuple
-from urllib.request import Request, urlopen
 from urllib.parse import unquote, urlparse
+from urllib.request import Request, urlopen
 
 import httpx
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
@@ -303,7 +303,7 @@ async def _validate_url(url: str, allowed_domains: Optional[frozenset] = None) -
             # Step 1: HEAD request
             try:
                 head = await client.head(url)
-            except Exception as e:
+            except Exception:
                 head = None
 
             if head:
@@ -467,9 +467,9 @@ def _append_internal_links(content: str, result, limit: int = 50) -> str:
         links = links_data.get("internal", [])
     else:
         links = getattr(links_data, "internal", [])
-        
+
     link_lines = []
-    
+
     # Also extract links directly from markdown via regex
     for match in re.finditer(r'\[([^\]]+)\]\((https?://[^\)]+)\)', content):
         text, href = match.groups()
@@ -477,22 +477,22 @@ def _append_internal_links(content: str, result, limit: int = 50) -> str:
             clean_text = text.strip().replace('\n', ' ')
             link_lines.append(f"- [{clean_text}]({href.strip()})")
 
-    for l in links:
-        href = l.get("href", "") if isinstance(l, dict) else getattr(l, "href", "")
-        text = (l.get("text", "") if isinstance(l, dict) else getattr(l, "text", "")).strip()
+    for item in links:
+        href = item.get("href", "") if isinstance(item, dict) else getattr(item, "href", "")
+        text = (item.get("text", "") if isinstance(item, dict) else getattr(item, "text", "")).strip()
         if href and text and text.lower() not in ("read more", "click here", "learn more"):
             link_lines.append(f"- [{text}]({href})")
-            
+
     if not link_lines:
         return content
-            
+
     seen = set()
     unique_links = []
     for line in link_lines:
         if line not in seen:
             seen.add(line)
             unique_links.append(line)
-            
+
     if unique_links:
         content += "\n\n### Links on Page:\n" + "\n".join(unique_links[:limit])
     return content
@@ -592,6 +592,7 @@ async def _scrape_via_vision(url: str, query: str, vision_model: str) -> Tuple[s
     Only fires when both fast and browser text paths return empty/insufficient content.
     """
     import base64
+
     import litellm
     from playwright.async_api import async_playwright
 
@@ -686,6 +687,7 @@ async def _scrape_image(url: str, query: str = "", vision_model: Optional[str] =
         return "", "", "Image URL requires vision_model for extraction"
 
     import base64
+
     import litellm
 
     try:
@@ -733,8 +735,8 @@ async def _download_pdf_via_browser(url: str) -> Optional[bytes]:
     bot-protection returns 403 to plain HTTP clients but serves the file to
     real browsers).  Returns raw PDF bytes, or ``None`` on failure.
     """
-    import os
     import tempfile
+
     from playwright.async_api import async_playwright
 
     try:
@@ -888,7 +890,7 @@ async def _scrape_document(url: str, query: str = "", vision_model: Optional[str
 
         content = await asyncio.to_thread(_convert_fast)
         content = _append_internal_links(content, None)
-        
+
         if len(content.strip()) < _MIN_PDF_TEXT_CHARS:
             if vision_model:
                 return await _scrape_via_vision(url, query=query, vision_model=vision_model)

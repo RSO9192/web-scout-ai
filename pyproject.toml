@@ -57,6 +57,14 @@ target-version = "py310"
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
 
+[tool.ruff.lint.per-file-ignores]
+# LLM prompt strings and Pydantic field descriptions in agent.py cannot be wrapped
+# without changing the content sent to models.
+"src/web_scout/agent.py" = ["E501"]
+# Long function signatures in tools.py and scraping.py are unavoidable given parameter counts.
+"src/web_scout/tools.py" = ["E501"]
+"src/web_scout/scraping.py" = ["E501"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 pythonpath = ["src"]
