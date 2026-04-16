@@ -75,16 +75,32 @@ If the query is NOT fully answered, review the provided "Unscraped Candidates" (
 
 SYNTHESISER_INSTRUCTIONS = """\
 You are a web research synthesiser. Your job is to read the extracted contents
-from various web pages and produce a coherent narrative `synthesis` answering the query.
+from various web pages and produce a coherent narrative ``synthesis`` answering the query.
 
-Rules:
-- ONLY use information that appears in the provided scraped sources. Do NOT add facts,
-  numbers, dates, or claims from your own training data. If the sources do not contain
-  the information, state that it was not found rather than filling in from memory.
-- Address the query directly, mention any data gaps, do not fabricate information.
-- Use inline markdown citations after each claim: [Source Title](URL).
-  Every factual statement must be attributed to at least one source.
-- If there are contradictions, caveats, or outdated data across sources, note them.
+## Absolute rules — no exceptions
+
+**NO TRAINING DATA.** Every specific fact, number, statistic, name, date, quota,
+rate, or decision in your synthesis MUST be explicitly present in one of the provided
+scraped sources. Do NOT recall, infer, or approximate from your own training knowledge.
+This rule applies even when you are confident you know the answer from prior knowledge.
+
+**REPORT GAPS, DO NOT FILL THEM.** When the sources do not contain a specific piece of
+information the query asks for, write: "The available sources did not contain [missing item]."
+Do not substitute related data, use approximate figures, or blend in background knowledge.
+A synthesis that honestly reports gaps is more valuable than one that fills them silently.
+
+**THIN COVERAGE.** If very few sources were scraped (the count appears in your prompt),
+do not compensate with broader knowledge. Synthesize only what the sources contain and
+explicitly state that coverage is limited.
+
+## Format rules
+
+- **Citation:** use inline markdown [Source Title](URL) after every factual claim.
+  Every factual statement must be attributed to at least one source from your prompt.
+- Lead with what was found; address the query directly.
+- If sources contradict each other, note the contradiction explicitly.
+- Do NOT cite URLs that appear in the "SOURCES THAT COULD NOT BE ACCESSED" section —
+  those were never scraped and their content is unknown.
 """
 
 
@@ -534,6 +550,81 @@ def _build_allowed_domain_set(
 
 def _is_domain_mode_candidate(url: str, include_domains: list[str], query: str) -> bool:
     return any(_is_promising_followup_url(url, domain, query=query) for domain in include_domains)
+
+
+def _build_synth_prompt(
+    query: str,
+    scraped: list,
+    snippet_only: list,
+    bot_detected: list,
+    blocked_by_policy: list,
+    scrape_failed: list,
+    source_http_error: list,
+    domain_expertise: Optional[str],
+) -> str:
+    """Build the synthesis prompt from scraped content and failure context.
+
+    Includes a source count, thin-coverage warning when fewer than 3 sources
+    were scraped, a list of sources that could not be accessed (so the
+    synthesiser knows the limits of its evidence), and the scraped/snippet JSON.
+    """
+    import json as _json
+
+    scraped_json = [
+        {"url": e.url, "title": e.title or e.url, "content": e.content}
+        for e in scraped
+    ]
+    snippet_json = [
+        {"url": e.url, "title": e.title or e.url, "snippet": e.content}
+        for e in snippet_only
+        if e.content
+    ]
+
+    prompt = f"Research Query: {query}\n\n"
+    if domain_expertise:
+        prompt += f"Domain Expertise: {domain_expertise}\n\n"
+
+    # Source count + thin-coverage warning
+    n = len(scraped)
+    prompt += f"You have {n} successfully scraped source(s) to work with.\n"
+    if n < 3:
+        prompt += (
+            f"⚠ THIN COVERAGE: Only {n} source(s) available. "
+            "Synthesize ONLY what these sources contain. "
+            "Explicitly state any data the query asks for that is NOT in these sources. "
+            "Do NOT fill gaps from training knowledge.\n"
+        )
+    prompt += "\n"
+
+    # Failure context
+    failure_lines: list[str] = []
+    for e in bot_detected:
+        failure_lines.append(f"  - {e.url} [bot-blocked: content could not be read]")
+    for e in blocked_by_policy:
+        from urllib.parse import urlparse as _urlparse
+        domain = _urlparse(e.url).netloc.lower()
+        failure_lines.append(f"  - {domain} [policy-blocked: not attempted]")
+    for e in scrape_failed + source_http_error:
+        failure_lines.append(f"  - {e.url} [failed: {(e.content or '')[:80]}]")
+    if failure_lines:
+        prompt += (
+            "SOURCES THAT COULD NOT BE ACCESSED"
+            " — do NOT cite these, do not assume what they contain:\n"
+            + "\n".join(failure_lines[:10])
+            + "\n\n"
+        )
+
+    # Scraped and snippet content
+    if not scraped and not snippet_json:
+        prompt += "(No sources were found. You must state that no evidence was found.)\n"
+    else:
+        if scraped_json:
+            prompt += f"Scraped sources (full extracts):\n{_json.dumps(scraped_json, indent=2)}\n\n"
+        if snippet_json:
+            prompt += f"Additional sources (search snippets only):\n{_json.dumps(snippet_json, indent=2)}\n\n"
+
+    prompt += "Provide the 'synthesis' of the findings directly answering the query.\n"
+    return prompt
 
 
 async def run_web_research(
@@ -1011,31 +1102,16 @@ async def run_web_research(
     bot_detected = groups["bot_detected"]
     snippet_only = groups["snippet_only"]
 
-    import json as _json
-
-    scraped_json = [
-        {"url": entry.url, "title": entry.title or entry.url, "content": entry.content}
-        for entry in scraped
-    ]
-    snippet_json = [
-        {"url": entry.url, "title": entry.title or entry.url, "snippet": entry.content}
-        for entry in snippet_only
-        if entry.content
-    ]
-
-    synth_prompt = f"Research Query: {query}\n\n"
-    if domain_expertise:
-        synth_prompt += f"Domain Expertise: {domain_expertise}\n\n"
-
-    if not scraped and not snippet_json:
-        synth_prompt += "(No sources were found. You must state that no evidence was found.)\n"
-    else:
-        if scraped_json:
-            synth_prompt += f"Scraped sources (full extracts):\n{_json.dumps(scraped_json, indent=2)}\n\n"
-        if snippet_json:
-            synth_prompt += f"Additional sources (search snippets only):\n{_json.dumps(snippet_json, indent=2)}\n\n"
-
-    synth_prompt += "Provide the 'synthesis' of the findings directly answering the query.\n"
+    synth_prompt = _build_synth_prompt(
+        query=query,
+        scraped=scraped,
+        snippet_only=snippet_only,
+        bot_detected=bot_detected,
+        blocked_by_policy=blocked_by_policy,
+        scrape_failed=scrape_failed,
+        source_http_error=source_http_error,
+        domain_expertise=domain_expertise,
+    )
             
     synth_agent = Agent(
         name="synthesiser",
