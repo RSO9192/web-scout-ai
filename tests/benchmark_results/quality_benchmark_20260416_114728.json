@@ -1,0 +1,68 @@
+[
+  {
+    "tool": "web-scout-ai",
+    "query": "Kenya interannual variability and long-term trends in precipitation \u2014 current status and recent trend",
+    "synthesis": "",
+    "sources": [],
+    "num_scraped": 0,
+    "failures": [],
+    "elapsed_seconds": 0.0,
+    "error": "run_web_research() missing 1 required positional argument: 'models'",
+    "evaluation": {
+      "url_relevance": 0,
+      "url_relevance_rationale": "Tool errored.",
+      "tailored_comprehensiveness": 0,
+      "tailored_comprehensiveness_rationale": "Tool errored.",
+      "synthesis_quality": 0,
+      "synthesis_quality_rationale": "Tool errored.",
+      "overall": 0.0
+    },
+    "search_queries": []
+  },
+  {
+    "tool": "openai-websearch (gpt-5.4-mini)",
+    "query": "Kenya interannual variability and long-term trends in precipitation \u2014 current status and recent trend",
+    "synthesis": "Kenya\u2019s precipitation climate is characterized by strong **interannual variability** and a bimodal rainfall regime, with the main seasons being the **March\u2013May long rains (MAM)** and the **October\u2013December short rains (OND)**. Recent work using CHIRPS data for 1981\u20132021 finds **heterogeneous rainfall anomalies across Kenya**, with local patterns varying by region and agro-climatic zone rather than a single uniform national signal. The study also reports that interannual variability is **stronger in OND than in MAM at broad scales**, and that Kenya rainfall is linked to large-scale ocean\u2013atmosphere drivers such as **ENSO** and the **Indian Ocean Dipole (IOD)**. The authors note that coherence between Ni\u00f1o3.4 and Kenya rainfall appears to have **diminished after 2013**, coinciding with increased rainfall variability in arid Narok. [Observations of enhanced rainfall variability in Kenya, East Africa](https://www.nature.com/articles/s41598-024-63786-2)\n\nOn **long-term trends**, the evidence is mixed spatially but leans toward **weak or non-significant changes in annual rainfall over many areas**, with more robust changes showing up seasonally and locally. A regional East Africa analysis using CHIRPS (1981\u20132016) found that in **central Kenya** there was a **significant decreasing trend during MAM** of up to **\u221250 mm**, while **western Kenya** showed a **significant increasing trend during OND** of up to **+50 mm** and some areas in western Kenya also showed increasing JJAS rainfall. The same study concluded that, for East Africa overall, rainfall trends are often **non-significant**, but the long rains have declined in parts of Kenya while the short rains have increased in parts of western Kenya. [Long-term trends in rainfall and temperature using high-resolution climate datasets in East Africa](https://www.nature.com/articles/s41598-019-47933-8)\n\nOlder Kenya-focused studies summarized in a 2019 Kenya rainfall-variability paper and a 2018 regional trend paper also point to **decreasing annual rainfall in some Kenyan stations and seasons**, especially during MAM, while other locations show no clear trend. For example, the 2018 Kenya study cites prior work finding a **decreasing annual rainfall trend over fourteen stations in Kenya from 1961 to 2010**, and other studies in semi-arid eastern Kenya reporting **high variability** and sometimes **no discernible long-term decrease** at specific stations. This suggests that the current status is best described as **highly variable rainfall with localized drying in parts of the country, rather than a uniform national decline**. [Evaluation of spatiotemporal variability of rainfall over Kenya from 1979 to 2017](https://www.sciencedirect.com/science/article/abs/pii/S1364682618306941) [Rainfall Variability over Kenya (1950-2012)](https://jeas.agropublishers.com/2018/03/rainfall-variability-over-kenya/) [Full article: Changing rainfall patterns and farmers\u2019 adaptation through soil water management practices in semi-arid eastern Kenya](https://www.tandfonline.com/doi/full/10.1080/15324982.2015.1091398)\n\n**Bottom line:** the **current status** is that Kenya\u2019s precipitation is still dominated by **strong year-to-year swings** and season-to-season contrasts, with rainfall variability tied to ENSO/IOD and local circulation effects. The **recent trend** is **not a simple countrywide wetting or drying trend**: many areas show **no statistically significant annual trend**, but parts of Kenya\u2014especially some central/eastern and semi-arid zones\u2014show **declines in MAM rainfall**, while some western areas show **increases in OND rainfall**. [Observations of enhanced rainfall variability in Kenya, East Africa](https://www.nature.com/articles/s41598-024-63786-2) [Long-term trends in rainfall and temperature using high-resolution climate datasets in East Africa](https://www.nature.com/articles/s41598-019-47933-8)",
+    "sources": [
+      {
+        "url": "https://www.nature.com/articles/s41598-024-63786-2",
+        "title": "Observations of enhanced rainfall variability in Kenya, East Africa | Scientific Reports",
+        "content": "Open-access article published 05 June 2024. Study uses CHIRPS v2.0 monthly rainfall data, spatially averaged over Kenya and Narok, for 1981\u20132021. The paper states that East African rainfall is influenced by multiple drivers and that Kenya shows heterogeneous rainfall anomalies at scales relevant to agropastoral livelihoods. It explicitly notes that previous work has found MAM variability is influenced by intraseasonal, interannual, decadal, and multidecadal timescales. In the study, the authors examine rainfall variability in Kenya and its association with ENSO and the Indian Ocean Dipole (IOD). The paper says interannual variability is stronger in OND than MAM at broad scales, while OND rainfall is better understood because of its strong connection to ENSO and IOD; MAM is more weakly influenced by SST anomalies. It reports that coherence between Ni\u00f1o3.4 and Kenya rainfall at the annual time scale appears to have diminished after 2013, coinciding with increased rainfall variability in arid Narok. It also notes that recent MAM rainfall decline is likely associated with decadal variability in the Pacific Ocean, especially the negative phase of the Pacific Decadal Oscillation, according to prior studies discussed in the paper. The study argues rainfall variability is highly heterogeneous and that localized assessment is needed for adaptation planning."
+      },
+      {
+        "url": "https://www.nature.com/articles/s41598-019-47933-8",
+        "title": "Long-term trends in rainfall and temperature using high-resolution climate datasets in East Africa | Scientific Reports",
+        "content": "Open-access article using CHIRPS rainfall and OR temperature datasets for East Africa. The long-term country-area average annual rainfall during 1981\u20132016 is reported as 971.7 mm for Tanzania, 801.6 mm for Ethiopia, and 601.1 mm for Kenya. The paper says maximum rainfall up to 2000 mm occurs in western Ethiopia and Kenya and southeastern Tanzania, while lower rainfall below 500 mm occurs in eastern Ethiopia and northern/eastern Kenya. For seasonal rainfall trends, the paper reports a significant decreasing trend during MAM in central Kenya around Kora National reserve and Marsabit of up to -50 mm. It reports a significant increasing trend during JJAS in small areas of western Kenya around Kisumu and Bungoma of up to +60 mm, and significant increasing trends during OND in western Kenya and southern Ethiopia of up to +50 mm. The paper states that, in general, rainfall changes across much of East Africa are non-significant, while annual trends show only a few statistically significant rainfall changes. In discussion, it says the long rain (MAM) is declining in the eastern parts of Ethiopia and Kenya and large parts of Tanzania, while western Ethiopia and Kenya show increasing trends in MAM; it also notes increasing rainfall during OND in large parts of the region. The paper emphasizes that rainfall trends are spatially uneven and often not statistically significant over broad areas."
+      },
+      {
+        "url": "https://www.sciencedirect.com/science/article/abs/pii/S1364682618306941",
+        "title": "Evaluation of spatiotemporal variability of rainfall over Kenya from 1979 to 2017 - ScienceDirect",
+        "content": "Abstract page for a Kenya rainfall trend study published in 2018/2019. The snippet says the authors aim to characterize observed rainfall over Kenya and detect spatiotemporal trends at seasonal, annual, and decadal scales. It notes that in East Africa a decrease in precipitation was observed by Ongoma and Chen (2017) from 1951 to 2010 using GPCC. It also cites prior work by Ongoma et al. (2016), which observed decreasing annual rainfall over fourteen stations in Kenya from 1961 to 2010. The page indicates the study focuses on seasonal, annual, and decadal rainfall variability over Kenya."
+      },
+      {
+        "url": "https://jeas.agropublishers.com/2018/03/rainfall-variability-over-kenya/",
+        "title": "Rainfall Variability over Kenya (1950-2012)",
+        "content": "Article on rainfall variability over Kenya using 33 stations for 1950\u20132012. The abstract states the study investigates seasonal and annual rainfall variability over Kenya using non-parametric statistics. The page snippet reports that the annual rainfall showed an insignificant decreasing and increasing trend for different stations, with only one station, Moyale, showing a statistically significant decrease in annual rainfall of 3.52 mm/year. It also summarizes earlier studies indicating that the two seasons MAM and OND are the important rainfall seasons for Kenya and that changes in trend affect rain-fed agriculture."
+      },
+      {
+        "url": "https://www.tandfonline.com/doi/full/10.1080/15324982.2015.1091398",
+        "title": "Full article: Changing rainfall patterns and farmers\u2019 adaptation through soil water management practices in semi-arid eastern Kenya",
+        "content": "The article snippet reports a specific station-level analysis in semi-arid eastern Kenya. It says that in Machakos County there was no discernible trend in the decrease of rainfall for 1961\u20132011. It also reports for Makindu that the maximum annual total rainfall was 1,246 mm in 1968, the minimum annual total was 226 mm in 2005, and mean annual rainfall was 600 mm. Trend analysis for the Makindu MAM season showed a decrease in the number of rainy days by Theil-Sen slope of -0.08, but it was not significant (P-value 0.20)."
+      }
+    ],
+    "num_scraped": 5,
+    "failures": [],
+    "elapsed_seconds": 18.5,
+    "error": null,
+    "evaluation": {
+      "url_relevance": 4,
+      "url_relevance_rationale": "Most URLs are strong primary or near-primary sources for Kenya rainfall variability and trends, especially the two Scientific Reports papers and the Kenya-focused studies. A couple are secondary/abstract or journal-page snippets rather than full primary datasets, but they are still directly on-topic and plausibly contain the requested trend information.",
+      "tailored_comprehensiveness": 4,
+      "tailored_comprehensiveness_rationale": "The extracts include concrete, query-relevant details: CHIRPS periods, MAM/OND seasonality, interannual variability, ENSO/IOD links, and specific trend magnitudes such as -50 mm and +50 mm. However, the query asks for current status and recent trend, and the extracts do not provide a single unified national trend metric or a clearly defined \u201ccurrent status\u201d beyond heterogeneous/localized variability.",
+      "synthesis_quality": 4,
+      "synthesis_quality_rationale": "The synthesis is well grounded in the extracted content and most specific claims are traceable, including the diminished Ni\u00f1o3.4 coherence after 2013, stronger OND variability, and the seasonal trend magnitudes in central and western Kenya. It does add some broad framing like \u201cbimodal rainfall regime\u201d and \u201clocal circulation effects\u201d that are not explicitly stated in the extracts, but these are minor and do not materially distort the answer.",
+      "overall": 4.0
+    },
+    "search_queries": []
+  }
+]
