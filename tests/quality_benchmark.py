@@ -454,15 +454,17 @@ def build_report(results: list, queries: list) -> str:
 
             # web-scout-ai gets the full diagnostic breakdown
             if r.tool == "web-scout-ai":
-                num_failed = len([f for f in r.failures if f.category in ("scrape_failed", "source_http_error")])
+                num_scrape_failed = len([f for f in r.failures if f.category == "scrape_failed"])
+                num_http_error = len([f for f in r.failures if f.category == "source_http_error"])
                 num_bot = len([f for f in r.failures if f.category == "bot_detected"])
                 num_blocked = len([f for f in r.failures if f.category == "blocked_by_policy"])
                 num_irrelevant = len([f for f in r.failures if f.category == "scraped_irrelevant"])
                 total_attempted = r.num_scraped + len(r.failures)
                 lines.append(
-                    f"**Scrape breakdown:** {r.num_scraped} scraped / {num_failed} failed / "
-                    f"{num_bot} bot-blocked / {num_blocked} policy-blocked / "
-                    f"{num_irrelevant} irrelevant / {total_attempted} attempted\n"
+                    f"**Scrape breakdown:** {r.num_scraped} scraped / {num_scrape_failed} failed / "
+                    f"{num_bot} bot-blocked / {num_http_error} http-error / "
+                    f"{num_blocked} policy-blocked / {num_irrelevant} irrelevant / "
+                    f"{total_attempted} attempted\n"
                 )
 
                 if r.search_queries:
