@@ -93,46 +93,70 @@ from web_scout import run_web_research
 
 async def main():
     result = await run_web_research(
-        query="climate risks for agriculture in Kenya",
+        query="Kenya interannual variability and long-term trends in precipitation — current status and recent trend",
         models={
-            "web_researcher": "openai/gpt-4o-mini",
-            "content_extractor": "gemini/gemini-2.0-flash",
+            "web_researcher": "gemini/gemini-3-flash-preview",
+            "content_extractor": "gemini/gemini-3-flash-preview",
         },
-        research_depth="deep",
-        include_domains=["fao.org", "ipcc.ch", "worldbank.org"],
+        search_backend="serper",
     )
     print(result.synthesis)
-    print(f"\n{len(result.scraped)} sources read.")
+    print(f"\n{len(result.scraped)} sources read, avg {sum(len(s.content) for s in result.scraped) // len(result.scraped):,} chars/source")
 
 asyncio.run(main())
 ```
 
-**Sample output:**
+**Real output** (from an actual run — sources, numbers, and dates are live from the web):
 
 ```text
-Kenya's agricultural sector faces compounding climate risks documented across
-major institutional sources:
+Precipitation in Kenya is characterized by extreme interannual variability and
+distinct seasonal trends that have shifted significantly in recent decades.
+The country's climate is dominated by a bimodal rainfall pattern consisting of
+the 'long rains' (March–May, MAM) and 'short rains' (October–December, OND).
 
-**Drought and rainfall variability** — The frequency of drought events has
-increased significantly since the 1990s, with rainfall becoming less
-predictable across maize-growing regions. IPCC AR6 projects a further 10–20%
-reduction in seasonal rainfall in the drylands by 2050 [IPCC, 2021].
+Long-Term Precipitation Trends
+Historically, the two main rainy seasons have exhibited opposing trends:
 
-**Yield losses** — FAO estimates that climate-related shocks already reduce
-national cereal production by up to 30% in drought years, disproportionately
-affecting smallholder farmers who account for 75% of food production
-[FAO, 2023].
+• Long Rains (MAM): Between 1985 and 2010, a consistent drying trend was
+  observed, attributed to a shortening of the season through delayed onset and
+  earlier cessation. However, this trend has shown signs of recovery since 2018
+  due to extremely wet seasons in 2018, 2020, and 2024.
 
-**Heat stress on livestock** — Rising temperatures are increasing livestock
-mortality rates and reducing milk production in pastoral communities, affecting
-livelihoods for approximately 3 million Kenyans [World Bank, 2022].
+• Short Rains (OND): A consistent wetting trend has been recorded from 1983 to
+  2021, with seasonal rainfall increasing by approximately 1.44 to 2.36 mm per
+  year. Projections suggest the short rains may deliver more total rainfall than
+  the long rains by 2030–2040.
 
-**Adaptation gaps** — Less than 15% of Kenyan smallholders have access to
-climate-smart agriculture services or drought-resistant seed varieties
-[FAO, 2023].
+Current Status (2024)
+The year 2024 exemplified the current state of extreme variability:
 
-14 sources read.
+• MAM 2024: Recorded as one of the wettest seasons on record for several
+  stations, including Nairobi and Central Kenya. Ndakaini station recorded a
+  seasonal high of 1,355.5 mm. Many areas received 111% to over 200% of their
+  long-term mean, resulting in widespread flooding and crop destruction.
+
+• OND 2024: In sharp contrast, the short rains were generally below average,
+  receiving only 26–75% of normal rainfall in the Northeast and Turkana
+  regions. This poor performance led to a deterioration in food security, with
+  2.15 million people facing food insecurity by early 2025.
+
+Interannual Variability and Drivers
+Rainfall variability has increased substantially since 2013, marked by more
+frequent and intense extremes. Primary drivers include the Indian Ocean Dipole
+(IOD) — positive IOD phases can lead to rainfall totals 2–3 times the
+long-term mean — and ENSO, though the coherence between ENSO and Kenyan
+rainfall has diminished since 2013, suggesting other regional factors are
+becoming more influential.
+
+4 sources read, avg 2,701 chars/source
 ```
+
+**Sources actually scraped:**
+
+- [Observations of enhanced rainfall variability in Kenya, East Africa (1981–2021)](https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/) — PMC / Scientific Reports
+- [Drivers and impacts of Eastern African rainfall variability](https://www.icpac.net/documents/829/s43017-023-00397-x_1.pdf) — ICPAC / Nature Reviews
+- [State of the Climate Kenya 2024](https://meteo.go.ke/documents/1353/State_of_the_Climate_Kenya_2024_v1.pdf) — Kenya Meteorological Department (PDF)
+- [State of the Climate Report Kenya 2024](https://www.sei.org/publications/state-climate-report-kenya-2024/) — Stockholm Environment Institute
 
 ---
 
