@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from web_scout.agent import SYNTHESISER_INSTRUCTIONS, _build_synth_prompt
+from web_scout.agent import SYNTHESISER_INSTRUCTIONS, _build_synth_prompt, _judge_synthesis
 from web_scout.models import UrlEntry
 
 
@@ -27,6 +27,13 @@ def test_instructions_require_gap_reporting():
 def test_instructions_mention_thin_coverage():
     lower = SYNTHESISER_INSTRUCTIONS.lower()
     assert "thin" in lower or "few source" in lower or "limited" in lower
+
+
+def test_instructions_restrict_citations_to_scraped_sources():
+    """Must tell the model not to cite snippet-only URLs with markdown links."""
+    lower = SYNTHESISER_INSTRUCTIONS.lower()
+    assert "snippet" in lower
+    assert "only cite scraped" in lower or "only permitted for" in lower or "scraped sources" in lower
 
 
 def test_synth_prompt_includes_source_count():
@@ -112,3 +119,41 @@ def test_synth_prompt_no_failure_section_when_no_failures():
     )
     assert "could not be accessed" not in prompt.lower()
     assert "bot-blocked" not in prompt.lower()
+
+
+# ---------------------------------------------------------------------------
+# _judge_synthesis — citation validation
+# ---------------------------------------------------------------------------
+
+def test_judge_passes_scraped_url_citation():
+    """A URL that was scraped may be cited without flagging."""
+    synthesis = "Some fact. [Title](https://scraped.com/page)"
+    valid_urls = {"https://scraped.com/page"}
+    issues = _judge_synthesis(synthesis, valid_urls)
+    assert not any("scraped.com" in i for i in issues)
+
+
+def test_judge_flags_snippet_only_url_citation():
+    """A URL that only appeared as a snippet (not scraped) must be flagged."""
+    synthesis = "Some fact [Title](https://snippet-only.com/article)"
+    valid_urls = {"https://scraped.com/page"}  # snippet-only URL not included
+    issues = _judge_synthesis(synthesis, valid_urls)
+    assert any("snippet-only.com" in i for i in issues), (
+        "Judge should flag citation to URL not in scraped set"
+    )
+
+
+def test_judge_flags_fully_hallucinated_url():
+    """A URL invented from thin air that never appeared anywhere must be flagged."""
+    synthesis = "Ethiopia corn area is 2.6M ha [FAS](https://www.fas.usda.gov/data/production/et)"
+    valid_urls = {"https://fao.org/faostat/", "https://tradingeconomics.com/ethiopia/"}
+    issues = _judge_synthesis(synthesis, valid_urls)
+    assert any("fas.usda.gov" in i for i in issues), (
+        "Judge should flag hallucinated USDA URL not in scraped set"
+    )
+
+
+def test_judge_passes_synthesis_with_no_urls():
+    """A synthesis with no citations raises no issues."""
+    issues = _judge_synthesis("No specific sources found.", {"https://a.com"})
+    assert issues == []

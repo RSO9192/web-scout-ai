@@ -93,10 +93,14 @@ A synthesis that honestly reports gaps is more valuable than one that fills them
 do not compensate with broader knowledge. Synthesize only what the sources contain and
 explicitly state that coverage is limited.
 
-## Format rules
+## Citation rules
 
-- **Citation:** use inline markdown [Source Title](URL) after every factual claim.
-  Every factual statement must be attributed to at least one source from your prompt.
+- **Only cite scraped sources.** Markdown citations [Title](URL) are only permitted for
+  URLs listed under "Scraped sources (full extracts)". Do NOT create citations for URLs
+  that appear only under "Additional sources (search snippets only)" — use snippet
+  information as supporting context but do not attach a citation link to it.
+- Every factual claim with a specific number, date, or named fact must have an inline
+  citation pointing to a scraped source that contains that fact.
 - Lead with what was found; address the query directly.
 - If sources contradict each other, note the contradiction explicitly.
 - Do NOT cite URLs that appear in the "SOURCES THAT COULD NOT BE ACCESSED" section —
@@ -1120,7 +1124,11 @@ async def run_web_research(
         model_settings=ModelSettings(extra_args={"reasoning_effort": "high"}),
     )
     
-    valid_urls = {entry.url for entry in scraped + snippet_only}
+    # Only scraped URLs are valid citation targets. Snippet-only URLs are context
+    # in the prompt but the synthesiser is instructed not to create markdown citations
+    # for them — this prevents the model from using a real-looking snippet URL as
+    # cover for training-data facts that never appeared in any extracted content.
+    valid_urls = {entry.url for entry in scraped}
 
     if bot_detected:
         logger.info(
