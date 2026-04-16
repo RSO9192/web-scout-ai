@@ -44,27 +44,27 @@ MAX_CONTENT_CHARS = 30_000
 # ---------------------------------------------------------------------------
 
 _BLOCKED_DOMAINS = frozenset({
+    # Social media and video platforms
     "youtube.com", "youtu.be",
     "twitter.com", "x.com",
     "facebook.com", "instagram.com",
     "linkedin.com", "tiktok.com",
     "reddit.com",
+    # Search engines
     "scholar.google.com",
+    # Consistently paywalled academic publishers (thin HTML without subscription)
     "sciencedirect.com",
-    "mdpi.com",
-    "nature.com",
     "springer.com",
     "link.springer.com",
     "wiley.com",
     "onlinelibrary.wiley.com",
-    "researchgate.net",
     "tandfonline.com",
     "sagepub.com",
     "cambridge.org",
     "jstor.org",
-    "frontiersin.org",
-    "journals.plos.org",
-    "academic.oup.com",
+    # NOTE: open-access publishers (frontiersin.org, mdpi.com, journals.plos.org) and
+    # abstract-available publishers (researchgate.net, nature.com, academic.oup.com)
+    # are intentionally NOT blocked — they yield useful content for research queries.
 })
 
 _BINARY_CONTENT_TYPES = (

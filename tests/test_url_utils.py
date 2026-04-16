@@ -263,8 +263,9 @@ def test_is_blocked_domain_sciencedirect_blocked():
     assert _is_blocked_domain("https://www.sciencedirect.com/science/article/pii/S2214581825005567") is True
 
 
-def test_is_blocked_domain_nature_blocked():
-    assert _is_blocked_domain("https://www.nature.com/articles/s41598-024-63786-2") is True
+def test_is_blocked_domain_nature_not_blocked():
+    # nature.com is abstract-available and intentionally NOT blocked
+    assert _is_blocked_domain("https://www.nature.com/articles/s41598-024-63786-2") is False
 
 
 def test_is_blocked_domain_publisher_allowed_when_in_allowed_set():

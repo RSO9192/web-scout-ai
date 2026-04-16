@@ -189,3 +189,55 @@ async def test_download_pdf_bytes_falls_back_to_raw_download(monkeypatch):
 
     assert error is None
     assert pdf_bytes == b"%PDF-1.7 mock data"
+
+
+# ---------------------------------------------------------------------------
+# Blocked-domain policy — open-access publishers must NOT be blocked
+# ---------------------------------------------------------------------------
+
+def test_open_access_publishers_not_blocked():
+    """Open-access journals must not be in the default block list."""
+    from web_scout.scraping import _BLOCKED_DOMAINS
+    open_access = [
+        "frontiersin.org",
+        "mdpi.com",
+        "journals.plos.org",
+    ]
+    for domain in open_access:
+        assert domain not in _BLOCKED_DOMAINS, (
+            f"{domain} is open-access and should not be blocked"
+        )
+
+
+def test_abstract_available_publishers_not_blocked():
+    """Publishers with accessible abstracts must not be in the default block list."""
+    from web_scout.scraping import _BLOCKED_DOMAINS
+    abstract_available = [
+        "researchgate.net",
+        "nature.com",
+        "academic.oup.com",
+    ]
+    for domain in abstract_available:
+        assert domain not in _BLOCKED_DOMAINS, (
+            f"{domain} has accessible content and should not be blocked"
+        )
+
+
+def test_paywalled_publishers_remain_blocked():
+    """Consistently paywalled publishers must stay blocked."""
+    from web_scout.scraping import _BLOCKED_DOMAINS
+    paywalled = [
+        "sciencedirect.com",
+        "springer.com",
+        "link.springer.com",
+        "wiley.com",
+        "onlinelibrary.wiley.com",
+        "jstor.org",
+        "tandfonline.com",
+        "sagepub.com",
+        "cambridge.org",
+    ]
+    for domain in paywalled:
+        assert domain in _BLOCKED_DOMAINS, (
+            f"{domain} is paywalled and should stay blocked"
+        )
