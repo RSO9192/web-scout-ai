@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from quality_benchmark import (
     FailureEntry,
+    avg_content_depth,
     build_failure_table,
     build_source_previews,
     build_summary_row,
@@ -15,6 +16,36 @@ from quality_benchmark import (
     ToolResult,
 )
 
+
+# ---------------------------------------------------------------------------
+# avg_content_depth
+# ---------------------------------------------------------------------------
+
+def test_avg_content_depth_empty():
+    assert avg_content_depth([]) == 0
+
+
+def test_avg_content_depth_single():
+    sources = [{"url": "https://a.com", "content": "x" * 1000}]
+    assert avg_content_depth(sources) == 1000
+
+
+def test_avg_content_depth_multiple():
+    sources = [
+        {"url": "https://a.com", "content": "x" * 2000},
+        {"url": "https://b.com", "content": "x" * 4000},
+    ]
+    assert avg_content_depth(sources) == 3000
+
+
+def test_avg_content_depth_missing_content_key():
+    sources = [{"url": "https://a.com"}]  # no "content" key
+    assert avg_content_depth(sources) == 0
+
+
+# ---------------------------------------------------------------------------
+# build_failure_table
+# ---------------------------------------------------------------------------
 
 def test_build_failure_table_empty():
     assert build_failure_table([]) == ""
@@ -79,15 +110,15 @@ def test_build_summary_row_with_scores():
     )
     row = build_summary_row(result)
     assert "web-scout-ai" in row
-    assert "7" in row
+    assert "7/9" in row  # scrape_rate: 7 scraped out of 9 attempted
     assert "42.5" in row
     assert "4/5" in row
     assert "3.7" in row  # overall = (4+3+4)/3 = 3.7
-    assert row.count("|") == 11  # 10 columns → 11 pipes
+    assert row.count("|") == 12  # 11 columns → 12 pipes
 
 
 def test_build_summary_row_error():
     result = ToolResult(tool="web-scout-ai", query="q", error="timeout", elapsed_seconds=5.0)
     row = build_summary_row(result)
     assert "ERROR" in row
-    assert row.count("|") == 11  # 10 columns → 11 pipes
+    assert row.count("|") == 12  # 11 columns → 12 pipes

@@ -135,19 +135,30 @@ def build_source_previews(sources: list, preview_chars: int = CONTENT_PREVIEW_CH
     return "\n".join(lines)
 
 
+def avg_content_depth(sources: list) -> int:
+    """Return average character count of extracted content across scraped sources."""
+    if not sources:
+        return 0
+    return round(sum(len(s.get("content", "")) for s in sources) / len(sources))
+
+
 def build_summary_row(result: "ToolResult") -> str:
     """Return a single Markdown table row for the summary table."""
     q_short = result.query[:55] + "…" if len(result.query) > 55 else result.query
     if result.error:
         return (
-            f"| {q_short} | {result.tool} | - | - | - | {result.elapsed_seconds} | ERROR | - | - | - |"
+            f"| {q_short} | {result.tool} | - | - | - | - | {result.elapsed_seconds} | ERROR | - | - | - |"
         )
     ev = result.evaluation or Evaluation()
     num_failed = len([f for f in result.failures if f.category in ("scrape_failed", "source_http_error")])
     num_bot = len([f for f in result.failures if f.category == "bot_detected"])
+    total_attempted = result.num_scraped + len(result.failures)
+    scrape_rate = f"{result.num_scraped}/{total_attempted}" if total_attempted else "-"
+    depth = avg_content_depth(result.sources)
+    depth_str = f"{depth:,}" if depth else "-"
     return (
-        f"| {q_short} | {result.tool} | {result.num_scraped} | {num_failed} | {num_bot} "
-        f"| {result.elapsed_seconds} | {ev.url_relevance}/5 | {ev.tailored_comprehensiveness}/5 "
+        f"| {q_short} | {result.tool} | {scrape_rate} | {num_failed} | {num_bot} "
+        f"| {depth_str} | {result.elapsed_seconds} | {ev.url_relevance}/5 | {ev.tailored_comprehensiveness}/5 "
         f"| {ev.synthesis_quality}/5 | {ev.overall}/5 |"
     )
 
@@ -433,10 +444,10 @@ def build_report(results: list, queries: list) -> str:
     # Summary table
     lines.append("## Summary\n")
     lines.append(
-        "| Query | Tool | Scraped | Failed | Bot | Time (s) "
+        "| Query | Tool | Scraped | Failed | Bot | Avg Depth | Time (s) "
         "| URL Rel | Compreh | Synthesis | Overall |"
     )
-    lines.append("|-------|------|---------|--------|-----|----------|---------|---------|-----------|---------|")
+    lines.append("|-------|------|---------|--------|-----|-----------|----------|---------|---------|-----------|---------|")
 
     by_query: dict = {}
     for r in results:
@@ -469,11 +480,12 @@ def build_report(results: list, queries: list) -> str:
                 num_blocked = len([f for f in r.failures if f.category == "blocked_by_policy"])
                 num_irrelevant = len([f for f in r.failures if f.category == "scraped_irrelevant"])
                 total_attempted = r.num_scraped + len(r.failures)
+                depth = avg_content_depth(r.sources)
                 lines.append(
-                    f"**Scrape breakdown:** {r.num_scraped} scraped / {num_scrape_failed} failed / "
-                    f"{num_bot} bot-blocked / {num_http_error} http-error / "
-                    f"{num_blocked} policy-blocked / {num_irrelevant} irrelevant / "
-                    f"{total_attempted} attempted\n"
+                    f"**Scrape breakdown:** {r.num_scraped}/{total_attempted} scraped "
+                    f"({num_scrape_failed} failed / {num_bot} bot-blocked / {num_http_error} http-error / "
+                    f"{num_blocked} policy-blocked / {num_irrelevant} irrelevant) — "
+                    f"avg content depth: **{depth:,} chars/source**\n"
                 )
 
                 if r.search_queries:
