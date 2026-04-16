@@ -51,6 +51,14 @@ OPENAI_MODEL = "gpt-5.4-mini"
 JUDGE_MODEL = "gpt-5.4-mini"
 WEB_SCOUT_BACKEND = "serper"
 
+# Default models from web_scout.agent.DEFAULT_WEB_RESEARCH_MODELS
+WEB_SCOUT_MODELS = {
+    "web_researcher": "gemini/gemini-3-flash-preview",
+    "content_extractor": "gemini/gemini-3-flash-preview",
+    "vision_fallback": "gemini/gemini-3-flash-preview",
+    "followup_selector": "gemini/gemini-3-flash-preview",
+}
+
 # ---------------------------------------------------------------------------
 # Data models
 # ---------------------------------------------------------------------------
@@ -154,6 +162,7 @@ async def run_web_scout(query: str) -> ToolResult:
     try:
         result = await run_web_research(
             query=query,
+            models=WEB_SCOUT_MODELS,
             search_backend=WEB_SCOUT_BACKEND,
         )
         elapsed = time.perf_counter() - t0
