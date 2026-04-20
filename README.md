@@ -313,6 +313,7 @@ Query
  |   +- Bot-protected PDFs via Playwright download fallback
  |   +- Short metadata pages retained for linked-document follow-up
  |   +- Scanned PDFs via vision fallback
+ |   +- JS portals with hidden data via interactive click-based fallback
  +- Evaluate coverage (LLM)
  |   +- Reuse promising backlog URLs
  |   +- Or generate targeted follow-up searches
