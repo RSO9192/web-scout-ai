@@ -27,7 +27,7 @@ print(result.synthesis)
 
 Building a reliable research pipeline requires gluing together:
 
-- a search API (Serper / DuckDuckGo)
+- a search API (Serper)
 - a scraper that handles HTML, JS pages, PDFs, DOCX
 - a coverage evaluator to know when you have enough sources
 - a synthesizer that cites actual content
@@ -169,7 +169,7 @@ pip install web-scout-ai
 web-scout-setup   # installs Chromium for JS-rendered pages
 ```
 
-### First run (no API key needed)
+### First run
 
 ```python
 import asyncio
@@ -182,7 +182,7 @@ async def main():
             "web_researcher": "openai/gpt-4o-mini",
             "content_extractor": "gemini/gemini-2.0-flash",
         },
-        search_backend="duckduckgo",
+        search_backend="serper",
     )
     print(result.synthesis)
     print("\nSources:")
@@ -227,7 +227,7 @@ result = await run_web_research(
         "web_researcher": "openai/gpt-4o-mini",
         "content_extractor": "gemini/gemini-2.0-flash",
     },
-    search_backend="duckduckgo",         # or "serper"
+    search_backend="serper",
     research_depth="standard",           # or "deep"
     include_domains=["ipcc.ch"],         # optional
     direct_url=None,                     # optional
@@ -246,7 +246,7 @@ result = await run_web_research(
 await run_web_research(
     query="latest IPCC findings on sea level rise",
     models=models,
-    search_backend="duckduckgo",
+    search_backend="serper",
 )
 
 # 2) Domain-restricted research
@@ -287,7 +287,7 @@ Especially useful for catalog pages, result listings, and structured report libr
 ## What It Actually Does (Pipeline)
 
 1. Generate targeted search queries.
-2. Search the web with Serper or DuckDuckGo.
+2. Search the web with Serper.
 3. Triage the best URLs across result sets.
 4. Scrape and extract relevant content in parallel.
 5. Evaluate whether the evidence actually answers the question.
@@ -301,7 +301,7 @@ Editable diagram: [`pipeline-diagram.excalidraw`](pipeline-diagram.excalidraw)
 Query
  |
  +- Generate search queries (LLM)
- +- Search web (Serper or DuckDuckGo)
+ +- Search web (Serper)
  +- Select best URLs across result sets
  +- Scrape and extract in parallel
  |   +- Static HTML
@@ -327,15 +327,12 @@ Query
 ## Search Backends
 
 ```python
-# Default: Serper (requires SERPER_API_KEY)
 await run_web_research(query=..., models=..., search_backend="serper")
-
-# Free: DuckDuckGo (no API key)
-await run_web_research(query=..., models=..., search_backend="duckduckgo")
 ```
 
-- `serper`: Google-quality results with richer metadata
-- `duckduckgo`: zero-config and free, ideal for quick starts and lightweight usage
+- `serper`: Google-quality results with rich metadata (date, rank, People Also Ask, Knowledge Graph). Requires `SERPER_API_KEY` — Serper is generous with free-tier limits.
+
+Additional backends can be added by the community — see `SearchBackend` in [`search_backends.py`](src/web_scout/search_backends.py).
 
 ---
 
@@ -385,7 +382,7 @@ models = {
 ### Environment Variables
 
 ```bash
-# Search backend (optional if using DuckDuckGo)
+# Search backend
 export SERPER_API_KEY="..."
 
 # LLM providers (set what you use)
@@ -432,7 +429,7 @@ async def research(query: str) -> str:
             "web_researcher": "openai/gpt-4o-mini",
             "content_extractor": "gemini/gemini-2.0-flash",
         },
-        search_backend="duckduckgo",
+        search_backend="serper",
     )
     sources = "\n".join(f"- {s.url}" for s in result.scraped)
     return f"{result.synthesis}\n\nSources:\n{sources}"
@@ -464,7 +461,7 @@ It is probably not the right tool if you only need simple search snippets or if 
 
 - Python `>=3.10`
 - API key for at least one supported LLM provider
-- Optional `SERPER_API_KEY` if you want the Serper backend
+- `SERPER_API_KEY` for the Serper search backend (generous free tier)
 
 ## Brand Assets
 
