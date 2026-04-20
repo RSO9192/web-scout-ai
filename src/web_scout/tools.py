@@ -22,6 +22,7 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import litellm
 from agents import Agent, ModelSettings, Runner, function_tool
+from playwright.async_api import async_playwright
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
@@ -36,6 +37,68 @@ _TRANSIENT_LLM_ERRORS = (
     litellm.BadGatewayError,
 )
 _RETRY_DELAYS = (1.0, 2.0, 4.0)
+
+_THIN_CONTENT_CHARS = 500
+_MAX_INTERACTIVE_CLICKS = 5
+
+# JavaScript that queries all visible interactive elements on a page.
+# Returns a list of {tag, text} objects in a stable, deduplicated order.
+_GET_ELEMENTS_JS = """
+(() => {
+    const all = [];
+    const seen = new Set();
+    document.querySelectorAll('button, [role="tab"], [role="button"], select').forEach(el => {
+        if (el.offsetParent === null || el.disabled) return;
+        const text = (el.innerText || el.value || el.getAttribute('aria-label') || '').trim();
+        if (!text) return;
+        const key = text.slice(0, 60);
+        if (seen.has(key)) return;
+        seen.add(key);
+        all.push({tag: el.getAttribute('role') || el.tagName.toLowerCase(), text: key});
+    });
+    document.querySelectorAll('a').forEach(el => {
+        if (el.offsetParent === null) return;
+        const text = (el.innerText || '').trim();
+        if (!/load more|show more|show all|expand|next|view all/i.test(text)) return;
+        const key = text.slice(0, 60);
+        if (seen.has(key)) return;
+        seen.add(key);
+        all.push({tag: 'a', text: key});
+    });
+    return all;
+})()
+"""
+
+# JavaScript that re-queries interactive elements and clicks the one at `index` (1-based).
+# Returns true if clicked, false if index is out of range.
+_CLICK_ELEMENT_JS = """
+(index) => {
+    const all = [];
+    const seen = new Set();
+    document.querySelectorAll('button, [role="tab"], [role="button"], select').forEach(el => {
+        if (el.offsetParent === null || el.disabled) return;
+        const text = (el.innerText || el.value || el.getAttribute('aria-label') || '').trim();
+        if (!text) return;
+        const key = text.slice(0, 60);
+        if (seen.has(key)) return;
+        seen.add(key);
+        all.push(el);
+    });
+    document.querySelectorAll('a').forEach(el => {
+        if (el.offsetParent === null) return;
+        const text = (el.innerText || '').trim();
+        if (!/load more|show more|show all|expand|next|view all/i.test(text)) return;
+        const key = text.slice(0, 60);
+        if (seen.has(key)) return;
+        seen.add(key);
+        all.push(el);
+    });
+    const target = all[index - 1];
+    if (!target) return false;
+    target.click();
+    return true;
+}
+"""
 
 
 async def _run_with_retry(agent: Agent, input_text: str, max_turns: int = 30) -> Any:
@@ -291,6 +354,21 @@ You receive a URL and a research query. Your job:
 ## Step 1 — Fetch the page
 Call ``raw_scrape`` to fetch the page content. Call it exactly once.
 
+## Step 1b — Handle thin content with interaction
+If raw_scrape returned fewer than 500 characters of meaningful content
+AND the page is not a document (PDF/DOCX/PPTX/XLSX):
+
+1. Call list_interactive_elements() to see what is clickable on the page.
+2. If the list contains tabs, buttons, or controls likely to reveal data
+   relevant to the research query, call click_element(n) for the most
+   promising element.
+3. Use the updated content. You may call click_element up to 5 times total.
+4. If content remains thin after clicking all promising elements, proceed
+   with what you have.
+
+Do NOT call list_interactive_elements() if raw_scrape already returned
+rich content — interaction is a fallback, not a default.
+
 ## Step 2 — Check for a primary source document
 After reading the page, ask yourself: **is this a metadata or catalogue page that links to a primary source document?**
 
@@ -343,7 +421,7 @@ Always write ``relevant_content`` and ``title`` in English, regardless of the so
 """
 
 
-def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000) -> Agent:
+def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000) -> tuple:
     """Build a content extractor sub-agent with a URL-locked scraping tool.
 
     The ``raw_scrape`` tool is a closure that captures ``url`` and ``wait_for``
@@ -406,14 +484,128 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         header = f"# {title}\nSource: {document_url}\n\n" if title else f"Source: {document_url}\n\n"
         return header + content
 
-    return Agent(
+    # --- interactive browser session ---
+    _browser_holder: list = [None]   # [playwright Browser | None]
+    _pw_holder: list = [None]        # [AsyncPlaywrightContextManager | None]
+    _page_holder: list = [None]      # [playwright Page | None]
+    _click_count: list = [0]
+
+    @function_tool
+    async def list_interactive_elements() -> str:
+        """List all visible, clickable elements on the page as a numbered list.
+
+        Opens a Playwright browser for the pre-set URL and returns all visible
+        buttons, tabs, dropdowns, and load-more links with numeric indices.
+        Call click_element(n) to interact with a specific element.
+
+        Only call this when raw_scrape returned thin content (under 500 chars).
+        Do NOT call this if raw_scrape already returned rich content.
+        """
+        try:
+            if _browser_holder[0] is None:
+                pw_cm = async_playwright()
+                pw = await pw_cm.__aenter__()
+                _pw_holder[0] = pw_cm
+                browser = await pw.chromium.launch(headless=True)
+                _browser_holder[0] = browser
+                ctx = await browser.new_context(
+                    user_agent=(
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/124.0.0.0 Safari/537.36"
+                    )
+                )
+                page = await ctx.new_page()
+                await page.goto(url, wait_until="networkidle", timeout=30_000)
+                _page_holder[0] = page
+
+            elements = await _page_holder[0].evaluate(_GET_ELEMENTS_JS)
+            if not elements:
+                return "No interactive elements found on this page."
+
+            lines = ["Interactive elements on page:"]
+            for i, el in enumerate(elements, 1):
+                lines.append(f'[{i}] {el["tag"]}: "{el["text"]}"')
+            return "\n".join(lines)
+
+        except Exception as e:
+            return f"[list_interactive_elements failed: {e}]"
+
+    @function_tool
+    async def click_element(index: int) -> str:
+        """Click an interactive element by its index from list_interactive_elements.
+
+        Re-queries the page for the element (handles DOM changes), clicks it,
+        waits for the page to settle, and returns the updated page content.
+        Maximum 5 clicks per page.
+
+        Args:
+            index: 1-based index of the element to click, as returned by
+                list_interactive_elements.
+        """
+        if _page_holder[0] is None:
+            return (
+                "[click_element error: no browser session open. "
+                "Call list_interactive_elements() first.]"
+            )
+
+        if _click_count[0] >= _MAX_INTERACTIVE_CLICKS:
+            return (
+                f"INTERACTION LIMIT REACHED: {_MAX_INTERACTIVE_CLICKS} clicks used. "
+                "Synthesize from content gathered so far."
+            )
+
+        try:
+            clicked = await _page_holder[0].evaluate(_CLICK_ELEMENT_JS, index)
+            if not clicked:
+                return (
+                    f"Element [{index}] no longer visible after previous interaction — "
+                    "call list_interactive_elements() again to get the updated list."
+                )
+
+            _click_count[0] += 1
+
+            try:
+                await _page_holder[0].wait_for_load_state("networkidle", timeout=3_000)
+            except Exception:
+                pass  # timeout is acceptable — page may not trigger a network event
+
+            content = await _page_holder[0].inner_text("body")
+            result = content.strip()
+
+            if len(result) < _THIN_CONTENT_CHARS:
+                result += (
+                    f"\n\n[Content still thin after click ({len(result)} chars) — "
+                    "consider clicking a different element.]"
+                )
+
+            return result
+
+        except Exception as e:
+            return f"[click_element failed: {e}]"
+
+    agent = Agent(
         name="content_extractor",
         model=model,
-        tools=[raw_scrape, scrape_linked_document],
+        tools=[raw_scrape, scrape_linked_document, list_interactive_elements, click_element],
         output_type=_ExtractorOutput,
         model_settings=ModelSettings(),
         instructions=_EXTRACTOR_INSTRUCTIONS,
     )
+
+    async def cleanup() -> None:
+        if _browser_holder[0] is not None:
+            try:
+                await _browser_holder[0].close()
+            except Exception:
+                pass
+        if _pw_holder[0] is not None:
+            try:
+                await _pw_holder[0].__aexit__(None, None, None)
+            except Exception:
+                pass
+
+    return agent, cleanup
 
 
 # ---------------------------------------------------------------------------
@@ -673,7 +865,7 @@ def create_scrape_and_extract_tool(
                 )
 
                 # Build a fresh extractor agent per call with url locked in the closure
-                extractor_agent = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars)
+                extractor_agent, extractor_cleanup = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars)
 
                 input_text = (
                     f"Research query: {query}\n"
@@ -691,6 +883,8 @@ def create_scrape_and_extract_tool(
                     final_output = f"Failed to extract content from {url}: {e}"
                     future.set_result(final_output)
                     return final_output
+                finally:
+                    await extractor_cleanup()
 
                 content = output.relevant_content.strip()
                 title = output.title.strip()

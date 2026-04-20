@@ -38,7 +38,14 @@ async def test_scrape_tool_reuses_inflight_request(monkeypatch):
             )
         )
 
-    monkeypatch.setattr(tools, "_build_extractor_agent", lambda *args, **kwargs: object())
+    async def _no_cleanup():
+        pass
+
+    monkeypatch.setattr(
+        tools,
+        "_build_extractor_agent",
+        lambda *args, **kwargs: (object(), _no_cleanup),
+    )
     monkeypatch.setattr(tools.Runner, "run", _fake_run)
 
     scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
@@ -63,7 +70,14 @@ async def test_scrape_tool_does_not_retry_bot_detected(monkeypatch):
     async def _unexpected_run(agent, input_text, max_turns=15):
         raise AssertionError("Runner.run should not be called for bot-detected URLs")
 
-    monkeypatch.setattr(tools, "_build_extractor_agent", lambda *args, **kwargs: object())
+    async def _no_cleanup():
+        pass
+
+    monkeypatch.setattr(
+        tools,
+        "_build_extractor_agent",
+        lambda *args, **kwargs: (object(), _no_cleanup),
+    )
     monkeypatch.setattr(tools.Runner, "run", _unexpected_run)
 
     scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
