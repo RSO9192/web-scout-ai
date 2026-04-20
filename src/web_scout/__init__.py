@@ -1,6 +1,6 @@
 """Agentic web research — smarter than search, faster than deep research.
 
-Uses pluggable search backends (Serper / DuckDuckGo). A dedicated
+Uses pluggable search backends (Serper, and community-contributed backends). A dedicated
 content extractor sub-agent (crawl4ai / docling) scrapes and summarises
 each URL so the main researcher only sees focused excerpts.
 

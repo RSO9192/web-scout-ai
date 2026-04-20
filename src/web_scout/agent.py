@@ -1,6 +1,6 @@
 """Web researcher deterministic pipeline.
 
-Uses pluggable search backends (Serper / DuckDuckGo). A dedicated
+Uses pluggable search backends (Serper, and community-contributed backends). A dedicated
 content extractor sub-agent (crawl4ai / docling) scrapes and summarises
 each URL so the main researcher only sees focused excerpts.
 
@@ -667,7 +667,7 @@ async def run_web_research(
             automatically follows up to ``hub_deepening_cap`` item links
             (10 for ``"standard"``, 15 for ``"deep"``) and performs one
             hop of pagination when a "next page" link is present.
-        search_backend: ``"serper"`` (default) or ``"duckduckgo"``.
+        search_backend: ``"serper"`` (the only supported backend).
         domain_expertise: Optional area of expertise (e.g. "biodiversity").
         research_depth: ``"standard"`` (default) or ``"deep"``. Deep mode
             generates more search queries, scrapes more URLs per iteration,
@@ -686,7 +686,7 @@ async def run_web_research(
         ``WebResearchResult`` with URLs grouped by action (scraped,
         scrape_failed, snippet_only) and query metadata.
     """
-    from .search_backends import DuckDuckGoBackend, SerperBackend
+    from .search_backends import SerperBackend
     from .utils import get_model
 
     # Resolve depth preset
@@ -821,16 +821,12 @@ async def run_web_research(
             if not key:
                 raise ValueError("search_backend='serper' requires SERPER_API_KEY env var")
             backend = SerperBackend(key)
-        elif search_backend == "duckduckgo":
-            logger.warning(
-                "[pipeline] DuckDuckGo backend selected — this is a development/fallback option only. "
-                "Result quality is significantly lower than Serper: no date, rank, PAA, or Knowledge Graph "
-                "metadata, and ddgs>=9.0 is known to return irrelevant results. "
-                "Set SERPER_API_KEY and use search_backend='serper' for production use."
-            )
-            backend = DuckDuckGoBackend()
         else:
-            raise ValueError(f"Unknown search_backend={search_backend!r}")
+            raise ValueError(
+                f"Unknown search_backend={search_backend!r}. "
+                "Currently supported: 'serper'. "
+                "See SearchBackend in search_backends.py to add a new backend."
+            )
 
         # 2b. Generate Search Queries
         query_gen_agent = Agent(

@@ -422,9 +422,11 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
 
 def create_web_search(backend=None, tracker: Optional[ResearchTracker] = None, force_open_web: bool = False):
     """Create a web search ``@function_tool`` using a pluggable backend."""
-    from .search_backends import DuckDuckGoBackend, SearchBackend
+    from .search_backends import SearchBackend
 
-    _backend: SearchBackend = backend or DuckDuckGoBackend()
+    if backend is None:
+        raise ValueError("A SearchBackend instance must be provided. See search_backends.py.")
+    _backend: SearchBackend = backend
 
     @function_tool
     async def web_search(
