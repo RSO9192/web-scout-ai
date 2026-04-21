@@ -354,7 +354,7 @@ You receive a URL and a research query. Your job:
 ## Step 1 — Fetch the page
 Call ``raw_scrape`` to fetch the page content. Call it exactly once.
 
-## Step 1b — Handle thin content with interaction
+## Step 1b — Handle thin content or low-quality content with interaction
 If raw_scrape returned fewer than 500 characters of meaningful content
 AND the page is not a document (PDF/DOCX/PPTX/XLSX):
 
@@ -366,8 +366,17 @@ AND the page is not a document (PDF/DOCX/PPTX/XLSX):
 4. If content remains thin after clicking all promising elements, proceed
    with what you have.
 
+Also call list_interactive_elements() if raw_scrape returned a message containing:
+- "[SPA: URL fragment detected" — the page uses client-side routing; the visible
+  content may be the wrong tab or view. Look for tabs, dropdowns, or section
+  selectors that navigate to the target data.
+- "[Form/survey content detected" — the page loaded a feedback widget instead of
+  data. Look for data tabs, dropdowns, or navigation controls that reveal the
+  actual content.
+In both cases, click the most promising element and use the updated content.
+
 Do NOT call list_interactive_elements() if raw_scrape already returned
-rich content — interaction is a fallback, not a default.
+rich content with no signals — interaction is a fallback, not a default.
 
 ## Step 2 — Check for a primary source document
 After reading the page, ask yourself: **is this a metadata or catalogue page that links to a primary source document?**

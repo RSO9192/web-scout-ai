@@ -187,3 +187,16 @@ async def test_raw_scrape_no_form_signal_when_content_under_500_chars():
 
     assert "[Form/survey content detected" not in result
     await cleanup()
+
+
+from web_scout.tools import _EXTRACTOR_INSTRUCTIONS
+
+
+def test_extractor_instructions_mention_spa_signal():
+    """Instructions must tell the LLM to react to the SPA signal string."""
+    assert "[SPA: URL fragment detected" in _EXTRACTOR_INSTRUCTIONS
+
+
+def test_extractor_instructions_mention_form_signal():
+    """Instructions must tell the LLM to react to the form signal string."""
+    assert "[Form/survey content detected" in _EXTRACTOR_INSTRUCTIONS
