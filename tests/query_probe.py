@@ -21,9 +21,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+import os
+
 from web_scout import configure_logging
 from web_scout.scraping import _validate_url, scrape_url
-from web_scout.search_backends import DuckDuckGoBackend
+from web_scout.search_backends import SerperBackend
 
 
 DEFAULT_QUERIES = [
@@ -67,7 +69,7 @@ def _safe_preview(text: str, limit: int = 220) -> str:
 
 
 async def _probe_query(query: str, max_results: int, max_scrapes: int) -> ProbeQueryResult:
-    backend = DuckDuckGoBackend()
+    backend = SerperBackend(os.environ["SERPER_API_KEY"])
     t0 = time.perf_counter()
     response = await backend.search(query, max_results=max_results)
     urls: list[ProbeUrlResult] = []
