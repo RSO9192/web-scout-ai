@@ -426,6 +426,30 @@ def _has_fragment(url: str) -> bool:
     return bool(urlparse(url).fragment)
 
 
+_FORM_TOKENS = (
+    "strongly agree", "strongly disagree", "please rate",
+    "kindly provide", "please provide", "select an option",
+)
+
+
+def _is_form_contaminated(content: str) -> bool:
+    """True if content is dominated by survey/form patterns despite char count > 500.
+
+    Triggers on either:
+    - A survey token appearing 2+ times (case-insensitive).
+    - 20+ lines where >75% are bullet-point lines (nav-only dump).
+    """
+    lower = content.lower()
+    if any(lower.count(tok) >= 2 for tok in _FORM_TOKENS):
+        return True
+    lines = [l for l in content.splitlines() if l.strip()]
+    if len(lines) >= 20:
+        bullet_lines = sum(1 for l in lines if l.strip().startswith(("* ", "- ")))
+        if bullet_lines / len(lines) > 0.75:
+            return True
+    return False
+
+
 def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000) -> tuple:
     """Build a content extractor sub-agent with a URL-locked scraping tool.
 
