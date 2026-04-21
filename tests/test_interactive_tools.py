@@ -151,6 +151,7 @@ async def test_click_element_returns_page_content():
     mock_page.goto = AsyncMock()
     mock_page.evaluate = AsyncMock(side_effect=[fake_elements, True])
     mock_page.wait_for_load_state = AsyncMock()
+    mock_page.url = "https://example.org/portal"
     mock_page.inner_text = AsyncMock(return_value="Year 2023: 1,200 tonnes\nYear 2022: 1,100 tonnes\n" * 30)
 
     mock_context = AsyncMock()
@@ -270,6 +271,7 @@ async def test_click_element_thin_content_warning():
     mock_page.goto = AsyncMock()
     mock_page.evaluate = AsyncMock(side_effect=[fake_elements, True])
     mock_page.wait_for_load_state = AsyncMock()
+    mock_page.url = "https://example.org/portal"
     mock_page.inner_text = AsyncMock(return_value="short content")  # under 500 chars
 
     mock_context = AsyncMock()
@@ -355,6 +357,7 @@ async def test_click_element_load_state_timeout_still_returns_content():
     mock_page.goto = AsyncMock()
     mock_page.evaluate = AsyncMock(side_effect=[fake_elements, True])
     mock_page.wait_for_load_state = AsyncMock(side_effect=TimeoutError("networkidle timed out"))
+    mock_page.url = "https://example.org/portal"
     mock_page.inner_text = AsyncMock(return_value="Year 2023: fish data\n" * 40)
 
     mock_context = AsyncMock()
@@ -380,5 +383,170 @@ async def test_click_element_load_state_timeout_still_returns_content():
 
     assert "2023" in result
     assert "fish data" in result
+
+    await cleanup()
+
+
+# ---------------------------------------------------------------------------
+# Domain-restricted applications
+# ---------------------------------------------------------------------------
+
+def _make_extractor_agent_with_domains(
+    url="https://example.org/portal",
+    query="fish production",
+    allowed_domains: frozenset = frozenset({"example.org"}),
+):
+    return _build_extractor_agent(
+        model="dummy",
+        query=query,
+        url=url,
+        wait_for=None,
+        allowed_domains=allowed_domains,
+    )
+
+
+def _make_mock_browser(page):
+    mock_context = AsyncMock()
+    mock_context.new_page = AsyncMock(return_value=page)
+
+    mock_browser = AsyncMock()
+    mock_browser.new_context = AsyncMock(return_value=mock_context)
+    mock_browser.close = AsyncMock()
+
+    mock_pw = AsyncMock()
+    mock_pw.chromium.launch = AsyncMock(return_value=mock_browser)
+
+    mock_pw_cm = AsyncMock()
+    mock_pw_cm.__aenter__ = AsyncMock(return_value=mock_pw)
+    mock_pw_cm.__aexit__ = AsyncMock(return_value=False)
+
+    return mock_pw_cm
+
+
+@pytest.mark.asyncio
+async def test_click_element_blocks_navigation_to_blocked_domain():
+    """click_element rejects content when a click navigates to a blocked domain (e.g. youtube.com)."""
+    agent, cleanup = _make_extractor_agent_with_domains()
+
+    fake_elements = [{"tag": "a", "text": "Watch video"}]
+
+    mock_page = AsyncMock()
+    mock_page.goto = AsyncMock()
+    mock_page.evaluate = AsyncMock(side_effect=[fake_elements, True])
+    mock_page.wait_for_load_state = AsyncMock()
+    # After click, the page navigated to a blocked domain
+    mock_page.url = "https://www.youtube.com/watch?v=xyz"
+    mock_page.go_back = AsyncMock()
+
+    mock_pw_cm = _make_mock_browser(mock_page)
+
+    list_tool = _find_tool(agent, "list_interactive_elements")
+    click_tool = _find_tool(agent, "click_element")
+
+    with patch("web_scout.tools.async_playwright", return_value=mock_pw_cm):
+        await list_tool.on_invoke_tool(_make_ctx(), "{}")
+        result = await click_tool.on_invoke_tool(_make_ctx(), '{"index": 1}')
+
+    assert "blocked" in result.lower()
+    assert "youtube.com" in result
+    mock_page.go_back.assert_called_once()
+
+    await cleanup()
+
+
+@pytest.mark.asyncio
+async def test_click_element_allows_navigation_within_allowed_domain():
+    """click_element returns content when navigation stays within the allowed domain."""
+    agent, cleanup = _make_extractor_agent_with_domains(
+        url="https://example.org/portal",
+        allowed_domains=frozenset({"example.org"}),
+    )
+
+    fake_elements = [{"tag": "tab", "text": "Production Data"}]
+
+    mock_page = AsyncMock()
+    mock_page.goto = AsyncMock()
+    mock_page.evaluate = AsyncMock(side_effect=[fake_elements, True])
+    mock_page.wait_for_load_state = AsyncMock()
+    # Navigation stays within allowed domain (not blocked)
+    mock_page.url = "https://example.org/portal/data"
+    mock_page.inner_text = AsyncMock(return_value="Production 2023: 1,500 tonnes\n" * 40)
+
+    mock_pw_cm = _make_mock_browser(mock_page)
+
+    list_tool = _find_tool(agent, "list_interactive_elements")
+    click_tool = _find_tool(agent, "click_element")
+
+    with patch("web_scout.tools.async_playwright", return_value=mock_pw_cm):
+        await list_tool.on_invoke_tool(_make_ctx(), "{}")
+        result = await click_tool.on_invoke_tool(_make_ctx(), '{"index": 1}')
+
+    assert "2023" in result
+    assert "tonnes" in result
+
+    await cleanup()
+
+
+@pytest.mark.asyncio
+async def test_click_element_unblocked_domain_allowed_via_allowed_domains():
+    """click_element allows navigation to a normally-blocked domain when it is in allowed_domains."""
+    # reddit.com is in _BLOCKED_DOMAINS by default; passing it in allowed_domains unblocks it
+    agent, cleanup = _make_extractor_agent_with_domains(
+        url="https://reddit.com/r/dataisbeautiful",
+        allowed_domains=frozenset({"reddit.com"}),
+    )
+
+    fake_elements = [{"tag": "button", "text": "Load comments"}]
+
+    mock_page = AsyncMock()
+    mock_page.goto = AsyncMock()
+    mock_page.evaluate = AsyncMock(side_effect=[fake_elements, True])
+    mock_page.wait_for_load_state = AsyncMock()
+    # Still on reddit.com — allowed
+    mock_page.url = "https://www.reddit.com/r/dataisbeautiful/comments/abc"
+    mock_page.inner_text = AsyncMock(return_value="Great chart! Source: FAO data\n" * 40)
+
+    mock_pw_cm = _make_mock_browser(mock_page)
+
+    list_tool = _find_tool(agent, "list_interactive_elements")
+    click_tool = _find_tool(agent, "click_element")
+
+    with patch("web_scout.tools.async_playwright", return_value=mock_pw_cm):
+        await list_tool.on_invoke_tool(_make_ctx(), "{}")
+        result = await click_tool.on_invoke_tool(_make_ctx(), '{"index": 1}')
+
+    assert "FAO data" in result
+    assert "blocked" not in result.lower()
+
+    await cleanup()
+
+
+@pytest.mark.asyncio
+async def test_click_element_no_domain_restriction_allows_any_navigation():
+    """Without allowed_domains, navigation to non-blocked external domains is allowed."""
+    # No allowed_domains set — only standard _BLOCKED_DOMAINS applies
+    agent, cleanup = _make_extractor_agent(url="https://fao.org/fishery/portal")
+
+    fake_elements = [{"tag": "tab", "text": "Download"}]
+
+    mock_page = AsyncMock()
+    mock_page.goto = AsyncMock()
+    mock_page.evaluate = AsyncMock(side_effect=[fake_elements, True])
+    mock_page.wait_for_load_state = AsyncMock()
+    # Navigates to a different non-blocked domain
+    mock_page.url = "https://ourworldindata.org/fish-production"
+    mock_page.inner_text = AsyncMock(return_value="World fish production 2023\n" * 40)
+
+    mock_pw_cm = _make_mock_browser(mock_page)
+
+    list_tool = _find_tool(agent, "list_interactive_elements")
+    click_tool = _find_tool(agent, "click_element")
+
+    with patch("web_scout.tools.async_playwright", return_value=mock_pw_cm):
+        await list_tool.on_invoke_tool(_make_ctx(), "{}")
+        result = await click_tool.on_invoke_tool(_make_ctx(), '{"index": 1}')
+
+    assert "2023" in result
+    assert "blocked" not in result.lower()
 
     await cleanup()
