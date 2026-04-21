@@ -846,7 +846,7 @@ def create_scrape_and_extract_tool(
     extractor_model: Any,
     tracker: Optional[ResearchTracker] = None,
     query: str = "",
-    max_concurrent: int = 3,
+    max_concurrent: int = 6,
     vision_model: Optional[str] = None,
     allowed_domains: Optional[frozenset] = None,
     max_pdf_pages: int = 50,
