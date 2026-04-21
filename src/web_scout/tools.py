@@ -421,6 +421,12 @@ Always write ``relevant_content`` and ``title`` in English, regardless of the so
 """
 
 
+def _has_fragment(url: str) -> bool:
+    """True if the URL contains a non-empty #fragment (SPA client-side routing)."""
+    from urllib.parse import urlparse
+    return bool(urlparse(url).fragment)
+
+
 def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000) -> tuple:
     """Build a content extractor sub-agent with a URL-locked scraping tool.
 
@@ -434,7 +440,7 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
     essential for metadata/catalogue pages (e.g. FAOLEX law records) where
     the page itself only contains a summary and the full text is in a document.
     """
-    from .scraping import _SCRAPE_DOC, _scrape_document, _validate_url
+    from .scraping import _SCRAPE_DOC, _scrape_document, _validate_url, _is_blocked_domain
     from .scraping import scrape_url as _scrape_url
 
     @function_tool
@@ -569,6 +575,14 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
                 await _page_holder[0].wait_for_load_state("networkidle", timeout=3_000)
             except Exception:
                 pass  # timeout is acceptable — page may not trigger a network event
+
+            post_click_url = _page_holder[0].url
+            if _is_blocked_domain(post_click_url, allowed_domains=allowed_domains):
+                await _page_holder[0].go_back()
+                return (
+                    f"[click_element blocked: navigation to {post_click_url} "
+                    "is outside the allowed domain scope. Try a different element.]"
+                )
 
             content = await _page_holder[0].inner_text("body")
             result = content.strip()
