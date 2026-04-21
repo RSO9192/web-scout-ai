@@ -442,9 +442,9 @@ def _is_form_contaminated(content: str) -> bool:
     lower = content.lower()
     if any(lower.count(tok) >= 2 for tok in _FORM_TOKENS):
         return True
-    lines = [l for l in content.splitlines() if l.strip()]
+    lines = [line for line in content.splitlines() if line.strip()]
     if len(lines) >= 20:
-        bullet_lines = sum(1 for l in lines if l.strip().startswith(("* ", "- ")))
+        bullet_lines = sum(1 for line in lines if line.strip().startswith(("* ", "- ")))
         if bullet_lines / len(lines) > 0.75:
             return True
     return False
