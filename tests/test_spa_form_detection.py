@@ -79,3 +79,111 @@ def test_is_form_contaminated_false_for_short_survey_content():
     lines = ["* " + f"Bullet {i}" for i in range(10)]
     content = "\n".join(lines)
     assert _is_form_contaminated(content) is False
+
+
+from unittest.mock import patch
+import pytest
+from agents.tool import ToolContext
+from web_scout.tools import _build_extractor_agent
+
+
+def _make_ctx():
+    return ToolContext(
+        context=None, tool_name="raw_scrape",
+        tool_call_id="test-id", tool_arguments="{}",
+    )
+
+
+def _make_agent(url="https://example.org/portal"):
+    return _build_extractor_agent(model="dummy", query="fish production statistics",
+                                   url=url, wait_for=None)
+
+
+def _fake_scrape_result(content: str, title: str = "Test Page", error=None):
+    async def _mock(*args, **kwargs):
+        return content, title, error
+    return _mock
+
+
+@pytest.mark.asyncio
+async def test_raw_scrape_appends_spa_signal_for_fragment_url():
+    """Fragment URL → SPA signal appended to output."""
+    agent, cleanup = _make_agent(url="https://fao.org/faostat/en/#data/QCL")
+    tool = next(t for t in agent.tools if getattr(t, "name", None) == "raw_scrape")
+    rich_content = "Fish data content. " * 40
+
+    with patch("web_scout.scraping.scrape_url", _fake_scrape_result(rich_content)):
+        result = await tool.on_invoke_tool(_make_ctx(), "{}")
+
+    assert "[SPA: URL fragment detected" in result
+    await cleanup()
+
+
+@pytest.mark.asyncio
+async def test_raw_scrape_appends_form_signal_for_survey_content():
+    """Survey content > 500 chars → form signal appended."""
+    agent, cleanup = _make_agent(url="https://fao.org/faostat/en/")
+    tool = next(t for t in agent.tools if getattr(t, "name", None) == "raw_scrape")
+    survey_content = (
+        "National Statistical Institutes\n"
+        + "* Strongly Agree\n" * 5
+        + "Some nav content. " * 30
+    )
+    assert len(survey_content) >= 500
+
+    with patch("web_scout.scraping.scrape_url", _fake_scrape_result(survey_content)):
+        result = await tool.on_invoke_tool(_make_ctx(), "{}")
+
+    assert "[Form/survey content detected" in result
+    await cleanup()
+
+
+@pytest.mark.asyncio
+async def test_raw_scrape_appends_both_signals_for_faostat_like_url():
+    """Fragment URL + survey content → both signals appear."""
+    agent, cleanup = _make_agent(url="https://fao.org/faostat/en/#data/QCL")
+    tool = next(t for t in agent.tools if getattr(t, "name", None) == "raw_scrape")
+    survey_content = (
+        "Crops and livestock products\n"
+        + "* Strongly Agree\n" * 5
+        + "More content. " * 30
+    )
+
+    with patch("web_scout.scraping.scrape_url", _fake_scrape_result(survey_content)):
+        result = await tool.on_invoke_tool(_make_ctx(), "{}")
+
+    assert "[SPA: URL fragment detected" in result
+    assert "[Form/survey content detected" in result
+    await cleanup()
+
+
+@pytest.mark.asyncio
+async def test_raw_scrape_no_signal_for_normal_rich_content():
+    """Normal rich content with no fragment → no signals."""
+    agent, cleanup = _make_agent(url="https://fao.org/fishery/en")
+    tool = next(t for t in agent.tools if getattr(t, "name", None) == "raw_scrape")
+    normal_content = (
+        "Fish production increased by 3% in 2023 according to FAO. "
+        "Aquaculture reached 88 million tonnes globally. "
+    ) * 40
+
+    with patch("web_scout.scraping.scrape_url", _fake_scrape_result(normal_content)):
+        result = await tool.on_invoke_tool(_make_ctx(), "{}")
+
+    assert "[SPA:" not in result
+    assert "[Form/survey" not in result
+    await cleanup()
+
+
+@pytest.mark.asyncio
+async def test_raw_scrape_no_form_signal_when_content_under_500_chars():
+    """Form detection skipped when content < 500 chars (already thin)."""
+    agent, cleanup = _make_agent(url="https://fao.org/fishery/en")
+    tool = next(t for t in agent.tools if getattr(t, "name", None) == "raw_scrape")
+    thin_survey = "* Strongly Agree\n" * 3  # repeated token but < 500 chars
+
+    with patch("web_scout.scraping.scrape_url", _fake_scrape_result(thin_survey)):
+        result = await tool.on_invoke_tool(_make_ctx(), "{}")
+
+    assert "[Form/survey content detected" not in result
+    await cleanup()

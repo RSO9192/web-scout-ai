@@ -464,7 +464,7 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
     the page itself only contains a summary and the full text is in a document.
     """
     from .scraping import _SCRAPE_DOC, _scrape_document, _validate_url, _is_blocked_domain
-    from .scraping import scrape_url as _scrape_url
+    from . import scraping as _scraping_module
 
     @function_tool
     async def raw_scrape() -> str:
@@ -475,12 +475,26 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         Works with static HTML, JS-rendered pages, JSON endpoints, images,
         PDFs, DOCX, PPTX, and XLSX.
         """
-        content, title, error = await _scrape_url(url, wait_for, query=query, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars)
+        content, title, error = await _scraping_module.scrape_url(url, wait_for, query=query, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars)
         if error:
             return f"[Scrape failed: {error}]"
         if not content.strip():
             return "[Page returned empty content]"
         header = f"# {title}\nSource: {url}\n\n" if title else f"Source: {url}\n\n"
+
+        signals = []
+        if _has_fragment(url):
+            signals.append(
+                "[SPA: URL fragment detected — current content may be the wrong "
+                "tab/view. Call list_interactive_elements to find the data section.]"
+            )
+        if len(content) >= _THIN_CONTENT_CHARS and _is_form_contaminated(content):
+            signals.append(
+                "[Form/survey content detected — actual data is likely behind "
+                "interactive elements. Call list_interactive_elements.]"
+            )
+        if signals:
+            return header + content + "\n\n" + "\n".join(signals)
         return header + content
 
     @function_tool
