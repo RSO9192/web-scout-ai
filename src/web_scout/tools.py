@@ -423,7 +423,6 @@ Always write ``relevant_content`` and ``title`` in English, regardless of the so
 
 def _has_fragment(url: str) -> bool:
     """True if the URL contains a non-empty #fragment (SPA client-side routing)."""
-    from urllib.parse import urlparse
     return bool(urlparse(url).fragment)
 
 
