@@ -459,7 +459,7 @@ def _is_form_contaminated(content: str) -> bool:
     return False
 
 
-def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000) -> tuple:
+def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000, doc_cache: Optional[dict] = None) -> tuple:
     """Build a content extractor sub-agent with a URL-locked scraping tool.
 
     The ``raw_scrape`` tool is a closure that captures ``url`` and ``wait_for``
@@ -472,8 +472,8 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
     essential for metadata/catalogue pages (e.g. FAOLEX law records) where
     the page itself only contains a summary and the full text is in a document.
     """
-    from .scraping import _SCRAPE_DOC, _scrape_document, _validate_url, _is_blocked_domain
     from . import scraping as _scraping_module
+    from .scraping import _SCRAPE_DOC, _is_blocked_domain, _scrape_document, _validate_url
 
     @function_tool
     async def raw_scrape() -> str:
@@ -522,19 +522,26 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         Args:
             document_url: Absolute URL of the primary source document to fetch.
         """
-        verdict, detail = await _validate_url(document_url, allowed_domains=allowed_domains)
+        norm = ResearchTracker._normalize_url(document_url)
+        if doc_cache is not None and norm in doc_cache:
+            return doc_cache[norm]
+
+        verdict, detail = await _scraping_module._validate_url(document_url, allowed_domains=allowed_domains)
         if verdict != _SCRAPE_DOC:
             return (
                 "[scrape_linked_document rejected: URL does not look like a primary "
                 f"document ({detail}): {document_url}]"
             )
-        content, title, error = await _scrape_document(document_url, query=query, vision_model=vision_model, max_pdf_pages=max_pdf_pages)
+        content, title, error = await _scraping_module._scrape_document(document_url, query=query, vision_model=vision_model, max_pdf_pages=max_pdf_pages)
         if error:
             return f"[Document scrape failed: {error}]"
         if not content.strip():
             return "[Document returned empty content]"
         header = f"# {title}\nSource: {document_url}\n\n" if title else f"Source: {document_url}\n\n"
-        return header + content
+        result = header + content
+        if doc_cache is not None:
+            doc_cache[norm] = result
+        return result
 
     # --- interactive browser session ---
     _browser_holder: list = [None]   # [playwright Browser | None]
@@ -857,6 +864,7 @@ def create_scrape_and_extract_tool(
     """
 
     semaphore = asyncio.Semaphore(max_concurrent)
+    _doc_cache: dict = {}
     in_flight: Dict[str, asyncio.Future[str]] = {}
 
     async def scrape_and_extract(
@@ -925,7 +933,7 @@ def create_scrape_and_extract_tool(
                 )
 
                 # Build a fresh extractor agent per call with url locked in the closure
-                extractor_agent, extractor_cleanup = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars)
+                extractor_agent, extractor_cleanup = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars, doc_cache=_doc_cache)
 
                 input_text = (
                     f"Research query: {query}\n"
