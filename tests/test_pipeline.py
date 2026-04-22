@@ -13,8 +13,10 @@ from web_scout.agent import (
     FollowupSelection,
     SearchLoopState,
     _build_synth_prompt,
+    _diversify_search_urls,
     _evaluate_search_coverage,
     _rerank_followup_urls,
+    _select_search_urls,
     run_web_research,
 )
 from web_scout.models import UrlEntry, WebResearchResultRaw
@@ -36,6 +38,14 @@ class _FakeRunResult:
 
     def final_output_as(self, _output_type):
         return self._output
+
+
+class _FakeSearchResponse:
+    def __init__(self, urls):
+        self.results = [
+            type("R", (), {"url": url, "title": url, "snippet": ""})()
+            for url in urls
+        ]
 
 
 def _patch_scrape_tool(monkeypatch, return_value: str = "Some scraped content " * 30):
@@ -275,6 +285,58 @@ def test_build_synth_prompt_omits_domain_expertise_section_when_none():
         domain_expertise=None,
     )
     assert "Domain Expertise" not in prompt
+
+
+def test_diversify_search_urls_prefers_domain_breadth():
+    urls = [
+        "https://aims.gov.au/a",
+        "https://aims.gov.au/b",
+        "https://gbrmpa.gov.au/c",
+        "https://reeftrust.org/d",
+    ]
+
+    selected = _diversify_search_urls(urls, max_urls=3)
+
+    assert selected == [
+        "https://aims.gov.au/a",
+        "https://gbrmpa.gov.au/c",
+        "https://reeftrust.org/d",
+    ]
+
+
+def test_select_search_urls_skips_bot_blocked_domains():
+    tracker = ResearchTracker()
+    tracker.record_bot_detection("https://blocked.org/a", "bot_detected: challenge page")
+    tracker.record_bot_detection("https://blocked.org/b", "bot_detected: challenge page")
+
+    search_results = [
+        _FakeSearchResponse([
+            "https://blocked.org/1",
+            "https://open.org/1",
+            "https://open2.org/1",
+        ]),
+        _FakeSearchResponse([
+            "https://blocked.org/2",
+            "https://open.org/2",
+            "https://open3.org/1",
+        ]),
+    ]
+
+    selected = _select_search_urls(
+        query="reef threats",
+        include_domains=None,
+        depth={"urls_first": 4, "urls_followup": 2},
+        iteration=0,
+        tracker=tracker,
+        search_results=search_results,
+    )
+
+    assert selected == [
+        "https://open.org/1",
+        "https://open2.org/1",
+        "https://open3.org/1",
+        "https://open.org/2",
+    ]
 
 
 @pytest.mark.asyncio

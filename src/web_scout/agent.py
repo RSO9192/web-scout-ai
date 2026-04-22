@@ -736,6 +736,42 @@ def _filter_blocked_domain_backlog_urls(urls: list[str], tracker: ResearchTracke
     return [url for url in urls if not tracker.is_domain_bot_blocked(url)]
 
 
+def _normalize_domain(url: str) -> str:
+    """Return a normalized hostname for diversification decisions."""
+    netloc = urlparse(url).netloc.lower()
+    if netloc.startswith("www."):
+        netloc = netloc[4:]
+    return netloc
+
+
+def _diversify_search_urls(urls: list[str], max_urls: int) -> list[str]:
+    """Prefer breadth across domains before taking multiple URLs per host."""
+    if len(urls) <= 1:
+        return urls[:max_urls]
+
+    selected: list[str] = []
+    seen_domains: set[str] = set()
+
+    # First pass: take the first URL from as many distinct domains as possible.
+    for url in urls:
+        domain = _normalize_domain(url)
+        if domain and domain not in seen_domains:
+            selected.append(url)
+            seen_domains.add(domain)
+            if len(selected) >= max_urls:
+                return selected
+
+    # Second pass: fill remaining slots in the original ranking order.
+    for url in urls:
+        if url in selected:
+            continue
+        selected.append(url)
+        if len(selected) >= max_urls:
+            break
+
+    return selected
+
+
 async def _scrape_urls(scrape_tool: Any, urls: list[str], *, empty_log_message: str) -> SearchIterationResult:
     if urls:
         extracted_contents = await _gather_scrapes([scrape_tool(url) for url in urls])
@@ -827,13 +863,15 @@ def _select_search_urls(
                 norm = tracker.normalize_url(url)
                 if include_domains and not _is_domain_mode_candidate(url, include_domains, query):
                     continue
+                if tracker.is_domain_bot_blocked(url):
+                    continue
                 if norm not in unique_urls and tracker.is_unscraped_candidate(url):
                     unique_urls[norm] = url
                 if len(unique_urls) >= max_urls_to_scrape:
                     break
         idx += 1
 
-    urls_to_scrape = list(unique_urls.values())
+    urls_to_scrape = _diversify_search_urls(list(unique_urls.values()), max_urls_to_scrape)
     logger.info("[pipeline] selected %d new URLs to scrape", len(urls_to_scrape))
     return urls_to_scrape
 
