@@ -306,8 +306,8 @@ It includes:
 2. Search the web with Serper.
 3. Triage the best URLs across result sets.
 4. Scrape and extract relevant content in parallel.
-5. If iteration 1 already scraped enough evidence, skip coverage evaluation; otherwise evaluate whether the evidence actually answers the question.
-6. Reuse promising backlog URLs or run follow-up searches if coverage is still weak.
+5. After each non-final search iteration, run the coverage evaluator to decide whether the evidence actually answers the question.
+6. If coverage is still weak, either reuse promising backlog URLs or run follow-up searches.
 7. Produce a grounded synthesis with inline citations.
 8. Run a deterministic citation check before returning.
 
@@ -334,7 +334,7 @@ Readable rule map: [`docs/pipeline-flow.md`](docs/pipeline-flow.md)
 | --- | --- |
 | `direct_url` is a list / index / database page | Extract ranked detail links, allow one next-page hop, then scrape selected follow-ups |
 | `direct_url` is a document | Do not fan out into site chrome or navigation pages |
-| Search mode already scraped `>= 4` sources after iteration 1 | Skip coverage evaluation and proceed directly to synthesis |
+| Search mode completes a non-final iteration | Run coverage evaluation to decide whether current evidence is sufficient |
 | Search mode has weak coverage but promising snippet-only URLs | Scrape backlog URLs before running new searches |
 | Search mode has weak coverage and backlog looks weak | Generate follow-up search queries |
 | Domain-restricted mode finds a hub page | Deepen within the same domain before broadening search |

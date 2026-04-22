@@ -1259,15 +1259,6 @@ async def _run_search_mode(
         if iteration >= depth["max_iterations"] - 1:
             continue
 
-        scraped_count = tracker.count_for_action("scraped")
-        if scraped_count >= 4:
-            logger.info(
-                "[pipeline] %d sources scraped after iteration %d - skipping coverage evaluation",
-                scraped_count,
-                iteration + 1,
-            )
-            break
-
         if await _evaluate_search_coverage(
             query=query,
             include_domains=include_domains,

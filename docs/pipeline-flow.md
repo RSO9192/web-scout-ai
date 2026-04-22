@@ -118,7 +118,7 @@ flowchart TD
 | --- | --- |
 | `research_depth="standard"` | 2 iterations, 3 initial queries, 6 initial URLs |
 | `research_depth="deep"` | 3 iterations, 5 initial queries, 12 initial URLs |
-| Iteration 1 already scraped `>= 4` sources | Skip coverage evaluation and go straight to synthesis |
+| Non-final search iteration | Run coverage evaluation to decide whether current evidence is sufficient |
 | Evaluator says backlog is enough | Skip fresh search and scrape promising snippet-only URLs |
 | Evaluator says coverage is weak | Generate follow-up searches targeting missing information |
 | Domain mode + hub page | Follow ranked item links and allow one pagination hop |

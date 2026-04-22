@@ -123,12 +123,12 @@ async def test_scrape_linked_document_no_cache_by_default():
 
 
 # ---------------------------------------------------------------------------
-# Task 3: skip coverage evaluation when enough sources are already scraped
+# Task 3: coverage evaluation still runs even when many sources are scraped
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_run_search_mode_skips_coverage_eval_when_four_sources_scraped(monkeypatch):
-    """The pipeline should skip the evaluator once iteration 1 already scraped 4 sources."""
+async def test_run_search_mode_runs_coverage_eval_when_four_sources_scraped(monkeypatch):
+    """The evaluator still decides sufficiency even if iteration 1 scraped 4 sources."""
     tracker = ResearchTracker()
     scrape_tool = AsyncMock()
     depth = {"max_iterations": 2, "urls_followup": 4}
@@ -164,7 +164,7 @@ async def test_run_search_mode_skips_coverage_eval_when_four_sources_scraped(mon
         allowed_domains=None,
     )
 
-    coverage_mock.assert_not_awaited()
+    coverage_mock.assert_awaited_once()
 
 
 @pytest.mark.asyncio
