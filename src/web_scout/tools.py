@@ -152,6 +152,7 @@ _TRACKING_PARAMS: frozenset = frozenset({
     "mc_cid", "mc_eid",
     "_ga", "ref",
 })
+_BOT_BLOCK_THRESHOLD = 2
 
 
 class ResearchTracker:
@@ -163,6 +164,8 @@ class ResearchTracker:
         self._actions: Dict[str, str] = {}
         self._queries: List[SearchQuery] = []
         self._consecutive_empty: Dict[str, int] = {}
+        self._domain_bot_counts: Dict[str, int] = {}
+        self._bot_blocked_domains: set[str] = set()
 
         self.search_count = 0
         self.scrape_count = 0
@@ -187,6 +190,13 @@ class ResearchTracker:
     def normalize_url(url: str) -> str:
         """Public URL normalization used across pipeline components."""
         return ResearchTracker._normalize_url(url)
+
+    @staticmethod
+    def _normalize_domain(url: str) -> str:
+        netloc = urlparse(url).netloc.lower()
+        if netloc.startswith("www."):
+            netloc = netloc[4:]
+        return netloc
 
     def _upgrade_action(self, key: str, new_action: str):
         current = self._actions.get(key)
@@ -278,6 +288,12 @@ class ResearchTracker:
         self._upgrade_action(key, "bot_detected")
         entry = self._urls.setdefault(key, UrlEntry(url=url))
         entry.content = f"[bot detection: {error}]"
+        domain = self._normalize_domain(url)
+        if domain:
+            count = self._domain_bot_counts.get(domain, 0) + 1
+            self._domain_bot_counts[domain] = count
+            if count >= _BOT_BLOCK_THRESHOLD:
+                self._bot_blocked_domains.add(domain)
 
     def build_result_groups(self) -> dict:
         """Group URLs by action: scraped, scrape_failed, bot_detected, snippet_only."""
@@ -335,7 +351,22 @@ class ResearchTracker:
         }:
             cached_msg = (entry.content or action) if entry else action
             return f"[Already attempted this URL — it failed: {cached_msg[:200]}. Move on to a different URL.]"
+        if self.is_domain_bot_blocked(url):
+            domain = self._normalize_domain(url)
+            return (
+                "[Skipped URL from domain blocked by bot protection earlier in this run: "
+                f"{domain}. Move on to a different domain or source.]"
+            )
         return None
+
+    def is_domain_bot_blocked(self, url: str) -> bool:
+        """True when the URL's domain crossed the bot-detection threshold this run."""
+        domain = self._normalize_domain(url)
+        return bool(domain) and domain in self._bot_blocked_domains
+
+    def bot_blocked_domains(self) -> set[str]:
+        """Return the set of domains blocked for the current run."""
+        return set(self._bot_blocked_domains)
 
     def increment_empty(self, domains_key: str) -> int:
         """Increment and return the consecutive-empty count for a domain set."""

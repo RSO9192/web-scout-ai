@@ -9,12 +9,16 @@ import pytest
 
 from web_scout import agent as _agent_module
 from web_scout.agent import (
+    CoverageEvaluation,
     FollowupSelection,
+    SearchLoopState,
     _build_synth_prompt,
+    _evaluate_search_coverage,
     _rerank_followup_urls,
     run_web_research,
 )
 from web_scout.models import UrlEntry, WebResearchResultRaw
+from web_scout.tools import ResearchTracker
 
 # ---------------------------------------------------------------------------
 # Helpers shared across tests
@@ -271,6 +275,61 @@ def test_build_synth_prompt_omits_domain_expertise_section_when_none():
         domain_expertise=None,
     )
     assert "Domain Expertise" not in prompt
+
+
+@pytest.mark.asyncio
+async def test_evaluate_search_coverage_filters_bot_blocked_backlog_domains(monkeypatch):
+    tracker = ResearchTracker()
+    tracker.record_scrape("https://reef.org/a", "Source A", "Useful reef extraction")
+    tracker.record_search(
+        query="reef threats",
+        num_results=2,
+        domains=None,
+        results=[
+            type("R", (), {
+                "url": "https://blocked.org/threats",
+                "title": "Blocked Threats",
+                "snippet": "Looks promising.",
+            })(),
+            type("R", (), {
+                "url": "https://open.org/ningaloo",
+                "title": "Open Threats",
+                "snippet": "Looks promising too.",
+            })(),
+        ],
+    )
+    tracker.record_bot_detection("https://blocked.org/a", "bot_detected: challenge page")
+    tracker.record_bot_detection("https://blocked.org/b", "bot_detected: challenge page")
+
+    async def _fake_run(agent_obj, prompt, **kwargs):
+        return _FakeRunResult(
+            CoverageEvaluation(
+                fully_answered=False,
+                gaps="Need more on Ningaloo Reef",
+                promising_unscraped_urls=[
+                    "https://blocked.org/threats",
+                    "https://open.org/ningaloo",
+                ],
+                needs_new_searches=False,
+            )
+        )
+
+    monkeypatch.setattr(_agent_module.Runner, "run", _fake_run)
+
+    state = SearchLoopState()
+    done = await _evaluate_search_coverage(
+        query="reef threats",
+        include_domains=None,
+        depth={"urls_followup": 4},
+        evaluator_agent=object(),
+        tracker=tracker,
+        allowed_domains=None,
+        state=state,
+    )
+
+    assert done is False
+    assert state.needs_new_searches is False
+    assert state.promising_urls_from_evaluator == ["https://open.org/ningaloo"]
 
 
 # ---------------------------------------------------------------------------

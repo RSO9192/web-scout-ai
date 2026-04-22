@@ -731,6 +731,11 @@ def _build_query_agents(
     return query_gen_agent, evaluator_agent
 
 
+def _filter_blocked_domain_backlog_urls(urls: list[str], tracker: ResearchTracker) -> list[str]:
+    """Drop backlog URLs from domains already deemed bot-blocked this run."""
+    return [url for url in urls if not tracker.is_domain_bot_blocked(url)]
+
+
 async def _scrape_urls(scrape_tool: Any, urls: list[str], *, empty_log_message: str) -> SearchIterationResult:
     if urls:
         extracted_contents = await _gather_scrapes([scrape_tool(url) for url in urls])
@@ -1121,6 +1126,10 @@ async def _evaluate_search_coverage(
         for url in evaluation.promising_unscraped_urls
         if tracker.normalize_url(url) in snippet_norm_map
     ][:depth["urls_followup"]]
+    state.promising_urls_from_evaluator = _filter_blocked_domain_backlog_urls(
+        state.promising_urls_from_evaluator,
+        tracker,
+    )
     state.promising_urls_from_evaluator = [
         url
         for url in state.promising_urls_from_evaluator
