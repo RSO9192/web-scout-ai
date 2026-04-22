@@ -1,10 +1,12 @@
 """Tests for pipeline speed optimisations."""
 
+import os
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from agents.tool import ToolContext
 
+from web_scout import _configure_third_party_runtime
 from web_scout import agent as _agent_module
 from web_scout import scraping as _scraping_module
 from web_scout.agent import SearchIterationResult, _run_search_mode
@@ -234,3 +236,23 @@ def test_pdf_docling_converter_is_reused(monkeypatch):
 
     assert converter1 is converter2
     assert len(created) == 1
+
+
+def test_configure_third_party_runtime_disables_hf_progress(monkeypatch):
+    """Transformers/HF progress bars should be disabled for clean CLI output."""
+    called = {"count": 0}
+
+    monkeypatch.delenv("HF_HUB_DISABLE_PROGRESS_BARS", raising=False)
+
+    import transformers.utils.logging as transformers_logging
+
+    monkeypatch.setattr(
+        transformers_logging,
+        "disable_progress_bar",
+        lambda: called.__setitem__("count", called["count"] + 1),
+    )
+
+    _configure_third_party_runtime()
+
+    assert os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] == "1"
+    assert called["count"] == 1
