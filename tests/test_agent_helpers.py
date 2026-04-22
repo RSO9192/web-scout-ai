@@ -1,20 +1,18 @@
 """Tests for pure helper functions in agent.py."""
 
-import pytest
 
 from web_scout.agent import (
-    _judge_synthesis,
+    _extract_links_from_markdown,
+    _extract_query_keywords,
+    _is_promising_followup_url,
     _is_same_domain,
+    _judge_synthesis,
     _looks_like_document_url,
     _looks_like_paginated_index_page,
     _query_prefers_data_pages,
     _query_prefers_report_pages,
-    _extract_query_keywords,
     _score_followup_candidate,
-    _extract_links_from_markdown,
-    _is_promising_followup_url,
 )
-
 
 # ---------------------------------------------------------------------------
 # _judge_synthesis

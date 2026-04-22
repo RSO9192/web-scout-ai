@@ -1,6 +1,16 @@
 """Tests for SPA fragment and form-contamination detection in raw_scrape."""
 
-from web_scout.tools import _has_fragment
+from unittest.mock import patch
+
+import pytest
+from agents.tool import ToolContext
+
+from web_scout.tools import (
+    _EXTRACTOR_INSTRUCTIONS,
+    _build_extractor_agent,
+    _has_fragment,
+    _is_form_contaminated,
+)
 
 
 def test_has_fragment_detects_hash_fragment():
@@ -21,10 +31,6 @@ def test_has_fragment_false_for_query_string_only():
 
 def test_has_fragment_detects_spa_anchor():
     assert _has_fragment("https://example.com/app#/dashboard/stats") is True
-
-
-from web_scout.tools import _is_form_contaminated
-
 
 def test_is_form_contaminated_detects_strongly_agree_repetition():
     content = (
@@ -79,13 +85,6 @@ def test_is_form_contaminated_false_for_short_survey_content():
     lines = ["* " + f"Bullet {i}" for i in range(10)]
     content = "\n".join(lines)
     assert _is_form_contaminated(content) is False
-
-
-from unittest.mock import patch
-import pytest
-from agents.tool import ToolContext
-from web_scout.tools import _build_extractor_agent
-
 
 def _make_ctx():
     return ToolContext(
@@ -187,10 +186,6 @@ async def test_raw_scrape_no_form_signal_when_content_under_500_chars():
 
     assert "[Form/survey content detected" not in result
     await cleanup()
-
-
-from web_scout.tools import _EXTRACTOR_INSTRUCTIONS
-
 
 def test_extractor_instructions_mention_spa_signal():
     """Instructions must tell the LLM to react to the SPA signal string."""

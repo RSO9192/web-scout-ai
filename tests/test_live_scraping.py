@@ -11,16 +11,15 @@ hitting production systems unnecessarily.
 import pytest
 
 from web_scout.scraping import (
-    _validate_url,
-    _is_blocked_domain,
-    scrape_url,
+    _SCRAPE_DOC,
     _SCRAPE_HTML,
     _SCRAPE_JS,
     _SCRAPE_JSON,
-    _SCRAPE_DOC,
     _SKIP,
+    _is_blocked_domain,
+    _validate_url,
+    scrape_url,
 )
-
 
 # ---------------------------------------------------------------------------
 # _is_blocked_domain — no network, but validates the lookup table

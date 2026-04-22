@@ -15,9 +15,8 @@ import asyncio
 import re
 import time
 from dataclasses import dataclass
-from typing import Optional
 
-from web_scout.agent import run_web_research, WebResearchResult, DEFAULT_WEB_RESEARCH_MODELS
+from web_scout.agent import DEFAULT_WEB_RESEARCH_MODELS, WebResearchResult, run_web_research
 
 MODELS = DEFAULT_WEB_RESEARCH_MODELS
 
@@ -88,28 +87,44 @@ def _score(result: WebResearchResult, mode: str, label: str, elapsed: float) -> 
     ])
 
     # Score: sources (0–2)
-    if n_scraped >= 5:      s_sources = 2.0
-    elif n_scraped >= 3:    s_sources = 1.5
-    elif n_scraped >= 1:    s_sources = 1.0
-    else:                   s_sources = 0.0
+    if n_scraped >= 5:
+        s_sources = 2.0
+    elif n_scraped >= 3:
+        s_sources = 1.5
+    elif n_scraped >= 1:
+        s_sources = 1.0
+    else:
+        s_sources = 0.0
 
     # Score: synthesis length (0–2)
-    if len(synthesis) >= 2000:    s_length = 2.0
-    elif len(synthesis) >= 1000:  s_length = 1.5
-    elif len(synthesis) >= 400:   s_length = 1.0
-    else:                         s_length = 0.0
+    if len(synthesis) >= 2000:
+        s_length = 2.0
+    elif len(synthesis) >= 1000:
+        s_length = 1.5
+    elif len(synthesis) >= 400:
+        s_length = 1.0
+    else:
+        s_length = 0.0
 
     # Score: citations (0–2)
-    if citation_count >= 4:    s_citations = 2.0
-    elif citation_count >= 2:  s_citations = 1.5
-    elif citation_count >= 1:  s_citations = 1.0
-    else:                      s_citations = 0.0
+    if citation_count >= 4:
+        s_citations = 2.0
+    elif citation_count >= 2:
+        s_citations = 1.5
+    elif citation_count >= 1:
+        s_citations = 1.0
+    else:
+        s_citations = 0.0
 
     # Score: data density (0–2)
-    if data_density >= 8:    s_data = 2.0
-    elif data_density >= 4:  s_data = 1.5
-    elif data_density >= 1:  s_data = 1.0
-    else:                    s_data = 0.5
+    if data_density >= 8:
+        s_data = 2.0
+    elif data_density >= 4:
+        s_data = 1.5
+    elif data_density >= 1:
+        s_data = 1.0
+    else:
+        s_data = 0.5
 
     # Score: gap reporting (0–2) — honest synthesis
     s_gap = 1.0 if gap_reported else 0.5   # reward gap reporting, don't penalise absence
@@ -144,21 +159,21 @@ def _print_report(scores: list[QualityScore], syntheses: list[str]) -> None:
         print(f"  MODE: {qs.mode.upper()}")
         print(f"  QUERY: {qs.label}")
         print(f"  Time: {qs.elapsed_s:.0f}s")
-        print(f"\n  Sources")
+        print("\n  Sources")
         print(f"    Scraped:      {qs.n_scraped}   Failed: {qs.n_failed}   Snippet-only: {qs.n_snippet_only}")
-        print(f"\n  Synthesis")
+        print("\n  Synthesis")
         print(f"    Length:       {qs.synthesis_chars} chars")
         print(f"    Citations:    {qs.citation_count}")
         print(f"    Data density: {qs.data_density} numbers/500chars")
         print(f"    Gap reported: {'yes' if qs.gap_reported else 'no'}")
-        print(f"\n  Scores (each /2.0)")
+        print("\n  Scores (each /2.0)")
         print(f"    Sources      {_bar(qs.score_sources)}  {qs.score_sources:.1f}")
         print(f"    Length       {_bar(qs.score_length)}  {qs.score_length:.1f}")
         print(f"    Citations    {_bar(qs.score_citations)}  {qs.score_citations:.1f}")
         print(f"    Data density {_bar(qs.score_data)}  {qs.score_data:.1f}")
         print(f"    Gap honesty  {_bar(qs.score_gap)}  {qs.score_gap:.1f}")
         print(f"\n  TOTAL  {_bar(qs.total, max_score=10, width=20)}  {qs.total:.1f} / 10")
-        print(f"\n  Synthesis preview (first 600 chars):")
+        print("\n  Synthesis preview (first 600 chars):")
         print(f"  {synthesis[:600].replace(chr(10), chr(10) + '  ')}")
 
     print(f"\n{'=' * 72}")

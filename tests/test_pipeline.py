@@ -9,13 +9,12 @@ import pytest
 
 from web_scout import agent as _agent_module
 from web_scout.agent import (
-    _rerank_followup_urls,
     FollowupSelection,
     _build_synth_prompt,
+    _rerank_followup_urls,
     run_web_research,
 )
-from web_scout.models import WebResearchResultRaw, UrlEntry
-
+from web_scout.models import UrlEntry, WebResearchResultRaw
 
 # ---------------------------------------------------------------------------
 # Helpers shared across tests
@@ -289,7 +288,7 @@ async def test_rerank_followup_urls_skips_llm_when_candidates_lte_cap(monkeypatc
 
     monkeypatch.setattr(_agent_module.Runner, "run", _fake_run)
 
-    result = await _rerank_followup_urls(
+    await _rerank_followup_urls(
         query="fish production report",
         parent_url="https://fao.org/hub",
         parent_content="Hub content",

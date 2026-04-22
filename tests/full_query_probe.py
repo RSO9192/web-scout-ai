@@ -25,7 +25,6 @@ from dotenv import load_dotenv
 
 from web_scout import configure_logging, run_web_research
 
-
 DEFAULT_ENV_FILE = Path("/Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/report/.env")
 OUTPUT_DIR = Path(__file__).parent / "probe_results"
 DEFAULT_QUERIES = [

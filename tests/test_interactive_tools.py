@@ -1,10 +1,8 @@
 """Unit tests for interactive browser navigation tools."""
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from agents.tool import ToolContext
 
 from web_scout.tools import _build_extractor_agent
@@ -193,6 +191,7 @@ async def test_click_element_enforces_limit():
     mock_page.evaluate = AsyncMock(return_value=fake_elements)
     mock_page.wait_for_load_state = AsyncMock()
     mock_page.inner_text = AsyncMock(return_value="content " * 200)
+    mock_page.url = AsyncMock()
 
     mock_context = AsyncMock()
     mock_context.new_page = AsyncMock(return_value=mock_page)

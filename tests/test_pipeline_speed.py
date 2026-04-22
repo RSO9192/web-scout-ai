@@ -1,12 +1,14 @@
 """Tests for pipeline speed optimisations."""
 
-import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from agents.tool import ToolContext
-from web_scout.tools import _build_extractor_agent, create_scrape_and_extract_tool
+
+from web_scout import agent as _agent_module
+from web_scout import scraping as _scraping_module
+from web_scout.agent import SearchIterationResult, _run_search_mode
+from web_scout.tools import ResearchTracker, _build_extractor_agent
 
 
 def _make_ctx(tool_name="scrape_linked_document"):
@@ -118,3 +120,117 @@ async def test_scrape_linked_document_no_cache_by_default():
 
     assert "content" in result
     await cleanup()
+
+
+# ---------------------------------------------------------------------------
+# Task 3: skip coverage evaluation when enough sources are already scraped
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_run_search_mode_skips_coverage_eval_when_four_sources_scraped(monkeypatch):
+    """The pipeline should skip the evaluator once iteration 1 already scraped 4 sources."""
+    tracker = ResearchTracker()
+    scrape_tool = AsyncMock()
+    depth = {"max_iterations": 2, "urls_followup": 4}
+
+    async def _fake_search_and_scrape_iteration(**kwargs):
+        tracker = kwargs["tracker"]
+        for idx in range(4):
+            tracker.record_scrape(
+                f"https://example.org/source-{idx}",
+                f"Source {idx}",
+                "Relevant content " * 20,
+            )
+        return SearchIterationResult(extracted_contents=["content"], iter_results=[])
+
+    coverage_mock = AsyncMock(return_value=False)
+
+    monkeypatch.setattr(_agent_module, "_build_search_backend", lambda _backend: object())
+    monkeypatch.setattr(_agent_module, "_build_query_agents", lambda **kwargs: ("query-agent", "eval-agent"))
+    monkeypatch.setattr(_agent_module, "_search_and_scrape_iteration", _fake_search_and_scrape_iteration)
+    monkeypatch.setattr(_agent_module, "_evaluate_search_coverage", coverage_mock)
+
+    await _run_search_mode(
+        query="fish production",
+        include_domains=None,
+        search_backend="serper",
+        domain_expertise=None,
+        depth=depth,
+        query_gen_model="dummy",
+        evaluator_model="dummy",
+        followup_model="dummy",
+        tracker=tracker,
+        scrape_tool=scrape_tool,
+        allowed_domains=None,
+    )
+
+    coverage_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_run_search_mode_runs_coverage_eval_when_less_than_four_sources_scraped(monkeypatch):
+    """The pipeline should still evaluate coverage when iteration 1 scraped fewer than 4 sources."""
+    tracker = ResearchTracker()
+    scrape_tool = AsyncMock()
+    depth = {"max_iterations": 2, "urls_followup": 4}
+
+    async def _fake_search_and_scrape_iteration(**kwargs):
+        tracker = kwargs["tracker"]
+        for idx in range(3):
+            tracker.record_scrape(
+                f"https://example.org/source-{idx}",
+                f"Source {idx}",
+                "Relevant content " * 20,
+            )
+        return SearchIterationResult(extracted_contents=["content"], iter_results=[])
+
+    coverage_mock = AsyncMock(return_value=True)
+
+    monkeypatch.setattr(_agent_module, "_build_search_backend", lambda _backend: object())
+    monkeypatch.setattr(_agent_module, "_build_query_agents", lambda **kwargs: ("query-agent", "eval-agent"))
+    monkeypatch.setattr(_agent_module, "_search_and_scrape_iteration", _fake_search_and_scrape_iteration)
+    monkeypatch.setattr(_agent_module, "_evaluate_search_coverage", coverage_mock)
+
+    await _run_search_mode(
+        query="fish production",
+        include_domains=None,
+        search_backend="serper",
+        domain_expertise=None,
+        depth=depth,
+        query_gen_model="dummy",
+        evaluator_model="dummy",
+        followup_model="dummy",
+        tracker=tracker,
+        scrape_tool=scrape_tool,
+        allowed_domains=None,
+    )
+
+    coverage_mock.assert_awaited_once()
+
+
+def test_pdf_docling_converter_is_reused(monkeypatch):
+    """The fast PDF Docling converter should be initialized once and reused."""
+    created = []
+
+    class FakeConverter:
+        def __init__(self, **kwargs):
+            created.append(kwargs)
+
+    class FakePdfFormatOption:
+        def __init__(self, pipeline_options):
+            self.pipeline_options = pipeline_options
+
+    class FakePdfPipelineOptions:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    monkeypatch.setattr("docling.document_converter.DocumentConverter", FakeConverter)
+    monkeypatch.setattr("docling.document_converter.PdfFormatOption", FakePdfFormatOption)
+    monkeypatch.setattr("docling.datamodel.pipeline_options.PdfPipelineOptions", FakePdfPipelineOptions)
+    monkeypatch.setattr(_scraping_module, "_PDF_DOCLING_CONVERTER", None)
+
+    converter1 = _scraping_module._get_pdf_docling_converter()
+    converter2 = _scraping_module._get_pdf_docling_converter()
+
+    assert converter1 is converter2
+    assert len(created) == 1

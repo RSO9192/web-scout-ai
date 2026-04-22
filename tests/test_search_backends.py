@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from web_scout.search_backends import SerperBackend, SearchResult, KnowledgeGraph, PeopleAlsoAsk
+from web_scout.search_backends import SerperBackend
 
 
 def _mock_http_response(json_data: dict, status_code: int = 200):
@@ -72,7 +72,13 @@ async def test_parses_organic_results():
     backend = SerperBackend(api_key="test-key")
     payload = {
         "organic": [
-            {"title": "FAO Report", "link": "https://fao.org/report", "snippet": "Fish data", "date": "2024-01", "position": 1},
+            {
+                "title": "FAO Report",
+                "link": "https://fao.org/report",
+                "snippet": "Fish data",
+                "date": "2024-01",
+                "position": 1,
+            },
         ],
         "relatedSearches": [],
     }

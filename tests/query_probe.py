@@ -15,18 +15,16 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-import os
-
 from web_scout import configure_logging
 from web_scout.scraping import _validate_url, scrape_url
 from web_scout.search_backends import SerperBackend
-
 
 DEFAULT_QUERIES = [
     "Kenya interannual variability and long-term trends in precipitation current status and recent trend",
