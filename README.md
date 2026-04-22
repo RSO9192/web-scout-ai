@@ -1,11 +1,11 @@
 # `web-scout-ai`
 
-![web-scout-ai logo](assets/web-scout-logo.svg)
+web-scout-ai logo
 
-[![PyPI Version](https://img.shields.io/pypi/v/web-scout-ai?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/web-scout-ai/)
-[![PyPI Downloads per Month](https://img.shields.io/pypi/dm/web-scout-ai?style=for-the-badge&logo=pypi&logoColor=white&label=PyPI%20downloads%2Fmonth)](https://pypi.org/project/web-scout-ai/)
-[![Python Versions](https://img.shields.io/pypi/pyversions/web-scout-ai?style=for-the-badge&logo=python&logoColor=white)](https://pypi.org/project/web-scout-ai/)
-[![License](https://img.shields.io/badge/license-MIT-0f172a?style=for-the-badge)](LICENSE)
+[PyPI Version](https://pypi.org/project/web-scout-ai/)
+[PyPI Downloads per Month](https://pypi.org/project/web-scout-ai/)
+[Python Versions](https://pypi.org/project/web-scout-ai/)
+[License](LICENSE)
 
 **AI-powered web research in one async call.**
 
@@ -292,7 +292,7 @@ Especially useful for catalog pages, result listings, and structured report libr
 
 ## How It Works
 
-See the maintained flow doc: [`docs/pipeline-flow.md`](docs/pipeline-flow.md)
+See the maintained flow doc: `[docs/pipeline-flow.md](docs/pipeline-flow.md)`
 
 It includes:
 
@@ -311,33 +311,37 @@ It includes:
 7. Produce a grounded synthesis with inline citations.
 8. Run a deterministic citation check before returning.
 
-Editable diagram: [`pipeline-diagram.excalidraw`](pipeline-diagram.excalidraw)
-Readable rule map: [`docs/pipeline-flow.md`](docs/pipeline-flow.md)
+Editable diagram: `[pipeline-diagram.excalidraw](pipeline-diagram.excalidraw)`
+Readable rule map: `[docs/pipeline-flow.md](docs/pipeline-flow.md)`
 
-![Pipeline diagram showing mode selection, scrape routing, failure buckets, and synthesis rules](docs/pipeline-diagram.svg)
+Pipeline diagram showing mode selection, scrape routing, failure buckets, and synthesis rules
 
 ### How URL Outcomes Are Classified
 
-| What happened | Result bucket | Meaning |
-| --- | --- | --- |
-| Scrape and extraction succeeded | `scraped` | The URL produced usable extracted content |
-| Search result was seen but never scraped | `snippet_only` | Only the search snippet is kept |
-| URL matched a blocked domain policy | `blocked_by_policy` | Skipped before normal extraction |
-| Source returned HTTP/network errors | `source_http_error` | The source failed, not the package logic |
-| Bot protection or anti-automation page detected | `bot_detected` | The URL was reachable but blocked |
-| Page loaded but content was not useful for the query | `scraped_irrelevant` | Fetch succeeded, relevance failed |
-| Extraction failed for other reasons | `scrape_failed` | Generic scrape or extraction failure |
+
+| What happened                                        | Result bucket        | Meaning                                   |
+| ---------------------------------------------------- | -------------------- | ----------------------------------------- |
+| Scrape and extraction succeeded                      | `scraped`            | The URL produced usable extracted content |
+| Search result was seen but never scraped             | `snippet_only`       | Only the search snippet is kept           |
+| URL matched a blocked domain policy                  | `blocked_by_policy`  | Skipped before normal extraction          |
+| Source returned HTTP/network errors                  | `source_http_error`  | The source failed, not the package logic  |
+| Bot protection or anti-automation page detected      | `bot_detected`       | The URL was reachable but blocked         |
+| Page loaded but content was not useful for the query | `scraped_irrelevant` | Fetch succeeded, relevance failed         |
+| Extraction failed for other reasons                  | `scrape_failed`      | Generic scrape or extraction failure      |
+
 
 ### Follow-Up Rules
 
-| Situation | What the pipeline does next |
-| --- | --- |
-| `direct_url` is a list / index / database page | Extract ranked detail links, allow one next-page hop, then scrape selected follow-ups |
-| `direct_url` is a document | Do not fan out into site chrome or navigation pages |
-| Search mode completes a non-final iteration | Run coverage evaluation to decide whether current evidence is sufficient |
-| Search mode has weak coverage but promising snippet-only URLs | Scrape backlog URLs before running new searches |
-| Search mode has weak coverage and backlog looks weak | Generate follow-up search queries |
-| Domain-restricted mode finds a hub page | Deepen within the same domain before broadening search |
+
+| Situation                                                     | What the pipeline does next                                                           |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `direct_url` is a list / index / database page                | Extract ranked detail links, allow one next-page hop, then scrape selected follow-ups |
+| `direct_url` is a document                                    | Do not fan out into site chrome or navigation pages                                   |
+| Search mode completes a non-final iteration                   | Run coverage evaluation to decide whether current evidence is sufficient              |
+| Search mode has weak coverage but promising snippet-only URLs | Scrape backlog URLs before running new searches                                       |
+| Search mode has weak coverage and backlog looks weak          | Generate follow-up search queries                                                     |
+| Domain-restricted mode finds a hub page                       | Deepen within the same domain before broadening search                                |
+
 
 ---
 
@@ -349,7 +353,7 @@ await run_web_research(query=..., models=..., search_backend="serper")
 
 - `serper`: Google-quality results with rich metadata (date, rank, People Also Ask, Knowledge Graph). Requires `SERPER_API_KEY` — Serper is generous with free-tier limits.
 
-Additional backends can be added by the community — see `SearchBackend` in [`search_backends.py`](src/web_scout/search_backends.py).
+Additional backends can be added by the community — see `SearchBackend` in `[search_backends.py](src/web_scout/search_backends.py)`.
 
 ---
 
@@ -363,14 +367,16 @@ await run_web_research(query=..., models=..., research_depth="standard")
 await run_web_research(query=..., models=..., research_depth="deep")
 ```
 
-| Parameter | Standard | Deep |
-| --- | --- | --- |
-| Max iterations | 2 | 3 |
-| Search queries (first round) | 3 | 5 |
-| Search queries (follow-up) | 2 | 4 |
-| URLs scraped (first round) | 6 | 12 |
-| URLs scraped (follow-up) | 4 | 8 |
-| Hub deepening cap | 10 | 15 |
+
+| Parameter                    | Standard | Deep |
+| ---------------------------- | -------- | ---- |
+| Max iterations               | 2        | 3    |
+| Search queries (first round) | 3        | 5    |
+| Search queries (follow-up)   | 2        | 4    |
+| URLs scraped (first round)   | 6        | 12   |
+| URLs scraped (follow-up)     | 4        | 8    |
+| Hub deepening cap            | 10       | 15   |
+
 
 ---
 
@@ -488,7 +494,7 @@ Each run writes a timestamped folder under `tests/run_results/` with:
 - `summary.md` with a human-readable report
 - `pytest` JUnit XML for pytest steps
 
-For a folder-level guide to what each test and probe does, see [`tests/README.md`](tests/README.md).
+For a folder-level guide to what each test and probe does, see `[tests/README.md](tests/README.md)`.
 
 Presets:
 
@@ -522,9 +528,9 @@ It is probably not the right tool if you only need simple search snippets or if 
 
 ## Brand Assets
 
-- Full logo: [`assets/web-scout-logo.svg`](assets/web-scout-logo.svg)
-- Square logo mark (avatar-safe): [`assets/web-scout-logo-mark.svg`](assets/web-scout-logo-mark.svg)
-- Social card preview: [`assets/web-scout-social-card.svg`](assets/web-scout-social-card.svg)
+- Full logo: `[assets/web-scout-logo.svg](assets/web-scout-logo.svg)`
+- Square logo mark (avatar-safe): `[assets/web-scout-logo-mark.svg](assets/web-scout-logo-mark.svg)`
+- Social card preview: `[assets/web-scout-social-card.svg](assets/web-scout-social-card.svg)`
 
 ## License
 
