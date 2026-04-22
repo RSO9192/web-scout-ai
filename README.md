@@ -179,8 +179,8 @@ async def main():
     result = await run_web_research(
         query="What are the main threats to coral reefs worldwide?",
         models={
-            "web_researcher": "openai/gpt-4o-mini",
-            "content_extractor": "gemini/gemini-2.0-flash",
+            "web_researcher": "openai/gpt-5.4-mini",
+            "content_extractor": "gemini/gemini-3-flash-preview",
         },
         search_backend="serper",
     )
@@ -201,6 +201,9 @@ class WebResearchResult(BaseModel):
     synthesis: str
     scraped: list[UrlEntry]
     scrape_failed: list[UrlEntry]
+    blocked_by_policy: list[UrlEntry]
+    source_http_error: list[UrlEntry]
+    scraped_irrelevant: list[UrlEntry]
     bot_detected: list[UrlEntry]
     snippet_only: list[UrlEntry]
     queries: list[SearchQuery]
@@ -209,6 +212,9 @@ class WebResearchResult(BaseModel):
 - `synthesis`: final grounded answer with inline source citations
 - `scraped`: URLs successfully read, with extracted relevant content
 - `scrape_failed`: URLs attempted but could not be scraped
+- `blocked_by_policy`: URLs skipped because they match the built-in block policy
+- `source_http_error`: URLs that failed because the source returned HTTP/network errors
+- `scraped_irrelevant`: URLs that were fetched successfully but did not contain relevant content
 - `bot_detected`: URLs blocked by bot protection
 - `snippet_only`: search results kept only as snippets
 - `queries`: all search queries executed during the run
@@ -224,8 +230,8 @@ class WebResearchResult(BaseModel):
 result = await run_web_research(
     query="latest IPCC findings on sea level rise",
     models={
-        "web_researcher": "openai/gpt-4o-mini",
-        "content_extractor": "gemini/gemini-2.0-flash",
+        "web_researcher": "openai/gpt-5.4-mini",
+        "content_extractor": "gemini/gemini-3-flash-preview",
     },
     search_backend="serper",
     research_depth="standard",           # or "deep"
@@ -284,7 +290,17 @@ Especially useful for catalog pages, result listings, and structured report libr
 
 ---
 
-## What It Actually Does (Pipeline)
+## How It Works
+
+See the maintained flow doc: [`docs/pipeline-flow.md`](docs/pipeline-flow.md)
+
+It includes:
+
+- the top-level `run_web_research()` flow
+- the direct-URL vs search-mode split
+- the scrape router rules for docling vs crawl4ai vs JSON vs vision
+- the extractor fallback rules
+- the synthesis and citation-judge rules
 
 1. Generate targeted search queries.
 2. Search the web with Serper.
@@ -296,32 +312,31 @@ Especially useful for catalog pages, result listings, and structured report libr
 8. Run a deterministic citation check before returning.
 
 Editable diagram: [`pipeline-diagram.excalidraw`](pipeline-diagram.excalidraw)
+Readable rule map: [`docs/pipeline-flow.md`](docs/pipeline-flow.md)
 
-```text
-Query
- |
- +- Generate search queries (LLM)
- +- Search web (Serper)
- +- Select best URLs across result sets
- +- Scrape and extract in parallel
- |   +- Static HTML
- |   +- JS/SPA via Playwright
- |   +- JSON endpoints via structured extraction
- |   +- Image URLs via vision extraction
- |   +- PDF/DOCX/PPTX/XLSX via docling
- |   +- Extensionless document downloads via content-type sniffing
- |   +- Bot-protected PDFs via Playwright download fallback
- |   +- Short metadata pages retained for linked-document follow-up
- |   +- Scanned PDFs via vision fallback
- |   +- JS portals with hidden data via interactive click-based fallback
- +- Evaluate coverage (LLM)
- |   +- Reuse promising backlog URLs
- |   +- Or generate targeted follow-up searches
- +- Synthesize findings with citations (LLM)
- +- Run deterministic citation checks
- |
- +- WebResearchResult
-```
+![Pipeline diagram showing mode selection, scrape routing, failure buckets, and synthesis rules](docs/pipeline-diagram.svg)
+
+### How URL Outcomes Are Classified
+
+| What happened | Result bucket | Meaning |
+| --- | --- | --- |
+| Scrape and extraction succeeded | `scraped` | The URL produced usable extracted content |
+| Search result was seen but never scraped | `snippet_only` | Only the search snippet is kept |
+| URL matched a blocked domain policy | `blocked_by_policy` | Skipped before normal extraction |
+| Source returned HTTP/network errors | `source_http_error` | The source failed, not the package logic |
+| Bot protection or anti-automation page detected | `bot_detected` | The URL was reachable but blocked |
+| Page loaded but content was not useful for the query | `scraped_irrelevant` | Fetch succeeded, relevance failed |
+| Extraction failed for other reasons | `scrape_failed` | Generic scrape or extraction failure |
+
+### Follow-Up Rules
+
+| Situation | What the pipeline does next |
+| --- | --- |
+| `direct_url` is a list / index / database page | Extract ranked detail links, allow one next-page hop, then scrape selected follow-ups |
+| `direct_url` is a document | Do not fan out into site chrome or navigation pages |
+| Search mode has weak coverage but promising snippet-only URLs | Scrape backlog URLs before running new searches |
+| Search mode has weak coverage and backlog looks weak | Generate follow-up search queries |
+| Domain-restricted mode finds a hub page | Deepen within the same domain before broadening search |
 
 ---
 
@@ -367,16 +382,16 @@ Model IDs follow [LiteLLM provider naming](https://docs.litellm.ai/docs/provider
 ```python
 models = {
     # Required
-    "web_researcher": "openai/gpt-4o-mini",
-    "content_extractor": "gemini/gemini-2.0-flash",
+    "web_researcher": "openai/gpt-5.4-mini",
+    "content_extractor": "gemini/gemini-3-flash-preview",
 
     # Optional step-specific overrides (default: web_researcher)
-    "query_generator": "openai/gpt-4o-mini",
-    "coverage_evaluator": "openai/gpt-4o-mini",
-    "synthesiser": "openai/gpt-4o-mini",
+    "query_generator": "openai/gpt-5.4-mini",
+    "coverage_evaluator": "openai/gpt-5.4-mini",
+    "synthesiser": "openai/gpt-5.4-mini",
 
     # Optional fallback for scanned PDFs, image URLs, or empty JS pages
-    "vision_fallback": "gemini/gemini-2.0-flash",
+    "vision_fallback": "gemini/gemini-3-flash-preview",
 }
 ```
 
@@ -427,8 +442,8 @@ async def research(query: str) -> str:
     result = await run_web_research(
         query=query,
         models={
-            "web_researcher": "openai/gpt-4o-mini",
-            "content_extractor": "gemini/gemini-2.0-flash",
+            "web_researcher": "openai/gpt-5.4-mini",
+            "content_extractor": "gemini/gemini-3-flash-preview",
         },
         search_backend="serper",
     )
@@ -437,11 +452,51 @@ async def research(query: str) -> str:
 
 agent = Agent(
     name="researcher",
-    model="gpt-4o-mini",
+    model="gpt-5.4-mini",
     tools=[research],
     instructions="Use the research tool to answer with up-to-date web sources.",
 )
 ```
+
+---
+
+## Testing And Probes
+
+For fast local confidence:
+
+```bash
+mamba run -n web-agent python tests/run_checks.py quick
+```
+
+For the full local suite:
+
+```bash
+mamba run -n web-agent python tests/run_checks.py unit
+```
+
+For live behavior probes with saved artifacts:
+
+```bash
+mamba run -n web-agent python tests/run_checks.py behavior --env-file /path/to/.env
+```
+
+Each run writes a timestamped folder under `tests/run_results/` with:
+
+- one `.log` file per step
+- `manifest.json` with status, commands, and durations
+- `summary.md` with a human-readable report
+- `pytest` JUnit XML for pytest steps
+
+For a folder-level guide to what each test and probe does, see [`tests/README.md`](tests/README.md).
+
+Presets:
+
+- `quick`: `ruff` plus a targeted unit slice
+- `unit`: `ruff` plus the full pytest suite
+- `behavior`: live probes (`query_probe`, `matrix_probe`, `full_query_probe`)
+- `all`: local checks plus live probes
+
+The live probe preset is env-aware and skips steps cleanly when required keys are missing.
 
 ---
 
