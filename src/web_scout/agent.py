@@ -68,6 +68,10 @@ Generate highly effective search queries to find evidence for the user's researc
 
 COVERAGE_EVALUATOR_INSTRUCTIONS = """\
 You evaluate whether the provided extracted web content fully answers the research query.
+Use only the provided scraped content as evidence.
+Do NOT use your own training knowledge to infer missing facts, examples, regions, threats, or numbers.
+Search snippets and candidate URLs are routing hints only; they do NOT count as evidence that information was found.
+If the scraped sources are narrow, sparse, or focused on only one subtopic/subregion, explicitly say coverage is limited.
 Be strict: if key specific data (like species names, numbers, thresholds) is requested but missing, it is not fully answered.
 If the query is NOT fully answered, review the provided "Unscraped Candidates" (search result snippets not yet scraped).
 - If any candidates look likely to contain the missing information, list their exact URLs in `promising_unscraped_urls` and set `needs_new_searches` to false.
@@ -681,7 +685,15 @@ def _build_query_generation_prompt(
 
 def _build_coverage_prompt(query: str, tracker: ResearchTracker) -> str:
     scraped_entries = tracker.entries_for_action("scraped")
-    prompt = f"Research Query: {query}\n\nScraped Content:\n"
+    prompt = (
+        f"Research Query: {query}\n"
+        f"Successful scraped sources available as evidence: {len(scraped_entries)}\n\n"
+        "Important:\n"
+        "- Only the 'Scraped Content' section counts as evidence.\n"
+        "- Do not use prior knowledge.\n"
+        "- Do not treat titles/snippets from unscraped candidates as if they were extracted facts.\n\n"
+        "Scraped Content:\n"
+    )
     for i, entry in enumerate(scraped_entries, 1):
         prompt += f"--- Source {i}: {entry.title or entry.url} ---\n{entry.content}\n\n"
 
