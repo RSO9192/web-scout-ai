@@ -22,6 +22,7 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import litellm
 from agents import Agent, ModelSettings, Runner, function_tool
+from playwright.async_api import async_playwright
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
@@ -36,6 +37,68 @@ _TRANSIENT_LLM_ERRORS = (
     litellm.BadGatewayError,
 )
 _RETRY_DELAYS = (1.0, 2.0, 4.0)
+
+_THIN_CONTENT_CHARS = 500
+_MAX_INTERACTIVE_CLICKS = 5
+
+# JavaScript that queries all visible interactive elements on a page.
+# Returns a list of {tag, text} objects in a stable, deduplicated order.
+_GET_ELEMENTS_JS = """
+(() => {
+    const all = [];
+    const seen = new Set();
+    document.querySelectorAll('button, [role="tab"], [role="button"], select').forEach(el => {
+        if (el.offsetParent === null || el.disabled) return;
+        const text = (el.innerText || el.value || el.getAttribute('aria-label') || '').trim();
+        if (!text) return;
+        const key = text.slice(0, 60);
+        if (seen.has(key)) return;
+        seen.add(key);
+        all.push({tag: el.getAttribute('role') || el.tagName.toLowerCase(), text: key});
+    });
+    document.querySelectorAll('a').forEach(el => {
+        if (el.offsetParent === null) return;
+        const text = (el.innerText || '').trim();
+        if (!/load more|show more|show all|expand|next|view all/i.test(text)) return;
+        const key = text.slice(0, 60);
+        if (seen.has(key)) return;
+        seen.add(key);
+        all.push({tag: 'a', text: key});
+    });
+    return all;
+})()
+"""
+
+# JavaScript that re-queries interactive elements and clicks the one at `index` (1-based).
+# Returns true if clicked, false if index is out of range.
+_CLICK_ELEMENT_JS = """
+(index) => {
+    const all = [];
+    const seen = new Set();
+    document.querySelectorAll('button, [role="tab"], [role="button"], select').forEach(el => {
+        if (el.offsetParent === null || el.disabled) return;
+        const text = (el.innerText || el.value || el.getAttribute('aria-label') || '').trim();
+        if (!text) return;
+        const key = text.slice(0, 60);
+        if (seen.has(key)) return;
+        seen.add(key);
+        all.push(el);
+    });
+    document.querySelectorAll('a').forEach(el => {
+        if (el.offsetParent === null) return;
+        const text = (el.innerText || '').trim();
+        if (!/load more|show more|show all|expand|next|view all/i.test(text)) return;
+        const key = text.slice(0, 60);
+        if (seen.has(key)) return;
+        seen.add(key);
+        all.push(el);
+    });
+    const target = all[index - 1];
+    if (!target) return false;
+    target.click();
+    return true;
+}
+"""
 
 
 async def _run_with_retry(agent: Agent, input_text: str, max_turns: int = 30) -> Any:
@@ -89,6 +152,7 @@ _TRACKING_PARAMS: frozenset = frozenset({
     "mc_cid", "mc_eid",
     "_ga", "ref",
 })
+_BOT_BLOCK_THRESHOLD = 2
 
 
 class ResearchTracker:
@@ -100,6 +164,8 @@ class ResearchTracker:
         self._actions: Dict[str, str] = {}
         self._queries: List[SearchQuery] = []
         self._consecutive_empty: Dict[str, int] = {}
+        self._domain_bot_counts: Dict[str, int] = {}
+        self._bot_blocked_domains: set[str] = set()
 
         self.search_count = 0
         self.scrape_count = 0
@@ -119,6 +185,18 @@ class ResearchTracker:
         return urlunparse(
             (scheme, p.netloc.lower(), p.path.rstrip("/"), p.params, query, "")
         )
+
+    @staticmethod
+    def normalize_url(url: str) -> str:
+        """Public URL normalization used across pipeline components."""
+        return ResearchTracker._normalize_url(url)
+
+    @staticmethod
+    def _normalize_domain(url: str) -> str:
+        netloc = urlparse(url).netloc.lower()
+        if netloc.startswith("www."):
+            netloc = netloc[4:]
+        return netloc
 
     def _upgrade_action(self, key: str, new_action: str):
         current = self._actions.get(key)
@@ -148,6 +226,18 @@ class ResearchTracker:
                     url=r.url, title=r.title, content=r.snippet
                 )
             self._upgrade_action(key, "snippet_only")
+
+    def record_direct_query(self, query: str) -> None:
+        """Record a direct-URL run so result metadata stays consistent."""
+        from .models import SearchQuery
+
+        self._queries.append(
+            SearchQuery(
+                query=query,
+                num_results_returned=1,
+                domains_restricted=[],
+            )
+        )
 
     def record_scrape(self, url: str, title: str, extracted_content: str):
         from .models import UrlEntry
@@ -198,6 +288,12 @@ class ResearchTracker:
         self._upgrade_action(key, "bot_detected")
         entry = self._urls.setdefault(key, UrlEntry(url=url))
         entry.content = f"[bot detection: {error}]"
+        domain = self._normalize_domain(url)
+        if domain:
+            count = self._domain_bot_counts.get(domain, 0) + 1
+            self._domain_bot_counts[domain] = count
+            if count >= _BOT_BLOCK_THRESHOLD:
+                self._bot_blocked_domains.add(domain)
 
     def build_result_groups(self) -> dict:
         """Group URLs by action: scraped, scrape_failed, bot_detected, snippet_only."""
@@ -214,6 +310,63 @@ class ResearchTracker:
             action = self._actions.get(key, "snippet_only")
             groups[action].append(entry)
         return groups
+
+    def entries_for_action(self, action: str) -> list:
+        """Return tracker entries for a specific action group."""
+        return self.build_result_groups()[action]
+
+    def count_for_action(self, action: str) -> int:
+        """Return how many entries currently belong to an action group."""
+        return len(self.entries_for_action(action))
+
+    def action_for(self, url: str) -> Optional[str]:
+        """Return the recorded action for a URL, if any."""
+        return self._actions.get(self.normalize_url(url))
+
+    def entry_for(self, url: str):
+        """Return the tracked entry for a URL, if any."""
+        return self._urls.get(self.normalize_url(url))
+
+    def has_attempted_url(self, url: str) -> bool:
+        """True when a URL has been scraped or failed previously."""
+        return self.action_for(url) is not None
+
+    def is_unscraped_candidate(self, url: str) -> bool:
+        """True when a URL is new or only known from snippets."""
+        action = self.action_for(url)
+        return action in (None, "snippet_only")
+
+    def cached_scrape_response(self, url: str) -> Optional[str]:
+        """Return a user-facing cached response for previously seen URLs."""
+        action = self.action_for(url)
+        entry = self.entry_for(url)
+        if action == "scraped" and entry:
+            return f"[Already scraped — cached result] {entry.content[:800]}"
+        if action in {
+            "scrape_failed",
+            "blocked_by_policy",
+            "source_http_error",
+            "scraped_irrelevant",
+            "bot_detected",
+        }:
+            cached_msg = (entry.content or action) if entry else action
+            return f"[Already attempted this URL — it failed: {cached_msg[:200]}. Move on to a different URL.]"
+        if self.is_domain_bot_blocked(url):
+            domain = self._normalize_domain(url)
+            return (
+                "[Skipped URL from domain blocked by bot protection earlier in this run: "
+                f"{domain}. Move on to a different domain or source.]"
+            )
+        return None
+
+    def is_domain_bot_blocked(self, url: str) -> bool:
+        """True when the URL's domain crossed the bot-detection threshold this run."""
+        domain = self._normalize_domain(url)
+        return bool(domain) and domain in self._bot_blocked_domains
+
+    def bot_blocked_domains(self) -> set[str]:
+        """Return the set of domains blocked for the current run."""
+        return set(self._bot_blocked_domains)
 
     def increment_empty(self, domains_key: str) -> int:
         """Increment and return the consecutive-empty count for a domain set."""
@@ -270,7 +423,7 @@ class _ExtractorOutput(BaseModel):
     )
 
 
-def _classify_failure_action(content: str, title: str) -> str:
+def _classify_failure_action(content: str) -> str:
     lower = content.lower()
     if "bot_detected:" in content:
         return "bot_detected"
@@ -290,6 +443,30 @@ You receive a URL and a research query. Your job:
 
 ## Step 1 — Fetch the page
 Call ``raw_scrape`` to fetch the page content. Call it exactly once.
+
+## Step 1b — Handle thin content or low-quality content with interaction
+If raw_scrape returned fewer than 500 characters of meaningful content
+AND the page is not a document (PDF/DOCX/PPTX/XLSX):
+
+1. Call list_interactive_elements() to see what is clickable on the page.
+2. If the list contains tabs, buttons, or controls likely to reveal data
+   relevant to the research query, call click_element(n) for the most
+   promising element.
+3. Use the updated content. You may call click_element up to 5 times total.
+4. If content remains thin after clicking all promising elements, proceed
+   with what you have.
+
+Also call list_interactive_elements() if raw_scrape returned a message containing:
+- "[SPA: URL fragment detected" — the page uses client-side routing; the visible
+  content may be the wrong tab or view. Look for tabs, dropdowns, or section
+  selectors that navigate to the target data.
+- "[Form/survey content detected" — the page loaded a feedback widget instead of
+  data. Look for data tabs, dropdowns, or navigation controls that reveal the
+  actual content.
+In both cases, click the most promising element and use the updated content.
+
+Do NOT call list_interactive_elements() if raw_scrape already returned
+rich content with no signals — interaction is a fallback, not a default.
 
 ## Step 2 — Check for a primary source document
 After reading the page, ask yourself: **is this a metadata or catalogue page that links to a primary source document?**
@@ -343,7 +520,36 @@ Always write ``relevant_content`` and ``title`` in English, regardless of the so
 """
 
 
-def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000) -> Agent:
+def _has_fragment(url: str) -> bool:
+    """True if the URL contains a non-empty #fragment (SPA client-side routing)."""
+    return bool(urlparse(url).fragment)
+
+
+_FORM_TOKENS = (
+    "strongly agree", "strongly disagree", "please rate",
+    "kindly provide", "please provide", "select an option",
+)
+
+
+def _is_form_contaminated(content: str) -> bool:
+    """True if content is dominated by survey/form patterns despite char count > 500.
+
+    Triggers on either:
+    - A survey token appearing 2+ times (case-insensitive).
+    - 20+ lines where >75% are bullet-point lines (nav-only dump).
+    """
+    lower = content.lower()
+    if any(lower.count(tok) >= 2 for tok in _FORM_TOKENS):
+        return True
+    lines = [line for line in content.splitlines() if line.strip()]
+    if len(lines) >= 20:
+        bullet_lines = sum(1 for line in lines if line.strip().startswith(("* ", "- ")))
+        if bullet_lines / len(lines) > 0.75:
+            return True
+    return False
+
+
+def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000, doc_cache: Optional[dict] = None) -> tuple:
     """Build a content extractor sub-agent with a URL-locked scraping tool.
 
     The ``raw_scrape`` tool is a closure that captures ``url`` and ``wait_for``
@@ -356,8 +562,8 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
     essential for metadata/catalogue pages (e.g. FAOLEX law records) where
     the page itself only contains a summary and the full text is in a document.
     """
-    from .scraping import _SCRAPE_DOC, _scrape_document, _validate_url
-    from .scraping import scrape_url as _scrape_url
+    from . import scraping as _scraping_module
+    from .scraping import _SCRAPE_DOC, _is_blocked_domain
 
     @function_tool
     async def raw_scrape() -> str:
@@ -368,12 +574,26 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         Works with static HTML, JS-rendered pages, JSON endpoints, images,
         PDFs, DOCX, PPTX, and XLSX.
         """
-        content, title, error = await _scrape_url(url, wait_for, query=query, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars)
+        content, title, error = await _scraping_module.scrape_url(url, wait_for, query=query, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars)
         if error:
             return f"[Scrape failed: {error}]"
         if not content.strip():
             return "[Page returned empty content]"
         header = f"# {title}\nSource: {url}\n\n" if title else f"Source: {url}\n\n"
+
+        signals = []
+        if _has_fragment(url):
+            signals.append(
+                "[SPA: URL fragment detected — current content may be the wrong "
+                "tab/view. Call list_interactive_elements to find the data section.]"
+            )
+        if len(content) >= _THIN_CONTENT_CHARS and _is_form_contaminated(content):
+            signals.append(
+                "[Form/survey content detected — actual data is likely behind "
+                "interactive elements. Call list_interactive_elements.]"
+            )
+        if signals:
+            return header + content + "\n\n" + "\n".join(signals)
         return header + content
 
     @function_tool
@@ -392,28 +612,192 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         Args:
             document_url: Absolute URL of the primary source document to fetch.
         """
-        verdict, detail = await _validate_url(document_url, allowed_domains=allowed_domains)
+        norm = ResearchTracker.normalize_url(document_url)
+        if doc_cache is not None and norm in doc_cache:
+            return doc_cache[norm]
+
+        verdict, detail = await _scraping_module._validate_url(document_url, allowed_domains=allowed_domains)
         if verdict != _SCRAPE_DOC:
             return (
                 "[scrape_linked_document rejected: URL does not look like a primary "
                 f"document ({detail}): {document_url}]"
             )
-        content, title, error = await _scrape_document(document_url, query=query, vision_model=vision_model, max_pdf_pages=max_pdf_pages)
+        content, title, error = await _scraping_module._scrape_document(document_url, query=query, vision_model=vision_model, max_pdf_pages=max_pdf_pages)
         if error:
             return f"[Document scrape failed: {error}]"
         if not content.strip():
             return "[Document returned empty content]"
         header = f"# {title}\nSource: {document_url}\n\n" if title else f"Source: {document_url}\n\n"
-        return header + content
+        result = header + content
+        if doc_cache is not None:
+            doc_cache[norm] = result
+        return result
 
-    return Agent(
+    # --- interactive browser session ---
+    _browser_holder: list = [None]   # [playwright Browser | None]
+    _context_holder: list = [None]   # [playwright BrowserContext | None]
+    _pw_holder: list = [None]        # [AsyncPlaywrightContextManager | None]
+    _page_holder: list = [None]      # [playwright Page | None]
+    _click_count: list = [0]
+
+    def _current_page_url() -> str:
+        page_url = getattr(_page_holder[0], "url", None)
+        if isinstance(page_url, str) and page_url.strip():
+            return page_url
+        return url
+
+    async def _close_interactive_session() -> None:
+        if _page_holder[0] is not None:
+            try:
+                await _page_holder[0].close()
+            except Exception:
+                pass
+            _page_holder[0] = None
+        if _context_holder[0] is not None:
+            try:
+                await _context_holder[0].close()
+            except Exception:
+                pass
+            _context_holder[0] = None
+        if _browser_holder[0] is not None:
+            try:
+                await _browser_holder[0].close()
+            except Exception:
+                pass
+            _browser_holder[0] = None
+        if _pw_holder[0] is not None:
+            try:
+                await _pw_holder[0].__aexit__(None, None, None)
+            except Exception:
+                pass
+            _pw_holder[0] = None
+
+    async def _ensure_interactive_page() -> Any:
+        if _page_holder[0] is not None:
+            return _page_holder[0]
+
+        try:
+            pw_cm = async_playwright()
+            pw = await pw_cm.__aenter__()
+            _pw_holder[0] = pw_cm
+            browser = await pw.chromium.launch(headless=True)
+            _browser_holder[0] = browser
+            context = await browser.new_context(
+                user_agent=(
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/124.0.0.0 Safari/537.36"
+                )
+            )
+            _context_holder[0] = context
+            page = await context.new_page()
+            await page.goto(url, wait_until="networkidle", timeout=30_000)
+            _page_holder[0] = page
+            return page
+        except Exception:
+            await _close_interactive_session()
+            raise
+
+    @function_tool
+    async def list_interactive_elements() -> str:
+        """List all visible, clickable elements on the page as a numbered list.
+
+        Opens a Playwright browser for the pre-set URL and returns all visible
+        buttons, tabs, dropdowns, and load-more links with numeric indices.
+        Call click_element(n) to interact with a specific element.
+
+        Only call this when raw_scrape returned thin content (under 500 chars).
+        Do NOT call this if raw_scrape already returned rich content.
+        """
+        try:
+            page = await _ensure_interactive_page()
+            elements = await page.evaluate(_GET_ELEMENTS_JS)
+            if not elements:
+                return "No interactive elements found on this page."
+
+            lines = ["Interactive elements on page:"]
+            for i, el in enumerate(elements, 1):
+                lines.append(f'[{i}] {el["tag"]}: "{el["text"]}"')
+            return "\n".join(lines)
+
+        except Exception as e:
+            return f"[list_interactive_elements failed: {e}]"
+
+    @function_tool
+    async def click_element(index: int) -> str:
+        """Click an interactive element by its index from list_interactive_elements.
+
+        Re-queries the page for the element (handles DOM changes), clicks it,
+        waits for the page to settle, and returns the updated page content.
+        Maximum 5 clicks per page.
+
+        Args:
+            index: 1-based index of the element to click, as returned by
+                list_interactive_elements.
+        """
+        if _page_holder[0] is None:
+            return (
+                "[click_element error: no browser session open. "
+                "Call list_interactive_elements() first.]"
+            )
+
+        if _click_count[0] >= _MAX_INTERACTIVE_CLICKS:
+            return (
+                f"INTERACTION LIMIT REACHED: {_MAX_INTERACTIVE_CLICKS} clicks used. "
+                "Synthesize from content gathered so far."
+            )
+
+        try:
+            page = _page_holder[0]
+            clicked = await page.evaluate(_CLICK_ELEMENT_JS, index)
+            if not clicked:
+                return (
+                    f"Element [{index}] no longer visible after previous interaction — "
+                    "call list_interactive_elements() again to get the updated list."
+                )
+
+            _click_count[0] += 1
+
+            try:
+                await page.wait_for_load_state("networkidle", timeout=3_000)
+            except Exception:
+                pass  # timeout is acceptable — page may not trigger a network event
+
+            post_click_url = _current_page_url()
+            if _is_blocked_domain(post_click_url, allowed_domains=allowed_domains):
+                await page.go_back()
+                return (
+                    f"[click_element blocked: navigation to {post_click_url} "
+                    "is outside the allowed domain scope. Try a different element.]"
+                )
+
+            content = await page.inner_text("body")
+            result = content.strip()
+
+            if len(result) < _THIN_CONTENT_CHARS:
+                result += (
+                    f"\n\n[Content still thin after click ({len(result)} chars) — "
+                    "consider clicking a different element.]"
+                )
+
+            return result
+
+        except Exception as e:
+            return f"[click_element failed: {e}]"
+
+    agent = Agent(
         name="content_extractor",
         model=model,
-        tools=[raw_scrape, scrape_linked_document],
+        tools=[raw_scrape, scrape_linked_document, list_interactive_elements, click_element],
         output_type=_ExtractorOutput,
         model_settings=ModelSettings(),
         instructions=_EXTRACTOR_INSTRUCTIONS,
     )
+
+    async def cleanup() -> None:
+        await _close_interactive_session()
+
+    return agent, cleanup
 
 
 # ---------------------------------------------------------------------------
@@ -422,9 +806,11 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
 
 def create_web_search(backend=None, tracker: Optional[ResearchTracker] = None, force_open_web: bool = False):
     """Create a web search ``@function_tool`` using a pluggable backend."""
-    from .search_backends import DuckDuckGoBackend, SearchBackend
+    from .search_backends import SearchBackend
 
-    _backend: SearchBackend = backend or DuckDuckGoBackend()
+    if backend is None:
+        raise ValueError("A SearchBackend instance must be provided. See search_backends.py.")
+    _backend: SearchBackend = backend
 
     @function_tool
     async def web_search(
@@ -585,7 +971,7 @@ def create_scrape_and_extract_tool(
     extractor_model: Any,
     tracker: Optional[ResearchTracker] = None,
     query: str = "",
-    max_concurrent: int = 3,
+    max_concurrent: int = 6,
     vision_model: Optional[str] = None,
     allowed_domains: Optional[frozenset] = None,
     max_pdf_pages: int = 50,
@@ -603,6 +989,7 @@ def create_scrape_and_extract_tool(
     """
 
     semaphore = asyncio.Semaphore(max_concurrent)
+    _doc_cache: dict = {}
     in_flight: Dict[str, asyncio.Future[str]] = {}
 
     async def scrape_and_extract(
@@ -625,7 +1012,7 @@ def create_scrape_and_extract_tool(
             wait_for: Optional CSS selector to wait for on JS-rendered pages.
                 Only use for known data portals. Omit when in doubt.
         """
-        norm = tracker._normalize_url(url) if tracker is not None else url
+        norm = tracker.normalize_url(url) if tracker is not None else url
 
         if tracker is not None:
             if tracker.scrape_count >= 25:
@@ -633,20 +1020,9 @@ def create_scrape_and_extract_tool(
                     "CIRCUIT BREAKER: You have scraped 25 URLs. "
                     "You MUST STOP scraping and synthesize your findings immediately."
                 )
-            if norm in tracker._actions:
-                action = tracker._actions[norm]
-                cached = tracker._urls.get(norm)
-                if action == "scraped" and cached:
-                    return f"[Already scraped — cached result] {cached.content[:800]}"
-                if action in {
-                    "scrape_failed",
-                    "blocked_by_policy",
-                    "source_http_error",
-                    "scraped_irrelevant",
-                    "bot_detected",
-                }:
-                    cached_msg = (cached.content or action) if cached else action
-                    return f"[Already attempted this URL — it failed: {cached_msg[:200]}. Move on to a different URL.]"
+            cached_response = tracker.cached_scrape_response(url)
+            if cached_response is not None:
+                return cached_response
 
         existing = in_flight.get(norm)
         if existing is not None:
@@ -671,7 +1047,7 @@ def create_scrape_and_extract_tool(
                 )
 
                 # Build a fresh extractor agent per call with url locked in the closure
-                extractor_agent = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars)
+                extractor_agent, extractor_cleanup = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars, doc_cache=_doc_cache)
 
                 input_text = (
                     f"Research query: {query}\n"
@@ -689,6 +1065,8 @@ def create_scrape_and_extract_tool(
                     final_output = f"Failed to extract content from {url}: {e}"
                     future.set_result(final_output)
                     return final_output
+                finally:
+                    await extractor_cleanup()
 
                 content = output.relevant_content.strip()
                 title = output.title.strip()
@@ -716,7 +1094,7 @@ def create_scrape_and_extract_tool(
                 )
 
                 if is_failure:
-                    action = _classify_failure_action(content or "", title)
+                    action = _classify_failure_action(content or "")
                     if action in {"scraped_irrelevant", "blocked_by_policy"}:
                         logger.debug("[extract] %s %s", action, url)
                     elif action in {"source_http_error", "bot_detected"}:
@@ -737,7 +1115,7 @@ def create_scrape_and_extract_tool(
                     final_output = f"No relevant content found at {url}: {content}"
 
                     if tracker is not None:
-                        count_scraped = len(tracker.build_result_groups()["scraped"])
+                        count_scraped = tracker.count_for_action("scraped")
                         if count_scraped < 2:
                             final_output += (
                                 "\n\n⚠ REMINDER: You MUST successfully scrape AT LEAST 2 high-quality sources "
@@ -758,7 +1136,7 @@ def create_scrape_and_extract_tool(
                     final_output += "\n\n**Relevant Links found on page:**\n" + "\n".join(f"- {lnk}" for lnk in links[:15])
 
                 if tracker is not None:
-                    count_scraped = len(tracker.build_result_groups()["scraped"])
+                    count_scraped = tracker.count_for_action("scraped")
                     if count_scraped < 2:
                         final_output += (
                             "\n\n⚠ REMINDER: You MUST successfully scrape AT LEAST 2 high-quality sources "

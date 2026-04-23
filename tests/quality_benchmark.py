@@ -24,7 +24,8 @@ from typing import Optional
 
 import litellm
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field as PydanticField
+from pydantic import BaseModel
+from pydantic import Field as PydanticField
 
 # ---------------------------------------------------------------------------
 # Config
@@ -41,10 +42,24 @@ BENCHMARK_QUERIES = [
     "Ethiopia crop production statistics 2023 — cereals area harvested and yield data",
     "FAOSTAT deforestation and forest area change Sub-Saharan Africa 2000–2023",
     # General deep-research
-    "What are the projected sea level rise impacts on Venice specifically, including flood frequency projections and MOSE barrier effectiveness under different IPCC scenarios?",
-    "What specific Total Allowable Catch quotas has ICCAT set for Eastern Atlantic and Mediterranean bluefin tuna 2022–2026?",
-    "What is the current deforestation rate in the Brazilian Cerrado, main commodity drivers, and specific IBAMA enforcement actions in the last two years?",
-    "Latest IPCC AR6 findings on food system vulnerability to climate change — specific regional projections and adaptation options",
+    (
+        "What are the projected sea level rise impacts on Venice specifically, "
+        "including flood frequency projections and MOSE barrier effectiveness "
+        "under different IPCC scenarios?"
+    ),
+    (
+        "What specific Total Allowable Catch quotas has ICCAT set for Eastern "
+        "Atlantic and Mediterranean bluefin tuna 2022–2026?"
+    ),
+    (
+        "What is the current deforestation rate in the Brazilian Cerrado, "
+        "main commodity drivers, and specific IBAMA enforcement actions in "
+        "the last two years?"
+    ),
+    (
+        "Latest IPCC AR6 findings on food system vulnerability to climate "
+        "change — specific regional projections and adaptation options"
+    ),
 ]
 
 OPENAI_MODEL = "gpt-5.4-mini"
@@ -83,10 +98,13 @@ class Evaluation:
 
     @property
     def overall(self) -> float:
-        return round(
-            (self.url_relevance + self.tailored_comprehensiveness + self.synthesis_quality + self.extraction_coverage) / 4,
-            1,
+        total = (
+            self.url_relevance
+            + self.tailored_comprehensiveness
+            + self.synthesis_quality
+            + self.extraction_coverage
         )
+        return round(total / 4, 1)
 
 
 @dataclass
@@ -626,7 +644,7 @@ async def main() -> None:
     report = build_report(all_results, queries)
     md_path.write_text(report, encoding="utf-8")
 
-    print(f"Results saved to:")
+    print("Results saved to:")
     print(f"  {json_path}")
     print(f"  {md_path}")
     print()

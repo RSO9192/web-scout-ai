@@ -1,0 +1,168 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1420" viewBox="0 0 1800 1420">
+<defs>
+  <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="#495057" />
+  </marker>
+  <style>
+    .title { font: 700 34px Inter, Arial, sans-serif; fill: #1f2937; }
+    .subtitle { font: 500 16px Inter, Arial, sans-serif; fill: #475569; }
+    .section { font: 700 20px Inter, Arial, sans-serif; fill: #0f172a; }
+    .label { font: 600 15px Inter, Arial, sans-serif; fill: #111827; }
+    .small { font: 500 13px Inter, Arial, sans-serif; fill: #334155; }
+    .tiny { font: 500 12px Inter, Arial, sans-serif; fill: #475569; }
+  </style>
+</defs>
+<rect width="100%" height="100%" fill="#f8fafc"/>
+<text x="50" y="54" class="title">web-scout-ai Pipeline</text>
+<text x="50" y="84" class="subtitle">Mode selection, scrape routing, failure classification, and synthesis rules</text>
+<rect x="50" y="120" width="270" height="96" rx="18" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+<text x="68" y="148" class="label">Entry</text>
+<text x="68" y="172" class="small">run_web_research(query, models, ...)</text>
+<text x="68" y="192" class="small">Chooses direct URL mode or search mode</text>
+<rect x="380" y="120" width="300" height="118" rx="18" fill="#e0f2fe" stroke="#0891b2" stroke-width="2"/>
+<text x="398" y="148" class="label">Mode Selection</text>
+<text x="398" y="172" class="small">If direct_url is set: skip web search</text>
+<text x="398" y="192" class="small">Else: generate searches and iterate evidence</text>
+<line x1="320" y1="168" x2="380" y2="168" stroke="#495057" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="50" y="300" class="section">Direct URL Mode</text>
+<rect x="50" y="325" width="290" height="118" rx="18" fill="#ecfccb" stroke="#65a30d" stroke-width="2"/>
+<text x="68" y="353" class="label">1. Scrape requested URL</text>
+<text x="68" y="377" class="small">Start from the provided URL only</text>
+<text x="68" y="397" class="small">No search backend involved</text>
+<rect x="50" y="475" width="290" height="136" rx="18" fill="#fef9c3" stroke="#ca8a04" stroke-width="2"/>
+<text x="68" y="503" class="label">2. Decide fan-out</text>
+<text x="68" y="527" class="small">If extractor marks page_type=list:</text>
+<text x="68" y="547" class="small">collect ranked follow-up links</text>
+<text x="68" y="567" class="small">allow one next-page hop for pagination</text>
+<text x="68" y="587" class="small">Else if document: stop fan-out</text>
+<rect x="50" y="645" width="290" height="116" rx="18" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+<text x="68" y="673" class="label">3. Same-domain follow-ups</text>
+<text x="68" y="697" class="small">Non-document content pages can surface</text>
+<text x="68" y="717" class="small">same-domain follow-up links</text>
+<text x="68" y="737" class="small">LLM reranks and chooses a small subset</text>
+<rect x="50" y="795" width="290" height="92" rx="18" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+<text x="68" y="823" class="label">4. Scrape selected follow-ups</text>
+<text x="68" y="847" class="small">Scraped content feeds synthesis</text>
+<line x1="195" y1="443" x2="195" y2="475" stroke="#495057" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="195" y1="611" x2="195" y2="645" stroke="#495057" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="195" y1="761" x2="195" y2="795" stroke="#495057" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="420" y="300" class="section">Search Mode</text>
+<rect x="420" y="325" width="340" height="116" rx="18" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+<text x="438" y="353" class="label">1. Search</text>
+<text x="438" y="377" class="small">LLM generates queries</text>
+<text x="438" y="397" class="small">Search backend runs them in parallel</text>
+<text x="438" y="417" class="small">Results are interleaved and ranked</text>
+<rect x="420" y="475" width="340" height="116" rx="18" fill="#f8fafc" stroke="#64748b" stroke-width="2"/>
+<text x="438" y="503" class="label">2. Scrape initial candidates</text>
+<text x="438" y="527" class="small">Pick unscraped URLs</text>
+<text x="438" y="547" class="small">Scrape and extract in parallel</text>
+<rect x="420" y="625" width="340" height="136" rx="18" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="438" y="653" class="label">3. Optional deepening</text>
+<text x="438" y="677" class="small">If include_domains is used:</text>
+<text x="438" y="697" class="small">allow same-domain / hub deepening</text>
+<text x="438" y="717" class="small">Otherwise skip deepening</text>
+<rect x="420" y="795" width="340" height="150" rx="18" fill="#fae8ff" stroke="#c026d3" stroke-width="2"/>
+<text x="438" y="823" class="label">4. Coverage evaluator</text>
+<text x="438" y="847" class="small">If fully answered: stop searching</text>
+<text x="438" y="867" class="small">If backlog URLs look promising: scrape them</text>
+<text x="438" y="887" class="small">If backlog looks weak: generate follow-up queries</text>
+<line x1="590" y1="441" x2="590" y2="475" stroke="#495057" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="590" y1="591" x2="590" y2="625" stroke="#495057" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="590" y1="761" x2="590" y2="795" stroke="#495057" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="760" y1="870" x2="860" y2="870" stroke="#c026d3" stroke-width="2.5" marker-end="url(#arrow)" stroke-dasharray="8 6"/>
+<text x="875" y="862" class="tiny">follow-up searches</text>
+<text x="875" y="879" class="tiny">loop back to Search</text>
+<text x="830" y="300" class="section">Synthesis</text>
+<rect x="830" y="380" width="330" height="130" rx="18" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+<text x="848" y="408" class="label">Grounded answer generation</text>
+<text x="848" y="432" class="small">Only scraped URLs are valid citation targets</text>
+<text x="848" y="452" class="small">Snippet-only URLs are context, not citations</text>
+<text x="848" y="472" class="small">LLM writes synthesis from scraped evidence</text>
+<rect x="830" y="560" width="330" height="116" rx="18" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+<text x="848" y="588" class="label">Citation judge</text>
+<text x="848" y="612" class="small">Detects bare URLs and hallucinated citations</text>
+<text x="848" y="632" class="small">If issues are found, retry synthesis once</text>
+<text x="848" y="652" class="small">Otherwise return result</text>
+<rect x="830" y="730" width="330" height="96" rx="18" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+<text x="848" y="758" class="label">Return WebResearchResult</text>
+<text x="848" y="782" class="small">Grouped URL outcomes + executed queries</text>
+<text x="848" y="802" class="small">Final grounded synthesis</text>
+<line x1="340" y1="841" x2="830" y2="445" stroke="#495057" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="760" y1="870" x2="830" y2="445" stroke="#495057" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="995" y1="510" x2="995" y2="560" stroke="#495057" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="995" y1="676" x2="995" y2="730" stroke="#495057" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="50" y="980" class="section">Scrape Router</text>
+<rect x="50" y="1000" width="1110" height="330" rx="24" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+<rect x="75" y="1035" width="200" height="90" rx="18" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+<text x="93" y="1063" class="label">Plan the scrape</text>
+<text x="93" y="1087" class="small">Build ScrapePlan from URL, HEAD, fast GET</text>
+<rect x="315" y="1035" width="170" height="90" rx="18" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+<text x="333" y="1063" class="label">Blocked?</text>
+<text x="333" y="1087" class="small">Yes -&gt; blocked_by_policy</text>
+<rect x="525" y="1035" width="180" height="90" rx="18" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+<text x="543" y="1063" class="label">Document?</text>
+<text x="543" y="1087" class="small">PDF/DOCX/PPTX/XLSX</text>
+<text x="543" y="1107" class="small">-&gt; docling</text>
+<rect x="745" y="1035" width="180" height="90" rx="18" fill="#fae8ff" stroke="#c026d3" stroke-width="2"/>
+<text x="763" y="1063" class="label">JSON / Image?</text>
+<text x="763" y="1087" class="small">JSON -&gt; structured markdown</text>
+<text x="763" y="1107" class="small">Image -&gt; vision</text>
+<rect x="965" y="1035" width="170" height="90" rx="18" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+<text x="983" y="1063" class="label">HTML path</text>
+<text x="983" y="1087" class="small">Static -&gt; crawl4ai HTTP</text>
+<text x="983" y="1107" class="small">JS-heavy -&gt; browser</text>
+<line x1="275" y1="1080" x2="315" y2="1080" stroke="#495057" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="485" y1="1080" x2="525" y2="1080" stroke="#495057" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="705" y1="1080" x2="745" y2="1080" stroke="#495057" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="925" y1="1080" x2="965" y2="1080" stroke="#495057" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="150" y="1175" width="250" height="104" rx="18" fill="#fef9c3" stroke="#ca8a04" stroke-width="2"/>
+<text x="168" y="1203" class="label">Document fallback rules</text>
+<text x="168" y="1227" class="small">Thin / scanned PDF + vision configured</text>
+<text x="168" y="1247" class="small">-&gt; vision fallback</text>
+<text x="168" y="1267" class="small">Browser download -&gt; treat as document</text>
+<rect x="450" y="1175" width="280" height="104" rx="18" fill="#ecfccb" stroke="#65a30d" stroke-width="2"/>
+<text x="468" y="1203" class="label">HTML fallback rules</text>
+<text x="468" y="1227" class="small">Fast HTML too thin -&gt; escalate to browser</text>
+<text x="468" y="1247" class="small">Browser empty + bot signals -&gt; bot_detected</text>
+<text x="468" y="1267" class="small">Browser empty without bot -&gt; scrape_failed</text>
+<rect x="780" y="1175" width="280" height="104" rx="18" fill="#e2e8f0" stroke="#475569" stroke-width="2"/>
+<text x="798" y="1203" class="label">Extractor fallback rules</text>
+<text x="798" y="1227" class="small">Thin non-document content may trigger</text>
+<text x="798" y="1247" class="small">interactive element listing and click-based</text>
+<text x="798" y="1267" class="small">fallback inside the extractor agent</text>
+<text x="1210" y="300" class="section">URL Outcome Buckets</text>
+<rect x="1210" y="325" width="540" height="1005" rx="24" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+<rect x="1240" y="360" width="220" height="92" rx="18" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+<text x="1258" y="388" class="label">scraped</text>
+<text x="1258" y="412" class="small">Usable extracted content</text>
+<rect x="1490" y="360" width="220" height="92" rx="18" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+<text x="1508" y="388" class="label">snippet_only</text>
+<text x="1508" y="412" class="small">Seen in search, not scraped</text>
+<rect x="1240" y="490" width="220" height="92" rx="18" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+<text x="1258" y="518" class="label">scrape_failed</text>
+<text x="1258" y="542" class="small">Generic scrape or extraction failure</text>
+<rect x="1490" y="490" width="220" height="92" rx="18" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+<text x="1508" y="518" class="label">source_http_error</text>
+<text x="1508" y="542" class="small">Source-side HTTP / network failure</text>
+<rect x="1240" y="620" width="220" height="92" rx="18" fill="#ffe4e6" stroke="#e11d48" stroke-width="2"/>
+<text x="1258" y="648" class="label">bot_detected</text>
+<text x="1258" y="672" class="small">Blocked by anti-automation page</text>
+<rect x="1490" y="620" width="220" height="92" rx="18" fill="#f1f5f9" stroke="#475569" stroke-width="2"/>
+<text x="1508" y="648" class="label">blocked_by_policy</text>
+<text x="1508" y="672" class="small">Skipped by built-in domain policy</text>
+<rect x="1240" y="750" width="470" height="92" rx="18" fill="#fef9c3" stroke="#ca8a04" stroke-width="2"/>
+<text x="1258" y="778" class="label">scraped_irrelevant</text>
+<text x="1258" y="802" class="small">Fetch succeeded, but extractor found no relevant content for the query</text>
+<rect x="1240" y="890" width="470" height="210" rx="18" fill="#f8fafc" stroke="#64748b" stroke-width="2"/>
+<text x="1258" y="918" class="label">Practical reading order</text>
+<text x="1258" y="942" class="small">1. run_web_research()</text>
+<text x="1258" y="962" class="small">2. _run_direct_url_mode() or _run_search_mode()</text>
+<text x="1258" y="982" class="small">3. create_scrape_and_extract_tool()</text>
+<text x="1258" y="1002" class="small">4. scrape_url()</text>
+<text x="1258" y="1022" class="small">5. _synthesise_result()</text>
+<rect x="1240" y="1140" width="470" height="150" rx="18" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="1258" y="1168" class="label">What to inspect when something fails</text>
+<text x="1258" y="1192" class="small">blocked_by_policy / source_http_error / bot_detected / scrape_failed</text>
+<text x="1258" y="1212" class="small">Check tests/run_checks.py behavior preset for saved logs</text>
+<text x="1258" y="1232" class="small">Use docs/pipeline-flow.md for full rule tables</text>
+</svg>

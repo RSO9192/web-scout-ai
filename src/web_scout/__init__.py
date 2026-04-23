@@ -1,6 +1,6 @@
 """Agentic web research — smarter than search, faster than deep research.
 
-Uses pluggable search backends (Serper / DuckDuckGo). A dedicated
+Uses pluggable search backends (Serper, and community-contributed backends). A dedicated
 content extractor sub-agent (crawl4ai / docling) scrapes and summarises
 each URL so the main researcher only sees focused excerpts.
 
@@ -43,6 +43,25 @@ import os as _os
 
 # Avoid LiteLLM's import-time network probe and fallback warning.
 _os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "true")
+
+
+def _configure_third_party_runtime() -> None:
+    """Silence third-party progress bars that leak into CLI output."""
+    # Docling pulls in Hugging Face / Transformers models whose first-load path
+    # emits tqdm bars like "Loading weights: 100%|...|". Treat those as noise.
+    _os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+    try:
+        from transformers.utils import logging as _transformers_logging
+    except Exception:
+        return
+
+    try:
+        _transformers_logging.disable_progress_bar()
+    except Exception:
+        pass
+
+
+_configure_third_party_runtime()
 
 
 def configure_logging(level: int = _logging.INFO) -> None:

@@ -16,7 +16,6 @@ from dotenv import load_dotenv
 
 from web_scout import configure_logging, run_web_research
 
-
 DEFAULT_ENV_FILE = Path("/Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/report/.env")
 OUTPUT_DIR = Path(__file__).parent / "probe_results"
 
@@ -169,7 +168,8 @@ async def main() -> None:
     report: list[ProbeSummary] = []
 
     for case in cases:
-        logging.getLogger("web_scout.probe").info("matrix case: %s (%s)", case.name, "direct" if case.direct_url else "domain" if case.include_domains else "open")
+        mode = "direct" if case.direct_url else "domain" if case.include_domains else "open"
+        logging.getLogger("web_scout.probe").info("matrix case: %s (%s)", case.name, mode)
         report.append(await _run_case(case, args.search_backend, args.research_depth, args.max_pdf_pages))
 
     output_dir = Path(args.output_dir)

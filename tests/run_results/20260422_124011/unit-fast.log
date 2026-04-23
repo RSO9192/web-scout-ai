@@ -1,0 +1,4 @@
+$ pytest tests/test_pipeline.py tests/test_scrape_tool_dedupe.py tests/test_url_utils.py -q --junitxml /Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tests/run_results/20260422_124011/unit-fast.xml
+
+....................................................................     [100%]
+68 passed in 1.89s

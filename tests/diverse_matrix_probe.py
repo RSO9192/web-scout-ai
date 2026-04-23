@@ -16,7 +16,6 @@ from dotenv import load_dotenv
 
 from web_scout import configure_logging, run_web_research
 
-
 DEFAULT_ENV_FILE = Path("/Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/report/.env")
 OUTPUT_DIR = Path(__file__).parent / "probe_results"
 
@@ -72,12 +71,21 @@ CASES = [
     ),
     ProbeCase(
         name="open_iccat_policy",
-        query="What specific Total Allowable Catch quotas has ICCAT set for Eastern Atlantic and Mediterranean bluefin tuna for each year from 2022 to 2026, and what were the scientific basis and stock assessment results behind each decision?",
+        query=(
+            "What specific Total Allowable Catch quotas has ICCAT set for "
+            "Eastern Atlantic and Mediterranean bluefin tuna for each year "
+            "from 2022 to 2026, and what were the scientific basis and stock "
+            "assessment results behind each decision?"
+        ),
         max_pdf_pages=30,
     ),
     ProbeCase(
         name="open_venice_climate",
-        query="What are the projected sea level rise impacts on Venice specifically, including flood frequency projections and MOSE barrier effectiveness under different IPCC scenarios?",
+        query=(
+            "What are the projected sea level rise impacts on Venice "
+            "specifically, including flood frequency projections and MOSE "
+            "barrier effectiveness under different IPCC scenarios?"
+        ),
         max_pdf_pages=30,
     ),
     ProbeCase(
@@ -175,7 +183,8 @@ async def main() -> None:
     report: list[CaseResult] = []
 
     for case in cases:
-        logging.getLogger("web_scout.probe").info("diverse case: %s (%s)", case.name, "direct" if case.direct_url else "domain" if case.include_domains else "open")
+        mode = "direct" if case.direct_url else "domain" if case.include_domains else "open"
+        logging.getLogger("web_scout.probe").info("diverse case: %s (%s)", case.name, mode)
         report.append(await _run_case(case, args.search_backend, args.research_depth))
 
     output_dir = Path(args.output_dir)

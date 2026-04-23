@@ -4,8 +4,8 @@ import pytest
 
 from web_scout.tools import (
     ResearchTracker,
-    _ExtractorOutput,
     _classify_failure_action,
+    _ExtractorOutput,
     create_scrape_and_extract_tool,
 )
 
@@ -38,7 +38,14 @@ async def test_scrape_tool_reuses_inflight_request(monkeypatch):
             )
         )
 
-    monkeypatch.setattr(tools, "_build_extractor_agent", lambda *args, **kwargs: object())
+    async def _no_cleanup():
+        pass
+
+    monkeypatch.setattr(
+        tools,
+        "_build_extractor_agent",
+        lambda *args, **kwargs: (object(), _no_cleanup),
+    )
     monkeypatch.setattr(tools.Runner, "run", _fake_run)
 
     scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
@@ -63,7 +70,14 @@ async def test_scrape_tool_does_not_retry_bot_detected(monkeypatch):
     async def _unexpected_run(agent, input_text, max_turns=15):
         raise AssertionError("Runner.run should not be called for bot-detected URLs")
 
-    monkeypatch.setattr(tools, "_build_extractor_agent", lambda *args, **kwargs: object())
+    async def _no_cleanup():
+        pass
+
+    monkeypatch.setattr(
+        tools,
+        "_build_extractor_agent",
+        lambda *args, **kwargs: (object(), _no_cleanup),
+    )
     monkeypatch.setattr(tools.Runner, "run", _unexpected_run)
 
     scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
@@ -74,15 +88,15 @@ async def test_scrape_tool_does_not_retry_bot_detected(monkeypatch):
 
 
 def test_classify_failure_action_blocked_domain():
-    assert _classify_failure_action("Skipped: blocked domain", "") == "blocked_by_policy"
+    assert _classify_failure_action("Skipped: blocked domain") == "blocked_by_policy"
 
 
 def test_classify_failure_action_http_error():
-    assert _classify_failure_action("Skipped: HTTP 503", "") == "source_http_error"
+    assert _classify_failure_action("Skipped: HTTP 503") == "source_http_error"
 
 
 def test_classify_failure_action_irrelevant_page():
-    assert _classify_failure_action("[No relevant content found for this query]", "") == "scraped_irrelevant"
+    assert _classify_failure_action("[No relevant content found for this query]") == "scraped_irrelevant"
 
 
 def test_research_tracker_builds_new_failure_groups():
@@ -96,3 +110,53 @@ def test_research_tracker_builds_new_failure_groups():
     assert [entry.url for entry in groups["blocked_by_policy"]] == ["https://example.org/publisher"]
     assert [entry.url for entry in groups["source_http_error"]] == ["https://example.org/down"]
     assert [entry.url for entry in groups["scraped_irrelevant"]] == ["https://example.org/off-topic"]
+
+
+def test_research_tracker_exposes_public_lookup_api():
+    tracker = ResearchTracker()
+    url = "https://example.org/report?utm_source=test"
+    tracker.record_scrape(url, "Report", "Useful extracted content")
+
+    assert tracker.action_for(url) == "scraped"
+    assert tracker.entry_for(url).title == "Report"
+    assert tracker.count_for_action("scraped") == 1
+    assert tracker.is_unscraped_candidate(url) is False
+    assert "Already scraped" in tracker.cached_scrape_response(url)
+
+
+def test_research_tracker_records_direct_queries():
+    tracker = ResearchTracker()
+    tracker.record_direct_query("fish production")
+
+    assert len(tracker.queries) == 1
+    assert tracker.queries[0].query == "fish production"
+    assert tracker.queries[0].num_results_returned == 1
+
+
+@pytest.mark.asyncio
+async def test_scrape_tool_skips_new_urls_from_bot_blocked_domain(monkeypatch):
+    from web_scout import tools
+
+    tracker = ResearchTracker()
+    tracker.record_bot_detection("https://example.org/protected-a", "bot_detected: challenge page")
+    tracker.record_bot_detection("https://example.org/protected-b", "bot_detected: challenge page")
+
+    async def _unexpected_run(agent, input_text, max_turns=15):
+        raise AssertionError("Runner.run should not be called for blocked domains")
+
+    async def _no_cleanup():
+        pass
+
+    monkeypatch.setattr(
+        tools,
+        "_build_extractor_agent",
+        lambda *args, **kwargs: (object(), _no_cleanup),
+    )
+    monkeypatch.setattr(tools.Runner, "run", _unexpected_run)
+
+    scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
+    result = await scrape_tool("https://example.org/new-page")
+
+    assert "domain blocked by bot protection" in result
+    assert "example.org" in result
+    assert tracker.bot_blocked_domains() == {"example.org"}

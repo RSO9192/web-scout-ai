@@ -21,6 +21,9 @@ import logging
 import mimetypes
 import os
 import re
+import threading
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Optional, Tuple
 from urllib.parse import unquote, urlparse
 from urllib.request import Request, urlopen
@@ -108,11 +111,40 @@ _VALIDATION_TIMEOUT = httpx.Timeout(20.0, connect=15.0)
 _DOCUMENT_DOWNLOAD_TIMEOUT = httpx.Timeout(45.0, connect=20.0)
 _URLLIB_DOWNLOAD_TIMEOUT = 45
 _PDF_DOWNLOAD_RETRIES = 2
+_PDF_DOCLING_CONVERTER = None
+_PDF_DOCLING_CONVERTER_LOCK = threading.Lock()
 
 
 def _quiet_browser_config(**overrides: Any) -> BrowserConfig:
     """Build a crawl4ai BrowserConfig that suppresses its own startup banners."""
     return BrowserConfig(verbose=False, **overrides)
+
+
+def _get_pdf_docling_converter():
+    """Return a shared Docling converter for the fast PDF configuration.
+
+    Reusing the same ``DocumentConverter`` lets Docling reuse its initialized
+    pipeline and heavy layout model across PDF calls.
+    """
+    global _PDF_DOCLING_CONVERTER
+    if _PDF_DOCLING_CONVERTER is not None:
+        return _PDF_DOCLING_CONVERTER
+
+    with _PDF_DOCLING_CONVERTER_LOCK:
+        if _PDF_DOCLING_CONVERTER is None:
+            from docling.datamodel.base_models import InputFormat
+            from docling.datamodel.pipeline_options import PdfPipelineOptions
+            from docling.document_converter import DocumentConverter, PdfFormatOption
+
+            opts = PdfPipelineOptions(
+                do_ocr=False,
+                do_table_structure=False,
+                force_backend_text=True,
+            )
+            _PDF_DOCLING_CONVERTER = DocumentConverter(
+                format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)}
+            )
+    return _PDF_DOCLING_CONVERTER
 
 
 # ---------------------------------------------------------------------------
@@ -277,24 +309,43 @@ def _trim_json_value(
 
 
 # Verdict constants
-_SKIP = "SKIP"
-_SCRAPE_HTML = "SCRAPE_HTML"   # static HTML — use HTTP crawler (fast)
-_SCRAPE_JS = "SCRAPE_JS"       # SPA/JS page — use full browser
-_SCRAPE_DOC = "SCRAPE_DOC"     # document — use docling
-_SCRAPE_JSON = "SCRAPE_JSON"   # structured JSON endpoint
-_SCRAPE_IMAGE = "SCRAPE_IMAGE" # image URL — use vision extraction
+class ScrapeStrategy(str, Enum):
+    """Normalized scrape strategies chosen during URL routing."""
+
+    SKIP = "SKIP"
+    HTML_FAST = "SCRAPE_HTML"
+    HTML_BROWSER = "SCRAPE_JS"
+    DOCUMENT = "SCRAPE_DOC"
+    JSON = "SCRAPE_JSON"
+    IMAGE = "SCRAPE_IMAGE"
 
 
-async def _validate_url(url: str, allowed_domains: Optional[frozenset] = None) -> Tuple[str, str]:
-    """Validate a URL before scraping.
+@dataclass(frozen=True)
+class ScrapePlan:
+    """Routing plan produced by URL validation before executing a scraper."""
 
-    Returns ``(verdict, detail)`` where verdict is one of:
-    ``SKIP``, ``SCRAPE_HTML``, ``SCRAPE_JS``, ``SCRAPE_DOC``.
-    """
+    strategy: ScrapeStrategy
+    reason: str
+
+    @property
+    def likely_bot_detected(self) -> bool:
+        return self.strategy == ScrapeStrategy.HTML_BROWSER and "GET timed out" in self.reason
+
+
+_SKIP = ScrapeStrategy.SKIP
+_SCRAPE_HTML = ScrapeStrategy.HTML_FAST
+_SCRAPE_JS = ScrapeStrategy.HTML_BROWSER
+_SCRAPE_DOC = ScrapeStrategy.DOCUMENT
+_SCRAPE_JSON = ScrapeStrategy.JSON
+_SCRAPE_IMAGE = ScrapeStrategy.IMAGE
+
+
+async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = None) -> ScrapePlan:
+    """Build a scrape routing plan for a URL before running any heavy extractor."""
     if _is_blocked_domain(url, allowed_domains=allowed_domains):
-        return _SKIP, "blocked domain"
+        return ScrapePlan(ScrapeStrategy.SKIP, "blocked domain")
     if _looks_like_document_resource(url):
-        return _SCRAPE_DOC, "document-by-url"
+        return ScrapePlan(ScrapeStrategy.DOCUMENT, "document-by-url")
 
     try:
         async with httpx.AsyncClient(
@@ -310,43 +361,43 @@ async def _validate_url(url: str, allowed_domains: Optional[frozenset] = None) -
                 status = head.status_code
                 # 405 Method Not Allowed, 501 Not Implemented, 403 Forbidden might just mean HEAD is disabled
                 if status >= 400 and status not in (405, 501, 403):
-                    return _SKIP, f"HTTP {status}"
+                    return ScrapePlan(ScrapeStrategy.SKIP, f"HTTP {status}")
 
                 ct = _normalize_content_type(head.headers.get("content-type", ""))
                 cd = head.headers.get("content-disposition", "")
 
                 if _looks_like_document_resource(url, ct, cd):
-                    return _SCRAPE_DOC, ct
+                    return ScrapePlan(ScrapeStrategy.DOCUMENT, ct)
                 if any(ct.startswith(t) for t in _JSON_CONTENT_TYPES):
-                    return _SCRAPE_JSON, ct
+                    return ScrapePlan(ScrapeStrategy.JSON, ct)
                 if any(ct.startswith(t) for t in _IMAGE_CONTENT_TYPES):
-                    return _SCRAPE_IMAGE, ct
+                    return ScrapePlan(ScrapeStrategy.IMAGE, ct)
                 if any(ct.startswith(t) for t in _BINARY_CONTENT_TYPES):
-                    return _SKIP, f"binary content-type: {ct}"
+                    return ScrapePlan(ScrapeStrategy.SKIP, f"binary content-type: {ct}")
 
             # Step 2: fast GET for HTML content analysis
             try:
                 resp = await client.get(url)
             except httpx.TimeoutException:
                 # Server is slow but reachable — let the browser (longer timeout) try
-                return _SCRAPE_JS, "GET timed out — attempting browser scrape"
+                return ScrapePlan(ScrapeStrategy.HTML_BROWSER, "GET timed out — attempting browser scrape")
             except Exception as e:
-                return _SKIP, f"GET failed: {type(e).__name__}"
+                return ScrapePlan(ScrapeStrategy.SKIP, f"GET failed: {type(e).__name__}")
 
             if resp.status_code >= 400:
-                return _SKIP, f"HTTP {resp.status_code} on GET"
+                return ScrapePlan(ScrapeStrategy.SKIP, f"HTTP {resp.status_code} on GET")
 
             final_ct = _normalize_content_type(resp.headers.get("content-type", ""))
             final_cd = resp.headers.get("content-disposition", "")
 
             if _looks_like_document_resource(url, final_ct, final_cd):
-                return _SCRAPE_DOC, final_ct
+                return ScrapePlan(ScrapeStrategy.DOCUMENT, final_ct)
             if any(final_ct.startswith(t) for t in _JSON_CONTENT_TYPES) or _is_json(resp.text):
-                return _SCRAPE_JSON, final_ct or "json-by-body-sniff"
+                return ScrapePlan(ScrapeStrategy.JSON, final_ct or "json-by-body-sniff")
             if any(final_ct.startswith(t) for t in _IMAGE_CONTENT_TYPES):
-                return _SCRAPE_IMAGE, final_ct
+                return ScrapePlan(ScrapeStrategy.IMAGE, final_ct)
             if any(final_ct.startswith(t) for t in _BINARY_CONTENT_TYPES):
-                return _SKIP, f"binary on GET: {final_ct}"
+                return ScrapePlan(ScrapeStrategy.SKIP, f"binary on GET: {final_ct}")
 
             # Analyse HTML content
             html = resp.text
@@ -360,42 +411,48 @@ async def _validate_url(url: str, allowed_domains: Optional[frozenset] = None) -
             if text_chars < 150:
                 # Small SPA shell → needs JS rendering
                 if size < 8000 and script_tags >= 2:
-                    return _SCRAPE_JS, f"SPA shell ({size} chars, {script_tags} scripts)"
+                    return ScrapePlan(ScrapeStrategy.HTML_BROWSER, f"SPA shell ({size} chars, {script_tags} scripts)")
                 if _looks_like_auth_wall(lower):
-                    return _SKIP, f"auth/paywall wall ({text_chars} text chars from {size} chars HTML)"
+                    return ScrapePlan(ScrapeStrategy.SKIP, f"auth/paywall wall ({text_chars} text chars from {size} chars HTML)")
                 if _looks_like_metadata_page(html):
-                    return _SCRAPE_HTML, f"short metadata page ({text_chars} text chars from {size} chars HTML)"
+                    return ScrapePlan(ScrapeStrategy.HTML_FAST, f"short metadata page ({text_chars} text chars from {size} chars HTML)")
                 # Short pages can still be useful if the extractor needs to inspect links.
-                return _SCRAPE_HTML, f"short static HTML ({text_chars} text chars from {size} chars HTML)"
+                return ScrapePlan(ScrapeStrategy.HTML_FAST, f"short static HTML ({text_chars} text chars from {size} chars HTML)")
 
             # Larger SPA shell: reasonable HTML size but almost no real text
             if text_chars < 300 and script_tags >= 3:
-                return _SCRAPE_JS, f"likely SPA ({size} chars HTML, {text_chars} text chars)"
+                return ScrapePlan(ScrapeStrategy.HTML_BROWSER, f"likely SPA ({size} chars HTML, {text_chars} text chars)")
 
             # Heavy JS app with low text density (e.g. Angular/React with nav-only static shell)
             # 28+ scripts and <6% text density is a reliable SPA signal even with nav text present
             if script_tags >= 15 and text_chars / size < 0.06:
-                return _SCRAPE_JS, f"likely SPA (density {text_chars/size:.1%}, {script_tags} scripts)"
+                return ScrapePlan(ScrapeStrategy.HTML_BROWSER, f"likely SPA (density {text_chars/size:.1%}, {script_tags} scripts)")
 
             # Soft 404 check
             title_match = re.search(r"<title[^>]*>(.*?)</title>", html, flags=re.IGNORECASE | re.DOTALL)
             title_text = title_match.group(1).lower() if title_match else ""
             if "404" in title_text and ("not found" in title_text or "error" in title_text):
-                return _SKIP, "soft 404 in title"
+                return ScrapePlan(ScrapeStrategy.SKIP, "soft 404 in title")
 
             if text_chars < 1000 and any(
                 p in lower
                 for p in ["page not found", "404 error", "does not exist", "no longer available"]
             ):
-                return _SKIP, "soft 404 in content"
+                return ScrapePlan(ScrapeStrategy.SKIP, "soft 404 in content")
 
-            return _SCRAPE_HTML, f"static HTML ({size} chars, {text_chars} text chars)"
+            return ScrapePlan(ScrapeStrategy.HTML_FAST, f"static HTML ({size} chars, {text_chars} text chars)")
 
     except httpx.TimeoutException:
-        return _SKIP, "timeout during validation"
+        return ScrapePlan(ScrapeStrategy.SKIP, "timeout during validation")
     except Exception as e:
         # If validation itself fails, let the scraper try anyway
-        return _SCRAPE_JS, f"validation error ({e}) — attempting browser scrape"
+        return ScrapePlan(ScrapeStrategy.HTML_BROWSER, f"validation error ({e}) — attempting browser scrape")
+
+
+async def _validate_url(url: str, allowed_domains: Optional[frozenset] = None) -> Tuple[str, str]:
+    """Compatibility wrapper returning the legacy ``(verdict, detail)`` tuple."""
+    plan = await _build_scrape_plan(url, allowed_domains=allowed_domains)
+    return plan.strategy, plan.reason
 
 
 # ---------------------------------------------------------------------------
@@ -857,22 +914,13 @@ async def _scrape_document(url: str, query: str = "", vision_model: Optional[str
         if error:
             return "", "", error
 
-        from docling.datamodel.pipeline_options import PdfPipelineOptions
-        from docling.document_converter import DocumentConverter, PdfFormatOption
         from docling_core.types.io import DocumentStream
 
         def _convert_fast(pdf_bytes: bytes = pdf_bytes):
             import gc
             import io as _io
 
-            opts = PdfPipelineOptions(
-                do_ocr=False,
-                do_table_structure=False,
-                force_backend_text=True,
-            )
-            converter = DocumentConverter(
-                format_options={"pdf": PdfFormatOption(pipeline_options=opts)}
-            )
+            converter = _get_pdf_docling_converter()
             filename = url.rsplit("/", 1)[-1].split("?")[0] or "document.pdf"
             source = DocumentStream(name=filename, stream=_io.BytesIO(pdf_bytes))
             result = converter.convert(
@@ -884,7 +932,6 @@ async def _scrape_document(url: str, query: str = "", vision_model: Optional[str
             # Explicit deletion + gc.collect() enforces that order.
             markdown = result.document.export_to_markdown()
             del result
-            del converter
             gc.collect()
             return markdown
 
@@ -933,13 +980,11 @@ async def scrape_url(
 ) -> Tuple[str, str, Optional[str]]:
     """Scrape a URL and return clean markdown content.
 
-    Validates the URL first (HEAD + fast GET), then routes to:
-    - ``SCRAPE_HTML``  → ``_scrape_html_fast`` (HTTP strategy, no browser)
-    - ``SCRAPE_JS``    → ``_scrape_html_browser`` (full Playwright browser)
-    - ``SCRAPE_DOC``   → ``_scrape_document`` (docling)
-    - ``SCRAPE_JSON``  → ``_scrape_json`` (structured JSON)
-    - ``SCRAPE_IMAGE`` → ``_scrape_image`` (vision extraction)
-    - ``SKIP``         → returns error immediately, no scraping
+    The routing flow is:
+
+    1. Build a ``ScrapePlan`` from cheap validation (HEAD + fast GET).
+    2. Execute the handler chosen by the plan's strategy.
+    3. Normalize bot-detection, empty-content, and truncation behavior.
 
     Args:
         url: The URL to scrape.
@@ -953,38 +998,34 @@ async def scrape_url(
     Returns:
         Tuple of ``(markdown_content, page_title, error_or_none)``.
     """
-    # Validate first
-    verdict, detail = await _validate_url(url, allowed_domains=allowed_domains)
+    plan = await _build_scrape_plan(url, allowed_domains=allowed_domains)
 
-    if verdict == _SKIP:
-        return "", "", f"Skipped: {detail}"
-
-    # Flag: plain-HTTP timed out + browser path used = Akamai/Cloudflare tarpit pattern
-    _likely_bot = verdict == _SCRAPE_JS and "GET timed out" in detail
+    if plan.strategy == ScrapeStrategy.SKIP:
+        return "", "", f"Skipped: {plan.reason}"
 
     try:
-        if verdict == _SCRAPE_DOC:
+        if plan.strategy == ScrapeStrategy.DOCUMENT:
             content, title, error = await _scrape_document(url, query=query, vision_model=vision_model, max_pdf_pages=max_pdf_pages)
-        elif verdict == _SCRAPE_JSON:
+        elif plan.strategy == ScrapeStrategy.JSON:
             content, title, error = await _scrape_json(url)
-        elif verdict == _SCRAPE_IMAGE:
+        elif plan.strategy == ScrapeStrategy.IMAGE:
             content, title, error = await _scrape_image(url, query=query, vision_model=vision_model)
-        elif verdict == _SCRAPE_HTML:
+        elif plan.strategy == ScrapeStrategy.HTML_FAST:
             content, title, error = await _scrape_html_fast(url, query=query, vision_model=vision_model)
-        else:  # SCRAPE_JS
+        else:
             content, title, error = await _scrape_html_browser(url, wait_for, query=query, vision_model=vision_model)
     except Exception as e:
         logger.error("[scrape] failed %s: %s", url, e)
         return "", "", str(e)
 
     if error:
-        if _likely_bot:
+        if plan.likely_bot_detected:
             logger.info("[scrape] bot_detected %s", url)
             return "", title or "", f"bot_detected: {error}"
         return "", title or "", error
 
     if not content.strip():
-        if _likely_bot:
+        if plan.likely_bot_detected:
             logger.info("[scrape] bot_detected %s", url)
             return "", title or "", "bot_detected: Browser loaded page but returned empty content"
         return "", title or "", "Extraction returned empty content"

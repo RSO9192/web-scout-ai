@@ -1,0 +1,51 @@
+[
+  {
+    "query": "Kenya interannual variability and long-term trends in precipitation current status and recent trend",
+    "elapsed_seconds": 110.47,
+    "num_queries": 3,
+    "num_scraped": 5,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4251,
+    "error": null,
+    "search_queries": [
+      "Kenya interannual variability long-term trends precipitation current status recent trend",
+      "Kenya rainfall interannual variability trend analysis precipitation long-term change recent studies",
+      "Kenya precipitation variability and trend current status annual rainfall interannual long-term observations"
+    ],
+    "scraped": [
+      {
+        "url": "https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical",
+        "title": "Kenya - Trends & Variability (ERA5) | Climate Change Knowledge Portal",
+        "content_chars": 2562,
+        "preview": "Kenya's precipitation is characterized by high interannual variability and a lack of a clear, statistically significant long-term trend compared to temperature. ### Interannual Variability and Natural Forcing * **Nature of Variability:** Pr"
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/",
+        "title": "Observations of enhanced rainfall variability in Kenya, East Africa - PMC",
+        "content_chars": 3005,
+        "preview": "The study analyzed Kenya's rainfall patterns from 1981 to 2021 at both national and county levels, revealing significant shifts in variability and extreme events. ### Current Status and Recent Trends - **Increased Variability:** Seasonal an"
+      },
+      {
+        "url": "https://www.nature.com/articles/s41598-019-47933-8",
+        "title": "Long-term trends in rainfall and temperature using high-resolution climate datasets in East Africa | Scientific Reports",
+        "content_chars": 2633,
+        "preview": "According to the study (based on high-resolution gridded CHIRPS data from 1981\u20132016), the interannual variability and long-term precipitation trends in Kenya are characterized by significant regional differences and seasonal shifts: ### 1. "
+      },
+      {
+        "url": "https://legacy.geog.ucsb.edu/current-climate-trend-analysis-of-kenya-by-chris-funk/",
+        "title": "Current Climate Trend Analysis of Kenya by Chris Funk (USGS Fact Sheet 2010-3074)",
+        "content_chars": 2942,
+        "preview": "Detailed climate trend analysis for Kenya indicates significant long-term drying and warming, particularly during the critical 'long rains' season (March through June - MAMJ). ### 1. Precipitation Trends (1960\u20132009 and projections to 2025) "
+      },
+      {
+        "url": "https://climateknowledgeportal.worldbank.org/country/kenya/climate-data-historical",
+        "title": "Kenya - Climatology (CRU) | Climate Change Knowledge Portal",
+        "content_chars": 2343,
+        "preview": "Kenya's precipitation and temperature trends are monitored through historical data (1901-2020/2024) and climatological averages (1991-2020). ### Interannual Variability and Drivers - **Primary Drivers:** Year-to-year fluctuations in Kenya's"
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  }
+]
