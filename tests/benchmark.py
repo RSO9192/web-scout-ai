@@ -13,9 +13,8 @@ Requires:
 
 import asyncio
 import json
-import os
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -34,11 +33,24 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 # Queries to benchmark — edit or extend as needed
 BENCHMARK_QUERIES = [
     # Specific data buried in technical reports/PDFs
-    "What are the projected sea level rise impacts on Venice specifically, including flood frequency projections and MOSE barrier effectiveness under different IPCC scenarios?",
+    (
+        "What are the projected sea level rise impacts on Venice specifically, "
+        "including flood frequency projections and MOSE barrier effectiveness "
+        "under different IPCC scenarios?"
+    ),
     # Requires reading actual legal/policy documents for specific provisions
-    "What specific Total Allowable Catch quotas has ICCAT set for Eastern Atlantic and Mediterranean bluefin tuna for each year from 2022 to 2026, and what were the scientific basis and stock assessment results behind each decision?",
+    (
+        "What specific Total Allowable Catch quotas has ICCAT set for Eastern "
+        "Atlantic and Mediterranean bluefin tuna for each year from 2022 to "
+        "2026, and what were the scientific basis and stock assessment results "
+        "behind each decision?"
+    ),
     # Cross-referencing multiple technical sources with specific quantitative data
-    "What is the current deforestation rate in the Brazilian Cerrado biome, what are the main commodity drivers, and what specific enforcement actions has IBAMA taken in the last two years?",
+    (
+        "What is the current deforestation rate in the Brazilian Cerrado biome, "
+        "what are the main commodity drivers, and what specific enforcement "
+        "actions has IBAMA taken in the last two years?"
+    ),
 ]
 
 # web-scout-ai models (adjust to your available provider)
@@ -52,10 +64,10 @@ WEB_SCOUT_MODELS = {
 WEB_SCOUT_BACKEND = "serper"
 
 # OpenAI model for web search comparison
-OPENAI_MODEL = "gpt-5.4"
+OPENAI_MODEL = "gpt-5.4-mini"
 
 # LLM judge model (evaluates both outputs)
-JUDGE_MODEL = "gpt-5.4"
+JUDGE_MODEL = "gpt-5.4-mini"
 
 # Output directory
 OUTPUT_DIR = Path(__file__).parent / "benchmark_results"
@@ -174,7 +186,7 @@ class OpenAIWebSearchOutput(BaseModel):
 
 
 async def run_openai_websearch(query: str) -> ToolResult:
-    from agents import Agent, Runner, WebSearchTool, ModelSettings
+    from agents import Agent, ModelSettings, Runner, WebSearchTool
 
     agent = Agent(
         name="openai_web_researcher",
@@ -323,7 +335,11 @@ async def evaluate_result(result: ToolResult) -> Evaluation:
                     scores[key] = int(m.group(1))
             if not scores:
                 raise
-        print(f"  [judge] {result.tool}: relevance={scores['url_relevance']} comprehensiveness={scores['tailored_comprehensiveness']} synthesis={scores['synthesis_quality']}")
+        print(
+            f"  [judge] {result.tool}: relevance={scores['url_relevance']} "
+            f"comprehensiveness={scores['tailored_comprehensiveness']} "
+            f"synthesis={scores['synthesis_quality']}"
+        )
         return Evaluation(
             url_relevance=scores["url_relevance"],
             url_relevance_rationale=scores.get("url_relevance_rationale", ""),
@@ -353,8 +369,14 @@ def build_markdown_report(results: list[ToolResult], queries: list[str]) -> str:
 
     # Summary table
     lines.append("## Summary\n")
-    lines.append("| Query | Tool | Sources | Time (s) | Ans. Len | URL Relevance | Tailored Compreh. | Synthesis | Overall |")
-    lines.append("|-------|------|---------|----------|----------|---------------|-------------------|-----------|---------|")
+    lines.append(
+        "| Query | Tool | Sources | Time (s) | Ans. Len | URL Relevance "
+        "| Tailored Compreh. | Synthesis | Overall |"
+    )
+    lines.append(
+        "|-------|------|---------|----------|----------|---------------"
+        "|-------------------|-----------|---------|"
+    )
 
     by_query = {}
     for r in results:
@@ -387,7 +409,11 @@ def build_markdown_report(results: list[ToolResult], queries: list[str]) -> str:
             ev = r.evaluation or Evaluation()
             lines.append(f"- **Time:** {r.elapsed_seconds}s")
             lines.append(f"- **Sources:** {r.num_sources}")
-            lines.append(f"- **Scores:** URL Relevance {ev.url_relevance}/5 | Tailored Comprehensiveness {ev.tailored_comprehensiveness}/5 | Synthesis {ev.synthesis_quality}/5 | **Overall {ev.overall}/5**")
+            lines.append(
+                f"- **Scores:** URL Relevance {ev.url_relevance}/5 | Tailored "
+                f"Comprehensiveness {ev.tailored_comprehensiveness}/5 | "
+                f"Synthesis {ev.synthesis_quality}/5 | **Overall {ev.overall}/5**"
+            )
             lines.append(f"- **URL Relevance:** {ev.url_relevance_rationale}")
             lines.append(f"- **Tailored Comprehensiveness:** {ev.tailored_comprehensiveness_rationale}")
             lines.append(f"- **Synthesis Quality:** {ev.synthesis_quality_rationale}")
@@ -437,8 +463,16 @@ async def main():
         ws_result.evaluation = ws_eval
         oai_result.evaluation = oai_eval
 
-        print(f"  web-scout-ai:     relevance={ws_eval.url_relevance}/5  comprehensiveness={ws_eval.tailored_comprehensiveness}/5  synthesis={ws_eval.synthesis_quality}/5  overall={ws_eval.overall}/5")
-        print(f"  openai-websearch: relevance={oai_eval.url_relevance}/5  comprehensiveness={oai_eval.tailored_comprehensiveness}/5  synthesis={oai_eval.synthesis_quality}/5  overall={oai_eval.overall}/5")
+        print(
+            f"  web-scout-ai:     relevance={ws_eval.url_relevance}/5  "
+            f"comprehensiveness={ws_eval.tailored_comprehensiveness}/5  "
+            f"synthesis={ws_eval.synthesis_quality}/5  overall={ws_eval.overall}/5"
+        )
+        print(
+            f"  openai-websearch: relevance={oai_eval.url_relevance}/5  "
+            f"comprehensiveness={oai_eval.tailored_comprehensiveness}/5  "
+            f"synthesis={oai_eval.synthesis_quality}/5  overall={oai_eval.overall}/5"
+        )
         print()
 
         all_results.extend([ws_result, oai_result])
@@ -464,7 +498,7 @@ async def main():
     with open(md_path, "w") as f:
         f.write(report)
 
-    print(f"Results saved to:")
+    print("Results saved to:")
     print(f"  {json_path}")
     print(f"  {md_path}")
 

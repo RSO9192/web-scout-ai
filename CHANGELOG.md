@@ -6,6 +6,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-04-23
+
+### Added
+
+- **SPA/form-contamination detection**: two new detectors — `_has_fragment` (identifies SPA URLs with hash-based routing) and `_is_form_contaminated` (identifies pages that are survey/nav-only with no substantive content) — prevent the extractor from wasting a scrape slot on pages that can never yield research value.
+- **Interactive browser navigation**: the content extractor can now follow SPA routes and interact with page elements during extraction, enabling access to JS-rendered content that previously returned empty or thin results.
+- **Quality probe script**: `tests/quality_probe.py` provides a reusable benchmark for manual quality assessment across a diverse query matrix.
+- **Comprehensive test suite**: new test modules covering search backends, agent helpers, full pipeline, live scraping, SPA/form detection, interactive tools, and coverage grounding.
+
+### Changed
+
+- **Pipeline concurrency raised**: `max_concurrent` default increased from 3 to 6, roughly halving wall-clock time on multi-source queries.
+- **Shared document cache**: `scrape_linked_document` now uses a process-level cache keyed on URL, eliminating duplicate fetches when the same linked document appears across multiple search results.
+- **Extractor instructions extended**: the extractor LLM is now instructed to react to SPA and form-contamination signals injected into the raw scrape output, improving routing decisions without requiring a second scrape pass.
+- **Hardened evaluator prompt**: coverage evaluation instructions tightened to reduce false positives on thin or bot-blocked source sets.
+- **Improved bot-detection rules**: additional heuristics added to detect and classify bot-blocked responses more reliably.
+
+### Removed
+
+- **DuckDuckGo search backend**: `DuckDuckGoBackend` and its dependency are removed. The backend was already flagged as development/fallback-only since v0.9.4. `SearchBackend` is now an open extension point for community contributions.
+
 ## [1.0.5]
 
 ### Changed

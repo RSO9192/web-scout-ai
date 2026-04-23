@@ -7,15 +7,14 @@ sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from quality_benchmark import (
+    Evaluation,
     FailureEntry,
+    ToolResult,
     avg_content_depth,
     build_failure_table,
     build_source_previews,
     build_summary_row,
-    Evaluation,
-    ToolResult,
 )
-
 
 # ---------------------------------------------------------------------------
 # avg_content_depth

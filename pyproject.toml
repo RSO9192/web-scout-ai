@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "web-scout-ai"
-version = "1.0.5"
+version = "1.1.0"
 description = "Agentic web research tool — smarter than search, faster than deep research. Search, scrape, and synthesize web content using LLMs."
 authors = ["Riccardo Soldan"]
 license = "MIT"

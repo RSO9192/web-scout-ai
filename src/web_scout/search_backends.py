@@ -1,10 +1,18 @@
 """Pluggable search backends for web discovery.
 
-Provides a ``SearchBackend`` ABC with two concrete implementations:
+Provides a ``SearchBackend`` ABC with one concrete implementation:
 
-- ``DuckDuckGoBackend`` — zero-config, no API key needed
-- ``SerperBackend``     — Google-quality results via serper.dev
-                          (requires ``SERPER_API_KEY`` env var)
+- ``SerperBackend`` — Google-quality results via serper.dev
+                      (requires ``SERPER_API_KEY`` env var)
+
+Adding a new backend
+--------------------
+1. Subclass ``SearchBackend`` and implement the ``search()`` coroutine.
+2. Return a ``SearchResponse`` (results, related_searches, and optionally
+   people_also_ask / knowledge_graph).
+3. Accept ``search_backend="your_name"`` in ``run_research_pipeline()``
+   (agent.py) and instantiate your class in the backend-selection block.
+4. Open a pull request — contributions welcome!
 """
 
 from __future__ import annotations
@@ -14,7 +22,6 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
-from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +67,11 @@ class SearchResponse:
 
 
 class SearchBackend(abc.ABC):
-    """Abstract interface for web search backends."""
+    """Abstract interface for web search backends.
+
+    To contribute a new backend: subclass this, implement ``search()``,
+    and wire it into the backend-selection block in ``agent.py``.
+    """
 
     @abc.abstractmethod
     async def search(
@@ -70,103 +81,6 @@ class SearchBackend(abc.ABC):
         include_domains: Optional[List[str]] = None,
     ) -> SearchResponse:
         ...
-
-
-def _domain_matches(url: str, allowed_domains: List[str]) -> bool:
-    """Check if a URL's domain ends with one of the allowed domains."""
-    netloc = urlparse(url).netloc.lower()
-    return any(netloc == d or netloc.endswith(f".{d}") for d in allowed_domains)
-
-
-class DuckDuckGoBackend(SearchBackend):
-    """Meta-search via the ``duckduckgo-search`` library.
-
-    Zero-config — no API key needed.  Uses the ``site:`` operator for
-    domain filtering plus post-filtering to ensure strictness.
-    Retries with exponential backoff on rate-limit errors.
-    """
-
-    _MAX_RETRIES = 3
-    _BASE_DELAY = 1.0  # seconds
-
-    async def search(
-        self,
-        query: str,
-        max_results: int = 5,
-        include_domains: Optional[List[str]] = None,
-    ) -> SearchResponse:
-        from duckduckgo_search import DDGS
-
-        effective_query = query
-        if include_domains:
-            site_clause = " OR ".join(f"site:{d}" for d in include_domains)
-            effective_query = f"({site_clause}) {query}"
-
-        # Request extra results when filtering, since some may be stripped
-        fetch_count = max_results * 3 if include_domains else max_results
-
-        def _sync_search() -> list:
-            return list(DDGS().text(effective_query, max_results=fetch_count))
-
-        raw: list = []
-        for attempt in range(self._MAX_RETRIES):
-            try:
-                raw = await asyncio.to_thread(_sync_search)
-                break
-            except Exception as exc:
-                is_rate_limit = "ratelimit" in type(exc).__name__.lower()
-                if is_rate_limit and attempt < self._MAX_RETRIES - 1:
-                    delay = self._BASE_DELAY * (2**attempt)
-                    logger.warning(
-                        "DuckDuckGo rate-limited (attempt %d/%d), "
-                        "retrying in %.1fs",
-                        attempt + 1,
-                        self._MAX_RETRIES,
-                        delay,
-                    )
-                    await asyncio.sleep(delay)
-                else:
-                    logger.error("DuckDuckGo search failed: %s", exc)
-                    raise
-
-        results = [
-            SearchResult(
-                title=r.get("title", "Untitled"),
-                url=r.get("href", ""),
-                snippet=r.get("body", ""),
-            )
-            for r in raw
-            if r.get("href")
-        ]
-
-        if include_domains:
-            domains_lower = [d.lower() for d in include_domains]
-            results = [r for r in results if _domain_matches(r.url, domains_lower)]
-
-        # Quality guard: warn when results look off-topic (no query keyword overlaps).
-        # ddgs>=9.x ("Dux Distributed") is known to return irrelevant results from
-        # aggregated engines when rate-limited or when Bing result parsing fails.
-        if results and query:
-            query_words = {w.lower() for w in query.split() if len(w) > 3}
-            on_topic = [
-                r for r in results
-                if any(w in (r.title + " " + r.snippet).lower() for w in query_words)
-            ]
-            if on_topic:
-                results = on_topic
-            else:
-                logger.warning(
-                    "[DuckDuckGo] all %d result(s) appear off-topic for query %r — "
-                    "this is a known ddgs>=9.0 issue. Consider using search_backend='serper'.",
-                    len(results), query[:80],
-                )
-                results = []
-
-        # DuckDuckGo doesn't provide related searches, PAA, or KG
-        return SearchResponse(
-            results=results[:max_results],
-            related_searches=[],
-        )  # people_also_ask and knowledge_graph default to empty
 
 
 class SerperBackend(SearchBackend):

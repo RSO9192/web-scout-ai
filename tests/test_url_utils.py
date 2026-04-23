@@ -166,40 +166,40 @@ def test_rank_followup_candidates_rejects_paginated_indexes_and_off_query_docs()
 def test_normalize_url_strips_utm_source():
     base = "https://example.com/page"
     with_utm = "https://example.com/page?utm_source=google"
-    assert ResearchTracker._normalize_url(with_utm) == ResearchTracker._normalize_url(base)
+    assert ResearchTracker.normalize_url(with_utm) == ResearchTracker.normalize_url(base)
 
 
 def test_normalize_url_strips_multiple_tracking_params():
     url = "https://example.com/page?utm_source=google&utm_medium=email&utm_campaign=spring"
-    assert ResearchTracker._normalize_url(url) == "https://example.com/page"
+    assert ResearchTracker.normalize_url(url) == "https://example.com/page"
 
 
 def test_normalize_url_preserves_non_tracking_params():
     url = "https://wocat.net/en/database/list/?type=technology&country=ke"
-    normalized = ResearchTracker._normalize_url(url)
+    normalized = ResearchTracker.normalize_url(url)
     assert "type=technology" in normalized
     assert "country=ke" in normalized
 
 
 def test_normalize_url_strips_fbclid():
     url = "https://example.com/article?fbclid=IwAR123"
-    assert ResearchTracker._normalize_url(url) == "https://example.com/article"
+    assert ResearchTracker.normalize_url(url) == "https://example.com/article"
 
 
 def test_normalize_url_mixed_tracking_and_real_params():
     url = "https://example.com/search?q=test&utm_source=google&page=2"
-    normalized = ResearchTracker._normalize_url(url)
+    normalized = ResearchTracker.normalize_url(url)
     assert "q=test" in normalized
     assert "page=2" in normalized
     assert "utm_source" not in normalized
 
 
 def test_normalize_url_http_to_https():
-    assert ResearchTracker._normalize_url("http://example.com/page") == "https://example.com/page"
+    assert ResearchTracker.normalize_url("http://example.com/page") == "https://example.com/page"
 
 
 def test_normalize_url_trailing_slash_stripped():
-    assert ResearchTracker._normalize_url("https://example.com/page/") == "https://example.com/page"
+    assert ResearchTracker.normalize_url("https://example.com/page/") == "https://example.com/page"
 
 
 def test_is_blocked_domain_reddit_blocked_by_default():
@@ -236,21 +236,21 @@ def test_is_blocked_domain_allowed_set_empty_uses_full_blocklist():
 def test_normalize_url_preserves_empty_query():
     url = "https://example.com/page?"
     # Trailing ? should not leave a hanging separator
-    normalized = ResearchTracker._normalize_url(url)
+    normalized = ResearchTracker.normalize_url(url)
     assert normalized == "https://example.com/page"
 
 
 def test_normalize_url_idempotent():
     url = "https://example.com/page?type=tech&country=ke"
-    assert ResearchTracker._normalize_url(url) == ResearchTracker._normalize_url(
-        ResearchTracker._normalize_url(url)
+    assert ResearchTracker.normalize_url(url) == ResearchTracker.normalize_url(
+        ResearchTracker.normalize_url(url)
     )
 
 
 def test_normalize_url_fragment_stripped():
     # urlunparse already omits fragment (last component is "")
     url = "https://example.com/page"
-    assert "#" not in ResearchTracker._normalize_url(url)
+    assert "#" not in ResearchTracker.normalize_url(url)
 
 
 # --- Additional _is_blocked_domain coverage ---

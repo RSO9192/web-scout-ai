@@ -1,0 +1,23 @@
+$ ruff check src tests
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_pipeline_speed.py:3:1
+   |
+ 1 |   """Tests for pipeline speed optimisations."""
+ 2 |
+ 3 | / from unittest.mock import AsyncMock, patch
+ 4 | |
+ 5 | | import pytest
+ 6 | | from agents.tool import ToolContext
+ 7 | |
+ 8 | | from web_scout import agent as _agent_module
+ 9 | | from web_scout import scraping as _scraping_module
+10 | | from web_scout.agent import SearchIterationResult, _run_search_mode
+11 | | from web_scout.tools import ResearchTracker
+12 | | from web_scout.tools import _build_extractor_agent
+   | |__________________________________________________^
+   |
+help: Organize imports
+
+Found 1 error.
+[*] 1 fixable with the `--fix` option.

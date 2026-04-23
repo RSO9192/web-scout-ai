@@ -1,5 +1,5 @@
 """Unit tests for hub-page detection helpers."""
-import pytest
+from web_scout.agent import _find_next_page_url
 from web_scout.tools import _ExtractorOutput
 
 
@@ -17,10 +17,6 @@ def test_relevant_links_accepts_up_to_15():
     links = [f"https://example.com/{i}" for i in range(15)]
     out = _ExtractorOutput(relevant_content="x", relevant_links=links)
     assert len(out.relevant_links) == 15
-
-
-from web_scout.agent import _find_next_page_url
-
 
 def test_find_next_page_url_next_token():
     content = "Some content [Next](https://wocat.net/page/2) more content"
