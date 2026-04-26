@@ -1,11 +1,11 @@
 # `web-scout-ai`
 
-web-scout-ai logo
+![web-scout-ai logo](assets/web-scout-logo.svg)
 
-[PyPI Version](https://pypi.org/project/web-scout-ai/)
-[PyPI Downloads per Month](https://pypi.org/project/web-scout-ai/)
-[Python Versions](https://pypi.org/project/web-scout-ai/)
-[License](LICENSE)
+[![PyPI Version](https://img.shields.io/pypi/v/web-scout-ai)](https://pypi.org/project/web-scout-ai/)
+[![PyPI Downloads per Month](https://img.shields.io/pypi/dm/web-scout-ai)](https://pypi.org/project/web-scout-ai/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/web-scout-ai)](https://pypi.org/project/web-scout-ai/)
+[![License](https://img.shields.io/github/license/RSO9192/web-scout-ai)](LICENSE)
 
 **AI-powered web research in one async call.**
 
