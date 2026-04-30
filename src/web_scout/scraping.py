@@ -326,6 +326,8 @@ class ScrapePlan:
 
     strategy: ScrapeStrategy
     reason: str
+    content_type: str = ""
+    content_disposition: str = ""
 
     @property
     def likely_bot_detected(self) -> bool:
@@ -367,7 +369,7 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
                 cd = head.headers.get("content-disposition", "")
 
                 if _looks_like_document_resource(url, ct, cd):
-                    return ScrapePlan(ScrapeStrategy.DOCUMENT, ct)
+                    return ScrapePlan(ScrapeStrategy.DOCUMENT, ct, ct, cd)
                 if any(ct.startswith(t) for t in _JSON_CONTENT_TYPES):
                     return ScrapePlan(ScrapeStrategy.JSON, ct)
                 if any(ct.startswith(t) for t in _IMAGE_CONTENT_TYPES):
@@ -391,7 +393,7 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
             final_cd = resp.headers.get("content-disposition", "")
 
             if _looks_like_document_resource(url, final_ct, final_cd):
-                return ScrapePlan(ScrapeStrategy.DOCUMENT, final_ct)
+                return ScrapePlan(ScrapeStrategy.DOCUMENT, final_ct, final_ct, final_cd)
             if any(final_ct.startswith(t) for t in _JSON_CONTENT_TYPES) or _is_json(resp.text):
                 return ScrapePlan(ScrapeStrategy.JSON, final_ct or "json-by-body-sniff")
             if any(final_ct.startswith(t) for t in _IMAGE_CONTENT_TYPES):
@@ -848,21 +850,24 @@ async def _download_pdf_bytes(url: str) -> Tuple[Optional[bytes], Optional[str]]
     httpx_error: Optional[Exception] = None
     urllib_error: Optional[Exception] = None
 
-    for attempt in range(_PDF_DOWNLOAD_RETRIES):
-        try:
-            async with httpx.AsyncClient(
-                follow_redirects=True, timeout=_DOCUMENT_DOWNLOAD_TIMEOUT, headers=_FETCH_HEADERS
-            ) as client:
-                dl_resp = await client.get(url)
-            dl_resp.raise_for_status()
-            pdf_bytes = dl_resp.content
-            if pdf_bytes[:4] != b"%PDF":
-                return None, f"URL did not return a PDF (got {dl_resp.headers.get('content-type','?')})"
-            return pdf_bytes, None
-        except Exception as e:
-            httpx_error = e
-            if attempt < _PDF_DOWNLOAD_RETRIES - 1:
-                await asyncio.sleep(1.0 * (attempt + 1))
+    try:
+        async with httpx.AsyncClient(
+            follow_redirects=True, timeout=_DOCUMENT_DOWNLOAD_TIMEOUT, headers=_FETCH_HEADERS
+        ) as client:
+            for attempt in range(_PDF_DOWNLOAD_RETRIES):
+                try:
+                    dl_resp = await client.get(url)
+                    dl_resp.raise_for_status()
+                    pdf_bytes = dl_resp.content
+                    if pdf_bytes[:4] != b"%PDF":
+                        return None, f"URL did not return a PDF (got {dl_resp.headers.get('content-type','?')})"
+                    return pdf_bytes, None
+                except Exception as e:
+                    httpx_error = e
+                    if attempt < _PDF_DOWNLOAD_RETRIES - 1:
+                        await asyncio.sleep(1.0 * (attempt + 1))
+    except Exception as e:
+        httpx_error = e
 
     for attempt in range(_PDF_DOWNLOAD_RETRIES):
         try:
@@ -884,7 +889,7 @@ async def _download_pdf_bytes(url: str) -> Tuple[Optional[bytes], Optional[str]]
     return pdf_bytes, None
 
 
-async def _scrape_document(url: str, query: str = "", vision_model: Optional[str] = None, max_pdf_pages: int = _PDF_MAX_PAGES_DEFAULT) -> Tuple[str, str, Optional[str]]:
+async def _scrape_document(url: str, query: str = "", vision_model: Optional[str] = None, max_pdf_pages: int = _PDF_MAX_PAGES_DEFAULT, known_content_type: str = "", known_content_disposition: str = "") -> Tuple[str, str, Optional[str]]:
     """Extract content from a document (PDF, DOCX, PPTX, XLSX) via docling.
 
     PDFs use a fast text-layer path (no OCR, no table detection) and are
@@ -893,9 +898,9 @@ async def _scrape_document(url: str, query: str = "", vision_model: Optional[str
     """
     title = url.rsplit("/", 1)[-1] or "Document"
     url_lower = url.lower().split("?")[0]
-    is_pdf = _looks_like_pdf_resource(url)
+    is_pdf = _looks_like_pdf_resource(url, known_content_type, known_content_disposition)
 
-    if not is_pdf:
+    if not is_pdf and not (known_content_type or known_content_disposition):
         try:
             async with httpx.AsyncClient(
                 follow_redirects=True, timeout=_VALIDATION_TIMEOUT, headers=_FETCH_HEADERS
@@ -1005,7 +1010,14 @@ async def scrape_url(
 
     try:
         if plan.strategy == ScrapeStrategy.DOCUMENT:
-            content, title, error = await _scrape_document(url, query=query, vision_model=vision_model, max_pdf_pages=max_pdf_pages)
+            content, title, error = await _scrape_document(
+                url,
+                query=query,
+                vision_model=vision_model,
+                max_pdf_pages=max_pdf_pages,
+                known_content_type=plan.content_type,
+                known_content_disposition=plan.content_disposition,
+            )
         elif plan.strategy == ScrapeStrategy.JSON:
             content, title, error = await _scrape_json(url)
         elif plan.strategy == ScrapeStrategy.IMAGE:

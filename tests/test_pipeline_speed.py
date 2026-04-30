@@ -1,5 +1,6 @@
 """Tests for pipeline speed optimisations."""
 
+import asyncio
 import os
 from unittest.mock import AsyncMock, patch
 
@@ -27,6 +28,15 @@ def _find_tool(agent, name):
     raise AssertionError(f"Tool '{name}' not found")
 
 
+def _doc_plan(content_type="application/pdf", content_disposition=""):
+    return _scraping_module.ScrapePlan(
+        _scraping_module.ScrapeStrategy.DOCUMENT,
+        content_type or "document-by-url",
+        content_type,
+        content_disposition,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Task 1: shared document cache
 # ---------------------------------------------------------------------------
@@ -50,7 +60,7 @@ async def test_scrape_linked_document_uses_cache_on_second_call():
         return doc_content, "Fish Report 2024", None
 
     with (
-        patch("web_scout.scraping._validate_url", AsyncMock(return_value=("SCRAPE_DOC", "document-by-url"))),
+        patch("web_scout.scraping._build_scrape_plan", AsyncMock(return_value=_doc_plan())),
         patch("web_scout.scraping._scrape_document", _fake_scrape_doc),
     ):
         result1 = await tool.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/report.pdf"}')
@@ -89,13 +99,56 @@ async def test_scrape_linked_document_cache_shared_across_agents():
         return doc_content, "SOFIA 2024", None
 
     with (
-        patch("web_scout.scraping._validate_url", AsyncMock(return_value=("SCRAPE_DOC", "document-by-url"))),
+        patch("web_scout.scraping._build_scrape_plan", AsyncMock(return_value=_doc_plan())),
         patch("web_scout.scraping._scrape_document", _fake_scrape_doc),
     ):
         result1 = await tool1.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/sofia.pdf"}')
         result2 = await tool2.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/sofia.pdf"}')
 
     assert call_count == 1, "Two agents sharing cache must fetch the document only once"
+    assert result1 == result2
+
+    await cleanup1()
+    await cleanup2()
+
+
+@pytest.mark.asyncio
+async def test_scrape_linked_document_shares_inflight_fetch_across_agents():
+    """Concurrent agents sharing a doc_in_flight map fetch a common doc only once."""
+    doc_cache: dict = {}
+    doc_in_flight: dict = {}
+
+    agent1, cleanup1 = _build_extractor_agent(
+        model="dummy", query="fish production", url="https://example.org/page1",
+        wait_for=None, doc_cache=doc_cache, doc_in_flight=doc_in_flight,
+    )
+    agent2, cleanup2 = _build_extractor_agent(
+        model="dummy", query="fish production", url="https://example.org/page2",
+        wait_for=None, doc_cache=doc_cache, doc_in_flight=doc_in_flight,
+    )
+
+    tool1 = _find_tool(agent1, "scrape_linked_document")
+    tool2 = _find_tool(agent2, "scrape_linked_document")
+
+    doc_content = "SOFIA 2024 report content. " * 30
+    call_count = 0
+
+    async def _fake_scrape_doc(url, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(0.05)
+        return doc_content, "SOFIA 2024", None
+
+    with (
+        patch("web_scout.scraping._build_scrape_plan", AsyncMock(return_value=_doc_plan())),
+        patch("web_scout.scraping._scrape_document", _fake_scrape_doc),
+    ):
+        result1, result2 = await asyncio.gather(
+            tool1.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/sofia.pdf"}'),
+            tool2.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/sofia.pdf"}'),
+        )
+
+    assert call_count == 1, "Concurrent agents sharing doc_in_flight must fetch the document only once"
     assert result1 == result2
 
     await cleanup1()
@@ -115,12 +168,42 @@ async def test_scrape_linked_document_no_cache_by_default():
         return "content " * 40, "Doc", None
 
     with (
-        patch("web_scout.scraping._validate_url", AsyncMock(return_value=("SCRAPE_DOC", "ok"))),
+        patch("web_scout.scraping._build_scrape_plan", AsyncMock(return_value=_doc_plan())),
         patch("web_scout.scraping._scrape_document", _fake_scrape_doc),
     ):
         result = await tool.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/doc.pdf"}')
 
     assert "content" in result
+    await cleanup()
+
+
+@pytest.mark.asyncio
+async def test_scrape_linked_document_passes_validation_document_metadata():
+    """Linked-document scraping reuses content metadata already found by validation."""
+    agent, cleanup = _build_extractor_agent(
+        model="dummy", query="fish", url="https://example.org/page",
+        wait_for=None,
+    )
+    tool = _find_tool(agent, "scrape_linked_document")
+
+    captured_kwargs = {}
+
+    async def _fake_scrape_doc(url, **kwargs):
+        captured_kwargs.update(kwargs)
+        return "content " * 40, "Doc", None
+
+    with (
+        patch(
+            "web_scout.scraping._build_scrape_plan",
+            AsyncMock(return_value=_doc_plan("application/octet-stream", 'attachment; filename="report.pdf"')),
+        ),
+        patch("web_scout.scraping._scrape_document", _fake_scrape_doc),
+    ):
+        result = await tool.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/download?id=123"}')
+
+    assert "content" in result
+    assert captured_kwargs["known_content_type"] == "application/octet-stream"
+    assert captured_kwargs["known_content_disposition"] == 'attachment; filename="report.pdf"'
     await cleanup()
 
 
