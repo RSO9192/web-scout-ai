@@ -738,10 +738,12 @@ def _filter_blocked_domain_backlog_urls(urls: list[str], tracker: ResearchTracke
 
 def _normalize_domain(url: str) -> str:
     """Return a normalized hostname for diversification decisions."""
-    netloc = urlparse(url).netloc.lower()
-    if netloc.startswith("www."):
-        netloc = netloc[4:]
-    return netloc
+    value = url.strip().lower()
+    if "://" in value:
+        value = urlparse(value).netloc
+    value = value.split("/")[0]
+    value = value.split(":")[0]
+    return value.removeprefix("www.")
 
 
 def _diversify_search_urls(urls: list[str], max_urls: int) -> list[str]:

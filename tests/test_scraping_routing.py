@@ -11,6 +11,7 @@ from web_scout.scraping import (
     _looks_like_document_resource,
     _trim_json_value,
     _validate_url,
+    scrape_url,
 )
 
 
@@ -189,6 +190,37 @@ async def test_download_pdf_bytes_falls_back_to_raw_download(monkeypatch):
 
     assert error is None
     assert pdf_bytes == b"%PDF-1.7 mock data"
+
+
+@pytest.mark.asyncio
+async def test_scrape_url_passes_document_metadata_from_validation(monkeypatch):
+    """scrape_url should not discard content metadata discovered during validation."""
+    from web_scout import scraping
+
+    captured_kwargs = {}
+
+    async def _fake_build_scrape_plan(url, allowed_domains=None):
+        return scraping.ScrapePlan(
+            scraping.ScrapeStrategy.DOCUMENT,
+            "application/octet-stream",
+            "application/octet-stream",
+            'attachment; filename="report.pdf"',
+        )
+
+    async def _fake_scrape_document(url, **kwargs):
+        captured_kwargs.update(kwargs)
+        return "PDF content", "report.pdf", None
+
+    monkeypatch.setattr(scraping, "_build_scrape_plan", _fake_build_scrape_plan)
+    monkeypatch.setattr(scraping, "_scrape_document", _fake_scrape_document)
+
+    content, title, error = await scrape_url("https://example.org/download?id=123")
+
+    assert error is None
+    assert content == "PDF content"
+    assert title == "report.pdf"
+    assert captured_kwargs["known_content_type"] == "application/octet-stream"
+    assert captured_kwargs["known_content_disposition"] == 'attachment; filename="report.pdf"'
 
 
 # ---------------------------------------------------------------------------
