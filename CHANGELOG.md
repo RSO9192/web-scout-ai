@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-04-30
+
+### Changed
+
+- **Concurrent linked-document de-duplication**: parallel extractor agents now share in-flight state for `scrape_linked_document`, so the same linked PDF or primary document is fetched and converted only once per run even when multiple pages reference it at the same time.
+- **Document routing metadata reuse**: document `Content-Type` and `Content-Disposition` discovered during validation now flow through to document scraping, avoiding redundant metadata probes for extensionless download URLs.
+- **PDF retry client reuse**: PDF HTTP download retries now reuse a single `httpx` client instead of recreating one for each attempt, reducing connection setup overhead on slow or flaky document hosts.
+
+### Fixed
+
+- **Domain normalization for plain hostnames**: `_normalize_domain` now correctly handles raw domain inputs like `wocat.net` and `iccat.int`, restoring expected behavior for `include_domains` and other domain-restricted workflows.
+
 ## [1.1.0] - 2026-04-23
 
 ### Added

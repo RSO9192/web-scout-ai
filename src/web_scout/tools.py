@@ -549,7 +549,7 @@ def _is_form_contaminated(content: str) -> bool:
     return False
 
 
-def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000, doc_cache: Optional[dict] = None) -> tuple:
+def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000, doc_cache: Optional[dict] = None, doc_in_flight: Optional[Dict[str, asyncio.Future[str]]] = None) -> tuple:
     """Build a content extractor sub-agent with a URL-locked scraping tool.
 
     The ``raw_scrape`` tool is a closure that captures ``url`` and ``wait_for``
@@ -616,13 +616,45 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         if doc_cache is not None and norm in doc_cache:
             return doc_cache[norm]
 
-        verdict, detail = await _scraping_module._validate_url(document_url, allowed_domains=allowed_domains)
-        if verdict != _SCRAPE_DOC:
+        existing = doc_in_flight.get(norm) if doc_in_flight is not None else None
+        if existing is not None:
+            return await asyncio.shield(existing)
+
+        future: Optional[asyncio.Future[str]] = None
+        if doc_in_flight is not None:
+            future = asyncio.get_running_loop().create_future()
+            doc_in_flight[norm] = future
+
+        try:
+            result = await _scrape_linked_document_uncached(document_url, norm)
+        except Exception as exc:
+            if future is not None and not future.done():
+                future.set_exception(exc)
+                future.exception()
+            raise
+        else:
+            if future is not None and not future.done():
+                future.set_result(result)
+            return result
+        finally:
+            if doc_in_flight is not None:
+                doc_in_flight.pop(norm, None)
+
+    async def _scrape_linked_document_uncached(document_url: str, norm: str) -> str:
+        plan = await _scraping_module._build_scrape_plan(document_url, allowed_domains=allowed_domains)
+        if plan.strategy != _SCRAPE_DOC:
             return (
                 "[scrape_linked_document rejected: URL does not look like a primary "
-                f"document ({detail}): {document_url}]"
+                f"document ({plan.reason}): {document_url}]"
             )
-        content, title, error = await _scraping_module._scrape_document(document_url, query=query, vision_model=vision_model, max_pdf_pages=max_pdf_pages)
+        content, title, error = await _scraping_module._scrape_document(
+            document_url,
+            query=query,
+            vision_model=vision_model,
+            max_pdf_pages=max_pdf_pages,
+            known_content_type=plan.content_type,
+            known_content_disposition=plan.content_disposition,
+        )
         if error:
             return f"[Document scrape failed: {error}]"
         if not content.strip():
@@ -990,6 +1022,7 @@ def create_scrape_and_extract_tool(
 
     semaphore = asyncio.Semaphore(max_concurrent)
     _doc_cache: dict = {}
+    _doc_in_flight: Dict[str, asyncio.Future[str]] = {}
     in_flight: Dict[str, asyncio.Future[str]] = {}
 
     async def scrape_and_extract(
@@ -1047,7 +1080,7 @@ def create_scrape_and_extract_tool(
                 )
 
                 # Build a fresh extractor agent per call with url locked in the closure
-                extractor_agent, extractor_cleanup = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars, doc_cache=_doc_cache)
+                extractor_agent, extractor_cleanup = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars, doc_cache=_doc_cache, doc_in_flight=_doc_in_flight)
 
                 input_text = (
                     f"Research query: {query}\n"
