@@ -31,6 +31,8 @@ from urllib.request import Request, urlopen
 import httpx
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
 
+from ._heuristics import ROUTING_HEURISTICS
+
 logger = logging.getLogger(__name__)
 
 # Silence noisy third-party loggers used internally by this module.
@@ -105,12 +107,12 @@ _FETCH_HEADERS = {
     "Accept-Language": "en-US,en;q=0.5",
 }
 
-_MIN_PDF_TEXT_CHARS = 300
-_PDF_MAX_PAGES_DEFAULT = 50
-_VALIDATION_TIMEOUT = httpx.Timeout(20.0, connect=15.0)
-_DOCUMENT_DOWNLOAD_TIMEOUT = httpx.Timeout(45.0, connect=20.0)
-_URLLIB_DOWNLOAD_TIMEOUT = 45
-_PDF_DOWNLOAD_RETRIES = 2
+_MIN_PDF_TEXT_CHARS = ROUTING_HEURISTICS.min_pdf_text_chars
+_PDF_MAX_PAGES_DEFAULT = ROUTING_HEURISTICS.pdf_max_pages_default
+_VALIDATION_TIMEOUT = ROUTING_HEURISTICS.validation_timeout
+_DOCUMENT_DOWNLOAD_TIMEOUT = ROUTING_HEURISTICS.document_download_timeout
+_URLLIB_DOWNLOAD_TIMEOUT = ROUTING_HEURISTICS.urllib_download_timeout
+_PDF_DOWNLOAD_RETRIES = ROUTING_HEURISTICS.pdf_download_retries
 _PDF_DOCLING_CONVERTER = None
 _PDF_DOCLING_CONVERTER_LOCK = threading.Lock()
 
@@ -342,12 +344,109 @@ _SCRAPE_JSON = ScrapeStrategy.JSON
 _SCRAPE_IMAGE = ScrapeStrategy.IMAGE
 
 
+def _log_scrape_plan(url: str, plan: ScrapePlan, **details: Any) -> ScrapePlan:
+    """Emit structured routing diagnostics and return the plan unchanged."""
+    detail_bits = " ".join(f"{key}={value}" for key, value in details.items() if value is not None)
+    suffix = f" {detail_bits}" if detail_bits else ""
+    logger.info(
+        "[scrape-plan] route=%s reason=%s url=%s%s",
+        plan.strategy,
+        plan.reason,
+        url,
+        suffix,
+    )
+    return plan
+
+
+def _plan_short_html_page(
+    url: str,
+    *,
+    size: int,
+    text_chars: int,
+    script_tags: int,
+    lower_html: str,
+    html: str,
+) -> ScrapePlan:
+    """Route a very low-text HTML page using the existing heuristics unchanged."""
+    if size < ROUTING_HEURISTICS.short_html_size_chars and script_tags >= ROUTING_HEURISTICS.short_html_spa_script_count:
+        return _log_scrape_plan(
+            url,
+            ScrapePlan(ScrapeStrategy.HTML_BROWSER, f"SPA shell ({size} chars, {script_tags} scripts)"),
+            size=size,
+            text_chars=text_chars,
+            script_tags=script_tags,
+        )
+    if _looks_like_auth_wall(lower_html):
+        return _log_scrape_plan(
+            url,
+            ScrapePlan(
+                ScrapeStrategy.SKIP,
+                f"auth/paywall wall ({text_chars} text chars from {size} chars HTML)",
+            ),
+            size=size,
+            text_chars=text_chars,
+        )
+    if _looks_like_metadata_page(html):
+        return _log_scrape_plan(
+            url,
+            ScrapePlan(
+                ScrapeStrategy.HTML_FAST,
+                f"short metadata page ({text_chars} text chars from {size} chars HTML)",
+            ),
+            size=size,
+            text_chars=text_chars,
+            script_tags=script_tags,
+        )
+    return _log_scrape_plan(
+        url,
+        ScrapePlan(ScrapeStrategy.HTML_FAST, f"short static HTML ({text_chars} text chars from {size} chars HTML)"),
+        size=size,
+        text_chars=text_chars,
+        script_tags=script_tags,
+    )
+
+
+def _plan_low_text_html(url: str, *, size: int, text_chars: int, script_tags: int) -> Optional[ScrapePlan]:
+    """Route probable SPA shells without changing thresholds or precedence."""
+    if text_chars < ROUTING_HEURISTICS.low_text_spa_chars and script_tags >= ROUTING_HEURISTICS.low_text_spa_script_count:
+        return _log_scrape_plan(
+            url,
+            ScrapePlan(ScrapeStrategy.HTML_BROWSER, f"likely SPA ({size} chars HTML, {text_chars} text chars)"),
+            size=size,
+            text_chars=text_chars,
+            script_tags=script_tags,
+        )
+    density = text_chars / size if size else 0.0
+    if script_tags >= ROUTING_HEURISTICS.heavy_spa_script_count and density < ROUTING_HEURISTICS.heavy_spa_text_density:
+        return _log_scrape_plan(
+            url,
+            ScrapePlan(ScrapeStrategy.HTML_BROWSER, f"likely SPA (density {density:.1%}, {script_tags} scripts)"),
+            size=size,
+            text_chars=text_chars,
+            script_tags=script_tags,
+            density=f"{density:.3f}",
+        )
+    return None
+
+
+def _plan_soft_404(url: str, *, title_text: str, lower_html: str, text_chars: int) -> Optional[ScrapePlan]:
+    """Route soft-404 pages using the existing checks unchanged."""
+    if "404" in title_text and ("not found" in title_text or "error" in title_text):
+        return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, "soft 404 in title"))
+    if text_chars < ROUTING_HEURISTICS.soft_404_text_chars and any(
+        pattern in lower_html
+        for pattern in ["page not found", "404 error", "does not exist", "no longer available"]
+    ):
+        return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, "soft 404 in content"), text_chars=text_chars)
+    return None
+
+
 async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = None) -> ScrapePlan:
     """Build a scrape routing plan for a URL before running any heavy extractor."""
     if _is_blocked_domain(url, allowed_domains=allowed_domains):
-        return ScrapePlan(ScrapeStrategy.SKIP, "blocked domain")
+        return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, "blocked domain"))
     if _looks_like_document_resource(url):
-        return ScrapePlan(ScrapeStrategy.DOCUMENT, "document-by-url")
+        return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.DOCUMENT, "document-by-url"))
 
     try:
         async with httpx.AsyncClient(
@@ -363,43 +462,59 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
                 status = head.status_code
                 # 405 Method Not Allowed, 501 Not Implemented, 403 Forbidden might just mean HEAD is disabled
                 if status >= 400 and status not in (405, 501, 403):
-                    return ScrapePlan(ScrapeStrategy.SKIP, f"HTTP {status}")
+                    return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, f"HTTP {status}"), phase="head")
 
                 ct = _normalize_content_type(head.headers.get("content-type", ""))
                 cd = head.headers.get("content-disposition", "")
 
                 if _looks_like_document_resource(url, ct, cd):
-                    return ScrapePlan(ScrapeStrategy.DOCUMENT, ct, ct, cd)
+                    return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.DOCUMENT, ct, ct, cd), phase="head")
                 if any(ct.startswith(t) for t in _JSON_CONTENT_TYPES):
-                    return ScrapePlan(ScrapeStrategy.JSON, ct)
+                    return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.JSON, ct), phase="head")
                 if any(ct.startswith(t) for t in _IMAGE_CONTENT_TYPES):
-                    return ScrapePlan(ScrapeStrategy.IMAGE, ct)
+                    return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.IMAGE, ct), phase="head")
                 if any(ct.startswith(t) for t in _BINARY_CONTENT_TYPES):
-                    return ScrapePlan(ScrapeStrategy.SKIP, f"binary content-type: {ct}")
+                    return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, f"binary content-type: {ct}"), phase="head")
 
             # Step 2: fast GET for HTML content analysis
             try:
                 resp = await client.get(url)
             except httpx.TimeoutException:
                 # Server is slow but reachable — let the browser (longer timeout) try
-                return ScrapePlan(ScrapeStrategy.HTML_BROWSER, "GET timed out — attempting browser scrape")
+                return _log_scrape_plan(
+                    url,
+                    ScrapePlan(ScrapeStrategy.HTML_BROWSER, "GET timed out — attempting browser scrape"),
+                    phase="get",
+                )
             except Exception as e:
-                return ScrapePlan(ScrapeStrategy.SKIP, f"GET failed: {type(e).__name__}")
+                return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, f"GET failed: {type(e).__name__}"), phase="get")
 
             if resp.status_code >= 400:
-                return ScrapePlan(ScrapeStrategy.SKIP, f"HTTP {resp.status_code} on GET")
+                return _log_scrape_plan(
+                    url,
+                    ScrapePlan(ScrapeStrategy.SKIP, f"HTTP {resp.status_code} on GET"),
+                    phase="get",
+                )
 
             final_ct = _normalize_content_type(resp.headers.get("content-type", ""))
             final_cd = resp.headers.get("content-disposition", "")
 
             if _looks_like_document_resource(url, final_ct, final_cd):
-                return ScrapePlan(ScrapeStrategy.DOCUMENT, final_ct, final_ct, final_cd)
+                return _log_scrape_plan(
+                    url,
+                    ScrapePlan(ScrapeStrategy.DOCUMENT, final_ct, final_ct, final_cd),
+                    phase="get",
+                )
             if any(final_ct.startswith(t) for t in _JSON_CONTENT_TYPES) or _is_json(resp.text):
-                return ScrapePlan(ScrapeStrategy.JSON, final_ct or "json-by-body-sniff")
+                return _log_scrape_plan(
+                    url,
+                    ScrapePlan(ScrapeStrategy.JSON, final_ct or "json-by-body-sniff"),
+                    phase="get",
+                )
             if any(final_ct.startswith(t) for t in _IMAGE_CONTENT_TYPES):
-                return ScrapePlan(ScrapeStrategy.IMAGE, final_ct)
+                return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.IMAGE, final_ct), phase="get")
             if any(final_ct.startswith(t) for t in _BINARY_CONTENT_TYPES):
-                return ScrapePlan(ScrapeStrategy.SKIP, f"binary on GET: {final_ct}")
+                return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, f"binary on GET: {final_ct}"), phase="get")
 
             # Analyse HTML content
             html = resp.text
@@ -410,45 +525,48 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
             lower = html.lower()
 
             # Thin content: paywall, login wall, or near-empty page
-            if text_chars < 150:
-                # Small SPA shell → needs JS rendering
-                if size < 8000 and script_tags >= 2:
-                    return ScrapePlan(ScrapeStrategy.HTML_BROWSER, f"SPA shell ({size} chars, {script_tags} scripts)")
-                if _looks_like_auth_wall(lower):
-                    return ScrapePlan(ScrapeStrategy.SKIP, f"auth/paywall wall ({text_chars} text chars from {size} chars HTML)")
-                if _looks_like_metadata_page(html):
-                    return ScrapePlan(ScrapeStrategy.HTML_FAST, f"short metadata page ({text_chars} text chars from {size} chars HTML)")
-                # Short pages can still be useful if the extractor needs to inspect links.
-                return ScrapePlan(ScrapeStrategy.HTML_FAST, f"short static HTML ({text_chars} text chars from {size} chars HTML)")
+            if text_chars < ROUTING_HEURISTICS.short_html_text_chars:
+                return _plan_short_html_page(
+                    url,
+                    size=size,
+                    text_chars=text_chars,
+                    script_tags=script_tags,
+                    lower_html=lower,
+                    html=html,
+                )
 
-            # Larger SPA shell: reasonable HTML size but almost no real text
-            if text_chars < 300 and script_tags >= 3:
-                return ScrapePlan(ScrapeStrategy.HTML_BROWSER, f"likely SPA ({size} chars HTML, {text_chars} text chars)")
-
-            # Heavy JS app with low text density (e.g. Angular/React with nav-only static shell)
-            # 28+ scripts and <6% text density is a reliable SPA signal even with nav text present
-            if script_tags >= 15 and text_chars / size < 0.06:
-                return ScrapePlan(ScrapeStrategy.HTML_BROWSER, f"likely SPA (density {text_chars/size:.1%}, {script_tags} scripts)")
+            plan = _plan_low_text_html(
+                url,
+                size=size,
+                text_chars=text_chars,
+                script_tags=script_tags,
+            )
+            if plan:
+                return plan
 
             # Soft 404 check
             title_match = re.search(r"<title[^>]*>(.*?)</title>", html, flags=re.IGNORECASE | re.DOTALL)
             title_text = title_match.group(1).lower() if title_match else ""
-            if "404" in title_text and ("not found" in title_text or "error" in title_text):
-                return ScrapePlan(ScrapeStrategy.SKIP, "soft 404 in title")
+            plan = _plan_soft_404(url, title_text=title_text, lower_html=lower, text_chars=text_chars)
+            if plan:
+                return plan
 
-            if text_chars < 1000 and any(
-                p in lower
-                for p in ["page not found", "404 error", "does not exist", "no longer available"]
-            ):
-                return ScrapePlan(ScrapeStrategy.SKIP, "soft 404 in content")
-
-            return ScrapePlan(ScrapeStrategy.HTML_FAST, f"static HTML ({size} chars, {text_chars} text chars)")
+            return _log_scrape_plan(
+                url,
+                ScrapePlan(ScrapeStrategy.HTML_FAST, f"static HTML ({size} chars, {text_chars} text chars)"),
+                size=size,
+                text_chars=text_chars,
+                script_tags=script_tags,
+            )
 
     except httpx.TimeoutException:
-        return ScrapePlan(ScrapeStrategy.SKIP, "timeout during validation")
+        return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, "timeout during validation"))
     except Exception as e:
         # If validation itself fails, let the scraper try anyway
-        return ScrapePlan(ScrapeStrategy.HTML_BROWSER, f"validation error ({e}) — attempting browser scrape")
+        return _log_scrape_plan(
+            url,
+            ScrapePlan(ScrapeStrategy.HTML_BROWSER, f"validation error ({e}) — attempting browser scrape"),
+        )
 
 
 async def _validate_url(url: str, allowed_domains: Optional[frozenset] = None) -> Tuple[str, str]:
@@ -472,7 +590,12 @@ async def _scrape_html_fast(url: str, query: str = "", vision_model: Optional[st
     from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
 
     md_generator = DefaultMarkdownGenerator(
-        content_filter=BM25ContentFilter(user_query=query, bm25_threshold=1.0) if query else None
+        content_filter=BM25ContentFilter(
+            user_query=query,
+            bm25_threshold=ROUTING_HEURISTICS.bm25_threshold,
+        )
+        if query
+        else None
     )
     run_cfg = CrawlerRunConfig(
         cache_mode=CacheMode.BYPASS,
@@ -499,7 +622,7 @@ async def _scrape_html_fast(url: str, query: str = "", vision_model: Optional[st
     content = _append_internal_links(content, result)
 
     # If HTTP strategy returned thin content, the page likely needs JS
-    if len(content.strip()) < 200:
+    if len(content.strip()) < ROUTING_HEURISTICS.html_fast_thin_content_chars:
         return await _scrape_html_browser(url, wait_for=None, query=query, vision_model=vision_model)
 
     title = (result.metadata or {}).get("title", "")
@@ -568,7 +691,12 @@ async def _scrape_html_browser(
     from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
 
     md_generator = DefaultMarkdownGenerator(
-        content_filter=BM25ContentFilter(user_query=query, bm25_threshold=1.0) if query else None
+        content_filter=BM25ContentFilter(
+            user_query=query,
+            bm25_threshold=ROUTING_HEURISTICS.bm25_threshold,
+        )
+        if query
+        else None
     )
     run_cfg = CrawlerRunConfig(
         cache_mode=CacheMode.BYPASS,
@@ -576,8 +704,8 @@ async def _scrape_html_browser(
         remove_overlay_elements=True,
         markdown_generator=md_generator,
         wait_until="networkidle",
-        page_timeout=45_000,
-        delay_before_return_html=1.0,
+        page_timeout=ROUTING_HEURISTICS.browser_page_timeout_ms,
+        delay_before_return_html=ROUTING_HEURISTICS.browser_delay_before_return_html_s,
         verbose=False,
     )
     if wait_for:
@@ -608,8 +736,8 @@ async def _scrape_html_browser(
             remove_overlay_elements=True,
             markdown_generator=md_generator,
             wait_until="networkidle",
-            page_timeout=45_000,
-            delay_before_return_html=1.0,
+            page_timeout=ROUTING_HEURISTICS.browser_page_timeout_ms,
+            delay_before_return_html=ROUTING_HEURISTICS.browser_delay_before_return_html_s,
             verbose=False,
         )
         try:
@@ -666,8 +794,12 @@ async def _scrape_via_vision(url: str, query: str, vision_model: str) -> Tuple[s
                 try:
                     page = await context.new_page()
                     try:
-                        await page.goto(url, timeout=45_000, wait_until="networkidle")
-                        await page.wait_for_timeout(8000)  # let JS / bot-challenge settle
+                        await page.goto(
+                            url,
+                            timeout=ROUTING_HEURISTICS.vision_goto_timeout_ms,
+                            wait_until="networkidle",
+                        )
+                        await page.wait_for_timeout(ROUTING_HEURISTICS.vision_settle_wait_ms)
                     except Exception:
                         pass  # take screenshot regardless
                     screenshot_bytes = await page.screenshot(type="png")  # viewport only (not full_page)
@@ -709,7 +841,9 @@ async def _scrape_json(url: str) -> Tuple[str, str, Optional[str]]:
     """Fetch a JSON endpoint and return a trimmed markdown representation."""
     try:
         async with httpx.AsyncClient(
-            follow_redirects=True, timeout=20, headers=_FETCH_HEADERS
+            follow_redirects=True,
+            timeout=ROUTING_HEURISTICS.image_json_timeout_s,
+            headers=_FETCH_HEADERS,
         ) as client:
             resp = await client.get(url)
         resp.raise_for_status()
@@ -751,7 +885,9 @@ async def _scrape_image(url: str, query: str = "", vision_model: Optional[str] =
 
     try:
         async with httpx.AsyncClient(
-            follow_redirects=True, timeout=20, headers=_FETCH_HEADERS
+            follow_redirects=True,
+            timeout=ROUTING_HEURISTICS.image_json_timeout_s,
+            headers=_FETCH_HEADERS,
         ) as client:
             resp = await client.get(url)
         resp.raise_for_status()
@@ -810,9 +946,14 @@ async def _download_pdf_via_browser(url: str) -> Optional[bytes]:
                     page = await context.new_page()
                     tmp: Optional[str] = None
                     try:
-                        async with page.expect_download(timeout=60_000) as dl_info:
+                        async with page.expect_download(
+                            timeout=ROUTING_HEURISTICS.browser_download_timeout_ms
+                        ) as dl_info:
                             try:
-                                await page.goto(url, timeout=60_000)
+                                await page.goto(
+                                    url,
+                                    timeout=ROUTING_HEURISTICS.browser_download_timeout_ms,
+                                )
                             except Exception:
                                 pass  # "Download is starting" error is expected
                         download = await dl_info.value

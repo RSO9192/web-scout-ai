@@ -25,6 +25,9 @@ from agents import Agent, ModelSettings, Runner, function_tool
 from playwright.async_api import async_playwright
 from pydantic import BaseModel, Field
 
+from ._extractor_contract import ExtractorOutcome
+from ._heuristics import EXTRACTOR_HEURISTICS
+
 if TYPE_CHECKING:
     from .models import SearchQuery, UrlEntry
 
@@ -37,9 +40,6 @@ _TRANSIENT_LLM_ERRORS = (
     litellm.BadGatewayError,
 )
 _RETRY_DELAYS = (1.0, 2.0, 4.0)
-
-_THIN_CONTENT_CHARS = 500
-_MAX_INTERACTIVE_CLICKS = 5
 
 # JavaScript that queries all visible interactive elements on a page.
 # Returns a list of {tag, text} objects in a stable, deduplicated order.
@@ -122,6 +122,8 @@ async def _run_with_retry(agent: Agent, input_text: str, max_turns: int = 30) ->
 _DIGIT_PATTERN = re.compile(r"\d")
 _ERROR_TITLE_RE = re.compile(r"^Error[:\s\-]", re.IGNORECASE)
 _HTTP_ERROR_RE = re.compile(r"\bHTTP\s+\d{3}\b", re.IGNORECASE)
+_RENDERED_LIST_PAGE_MARKER = "**Page type: list**"
+_RENDERED_RELEVANT_LINKS_HEADING = "\n\n**Relevant Links found on page:**\n"
 
 
 def _snippet_quality(snippet: str) -> str:
@@ -129,6 +131,112 @@ def _snippet_quality(snippet: str) -> str:
     if len(snippet) > 120 and _DIGIT_PATTERN.search(snippet):
         return "[rich]"
     return "[thin]"
+
+
+def _is_rendered_list_page(content: str) -> bool:
+    """Detect the list-page marker in rendered scrape output."""
+    return _RENDERED_LIST_PAGE_MARKER in content
+
+
+def _extract_rendered_followup_links(content: str) -> list[str]:
+    """Extract follow-up URLs from rendered scrape output.
+
+    This intentionally preserves the existing behavior by scanning the full
+    rendered markdown payload, not just the explicit "Relevant Links" section.
+    """
+    seen: set[str] = set()
+    links: list[str] = []
+    for match in re.finditer(r'\]\((https?://[^\s)]+)\)|(https?://\S+)', content):
+        url = match.group(1) or match.group(2)
+        url = url.rstrip(".,;)>\"'")
+        if url and url not in seen:
+            seen.add(url)
+            links.append(url)
+    return links
+
+
+def _extract_rendered_links_section(content: str) -> list[str]:
+    """Parse the explicit rendered follow-up section when present."""
+    heading_index = content.find(_RENDERED_RELEVANT_LINKS_HEADING)
+    if heading_index < 0:
+        return []
+
+    section = content[heading_index + len(_RENDERED_RELEVANT_LINKS_HEADING) :]
+    lines = []
+    for line in section.splitlines():
+        if line.startswith("- "):
+            lines.append(line[2:].strip())
+            continue
+        if not line.strip():
+            continue
+        break
+    return [line for line in lines if line.startswith("http://") or line.startswith("https://")]
+
+
+def _extract_primary_rendered_content(content: str) -> str:
+    """Remove known rendered suffix sections from the legacy output."""
+    heading_index = content.find(_RENDERED_RELEVANT_LINKS_HEADING)
+    if heading_index >= 0:
+        return content[:heading_index].rstrip()
+    return content.rstrip()
+
+
+def _infer_rendered_outcome(url: str, rendered_text: str) -> ExtractorOutcome:
+    """Reconstruct a typed outcome from the legacy rendered string contract."""
+    page_type: Literal["list", "content"] = "list" if _is_rendered_list_page(rendered_text) else "content"
+    links = _extract_rendered_links_section(rendered_text) or _extract_rendered_followup_links(rendered_text)
+    if rendered_text.startswith("Failed to extract content from "):
+        content = rendered_text.split(": ", 1)[1] if ": " in rendered_text else rendered_text
+        return ExtractorOutcome(
+            url=url,
+            status="failure",
+            rendered_text=rendered_text,
+            content=content,
+            page_type=page_type,
+            relevant_links=links,
+            failure_kind="subagent_failed",
+        )
+    if rendered_text.startswith("No relevant content found at "):
+        content = rendered_text.split(": ", 1)[1] if ": " in rendered_text else rendered_text
+        return ExtractorOutcome(
+            url=url,
+            status="failure",
+            rendered_text=rendered_text,
+            content=content,
+            page_type=page_type,
+            relevant_links=links,
+            failure_kind=_classify_failure_action(content),
+        )
+
+    title = ""
+    body = rendered_text
+    if rendered_text.startswith("# "):
+        header, _, remainder = rendered_text.partition("\n")
+        title = header[2:].strip()
+        body = remainder
+    if body.startswith("Source: "):
+        _, _, body = body.partition("\n\n")
+    body = _extract_primary_rendered_content(body)
+    if page_type == "list" and body.endswith("\n" + _RENDERED_LIST_PAGE_MARKER):
+        body = body[: -len("\n" + _RENDERED_LIST_PAGE_MARKER)].rstrip()
+    return ExtractorOutcome(
+        url=url,
+        status="success",
+        rendered_text=rendered_text,
+        title=title,
+        content=body,
+        page_type=page_type,
+        relevant_links=links,
+    )
+
+
+def _resolve_scrape_outcome(scrape_tool: Any, url: str, rendered_text: str) -> ExtractorOutcome:
+    """Return the typed outcome for a scrape tool call, falling back to legacy parsing."""
+    outcome_cache = getattr(scrape_tool, "_outcome_cache", None)
+    norm = ResearchTracker.normalize_url(url)
+    if isinstance(outcome_cache, dict) and norm in outcome_cache:
+        return outcome_cache[norm]
+    return _infer_rendered_outcome(url, rendered_text)
 
 
 # ---------------------------------------------------------------------------
@@ -436,6 +544,120 @@ def _classify_failure_action(content: str) -> str:
     return "scrape_failed"
 
 
+def _append_min_successful_scrape_reminder(rendered: str, count_scraped: int, *, force_other_urls: bool) -> str:
+    """Append the existing minimum-source reminder text unchanged."""
+    if count_scraped >= 2:
+        return rendered
+
+    if force_other_urls:
+        return rendered + (
+            "\n\n⚠ REMINDER: You MUST successfully scrape AT LEAST 2 high-quality sources "
+            f"before synthesising and finishing. You currently have {count_scraped} "
+            "successful scrape(s). You MUST find other URLs and scrape them!"
+        )
+
+    return rendered + (
+        "\n\n⚠ REMINDER: You MUST successfully scrape AT LEAST 2 high-quality sources "
+        "before synthesising and finishing. You currently have "
+        f"{count_scraped} successful scrape(s)."
+    )
+
+
+def _build_success_outcome(
+    *,
+    url: str,
+    title: str,
+    content: str,
+    page_type: Literal["list", "content"],
+    links: list[str],
+    count_scraped: int | None,
+) -> ExtractorOutcome:
+    """Build a typed success outcome and its legacy rendered text."""
+    header = f"# {title}\nSource: {url}\n\n" if title else f"Source: {url}\n\n"
+    rendered = header + content
+    if page_type == "list":
+        rendered += "\n" + _RENDERED_LIST_PAGE_MARKER
+    if links:
+        rendered += _RENDERED_RELEVANT_LINKS_HEADING + "\n".join(
+            f"- {link}" for link in links[: EXTRACTOR_HEURISTICS.max_rendered_relevant_links]
+        )
+    if count_scraped is not None:
+        rendered = _append_min_successful_scrape_reminder(
+            rendered,
+            count_scraped,
+            force_other_urls=False,
+        )
+    return ExtractorOutcome(
+        url=url,
+        status="success",
+        rendered_text=rendered,
+        title=title,
+        content=content,
+        page_type=page_type,
+        relevant_links=links[: EXTRACTOR_HEURISTICS.max_rendered_relevant_links],
+    )
+
+
+def _build_failure_outcome(
+    *,
+    url: str,
+    content: str,
+    count_scraped: int | None,
+    failure_kind: str,
+) -> ExtractorOutcome:
+    """Build a typed failure outcome and its legacy rendered text."""
+    rendered = f"No relevant content found at {url}: {content}"
+    if count_scraped is not None:
+        rendered = _append_min_successful_scrape_reminder(
+            rendered,
+            count_scraped,
+            force_other_urls=True,
+        )
+    return ExtractorOutcome(
+        url=url,
+        status="failure",
+        rendered_text=rendered,
+        content=content,
+        failure_kind=failure_kind,
+    )
+
+
+def _render_successful_extractor_output(
+    *,
+    url: str,
+    title: str,
+    content: str,
+    page_type: str,
+    links: list[str],
+    count_scraped: int | None,
+) -> str:
+    """Render successful extractor output while preserving the current string contract."""
+    return _build_success_outcome(
+        url=url,
+        title=title,
+        content=content,
+        page_type=page_type,
+        links=links,
+        count_scraped=count_scraped,
+    ).rendered_text
+
+
+def _render_failed_extractor_output(
+    *,
+    url: str,
+    content: str,
+    count_scraped: int | None,
+) -> str:
+    """Render failed extractor output while preserving the current string contract."""
+    failure_kind = _classify_failure_action(content)
+    return _build_failure_outcome(
+        url=url,
+        content=content,
+        count_scraped=count_scraped,
+        failure_kind=failure_kind,
+    ).rendered_text
+
+
 _EXTRACTOR_INSTRUCTIONS = """\
 You are a precise and comprehensive content extractor for web research.
 
@@ -539,12 +761,12 @@ def _is_form_contaminated(content: str) -> bool:
     - 20+ lines where >75% are bullet-point lines (nav-only dump).
     """
     lower = content.lower()
-    if any(lower.count(tok) >= 2 for tok in _FORM_TOKENS):
+    if any(lower.count(tok) >= EXTRACTOR_HEURISTICS.form_token_min_repeat for tok in _FORM_TOKENS):
         return True
     lines = [line for line in content.splitlines() if line.strip()]
-    if len(lines) >= 20:
+    if len(lines) >= EXTRACTOR_HEURISTICS.nav_dump_min_lines:
         bullet_lines = sum(1 for line in lines if line.strip().startswith(("* ", "- ")))
-        if bullet_lines / len(lines) > 0.75:
+        if bullet_lines / len(lines) > EXTRACTOR_HEURISTICS.nav_dump_bullet_ratio:
             return True
     return False
 
@@ -587,7 +809,7 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
                 "[SPA: URL fragment detected — current content may be the wrong "
                 "tab/view. Call list_interactive_elements to find the data section.]"
             )
-        if len(content) >= _THIN_CONTENT_CHARS and _is_form_contaminated(content):
+        if len(content) >= EXTRACTOR_HEURISTICS.thin_content_chars and _is_form_contaminated(content):
             signals.append(
                 "[Form/survey content detected — actual data is likely behind "
                 "interactive elements. Call list_interactive_elements.]"
@@ -723,7 +945,11 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
             )
             _context_holder[0] = context
             page = await context.new_page()
-            await page.goto(url, wait_until="networkidle", timeout=30_000)
+            await page.goto(
+                url,
+                wait_until="networkidle",
+                timeout=EXTRACTOR_HEURISTICS.interactive_page_goto_timeout_ms,
+            )
             _page_holder[0] = page
             return page
         except Exception:
@@ -773,9 +999,9 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
                 "Call list_interactive_elements() first.]"
             )
 
-        if _click_count[0] >= _MAX_INTERACTIVE_CLICKS:
+        if _click_count[0] >= EXTRACTOR_HEURISTICS.max_interactive_clicks:
             return (
-                f"INTERACTION LIMIT REACHED: {_MAX_INTERACTIVE_CLICKS} clicks used. "
+                f"INTERACTION LIMIT REACHED: {EXTRACTOR_HEURISTICS.max_interactive_clicks} clicks used. "
                 "Synthesize from content gathered so far."
             )
 
@@ -791,7 +1017,10 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
             _click_count[0] += 1
 
             try:
-                await page.wait_for_load_state("networkidle", timeout=3_000)
+                await page.wait_for_load_state(
+                    "networkidle",
+                    timeout=EXTRACTOR_HEURISTICS.interactive_wait_timeout_ms,
+                )
             except Exception:
                 pass  # timeout is acceptable — page may not trigger a network event
 
@@ -806,7 +1035,7 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
             content = await page.inner_text("body")
             result = content.strip()
 
-            if len(result) < _THIN_CONTENT_CHARS:
+            if len(result) < EXTRACTOR_HEURISTICS.thin_content_chars:
                 result += (
                     f"\n\n[Content still thin after click ({len(result)} chars) — "
                     "consider clicking a different element.]"
@@ -1024,6 +1253,7 @@ def create_scrape_and_extract_tool(
     _doc_cache: dict = {}
     _doc_in_flight: Dict[str, asyncio.Future[str]] = {}
     in_flight: Dict[str, asyncio.Future[str]] = {}
+    outcome_cache: Dict[str, ExtractorOutcome] = {}
 
     async def scrape_and_extract(
         url: str,
@@ -1055,6 +1285,8 @@ def create_scrape_and_extract_tool(
                 )
             cached_response = tracker.cached_scrape_response(url)
             if cached_response is not None:
+                if norm not in outcome_cache:
+                    outcome_cache[norm] = _infer_rendered_outcome(url, cached_response)
                 return cached_response
 
         existing = in_flight.get(norm)
@@ -1096,8 +1328,21 @@ def create_scrape_and_extract_tool(
                     if tracker is not None:
                         tracker.record_scrape_failure(url, str(e))
                     final_output = f"Failed to extract content from {url}: {e}"
-                    future.set_result(final_output)
-                    return final_output
+                    outcome = ExtractorOutcome(
+                        url=url,
+                        status="failure",
+                        rendered_text=final_output,
+                        content=str(e),
+                        failure_kind="subagent_failed",
+                    )
+                    outcome_cache[norm] = outcome
+                    logger.info(
+                        "[extract] extractor_outcome status=failure failure_kind=%s url=%s",
+                        outcome.failure_kind,
+                        url,
+                    )
+                    future.set_result(outcome.rendered_text)
+                    return outcome.rendered_text
                 finally:
                     await extractor_cleanup()
 
@@ -1109,7 +1354,7 @@ def create_scrape_and_extract_tool(
                 # Covers: explicit sentinel strings, LLM paraphrases of errors,
                 # and titles like "Error: Could not access document" or "Error | 403".
                 _content_lower = content.lower()
-                _short = len(content) < 400
+                _short = len(content) < EXTRACTOR_HEURISTICS.failure_short_content_chars
                 is_failure = (
                     not content
                     or content.startswith("[No relevant content")
@@ -1145,43 +1390,46 @@ def create_scrape_and_extract_tool(
                             tracker.record_scraped_irrelevant(url, content)
                         else:
                             tracker.record_scrape_failure(url, content or "empty extraction")
-                    final_output = f"No relevant content found at {url}: {content}"
-
-                    if tracker is not None:
-                        count_scraped = tracker.count_for_action("scraped")
-                        if count_scraped < 2:
-                            final_output += (
-                                "\n\n⚠ REMINDER: You MUST successfully scrape AT LEAST 2 high-quality sources "
-                                f"before synthesising and finishing. You currently have {count_scraped} "
-                                "successful scrape(s). You MUST find other URLs and scrape them!"
-                            )
-                    future.set_result(final_output)
-                    return final_output
+                    count_scraped = tracker.count_for_action("scraped") if tracker is not None else None
+                    outcome = _build_failure_outcome(
+                        url=url,
+                        content=content,
+                        count_scraped=count_scraped,
+                        failure_kind=action,
+                    )
+                    outcome_cache[norm] = outcome
+                    logger.info(
+                        "[extract] extractor_outcome status=failure failure_kind=%s url=%s",
+                        action,
+                        url,
+                    )
+                    future.set_result(outcome.rendered_text)
+                    return outcome.rendered_text
 
                 if tracker is not None:
                     tracker.record_scrape(url, title, content)
-
-                header = f"# {title}\nSource: {url}\n\n" if title else f"Source: {url}\n\n"
-                final_output = header + content
-                if output.page_type == "list":
-                    final_output += "\n**Page type: list**"
-                if links:
-                    final_output += "\n\n**Relevant Links found on page:**\n" + "\n".join(f"- {lnk}" for lnk in links[:15])
-
-                if tracker is not None:
-                    count_scraped = tracker.count_for_action("scraped")
-                    if count_scraped < 2:
-                        final_output += (
-                            "\n\n⚠ REMINDER: You MUST successfully scrape AT LEAST 2 high-quality sources "
-                            "before synthesising and finishing. You currently have "
-                            f"{count_scraped} successful scrape(s)."
-                        )
-
-                future.set_result(final_output)
-                return final_output
+                count_scraped = tracker.count_for_action("scraped") if tracker is not None else None
+                outcome = _build_success_outcome(
+                    url=url,
+                    title=title,
+                    content=content,
+                    page_type=output.page_type,
+                    links=links,
+                    count_scraped=count_scraped,
+                )
+                outcome_cache[norm] = outcome
+                logger.info(
+                    "[extract] extractor_outcome status=success page_type=%s links=%d url=%s",
+                    outcome.page_type,
+                    len(outcome.relevant_links),
+                    url,
+                )
+                future.set_result(outcome.rendered_text)
+                return outcome.rendered_text
         finally:
             if not future.done():
                 future.set_exception(RuntimeError("scrape aborted unexpectedly"))
             in_flight.pop(norm, None)
 
+    setattr(scrape_and_extract, "_outcome_cache", outcome_cache)
     return scrape_and_extract

@@ -304,6 +304,24 @@ def test_diversify_search_urls_prefers_domain_breadth():
     ]
 
 
+def test_agent_module_keeps_compatibility_exports_after_split():
+    from web_scout.agent import (
+        _build_allowed_domain_set,
+        _build_synth_prompt,
+        _evaluate_search_coverage,
+        _normalize_domain,
+        _run_search_mode,
+        _search_and_scrape_iteration,
+    )
+
+    assert callable(_normalize_domain)
+    assert callable(_build_allowed_domain_set)
+    assert callable(_build_synth_prompt)
+    assert callable(_search_and_scrape_iteration)
+    assert callable(_evaluate_search_coverage)
+    assert callable(_run_search_mode)
+
+
 def test_select_search_urls_skips_bot_blocked_domains():
     tracker = ResearchTracker()
     tracker.record_bot_detection("https://blocked.org/a", "bot_detected: challenge page")

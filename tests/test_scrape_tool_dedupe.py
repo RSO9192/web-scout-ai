@@ -2,10 +2,17 @@ import asyncio
 
 import pytest
 
+from web_scout._heuristics import EXTRACTOR_HEURISTICS, FOLLOWUP_HEURISTICS, ROUTING_HEURISTICS
 from web_scout.tools import (
     ResearchTracker,
+    _build_failure_outcome,
+    _build_success_outcome,
     _classify_failure_action,
     _ExtractorOutput,
+    _is_rendered_list_page,
+    _render_failed_extractor_output,
+    _render_successful_extractor_output,
+    _resolve_scrape_outcome,
     create_scrape_and_extract_tool,
 )
 
@@ -131,6 +138,121 @@ def test_research_tracker_records_direct_queries():
     assert len(tracker.queries) == 1
     assert tracker.queries[0].query == "fish production"
     assert tracker.queries[0].num_results_returned == 1
+
+
+def test_render_successful_extractor_output_keeps_existing_string_contract():
+    rendered = _render_successful_extractor_output(
+        url="https://example.org/report",
+        title="Example Report",
+        content="Useful extracted content",
+        page_type="list",
+        links=["https://example.org/detail"],
+        count_scraped=1,
+    )
+
+    assert rendered == (
+        "# Example Report\n"
+        "Source: https://example.org/report\n\n"
+        "Useful extracted content\n"
+        "**Page type: list**\n\n"
+        "**Relevant Links found on page:**\n"
+        "- https://example.org/detail\n\n"
+        "⚠ REMINDER: You MUST successfully scrape AT LEAST 2 high-quality sources "
+        "before synthesising and finishing. You currently have 1 successful scrape(s)."
+    )
+    assert _is_rendered_list_page(rendered) is True
+
+
+def test_build_success_outcome_preserves_typed_and_rendered_views():
+    outcome = _build_success_outcome(
+        url="https://example.org/report",
+        title="Example Report",
+        content="Useful extracted content",
+        page_type="list",
+        links=["https://example.org/detail"],
+        count_scraped=1,
+    )
+
+    assert outcome.status == "success"
+    assert outcome.page_type == "list"
+    assert outcome.relevant_links == ["https://example.org/detail"]
+    assert outcome.rendered_text == _render_successful_extractor_output(
+        url="https://example.org/report",
+        title="Example Report",
+        content="Useful extracted content",
+        page_type="list",
+        links=["https://example.org/detail"],
+        count_scraped=1,
+    )
+
+
+@pytest.mark.parametrize(
+    ("content", "expected_action"),
+    [
+        ("Skipped: blocked domain", "blocked_by_policy"),
+        ("bot_detected: challenge page", "bot_detected"),
+        ("Skipped: HTTP 503", "source_http_error"),
+        ("[No relevant content found for this query]", "scraped_irrelevant"),
+    ],
+)
+def test_render_failed_extractor_output_keeps_existing_string_contract(content, expected_action):
+    rendered = _render_failed_extractor_output(
+        url="https://example.org/report",
+        content=content,
+        count_scraped=1,
+    )
+
+    assert _classify_failure_action(content) == expected_action
+    assert rendered == (
+        "No relevant content found at https://example.org/report: "
+        f"{content}\n\n"
+        "⚠ REMINDER: You MUST successfully scrape AT LEAST 2 high-quality sources "
+        "before synthesising and finishing. You currently have 1 successful scrape(s). "
+        "You MUST find other URLs and scrape them!"
+    )
+
+
+def test_build_failure_outcome_preserves_typed_and_rendered_views():
+    outcome = _build_failure_outcome(
+        url="https://example.org/report",
+        content="Skipped: HTTP 503",
+        count_scraped=1,
+        failure_kind="source_http_error",
+    )
+
+    assert outcome.status == "failure"
+    assert outcome.failure_kind == "source_http_error"
+    assert outcome.rendered_text == _render_failed_extractor_output(
+        url="https://example.org/report",
+        content="Skipped: HTTP 503",
+        count_scraped=1,
+    )
+
+
+def test_resolve_scrape_outcome_reconstructs_typed_outcome_from_legacy_string():
+    rendered = _render_successful_extractor_output(
+        url="https://example.org/report",
+        title="Example Report",
+        content="Useful extracted content",
+        page_type="list",
+        links=["https://example.org/detail"],
+        count_scraped=None,
+    )
+
+    outcome = _resolve_scrape_outcome(None, "https://example.org/report", rendered)
+
+    assert outcome.status == "success"
+    assert outcome.page_type == "list"
+    assert outcome.title == "Example Report"
+    assert outcome.content == "Useful extracted content"
+    assert outcome.relevant_links == ["https://example.org/detail"]
+
+
+def test_low_level_heuristics_are_frozen_in_private_config_module():
+    assert ROUTING_HEURISTICS.short_html_text_chars == 150
+    assert EXTRACTOR_HEURISTICS.thin_content_chars == 500
+    assert EXTRACTOR_HEURISTICS.max_interactive_clicks == 5
+    assert FOLLOWUP_HEURISTICS.shortlist_multiplier == 3
 
 
 @pytest.mark.asyncio
