@@ -1,0 +1,108 @@
+$ /Users/riccardo/.local/share/mamba/envs/web-agent/bin/python tests/full_query_probe.py --limit 1 --search-backend serper --research-depth standard --output-dir /Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tests/run_results/20260512_101737 --env-file /Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/.env
+
+10:25:50  INFO      web_scout.probe: full-pipeline query: Kenya interannual variability and long-term trends in precipitation current status and recent trend
+10:25:50  INFO      web_scout.agent: [pipeline] start  query='Kenya interannual variability and long-term trends in precipitation current stat'  backend=serper mode=open depth=standard
+10:25:50  INFO      web_scout.agent: [pipeline] starting search iteration 1
+10:25:52  INFO      web_scout.agent: [pipeline] generated 3 queries: ['Kenya precipitation interannual variability long-term trends recent status analysis', 'Kenya rainfall variability trends current status long-term precipitation change study', 'Kenya precipitation interannual variability long-term trend recent observations climate study']
+10:25:53  INFO      web_scout.agent: [pipeline] selected 6 new URLs to scrape
+10:25:55  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.SKIP reason=blocked domain url=https://www.jstor.org/stable/27255112
+10:25:56  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (55544 chars, 11218 text chars) url=https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical size=55544 text_chars=11218 script_tags=26
+10:25:56  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (247903 chars, 72966 text chars) url=https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/ size=247903 text_chars=72966 script_tags=11
+10:25:57  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (526804 chars, 73127 text chars) url=https://www.nature.com/articles/s41598-024-63786-2 size=526804 text_chars=73127 script_tags=14
+10:25:57  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (95172 chars, 28541 text chars) url=https://journals.eanso.org/index.php/ajccrs/article/view/3175 size=95172 text_chars=28541 script_tags=32
+10:25:58  INFO      web_scout.tools: [extract] extractor_outcome status=failure failure_kind=blocked_by_policy url=https://www.jstor.org/stable/27255112
+10:25:58  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (73111 chars, 32457 text chars) url=https://www.iomcworld.com/open-access/annual-and-seasonal-rainfall-variability-for-the-kenyan-highlands-from-19002012-55903.html size=73111 text_chars=32457 script_tags=24
+10:26:01  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_BROWSER reason=likely SPA (4457 chars HTML, 241 text chars) url=https://journals.eanso.org/index.php/ajccrs/article/view/3175/3764 size=4457 text_chars=241 script_tags=11
+10:26:07  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=2 url=https://www.iomcworld.com/open-access/annual-and-seasonal-rainfall-variability-for-the-kenyan-highlands-from-19002012-55903.html
+10:26:08  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=10 url=https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/
+10:26:12  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (55544 chars, 11218 text chars) url=https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical size=55544 text_chars=11218 script_tags=26
+10:26:17  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=10 url=https://www.nature.com/articles/s41598-024-63786-2
+10:26:17  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (55544 chars, 11218 text chars) url=https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical size=55544 text_chars=11218 script_tags=26
+10:26:19  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (55544 chars, 11218 text chars) url=https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical size=55544 text_chars=11218 script_tags=26
+10:26:21  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (55544 chars, 11218 text chars) url=https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical size=55544 text_chars=11218 script_tags=26
+10:26:32  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=6 url=https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical
+10:26:45  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=9 url=https://journals.eanso.org/index.php/ajccrs/article/view/3175
+10:26:48  INFO      web_scout.agent: [pipeline] coverage evaluation: fully_answered=False, gaps='The scraped content does address Kenya’s interannual variability and gives some long-term precipitation trend direction, but it is not fully complete for the query because the evidence is still narrow and somewhat inconsistent across regions and time windows. It provides national/selected-region descriptions of variability, MAM/OND seasonal trends, and a recent post-2013 shift, but it does not give a single consolidated current-status assessment for Kenya as a whole with a clearly supported recent trend statement across the full country. The evidence is also limited in spatial coverage (national plus a few subregions/highlands/county examples) and does not fully reconcile whether long-term precipitation is increasing, decreasing, or statistically insignificant at the national scale.', needs_new_searches=False, promising_urls=4
+10:26:48  INFO      web_scout.agent: [pipeline] starting search iteration 2
+10:26:48  INFO      web_scout.agent: [pipeline] skipping search; scraping 4 evaluator-selected backlog URLs
+10:26:50  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.DOCUMENT reason=document-by-url url=https://meteo.go.ke/documents/68/State_of_the_Climate_Kenya_2022_mGpcbbe.pdf
+10:26:50  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.DOCUMENT reason=document-by-url url=https://meteo.go.ke/documents/1353/State_of_the_Climate_Kenya_2024_v1.pdf
+10:26:50  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (180116 chars, 44477 text chars) url=https://pmc.ncbi.nlm.nih.gov/articles/PMC6684806/ size=180116 text_chars=44477 script_tags=12
+10:26:53  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (268144 chars, 39742 text chars) url=https://jeas.agropublishers.com/2018/03/rainfall-variability-over-kenya-1950-2012/ size=268144 text_chars=39742 script_tags=54
+10:26:59  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.DOCUMENT reason=application/pdf url=https://jeas.agropublishers.com/?download_id=797&sdm_process_download=1 phase=head
+10:27:00  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=7 url=https://pmc.ncbi.nlm.nih.gov/articles/PMC6684806/
+10:27:17  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=6 url=https://jeas.agropublishers.com/2018/03/rainfall-variability-over-kenya-1950-2012/
+10:27:23  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=3 url=https://meteo.go.ke/documents/68/State_of_the_Climate_Kenya_2022_mGpcbbe.pdf
+10:27:31  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=5 url=https://meteo.go.ke/documents/1353/State_of_the_Climate_Kenya_2024_v1.pdf
+10:27:31  INFO      web_scout.agent: [pipeline] 1 URL(s) skipped by policy: ['https://www.jstor.org/stable/27255112']
+10:28:22  INFO      web_scout.agent: [pipeline] running deterministic synthesis judge
+10:28:22  WARNING   web_scout.agent: [pipeline] judge issue: URLs cited that are NOT in the available sources (remove or replace): https://www.iomcworld.com/open-access/annual-and-seasonal-rainfall-variability-for-the-kenyan-highlands-from-1900-2012-55903.html
+10:28:22  WARNING   web_scout.agent: [pipeline] retrying synthesis due to 1 issue(s)
+10:29:07  INFO      web_scout.agent: [pipeline] done scraped=9 failed=0 blocked=1 source_http=0 irrelevant=0 bot_detected=0 snippet_only=9 queries=3
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+/Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tests/run_results/20260512_101737/full_query_probe_20260512_102907.json

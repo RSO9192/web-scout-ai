@@ -1,0 +1,170 @@
+$ /Users/riccardo/.local/share/mamba/envs/web-agent/bin/python tests/matrix_probe.py --limit 2 --search-backend serper --research-depth standard --output-dir /Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tests/run_results/20260512_101737 --env-file /Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/.env
+
+10:21:08  INFO      web_scout.probe: matrix case: open_q1 (open)
+10:21:08  INFO      web_scout.agent: [pipeline] start  query='Kenya interannual variability and long-term trends in precipitation current stat'  backend=serper mode=open depth=standard
+10:21:08  INFO      web_scout.agent: [pipeline] starting search iteration 1
+10:21:11  INFO      web_scout.agent: [pipeline] generated 3 queries: ['Kenya interannual variability long-term trends precipitation current status recent trend', 'Kenya precipitation interannual variability long term trend analysis recent studies', 'Kenya rainfall trends variability climate change recent status precipitation observations']
+10:21:12  INFO      web_scout.agent: [pipeline] selected 6 new URLs to scrape
+10:21:14  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (55544 chars, 11218 text chars) url=https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical size=55544 text_chars=11218 script_tags=26
+10:21:14  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (180116 chars, 44477 text chars) url=https://pmc.ncbi.nlm.nih.gov/articles/PMC6684806/ size=180116 text_chars=44477 script_tags=12
+10:21:14  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (247903 chars, 72966 text chars) url=https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/ size=247903 text_chars=72966 script_tags=11
+10:21:14  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (526804 chars, 73127 text chars) url=https://www.nature.com/articles/s41598-024-63786-2 size=526804 text_chars=73127 script_tags=14
+10:21:15  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.DOCUMENT reason=document-by-url url=https://meteo.go.ke/documents/3009/State_of_the_Climate_Report_2025.pdf
+10:21:15  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (381515 chars, 45783 text chars) url=https://www.nature.com/articles/s41598-019-47933-8 size=381515 text_chars=45783 script_tags=14
+10:21:23  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=5 url=https://pmc.ncbi.nlm.nih.gov/articles/PMC6684806/
+10:21:26  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=6 url=https://www.nature.com/articles/s41598-024-63786-2
+10:21:27  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=8 url=https://www.nature.com/articles/s41598-019-47933-8
+10:21:27  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=3 url=https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/
+10:21:39  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (55544 chars, 11218 text chars) url=https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical size=55544 text_chars=11218 script_tags=26
+10:21:39  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=1 url=https://meteo.go.ke/documents/3009/State_of_the_Climate_Report_2025.pdf
+10:21:42  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (55544 chars, 11218 text chars) url=https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical size=55544 text_chars=11218 script_tags=26
+10:22:07  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=8 url=https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical
+10:22:08  INFO      web_scout.agent: [pipeline] coverage evaluation: fully_answered=True, gaps='', needs_new_searches=False, promising_urls=0
+10:22:08  INFO      web_scout.agent: [pipeline] query fully answered, proceeding to synthesis
+10:22:50  INFO      web_scout.agent: [pipeline] running deterministic synthesis judge
+10:22:50  INFO      web_scout.agent: [pipeline] synthesis passed judge with 0 issues
+10:22:50  INFO      web_scout.agent: [pipeline] done scraped=6 failed=0 blocked=0 source_http=0 irrelevant=0 bot_detected=0 snippet_only=18 queries=3
+10:22:50  INFO      web_scout.probe: matrix case: open_q2 (open)
+10:22:50  INFO      web_scout.agent: [pipeline] start  query='Kenya spatial patterns of precipitation change current status and recent trend'  backend=serper mode=open depth=standard
+10:22:50  INFO      web_scout.agent: [pipeline] starting search iteration 1
+10:22:52  INFO      web_scout.agent: [pipeline] generated 3 queries: ['Kenya spatial patterns of precipitation change current status recent trend', 'Kenya rainfall spatial variability precipitation trend analysis current status', 'Kenya precipitation change maps recent trends spatial patterns climate study']
+10:22:53  INFO      web_scout.agent: [pipeline] selected 6 new URLs to scrape
+10:22:54  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.SKIP reason=blocked domain url=https://www.facebook.com/journal.environmental.agricultural.sciences/posts/investigation-of-rainfall-variability-over-kenya-1950-2012-sagero-et-althis-stud/868831765260345/
+10:22:55  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.SKIP reason=blocked domain url=https://www.sciencedirect.com/science/article/pii/S2214581825003222
+10:22:55  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (42615 chars, 7844 text chars) url=https://climateknowledgeportal.worldbank.org/country/kenya/climate-data-historical size=42615 text_chars=7844 script_tags=24
+10:22:55  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (526804 chars, 73127 text chars) url=https://www.nature.com/articles/s41598-024-63786-2 size=526804 text_chars=73127 script_tags=14
+10:22:56  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (60707 chars, 8642 text chars) url=https://legacy.geog.ucsb.edu/current-climate-trend-analysis-of-kenya-by-chris-funk/ size=60707 text_chars=8642 script_tags=35
+10:22:56  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.SKIP reason=HTTP 403 on GET url=https://phys.org/news/2023-04-shifting-climate-regions-hotter-drier.html phase=get
+10:22:57  INFO      web_scout.tools: [extract] extractor_outcome status=failure failure_kind=blocked_by_policy url=https://www.sciencedirect.com/science/article/pii/S2214581825003222
+10:23:01  INFO      web_scout.tools: [extract] extractor_outcome status=failure failure_kind=blocked_by_policy url=https://www.facebook.com/journal.environmental.agricultural.sciences/posts/investigation-of-rainfall-variability-over-kenya-1950-2012-sagero-et-althis-stud/868831765260345/
+10:23:01  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.DOCUMENT reason=document-by-url url=http://pubs.usgs.gov/fs/2010/3074/fs2010-3074.pdf
+10:23:03  INFO      web_scout.tools: [extract] source_http_error https://phys.org/news/2023-04-shifting-climate-regions-hotter-drier.html
+10:23:03  INFO      web_scout.tools: [extract] extractor_outcome status=failure failure_kind=source_http_error url=https://phys.org/news/2023-04-shifting-climate-regions-hotter-drier.html
+10:23:08  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (42615 chars, 7844 text chars) url=https://climateknowledgeportal.worldbank.org/country/kenya/climate-data-historical size=42615 text_chars=7844 script_tags=24
+10:23:10  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (42615 chars, 7844 text chars) url=https://climateknowledgeportal.worldbank.org/country/kenya/climate-data-historical size=42615 text_chars=7844 script_tags=24
+10:23:16  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (42615 chars, 7844 text chars) url=https://climateknowledgeportal.worldbank.org/country/kenya/climate-data-historical size=42615 text_chars=7844 script_tags=24
+10:23:19  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (42615 chars, 7844 text chars) url=https://climateknowledgeportal.worldbank.org/country/kenya/climate-data-historical size=42615 text_chars=7844 script_tags=24
+10:23:20  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=8 url=https://www.nature.com/articles/s41598-024-63786-2
+10:23:32  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (42615 chars, 7844 text chars) url=https://climateknowledgeportal.worldbank.org/country/kenya/climate-data-historical size=42615 text_chars=7844 script_tags=24
+10:23:44  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=7 url=https://climateknowledgeportal.worldbank.org/country/kenya/climate-data-historical
+10:24:08  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (60707 chars, 8642 text chars) url=https://legacy.geog.ucsb.edu/current-climate-trend-analysis-of-kenya-by-chris-funk/ size=60707 text_chars=8642 script_tags=35
+10:24:15  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=3 url=https://legacy.geog.ucsb.edu/current-climate-trend-analysis-of-kenya-by-chris-funk/
+10:24:18  INFO      web_scout.agent: [pipeline] coverage evaluation: fully_answered=False, gaps='The scraped content does address Kenya’s spatial precipitation patterns and recent trends, including bimodal seasonality, regional heterogeneity, long-rains decline in some areas, wetter short rains, and post-2013 variability. However, it does not fully answer the query because the coverage is still partial and uneven: it lacks a comprehensive, current nationwide map or province/county-by-county synthesis of spatial patterns of precipitation change, and it does not provide a single clear, up-to-date overall status statement for all regions of Kenya. The evidence is also drawn from a mix of periods (1960–2009, 1981–2021, 1991–2020) and focuses heavily on selected regions/cases rather than a complete current-country assessment.', needs_new_searches=False, promising_urls=6
+10:24:18  INFO      web_scout.agent: [pipeline] starting search iteration 2
+10:24:18  INFO      web_scout.agent: [pipeline] skipping search; scraping 4 evaluator-selected backlog URLs
+10:24:20  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.DOCUMENT reason=document-by-url url=https://meteo.go.ke/documents/1353/State_of_the_Climate_Kenya_2024_v1.pdf
+10:24:20  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (73111 chars, 32457 text chars) url=https://www.iomcworld.com/open-access/annual-and-seasonal-rainfall-variability-for-the-kenyan-highlands-from-19002012-55903.html size=73111 text_chars=32457 script_tags=24
+10:24:23  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (735219 chars, 96890 text chars) url=https://www.researchgate.net/publication/311301478_Analysis_of_Spatial_and_Temporal_Patterns_of_Rainfall_Variations_over_Kenya size=735219 text_chars=96890 script_tags=29
+10:24:27  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.HTML_FAST reason=static HTML (444313 chars, 2963 text chars) url=https://ir-library.ku.ac.ke/items/b49fe306-dfd3-4b2e-9b9c-907553c62112 size=444313 text_chars=2963 script_tags=5
+10:24:29  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=1 url=https://www.iomcworld.com/open-access/annual-and-seasonal-rainfall-variability-for-the-kenyan-highlands-from-19002012-55903.html
+10:24:38  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=8 url=https://www.researchgate.net/publication/311301478_Analysis_of_Spatial_and_Temporal_Patterns_of_Rainfall_Variations_over_Kenya
+10:24:38  INFO      web_scout.scraping: [scrape-plan] route=ScrapeStrategy.DOCUMENT reason=application/pdf url=https://ir-library.ku.ac.ke/bitstreams/c1233399-216d-49e3-800c-65c09fb7ae66/download phase=get
+10:24:39  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=2 url=https://meteo.go.ke/documents/1353/State_of_the_Climate_Kenya_2024_v1.pdf
+10:24:55  INFO      web_scout.tools: [extract] extractor_outcome status=success page_type=content links=4 url=https://ir-library.ku.ac.ke/items/b49fe306-dfd3-4b2e-9b9c-907553c62112
+10:24:55  INFO      web_scout.agent: [pipeline] 2 URL(s) skipped by policy: ['https://www.sciencedirect.com/science/article/pii/S2214581825003222', 'https://www.facebook.com/journal.environmental.agricultural.sciences/posts/investigation-of-rainfall-variability-over-kenya-1950-2012-sagero-et-althis-stud/868831765260345/']
+10:25:47  INFO      web_scout.agent: [pipeline] running deterministic synthesis judge
+10:25:47  INFO      web_scout.agent: [pipeline] synthesis passed judge with 0 issues
+10:25:47  INFO      web_scout.agent: [pipeline] done scraped=7 failed=0 blocked=2 source_http=1 irrelevant=0 bot_detected=0 snippet_only=13 queries=3
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+
+[1;31mProvider List: https://docs.litellm.ai/docs/providers[0m
+
+/Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tests/run_results/20260512_101737/matrix_probe_20260512_102547.json

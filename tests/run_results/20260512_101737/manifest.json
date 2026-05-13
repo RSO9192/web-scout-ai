@@ -1,0 +1,77 @@
+{
+  "preset": "behavior",
+  "run_dir": "/Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tests/run_results/20260512_101737",
+  "results": [
+    {
+      "name": "query-probe",
+      "description": "Search + scrape smoke probe without LLM synthesis.",
+      "command": [
+        "/Users/riccardo/.local/share/mamba/envs/web-agent/bin/python",
+        "tests/query_probe.py",
+        "--max-results",
+        "6",
+        "--max-scrapes",
+        "4",
+        "--output-dir",
+        "/Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tests/run_results/20260512_101737"
+      ],
+      "started_at": "2026-05-12T10:17:37",
+      "elapsed_seconds": 208.06,
+      "status": "passed",
+      "return_code": 0,
+      "log_path": "tests/run_results/20260512_101737/query-probe.log",
+      "junit_path": null,
+      "missing_env": []
+    },
+    {
+      "name": "matrix-probe",
+      "description": "Mixed open/domain/direct live probe across a small case set.",
+      "command": [
+        "/Users/riccardo/.local/share/mamba/envs/web-agent/bin/python",
+        "tests/matrix_probe.py",
+        "--limit",
+        "2",
+        "--search-backend",
+        "serper",
+        "--research-depth",
+        "standard",
+        "--output-dir",
+        "/Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tests/run_results/20260512_101737",
+        "--env-file",
+        "/Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/.env"
+      ],
+      "started_at": "2026-05-12T10:21:05",
+      "elapsed_seconds": 282.64,
+      "status": "passed",
+      "return_code": 0,
+      "log_path": "tests/run_results/20260512_101737/matrix-probe.log",
+      "junit_path": null,
+      "missing_env": []
+    },
+    {
+      "name": "full-query-probe",
+      "description": "End-to-end live research probe with synthesis on one manual query.",
+      "command": [
+        "/Users/riccardo/.local/share/mamba/envs/web-agent/bin/python",
+        "tests/full_query_probe.py",
+        "--limit",
+        "1",
+        "--search-backend",
+        "serper",
+        "--research-depth",
+        "standard",
+        "--output-dir",
+        "/Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tests/run_results/20260512_101737",
+        "--env-file",
+        "/Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/.env"
+      ],
+      "started_at": "2026-05-12T10:25:48",
+      "elapsed_seconds": 200.66,
+      "status": "passed",
+      "return_code": 0,
+      "log_path": "tests/run_results/20260512_101737/full-query-probe.log",
+      "junit_path": null,
+      "missing_env": []
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "preset": "unit",
+  "run_dir": "/Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tests/run_results/20260512_101413",
+  "results": [
+    {
+      "name": "lint",
+      "description": "Static lint check for src and tests.",
+      "command": [
+        "ruff",
+        "check",
+        "src",
+        "tests"
+      ],
+      "started_at": "2026-05-12T10:14:13",
+      "elapsed_seconds": 0.02,
+      "status": "passed",
+      "return_code": 0,
+      "log_path": "tests/run_results/20260512_101413/lint.log",
+      "junit_path": null,
+      "missing_env": []
+    },
+    {
+      "name": "unit-all",
+      "description": "Full local pytest suite with runtime warnings promoted to errors.",
+      "command": [
+        "pytest",
+        "-W",
+        "error::RuntimeWarning",
+        "--junitxml",
+        "/Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tests/run_results/20260512_101413/unit-all.xml"
+      ],
+      "started_at": "2026-05-12T10:14:13",
+      "elapsed_seconds": 24.93,
+      "status": "passed",
+      "return_code": 0,
+      "log_path": "tests/run_results/20260512_101413/unit-all.log",
+      "junit_path": "tests/run_results/20260512_101413/unit-all.xml",
+      "missing_env": []
+    }
+  ]
+}

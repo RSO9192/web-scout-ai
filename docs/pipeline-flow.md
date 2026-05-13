@@ -2,6 +2,9 @@
 
 This document is the readable map of the package's main behavior.
 
+Compatibility note: this map reflects a structural refactor of the pipeline files.
+The runtime behavior and public API are intentionally unchanged.
+
 - Entry point: [`run_web_research`](../src/web_scout/agent.py)
 - Scrape router: [`scrape_url`](../src/web_scout/scraping.py)
 - Extractor tool: [`create_scrape_and_extract_tool`](../src/web_scout/tools.py)
@@ -156,9 +159,8 @@ flowchart TD
 
 If you want to follow the runtime path in source:
 
-1. [`run_web_research`](../src/web_scout/agent.py)
-2. [`_run_direct_url_mode`](../src/web_scout/agent.py) or [`_run_search_mode`](../src/web_scout/agent.py)
-3. [`create_scrape_and_extract_tool`](../src/web_scout/tools.py)
-4. [`_build_extractor_agent`](../src/web_scout/tools.py)
-5. [`scrape_url`](../src/web_scout/scraping.py)
-6. [`_synthesise_result`](../src/web_scout/agent.py)
+1. [`run_web_research`](../src/web_scout/agent.py) — public facade and entry point
+2. [`_pipeline_flow.py`](../src/web_scout/_pipeline_flow.py) — orchestration helpers
+3. [`_pipeline_rules.py`](../src/web_scout/_pipeline_rules.py) — heuristics and prompt builders
+4. [`create_scrape_and_extract_tool`](../src/web_scout/tools.py) — extractor contract and rendering
+5. [`scrape_url`](../src/web_scout/scraping.py) — URL-level routing
