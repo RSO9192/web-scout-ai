@@ -1,0 +1,75 @@
+[
+  {
+    "query": "Kenya interannual variability and long-term trends in precipitation current status and recent trend",
+    "elapsed_seconds": 196.89,
+    "num_queries": 3,
+    "num_scraped": 9,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3757,
+    "error": null,
+    "search_queries": [
+      "Kenya rainfall variability trends current status long-term precipitation change study",
+      "Kenya precipitation interannual variability long-term trends recent status analysis",
+      "Kenya precipitation interannual variability long-term trend recent observations climate study"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.nature.com/articles/s41598-024-63786-2",
+        "title": "Observations of enhanced rainfall variability in Kenya, East Africa",
+        "content_chars": 3430,
+        "preview": "### Precipitation Status and Recent Trends in Kenya (1981\u20132021) **1. General Climatology and Recent Shifts** Kenya's rainfall is historically bimodal, characterized by the \"Long Rains\" in March-April-May (MAM) and \"Short Rains\" in October-N"
+      },
+      {
+        "url": "https://journals.eanso.org/index.php/ajccrs/article/view/3175",
+        "title": "Analysis of Climate Variability Trends and Local Perceptions in Kieni West Sub-County, Kenya",
+        "content_chars": 2538,
+        "preview": "The research conducted by Kariuki, Baaru, and Muriithi (2025) provides a detailed analysis of climate variability trends in Kieni West Sub-County, Kenya, based on gridded data from the Kenya Meteorological Department (KMD) for the period 19"
+      },
+      {
+        "url": "https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical",
+        "title": "Kenya - Trends & Variability (ERA5) | Climate Change Knowledge Portal",
+        "content_chars": 2693,
+        "preview": "Kenya's precipitation is characterized by high interannual variability and complex long-term trends. According to the World Bank Climate Change Knowledge Portal (CCKP) data derived from ERA5 reanalysis (1950\u20132024): ### Interannual Variabili"
+      },
+      {
+        "url": "https://meteo.go.ke/documents/1353/State_of_the_Climate_Kenya_2024_v1.pdf",
+        "title": "State of the Climate Kenya 2024",
+        "content_chars": 3852,
+        "preview": "### Precipitation Current Status (2024) In 2024, Kenya's rainfall exhibited significant spatial and temporal variability, characterized by a sharp transition from widespread flooding in the first half of the year to drier-than-average condi"
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6684806/",
+        "title": "Long-term trends in rainfall and temperature using high-resolution climate datasets in East Africa - PMC",
+        "content_chars": 2649,
+        "preview": "In Kenya, long-term trends and interannual variability in precipitation and temperature were analyzed using high-resolution gridded datasets (CHIRPS for rainfall, 1981\u20132016; Observational-Reanalysis Hybrid for temperature, 1979\u20132010). ### C"
+      },
+      {
+        "url": "https://www.iomcworld.com/open-access/annual-and-seasonal-rainfall-variability-for-the-kenyan-highlands-from-19002012-55903.html",
+        "title": "Annual and Seasonal Rainfall Variability for the Kenyan Highlands from 1900-2012",
+        "content_chars": 2678,
+        "preview": "The study analyzed 112 years (1900\u20132012) of rainfall data for Nairobi, Nyeri, Thika, Meru, and Embu in the Kenyan Highlands. ### General Long-Term Trends * **Annual Rainfall:** Most areas showed no significant long-term trend in annual rain"
+      },
+      {
+        "url": "https://jeas.agropublishers.com/2018/03/rainfall-variability-over-kenya-1950-2012/",
+        "title": "Investigation of Rainfall Variability over Kenya (1950-2012)",
+        "content_chars": 2846,
+        "preview": "This research investigated rainfall variability and trends across 33 stations in Kenya over a 63-year period (1950\u20132012). Key findings on interannual variability and long-term trends include: ### Seasonal Patterns and Variability - **Bimoda"
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/",
+        "title": "Observations of enhanced rainfall variability in Kenya, East Africa",
+        "content_chars": 3157,
+        "preview": "Detailed observations of rainfall in Kenya from 1981 to 2021 reveal a significant shift in precipitation patterns, characterized by enhanced interannual and intraseasonal variability, particularly after 2013. ### Long-term Trends and Season"
+      },
+      {
+        "url": "https://meteo.go.ke/documents/68/State_of_the_Climate_Kenya_2022_mGpcbbe.pdf",
+        "title": "State of the Climate Kenya 2022 Report",
+        "content_chars": 3263,
+        "preview": "### Current Status of Precipitation in Kenya (2022) In 2022, most of Kenya experienced below-average rainfall, continuing a multi-year drought that began in 2020. The year was marked by depressed rainfall across all primary seasons: - **Mar"
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  }
+]
