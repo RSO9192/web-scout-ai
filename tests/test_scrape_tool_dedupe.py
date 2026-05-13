@@ -2,10 +2,23 @@ import asyncio
 
 import pytest
 
+from web_scout._heuristics import EXTRACTOR_HEURISTICS, FOLLOWUP_HEURISTICS, ROUTING_HEURISTICS
 from web_scout.tools import (
+    CachedSourceArtifact,
     ResearchTracker,
+    SourceCacheKey,
+    _SESSION_SOURCE_CACHE,
+    _SESSION_SOURCE_IN_FLIGHT,
+    _build_failure_outcome,
+    _build_success_outcome,
     _classify_failure_action,
     _ExtractorOutput,
+    _get_or_fetch_session_source_artifact,
+    _make_source_cache_key,
+    _is_rendered_list_page,
+    _render_failed_extractor_output,
+    _render_successful_extractor_output,
+    _resolve_scrape_outcome,
     create_scrape_and_extract_tool,
 )
 
@@ -16,6 +29,15 @@ class _FakeRunResult:
 
     def final_output_as(self, _output_type):
         return self._output
+
+
+@pytest.fixture(autouse=True)
+def _clear_session_source_cache():
+    _SESSION_SOURCE_CACHE.clear()
+    _SESSION_SOURCE_IN_FLIGHT.clear()
+    yield
+    _SESSION_SOURCE_CACHE.clear()
+    _SESSION_SOURCE_IN_FLIGHT.clear()
 
 
 @pytest.mark.asyncio
@@ -87,6 +109,178 @@ async def test_scrape_tool_does_not_retry_bot_detected(monkeypatch):
     assert "bot_detected" in result
 
 
+@pytest.mark.asyncio
+async def test_session_source_cache_reuses_successful_fetches(monkeypatch):
+    from web_scout import scraping, tools
+
+    call_count = 0
+
+    async def _fake_fetch(url, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        return (
+            scraping.SourceArtifact(
+                kind="text",
+                title="Report",
+                text_content="Broad source content",
+            ),
+            None,
+            scraping.ScrapeStrategy.HTML_FAST,
+        )
+
+    monkeypatch.setattr(tools, "_SESSION_SOURCE_CACHE", {})
+    monkeypatch.setattr(tools, "_SESSION_SOURCE_IN_FLIGHT", {})
+    monkeypatch.setattr(scraping, "fetch_query_agnostic_source_artifact", _fake_fetch)
+
+    key_strategy = scraping.ScrapeStrategy.HTML_FAST
+    first, first_error = await _get_or_fetch_session_source_artifact(
+        url="https://example.org/report",
+        strategy=key_strategy,
+        wait_for=None,
+        vision_model=None,
+        allowed_domains=None,
+        max_pdf_pages=50,
+    )
+    second, second_error = await _get_or_fetch_session_source_artifact(
+        url="https://example.org/report",
+        strategy=key_strategy,
+        wait_for=None,
+        vision_model=None,
+        allowed_domains=None,
+        max_pdf_pages=50,
+    )
+
+    assert first_error is None
+    assert second_error is None
+    assert call_count == 1
+    assert first == second
+    assert first == CachedSourceArtifact(
+        url="https://example.org/report",
+        title="Report",
+        artifact_kind="text",
+        text_content="Broad source content",
+    )
+
+
+@pytest.mark.asyncio
+async def test_session_source_cache_dedupes_concurrent_misses(monkeypatch):
+    from web_scout import scraping, tools
+
+    call_count = 0
+
+    async def _fake_fetch(url, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(0.05)
+        return (
+            scraping.SourceArtifact(
+                kind="text",
+                title="Report",
+                text_content="Broad source content",
+            ),
+            None,
+            scraping.ScrapeStrategy.HTML_FAST,
+        )
+
+    monkeypatch.setattr(tools, "_SESSION_SOURCE_CACHE", {})
+    monkeypatch.setattr(tools, "_SESSION_SOURCE_IN_FLIGHT", {})
+    monkeypatch.setattr(scraping, "fetch_query_agnostic_source_artifact", _fake_fetch)
+
+    first, second = await asyncio.gather(
+        _get_or_fetch_session_source_artifact(
+            url="https://example.org/report",
+            strategy=scraping.ScrapeStrategy.HTML_FAST,
+            wait_for=None,
+            vision_model=None,
+            allowed_domains=None,
+            max_pdf_pages=50,
+        ),
+        _get_or_fetch_session_source_artifact(
+            url="https://example.org/report",
+            strategy=scraping.ScrapeStrategy.HTML_FAST,
+            wait_for=None,
+            vision_model=None,
+            allowed_domains=None,
+            max_pdf_pages=50,
+        ),
+    )
+
+    assert call_count == 1
+    assert first[1] is None and second[1] is None
+    assert first[0] == second[0]
+
+
+@pytest.mark.asyncio
+async def test_session_source_cache_does_not_store_failures(monkeypatch):
+    from web_scout import scraping, tools
+
+    call_count = 0
+
+    async def _fake_fetch(url, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        return None, "HTTP 503", scraping.ScrapeStrategy.HTML_FAST
+
+    monkeypatch.setattr(tools, "_SESSION_SOURCE_CACHE", {})
+    monkeypatch.setattr(tools, "_SESSION_SOURCE_IN_FLIGHT", {})
+    monkeypatch.setattr(scraping, "fetch_query_agnostic_source_artifact", _fake_fetch)
+
+    first, first_error = await _get_or_fetch_session_source_artifact(
+        url="https://example.org/report",
+        strategy=scraping.ScrapeStrategy.HTML_FAST,
+        wait_for=None,
+        vision_model=None,
+        allowed_domains=None,
+        max_pdf_pages=50,
+    )
+    second, second_error = await _get_or_fetch_session_source_artifact(
+        url="https://example.org/report",
+        strategy=scraping.ScrapeStrategy.HTML_FAST,
+        wait_for=None,
+        vision_model=None,
+        allowed_domains=None,
+        max_pdf_pages=50,
+    )
+
+    assert first is None and second is None
+    assert first_error == "HTTP 503"
+    assert second_error == "HTTP 503"
+    assert call_count == 2
+
+
+def test_source_cache_key_distinguishes_pdf_page_limits():
+    from web_scout import scraping
+
+    key_50 = _make_source_cache_key(
+        url="https://example.org/report.pdf",
+        strategy=scraping.ScrapeStrategy.DOCUMENT,
+        wait_for=None,
+        max_pdf_pages=50,
+        cache_pdf_pages=True,
+    )
+    key_10 = _make_source_cache_key(
+        url="https://example.org/report.pdf",
+        strategy=scraping.ScrapeStrategy.DOCUMENT,
+        wait_for=None,
+        max_pdf_pages=10,
+        cache_pdf_pages=True,
+    )
+    html_key = _make_source_cache_key(
+        url="https://example.org/report",
+        strategy=scraping.ScrapeStrategy.HTML_FAST,
+        wait_for="#chart",
+        max_pdf_pages=50,
+    )
+
+    assert key_50 != key_10
+    assert key_50 == SourceCacheKey(
+        url="https://example.org/report.pdf",
+        wait_for="",
+        max_pdf_pages=50,
+    )
+    assert html_key.wait_for == "#chart"
+
+
 def test_classify_failure_action_blocked_domain():
     assert _classify_failure_action("Skipped: blocked domain") == "blocked_by_policy"
 
@@ -131,6 +325,121 @@ def test_research_tracker_records_direct_queries():
     assert len(tracker.queries) == 1
     assert tracker.queries[0].query == "fish production"
     assert tracker.queries[0].num_results_returned == 1
+
+
+def test_render_successful_extractor_output_keeps_existing_string_contract():
+    rendered = _render_successful_extractor_output(
+        url="https://example.org/report",
+        title="Example Report",
+        content="Useful extracted content",
+        page_type="list",
+        links=["https://example.org/detail"],
+        count_scraped=1,
+    )
+
+    assert rendered == (
+        "# Example Report\n"
+        "Source: https://example.org/report\n\n"
+        "Useful extracted content\n"
+        "**Page type: list**\n\n"
+        "**Relevant Links found on page:**\n"
+        "- https://example.org/detail\n\n"
+        "⚠ REMINDER: You MUST successfully scrape AT LEAST 2 high-quality sources "
+        "before synthesising and finishing. You currently have 1 successful scrape(s)."
+    )
+    assert _is_rendered_list_page(rendered) is True
+
+
+def test_build_success_outcome_preserves_typed_and_rendered_views():
+    outcome = _build_success_outcome(
+        url="https://example.org/report",
+        title="Example Report",
+        content="Useful extracted content",
+        page_type="list",
+        links=["https://example.org/detail"],
+        count_scraped=1,
+    )
+
+    assert outcome.status == "success"
+    assert outcome.page_type == "list"
+    assert outcome.relevant_links == ["https://example.org/detail"]
+    assert outcome.rendered_text == _render_successful_extractor_output(
+        url="https://example.org/report",
+        title="Example Report",
+        content="Useful extracted content",
+        page_type="list",
+        links=["https://example.org/detail"],
+        count_scraped=1,
+    )
+
+
+@pytest.mark.parametrize(
+    ("content", "expected_action"),
+    [
+        ("Skipped: blocked domain", "blocked_by_policy"),
+        ("bot_detected: challenge page", "bot_detected"),
+        ("Skipped: HTTP 503", "source_http_error"),
+        ("[No relevant content found for this query]", "scraped_irrelevant"),
+    ],
+)
+def test_render_failed_extractor_output_keeps_existing_string_contract(content, expected_action):
+    rendered = _render_failed_extractor_output(
+        url="https://example.org/report",
+        content=content,
+        count_scraped=1,
+    )
+
+    assert _classify_failure_action(content) == expected_action
+    assert rendered == (
+        "No relevant content found at https://example.org/report: "
+        f"{content}\n\n"
+        "⚠ REMINDER: You MUST successfully scrape AT LEAST 2 high-quality sources "
+        "before synthesising and finishing. You currently have 1 successful scrape(s). "
+        "You MUST find other URLs and scrape them!"
+    )
+
+
+def test_build_failure_outcome_preserves_typed_and_rendered_views():
+    outcome = _build_failure_outcome(
+        url="https://example.org/report",
+        content="Skipped: HTTP 503",
+        count_scraped=1,
+        failure_kind="source_http_error",
+    )
+
+    assert outcome.status == "failure"
+    assert outcome.failure_kind == "source_http_error"
+    assert outcome.rendered_text == _render_failed_extractor_output(
+        url="https://example.org/report",
+        content="Skipped: HTTP 503",
+        count_scraped=1,
+    )
+
+
+def test_resolve_scrape_outcome_reconstructs_typed_outcome_from_legacy_string():
+    rendered = _render_successful_extractor_output(
+        url="https://example.org/report",
+        title="Example Report",
+        content="Useful extracted content",
+        page_type="list",
+        links=["https://example.org/detail"],
+        count_scraped=None,
+    )
+
+    outcome = _resolve_scrape_outcome(None, "https://example.org/report", rendered)
+
+    assert outcome.status == "success"
+    assert outcome.page_type == "list"
+    assert outcome.title == "Example Report"
+    assert outcome.content == "Useful extracted content"
+    assert outcome.relevant_links == ["https://example.org/detail"]
+
+
+def test_low_level_heuristics_are_frozen_in_private_config_module():
+    assert ROUTING_HEURISTICS.short_html_text_chars == 150
+    assert EXTRACTOR_HEURISTICS.thin_content_chars == 500
+    assert EXTRACTOR_HEURISTICS.max_interactive_clicks == 5
+    assert FOLLOWUP_HEURISTICS.shortlist_multiplier == 3
 
 
 @pytest.mark.asyncio

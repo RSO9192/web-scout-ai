@@ -25,14 +25,11 @@ print(result.synthesis)
 
 ## What Problem It Solves
 
-Building a reliable research pipeline requires gluing together:
+Built-in web search tools in frameworks like the OpenAI Agents SDK return snippets — short excerpts from search results that the model has to reason from. They don't read the actual pages.
 
-- a search API (Serper)
-- a scraper that handles HTML, JS pages, PDFs, DOCX
-- a coverage evaluator to know when you have enough sources
-- a synthesizer that cites actual content
+`web-scout-ai` goes deeper: it scrapes, converts, and extracts relevant content from real pages — static HTML, JS-rendered sites, PDFs, DOCX, and JSON endpoints. You also control exactly which sources get scraped, how deep the pipeline goes, and what counts as good enough coverage before synthesis.
 
-`web-scout-ai` is all of that in one call. No Tavily + crawl4ai + custom glue code. No open-ended agent that you cannot control in production.
+No Tavily + crawl4ai + custom glue code. No open-ended agent you cannot control in production.
 
 ---
 
@@ -40,27 +37,17 @@ Building a reliable research pipeline requires gluing together:
 
 ### 1. Climate and policy evidence retrieval
 
-Query institutional sources (IPCC, FAO, World Bank) and get a cited synthesis — not just links.
+Query institutional sources and get a cited synthesis — not just links.
 
 ```python
 result = await run_web_research(
     "drought impact on smallholder farmers in sub-Saharan Africa",
     include_domains=["fao.org", "ipcc.ch", "worldbank.org"],
+    cache=True,  # reuse successful URL source artifacts for this Python process
 )
 ```
 
-### 2. Agent pipelines
-
-Drop it in as a tool. One function, typed output, no framework lock-in.
-
-```python
-@function_tool
-async def research(query: str) -> str:
-    result = await run_web_research(query, models=models)
-    return result.synthesis
-```
-
-### 3. Rapid literature scanning
+### 2. Rapid literature scanning
 
 Point it at a report library or database page. It detects list pages, follows item links, and reads the actual documents.
 
@@ -70,93 +57,6 @@ result = await run_web_research(
     direct_url="https://wocat.net/en/database/list/?type=technology&country=ke",
 )
 ```
-
----
-
-## Why It Feels Different
-
-**Designed for agents, not humans.** One async entry point, typed output, LiteLLM provider flexibility. Works inside pipelines with no sidechannels.
-
-**Returns structured + clean content.** Every source is scraped and converted into a query-relevant extract before synthesis. You get cited prose, not a list of links.
-
-**Works on the full web.** Static HTML, JS-rendered pages via Playwright, PDFs and DOCX via `docling`, JSON endpoints, even bot-protected files via browser download fallback.
-
-**Knows when to go deeper.** If a URL is a list or database page, the pipeline detects it, follows item links, and takes a pagination hop. If coverage is still weak after the first round, it generates follow-up queries automatically.
-
----
-
-## Killer Demo
-
-```python
-import asyncio
-from web_scout import run_web_research
-
-async def main():
-    result = await run_web_research(
-        query="Kenya interannual variability and long-term trends in precipitation — current status and recent trend",
-        models={
-            "web_researcher": "gemini/gemini-3-flash-preview",
-            "content_extractor": "gemini/gemini-3-flash-preview",
-        },
-        search_backend="serper",
-    )
-    print(result.synthesis)
-    print(f"\n{len(result.scraped)} sources read, avg {sum(len(s.content) for s in result.scraped) // len(result.scraped):,} chars/source")
-
-asyncio.run(main())
-```
-
-**Real output** (from an actual run — sources, numbers, and dates are live from the web):
-
-```text
-Precipitation in Kenya is characterized by extreme interannual variability and
-distinct seasonal trends that have shifted significantly in recent decades.
-The country's climate is dominated by a bimodal rainfall pattern consisting of
-the 'long rains' (March–May, MAM) and 'short rains' (October–December, OND).
-
-Long-Term Precipitation Trends
-Historically, the two main rainy seasons have exhibited opposing trends:
-
-• Long Rains (MAM): Between 1985 and 2010, a consistent drying trend was
-  observed, attributed to a shortening of the season through delayed onset and
-  earlier cessation. However, this trend has shown signs of recovery since 2018
-  due to extremely wet seasons in 2018, 2020, and 2024.
-
-• Short Rains (OND): A consistent wetting trend has been recorded from 1983 to
-  2021, with seasonal rainfall increasing by approximately 1.44 to 2.36 mm per
-  year. Projections suggest the short rains may deliver more total rainfall than
-  the long rains by 2030–2040.
-
-Current Status (2024)
-The year 2024 exemplified the current state of extreme variability:
-
-• MAM 2024: Recorded as one of the wettest seasons on record for several
-  stations, including Nairobi and Central Kenya. Ndakaini station recorded a
-  seasonal high of 1,355.5 mm. Many areas received 111% to over 200% of their
-  long-term mean, resulting in widespread flooding and crop destruction.
-
-• OND 2024: In sharp contrast, the short rains were generally below average,
-  receiving only 26–75% of normal rainfall in the Northeast and Turkana
-  regions. This poor performance led to a deterioration in food security, with
-  2.15 million people facing food insecurity by early 2025.
-
-Interannual Variability and Drivers
-Rainfall variability has increased substantially since 2013, marked by more
-frequent and intense extremes. Primary drivers include the Indian Ocean Dipole
-(IOD) — positive IOD phases can lead to rainfall totals 2–3 times the
-long-term mean — and ENSO, though the coherence between ENSO and Kenyan
-rainfall has diminished since 2013, suggesting other regional factors are
-becoming more influential.
-
-4 sources read, avg 2,701 chars/source
-```
-
-**Sources actually scraped:**
-
-- [Observations of enhanced rainfall variability in Kenya, East Africa (1981–2021)](https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/) — PMC / Scientific Reports
-- [Drivers and impacts of Eastern African rainfall variability](https://www.icpac.net/documents/829/s43017-023-00397-x_1.pdf) — ICPAC / Nature Reviews
-- [State of the Climate Kenya 2024](https://meteo.go.ke/documents/1353/State_of_the_Climate_Kenya_2024_v1.pdf) — Kenya Meteorological Department (PDF)
-- [State of the Climate Report Kenya 2024](https://www.sei.org/publications/state-climate-report-kenya-2024/) — Stockholm Environment Institute
 
 ---
 
@@ -178,14 +78,11 @@ from web_scout import run_web_research
 async def main():
     result = await run_web_research(
         query="What are the main threats to coral reefs worldwide?",
-        models={
-            "web_researcher": "openai/gpt-5.4-mini",
-            "content_extractor": "gemini/gemini-3-flash-preview",
-        },
+        models={"web_researcher": "openai/gpt-4o-mini", "content_extractor": "openai/gpt-4o-mini"},
         search_backend="serper",
+        cache=True,
     )
     print(result.synthesis)
-    print("\nSources:")
     for source in result.scraped:
         print(f"- {source.title or source.url}: {source.url}")
 
@@ -230,8 +127,8 @@ class WebResearchResult(BaseModel):
 result = await run_web_research(
     query="latest IPCC findings on sea level rise",
     models={
-        "web_researcher": "openai/gpt-5.4-mini",
-        "content_extractor": "gemini/gemini-3-flash-preview",
+        "web_researcher": "openai/gpt-4o-mini",
+        "content_extractor": "gemini/gemini-2.0-flash",
     },
     search_backend="serper",
     research_depth="standard",           # or "deep"
@@ -240,67 +137,15 @@ result = await run_web_research(
     domain_expertise="climate science",  # optional
     allowed_domains=None,                # optional
     max_pdf_pages=50,                    # optional, default 50
+    cache=False,                         # optional, reuse successful source artifacts in this Python process
 )
 ```
-
----
-
-## Research Modes
-
-```python
-# 1) Open web research
-await run_web_research(
-    query="latest IPCC findings on sea level rise",
-    models=models,
-    search_backend="serper",
-)
-
-# 2) Domain-restricted research
-await run_web_research(
-    query="endemic species conservation programs",
-    models=models,
-    include_domains=["iucn.org", "wwf.org"],
-)
-
-# 3) Direct URL extraction (skip search)
-await run_web_research(
-    query="key findings from this report",
-    models=models,
-    direct_url="https://example.org/biodiversity-report.pdf",
-)
-
-# 4) Direct URL list-page deepening
-await run_web_research(
-    query="sustainable land management technologies in Kenya",
-    models=models,
-    direct_url="https://wocat.net/en/database/list/?type=technology&country=ke",
-)
-```
-
-### Direct URL mode is more than single-page extraction
-
-If the URL is a list, index, or database page, the pipeline can:
-
-- detect that it is a hub page
-- collect the most relevant item links
-- follow up to a depth-dependent cap of those links
-- take one "next page" hop when pagination is present
-
-Especially useful for catalog pages, result listings, and structured report libraries.
 
 ---
 
 ## How It Works
 
 See the maintained flow doc: `[docs/pipeline-flow.md](docs/pipeline-flow.md)`
-
-It includes:
-
-- the top-level `run_web_research()` flow
-- the direct-URL vs search-mode split
-- the scrape router rules for docling vs crawl4ai vs JSON vs vision
-- the extractor fallback rules
-- the synthesis and citation-judge rules
 
 1. Generate targeted search queries.
 2. Search the web with Serper.
@@ -311,13 +156,25 @@ It includes:
 7. Produce a grounded synthesis with inline citations.
 8. Run a deterministic citation check before returning.
 
-Editable diagram: `[pipeline-diagram.excalidraw](pipeline-diagram.excalidraw)`
-Readable rule map: `[docs/pipeline-flow.md](docs/pipeline-flow.md)`
+### Research Modes
 
-Pipeline diagram showing mode selection, scrape routing, failure buckets, and synthesis rules
+```python
+# 1) Open web research
+await run_web_research(query="...", models=models, search_backend="serper")
+
+# 2) Domain-restricted research
+await run_web_research(query="...", models=models, include_domains=["iucn.org", "wwf.org"])
+
+# 3) Direct URL extraction (skip search)
+await run_web_research(query="...", models=models, direct_url="https://example.org/report.pdf")
+
+# 4) Direct URL list-page deepening
+await run_web_research(query="...", models=models, direct_url="https://wocat.net/en/database/list/?type=technology&country=ke")
+```
+
+If the URL is a list, index, or database page, the pipeline detects it, collects relevant item links, follows them, and takes one pagination hop when present.
 
 ### How URL Outcomes Are Classified
-
 
 | What happened                                        | Result bucket        | Meaning                                   |
 | ---------------------------------------------------- | -------------------- | ----------------------------------------- |
@@ -329,9 +186,7 @@ Pipeline diagram showing mode selection, scrape routing, failure buckets, and sy
 | Page loaded but content was not useful for the query | `scraped_irrelevant` | Fetch succeeded, relevance failed         |
 | Extraction failed for other reasons                  | `scrape_failed`      | Generic scrape or extraction failure      |
 
-
 ### Follow-Up Rules
-
 
 | Situation                                                     | What the pipeline does next                                                           |
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
@@ -341,7 +196,6 @@ Pipeline diagram showing mode selection, scrape routing, failure buckets, and sy
 | Search mode has weak coverage but promising snippet-only URLs | Scrape backlog URLs before running new searches                                       |
 | Search mode has weak coverage and backlog looks weak          | Generate follow-up search queries                                                     |
 | Domain-restricted mode finds a hub page                       | Deepen within the same domain before broadening search                                |
-
 
 ---
 
@@ -367,7 +221,6 @@ await run_web_research(query=..., models=..., research_depth="standard")
 await run_web_research(query=..., models=..., research_depth="deep")
 ```
 
-
 | Parameter                    | Standard | Deep |
 | ---------------------------- | -------- | ---- |
 | Max iterations               | 2        | 3    |
@@ -377,6 +230,37 @@ await run_web_research(query=..., models=..., research_depth="deep")
 | URLs scraped (follow-up)     | 4        | 8    |
 | Hub deepening cap            | 10       | 15   |
 
+---
+
+## Caching
+
+```python
+await run_web_research(
+    query="climate adaptation finance in Kenya",
+    models=models,
+    cache=True,
+)
+```
+
+When `cache=True`, `web-scout-ai` keeps a process-local in-memory cache of successful URL source artifacts:
+
+- lifetime: the current Python process only
+- scope: reused across multiple `run_web_research(...)` calls in that same process
+- cleared automatically when Python exits
+
+What is cached:
+
+- successful query-agnostic page/document source content
+- successful image/scanned-PDF source payloads, which are then reprocessed per query
+
+What is not cached:
+
+- query-specific extracted summaries
+- final synthesis
+- failed scrapes
+- interactive click-driven exploration results
+
+This means the same URL can be reused across queries without being fetched again, while still producing different extracted summaries when the query changes.
 
 ---
 
@@ -389,121 +273,30 @@ Model IDs follow [LiteLLM provider naming](https://docs.litellm.ai/docs/provider
 ```python
 models = {
     # Required
-    "web_researcher": "openai/gpt-5.4-mini",
-    "content_extractor": "gemini/gemini-3-flash-preview",
+    "web_researcher": "openai/gpt-4o-mini",
+    "content_extractor": "gemini/gemini-2.0-flash",
 
     # Optional step-specific overrides (default: web_researcher)
-    "query_generator": "openai/gpt-5.4-mini",
-    "coverage_evaluator": "openai/gpt-5.4-mini",
-    "synthesiser": "openai/gpt-5.4-mini",
+    "query_generator": "openai/gpt-4o-mini",
+    "coverage_evaluator": "openai/gpt-4o-mini",
+    "synthesiser": "openai/gpt-4o-mini",
 
     # Optional fallback for scanned PDFs, image URLs, or empty JS pages
-    "vision_fallback": "gemini/gemini-3-flash-preview",
+    "vision_fallback": "gemini/gemini-2.0-flash",
 }
-```
-
-### Environment Variables
-
-```bash
-# Search backend
-export SERPER_API_KEY="..."
-
-# LLM providers (set what you use)
-export OPENAI_API_KEY="..."
-export ANTHROPIC_API_KEY="..."
-export GEMINI_API_KEY="..."
-export MISTRAL_API_KEY="..."
-export GROQ_API_KEY="..."
 ```
 
 ### Domain Control
 
 ```python
 # Restrict discovery to selected domains
-await run_web_research(
-    query=...,
-    models=...,
-    include_domains=["fao.org", "ipcc.ch"],
-)
+await run_web_research(query=..., models=..., include_domains=["fao.org", "ipcc.ch"])
 
 # Re-allow domains that are blocked by default
-await run_web_research(
-    query=...,
-    models=...,
-    allowed_domains=["reddit.com"],
-)
+await run_web_research(query=..., models=..., allowed_domains=["reddit.com"])
 ```
 
-By default, the scraper blocks common social and video platforms. `allowed_domains` lets you opt specific domains back in when they are genuinely useful for the task.
-
----
-
-## Use As An Agent Tool
-
-```python
-from agents import Agent, function_tool
-from web_scout import run_web_research
-
-@function_tool
-async def research(query: str) -> str:
-    result = await run_web_research(
-        query=query,
-        models={
-            "web_researcher": "openai/gpt-5.4-mini",
-            "content_extractor": "gemini/gemini-3-flash-preview",
-        },
-        search_backend="serper",
-    )
-    sources = "\n".join(f"- {s.url}" for s in result.scraped)
-    return f"{result.synthesis}\n\nSources:\n{sources}"
-
-agent = Agent(
-    name="researcher",
-    model="gpt-5.4-mini",
-    tools=[research],
-    instructions="Use the research tool to answer with up-to-date web sources.",
-)
-```
-
----
-
-## Testing And Probes
-
-For fast local confidence:
-
-```bash
-mamba run -n web-agent python tests/run_checks.py quick
-```
-
-For the full local suite:
-
-```bash
-mamba run -n web-agent python tests/run_checks.py unit
-```
-
-For live behavior probes with saved artifacts:
-
-```bash
-mamba run -n web-agent python tests/run_checks.py behavior --env-file /path/to/.env
-```
-
-Each run writes a timestamped folder under `tests/run_results/` with:
-
-- one `.log` file per step
-- `manifest.json` with status, commands, and durations
-- `summary.md` with a human-readable report
-- `pytest` JUnit XML for pytest steps
-
-For a folder-level guide to what each test and probe does, see `[tests/README.md](tests/README.md)`.
-
-Presets:
-
-- `quick`: `ruff` plus a targeted unit slice
-- `unit`: `ruff` plus the full pytest suite
-- `behavior`: live probes (`query_probe`, `matrix_probe`, `full_query_probe`)
-- `all`: local checks plus live probes
-
-The live probe preset is env-aware and skips steps cleanly when required keys are missing.
+By default, the scraper blocks common social and video platforms. `allowed_domains` lets you opt specific domains back in.
 
 ---
 
