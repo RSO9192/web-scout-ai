@@ -43,6 +43,7 @@ Query institutional sources and get a cited synthesis — not just links.
 result = await run_web_research(
     "drought impact on smallholder farmers in sub-Saharan Africa",
     include_domains=["fao.org", "ipcc.ch", "worldbank.org"],
+    cache=True,  # reuse successful URL source artifacts for this Python process
 )
 ```
 
@@ -79,6 +80,7 @@ async def main():
         query="What are the main threats to coral reefs worldwide?",
         models={"web_researcher": "openai/gpt-4o-mini", "content_extractor": "openai/gpt-4o-mini"},
         search_backend="serper",
+        cache=True,
     )
     print(result.synthesis)
     for source in result.scraped:
@@ -135,6 +137,7 @@ result = await run_web_research(
     domain_expertise="climate science",  # optional
     allowed_domains=None,                # optional
     max_pdf_pages=50,                    # optional, default 50
+    cache=False,                         # optional, reuse successful source artifacts in this Python process
 )
 ```
 
@@ -226,6 +229,38 @@ await run_web_research(query=..., models=..., research_depth="deep")
 | URLs scraped (first round)   | 6        | 12   |
 | URLs scraped (follow-up)     | 4        | 8    |
 | Hub deepening cap            | 10       | 15   |
+
+---
+
+## Caching
+
+```python
+await run_web_research(
+    query="climate adaptation finance in Kenya",
+    models=models,
+    cache=True,
+)
+```
+
+When `cache=True`, `web-scout-ai` keeps a process-local in-memory cache of successful URL source artifacts:
+
+- lifetime: the current Python process only
+- scope: reused across multiple `run_web_research(...)` calls in that same process
+- cleared automatically when Python exits
+
+What is cached:
+
+- successful query-agnostic page/document source content
+- successful image/scanned-PDF source payloads, which are then reprocessed per query
+
+What is not cached:
+
+- query-specific extracted summaries
+- final synthesis
+- failed scrapes
+- interactive click-driven exploration results
+
+This means the same URL can be reused across queries without being fetched again, while still producing different extracted summaries when the query changes.
 
 ---
 

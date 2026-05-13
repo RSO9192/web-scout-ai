@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.2.0] - 2026-05-13
+
+### Added
+
+- **Process-lifetime session source cache** (`cache=True`): `run_web_research(..., cache=True)` reuses successful query-agnostic URL source artifacts for the lifetime of the current Python process. On the first visit to a URL the raw artifact (full page markdown, converted PDF/DOCX bytes, JSON payload) is fetched and stored in memory. Subsequent calls for the same URL skip the network fetch and document conversion entirely — the LLM extractor still runs per-query to produce a query-specific summary. The cache is keyed on URL, `wait_for` selector, and `max_pdf_pages`; `max_content_chars` is applied at read time so a single cached artifact serves any truncation setting. The cache is in-memory only, is not shared across processes, and is cleared automatically when Python exits.
+
+### Changed
+
+- **Extractor reruns on cached sources**: cached URLs still pass through the LLM extractor and synthesiser for every query. Query-specific extracted summaries and final synthesis are never cached — only the raw source artifact is reused.
+
 ## [1.1.1] - 2026-04-30
 
 ### Changed

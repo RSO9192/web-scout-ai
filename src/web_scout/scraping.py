@@ -24,7 +24,7 @@ import re
 import threading
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Tuple
+from typing import Any, Literal, Optional, Tuple
 from urllib.parse import unquote, urlparse
 from urllib.request import Request, urlopen
 
@@ -340,6 +340,17 @@ _SKIP = ScrapeStrategy.SKIP
 _SCRAPE_HTML = ScrapeStrategy.HTML_FAST
 _SCRAPE_JS = ScrapeStrategy.HTML_BROWSER
 _SCRAPE_DOC = ScrapeStrategy.DOCUMENT
+
+
+@dataclass(frozen=True)
+class SourceArtifact:
+    """Query-agnostic source artifact that can be reused across queries."""
+
+    kind: Literal["text", "binary"]
+    title: str
+    text_content: str = ""
+    binary_bytes: bytes = b""
+    mime_type: str = ""
 _SCRAPE_JSON = ScrapeStrategy.JSON
 _SCRAPE_IMAGE = ScrapeStrategy.IMAGE
 
@@ -629,6 +640,60 @@ async def _scrape_html_fast(url: str, query: str = "", vision_model: Optional[st
     return content, title, None
 
 
+async def _scrape_html_fast_query_agnostic(
+    url: str,
+    *,
+    wait_for: Optional[str] = None,
+    vision_model: Optional[str] = None,
+) -> Tuple[SourceArtifact, Optional[str]]:
+    """Fetch broad HTML content suitable for cross-query reuse."""
+    from crawl4ai.async_crawler_strategy import AsyncHTTPCrawlerStrategy
+    from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
+
+    run_cfg = CrawlerRunConfig(
+        cache_mode=CacheMode.BYPASS,
+        exclude_all_images=True,
+        remove_overlay_elements=True,
+        markdown_generator=DefaultMarkdownGenerator(),
+        verbose=False,
+    )
+
+    try:
+        async with AsyncWebCrawler(
+            config=_quiet_browser_config(),
+            crawler_strategy=AsyncHTTPCrawlerStrategy(),
+        ) as crawler:
+            result = await crawler.arun(url=url, config=run_cfg)
+    except Exception:
+        return await _scrape_html_browser_query_agnostic(
+            url,
+            wait_for=wait_for,
+            vision_model=vision_model,
+        )
+
+    if not result.success:
+        return await _scrape_html_browser_query_agnostic(
+            url,
+            wait_for=wait_for,
+            vision_model=vision_model,
+        )
+
+    content = _pick_markdown_query_agnostic(result.markdown)
+    content = _append_internal_links(content, result)
+    if len(content.strip()) < ROUTING_HEURISTICS.html_fast_thin_content_chars:
+        return await _scrape_html_browser_query_agnostic(
+            url,
+            wait_for=wait_for,
+            vision_model=vision_model,
+        )
+
+    return SourceArtifact(
+        kind="text",
+        title=(result.metadata or {}).get("title", ""),
+        text_content=content,
+    ), None
+
+
 # ---------------------------------------------------------------------------
 # HTML scraping — full browser path (JS rendering)
 # ---------------------------------------------------------------------------
@@ -677,6 +742,20 @@ def _append_internal_links(content: str, result, limit: int = 50) -> str:
 
     if unique_links:
         content += "\n\n### Links on Page:\n" + "\n".join(unique_links[:limit])
+    return content
+
+
+def _pick_markdown_query_agnostic(md) -> str:
+    """Extract the broadest markdown available for cacheable source text."""
+    if hasattr(md, "raw_markdown"):
+        return getattr(md, "markdown_with_citations", None) or md.raw_markdown
+    return str(md) if md else ""
+
+
+def _truncate_content(content: str, max_content_chars: int) -> str:
+    """Apply the public truncation contract after content materialization."""
+    if len(content) > max_content_chars:
+        return content[:max_content_chars] + f"\n\n[Truncated at {max_content_chars:,} chars]"
     return content
 
 
@@ -771,70 +850,224 @@ async def _scrape_html_browser(
     return content, title, None
 
 
-async def _scrape_via_vision(url: str, query: str, vision_model: str) -> Tuple[str, str, Optional[str]]:
-    """Screenshot fallback using a vision LLM when text extraction fails.
+async def _scrape_html_browser_query_agnostic(
+    url: str,
+    *,
+    wait_for: Optional[str] = None,
+    vision_model: Optional[str] = None,
+) -> Tuple[SourceArtifact, Optional[str]]:
+    """Fetch broad browser-rendered content suitable for cross-query reuse."""
+    from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
 
-    Uses Playwright (already installed via crawl4ai) to take a viewport screenshot,
-    then passes the image to a vision LLM for content extraction.
-    Only fires when both fast and browser text paths return empty/insufficient content.
-    """
+    run_cfg = CrawlerRunConfig(
+        cache_mode=CacheMode.BYPASS,
+        exclude_all_images=True,
+        remove_overlay_elements=True,
+        markdown_generator=DefaultMarkdownGenerator(),
+        wait_until="networkidle",
+        page_timeout=ROUTING_HEURISTICS.browser_page_timeout_ms,
+        delay_before_return_html=ROUTING_HEURISTICS.browser_delay_before_return_html_s,
+        verbose=False,
+    )
+    if wait_for:
+        run_cfg.wait_for = wait_for
+
+    browser_cfg = _quiet_browser_config(
+        headless=True,
+        enable_stealth=True,
+        user_agent=(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+    )
+    try:
+        async with AsyncWebCrawler(config=browser_cfg) as crawler:
+            result = await crawler.arun(url=url, config=run_cfg)
+    except Exception as crawl_err:
+        if "Download is starting" in str(crawl_err):
+            artifact, _, error = await _fetch_document_source_artifact(
+                url,
+                vision_model=vision_model,
+                max_pdf_pages=_PDF_MAX_PAGES_DEFAULT,
+            )
+            return artifact, error
+        raise
+
+    if not result.success and wait_for:
+        retry_cfg = CrawlerRunConfig(
+            cache_mode=CacheMode.BYPASS,
+            exclude_all_images=True,
+            remove_overlay_elements=True,
+            markdown_generator=DefaultMarkdownGenerator(),
+            wait_until="networkidle",
+            page_timeout=ROUTING_HEURISTICS.browser_page_timeout_ms,
+            delay_before_return_html=ROUTING_HEURISTICS.browser_delay_before_return_html_s,
+            verbose=False,
+        )
+        try:
+            async with AsyncWebCrawler(config=browser_cfg) as crawler:
+                result = await crawler.arun(url=url, config=retry_cfg)
+        except Exception as e:
+            return SourceArtifact(kind="text", title=""), f"Browser retry failed: {e}"
+
+    if not result.success:
+        return SourceArtifact(kind="text", title=""), result.error_message or "Crawl failed"
+
+    content = _pick_markdown_query_agnostic(result.markdown)
+    content = _append_internal_links(content, result)
+    lower = content.lower()
+    if not content.strip() or (
+        any(p in lower for p in ["page not found", "was not found", "no longer exists", "404 error page"])
+        and "404" in lower
+    ):
+        if vision_model:
+            try:
+                screenshot_bytes = await _capture_page_screenshot(url)
+            except Exception as e:
+                return SourceArtifact(kind="text", title=""), f"Vision fallback failed: {e}"
+            return SourceArtifact(
+                kind="binary",
+                title=(result.metadata or {}).get("title", ""),
+                binary_bytes=screenshot_bytes,
+                mime_type="application/x-page-screenshot",
+            ), None
+        return SourceArtifact(kind="text", title=""), "Page loaded but returned empty or 404 content"
+
+    return SourceArtifact(
+        kind="text",
+        title=(result.metadata or {}).get("title", ""),
+        text_content=content,
+    ), None
+
+
+async def _capture_page_screenshot(url: str) -> bytes:
+    """Capture a viewport screenshot of a URL without performing any extraction."""
     import base64
-
-    import litellm
     from playwright.async_api import async_playwright
 
-    try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        try:
+            context = await browser.new_context(
+                viewport={"width": 1280, "height": 900},
+                user_agent=_FETCH_HEADERS["User-Agent"],
+            )
             try:
-                context = await browser.new_context(
-                    viewport={"width": 1280, "height": 900},
-                    user_agent=_FETCH_HEADERS["User-Agent"],
-                )
+                page = await context.new_page()
                 try:
-                    page = await context.new_page()
-                    try:
-                        await page.goto(
-                            url,
-                            timeout=ROUTING_HEURISTICS.vision_goto_timeout_ms,
-                            wait_until="networkidle",
-                        )
-                        await page.wait_for_timeout(ROUTING_HEURISTICS.vision_settle_wait_ms)
-                    except Exception:
-                        pass  # take screenshot regardless
-                    screenshot_bytes = await page.screenshot(type="png")  # viewport only (not full_page)
-                finally:
-                    await context.close()
+                    await page.goto(
+                        url,
+                        timeout=ROUTING_HEURISTICS.vision_goto_timeout_ms,
+                        wait_until="networkidle",
+                    )
+                    await page.wait_for_timeout(ROUTING_HEURISTICS.vision_settle_wait_ms)
+                except Exception:
+                    pass
+                return await page.screenshot(type="png")
             finally:
-                await browser.close()
+                await context.close()
+        finally:
+            await browser.close()
 
-        screenshot_b64 = base64.b64encode(screenshot_bytes).decode()
+
+async def _vision_extract_image_bytes(
+    *,
+    image_bytes: bytes,
+    mime_type: str,
+    query: str,
+    vision_model: str,
+    prompt_prefix: str,
+) -> Tuple[str, Optional[str]]:
+    """Run vision extraction on already-fetched image bytes."""
+    import base64
+    import litellm
+
+    try:
+        image_b64 = base64.b64encode(image_bytes).decode()
         query_clause = f" relevant to: {query}" if query else ""
-        prompt = (
-            f"Extract all text content{query_clause} from this page screenshot. "
-            "Return the content as clean plain text or markdown. "
-            "Include specific facts, numbers, names, and data. "
-            "Exclude navigation bars and footers."
-        )
+        prompt = prompt_prefix.format(query_clause=query_clause)
         response = await litellm.acompletion(
             model=vision_model,
             messages=[{
                 "role": "user",
                 "content": [
                     {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{screenshot_b64}"}},
+                    {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{image_b64}"}},
                 ],
             }],
         )
         content = (response.choices[0].message.content or "").strip()
         if not content:
-            return "", "", "Vision extraction returned empty content"
-        if len(content) < 400:
-            return "", "", f"Vision extraction returned too little content ({len(content)} chars — page likely blocked)"
-        return content, "", None
+            return "", "Vision extraction returned empty content"
+        return content, None
+    except Exception as e:
+        return "", f"Vision fallback failed: {e}"
 
+
+async def _vision_extract_pdf_bytes(
+    *,
+    pdf_bytes: bytes,
+    query: str,
+    vision_model: str,
+) -> Tuple[str, Optional[str]]:
+    """Run vision extraction on cached PDF bytes by rasterizing the first page."""
+    import pypdfium2 as pdfium
+
+    pdf = pdfium.PdfDocument(pdf_bytes)
+    try:
+        if len(pdf) == 0:
+            return "", "Vision extraction returned empty content"
+        page = pdf[0]
+        try:
+            bitmap = page.render(scale=2)
+            pil_image = bitmap.to_pil()
+        finally:
+            page.close()
+    finally:
+        pdf.close()
+
+    import io
+
+    buffer = io.BytesIO()
+    pil_image.save(buffer, format="PNG")
+    return await _vision_extract_image_bytes(
+        image_bytes=buffer.getvalue(),
+        mime_type="image/png",
+        query=query,
+        vision_model=vision_model,
+        prompt_prefix=(
+            "Extract all useful information{query_clause} from the first page of this PDF rendered as an image. "
+            "If it contains text, tables, charts, maps, labels, legends, or numeric values, capture them precisely. "
+            "Return clean plain text or markdown."
+        ),
+    )
+
+
+async def _scrape_via_vision(url: str, query: str, vision_model: str) -> Tuple[str, str, Optional[str]]:
+    """Screenshot fallback using a vision LLM when text extraction fails."""
+    try:
+        screenshot_bytes = await _capture_page_screenshot(url)
     except Exception as e:
         return "", "", f"Vision fallback failed: {e}"
+
+    content, error = await _vision_extract_image_bytes(
+        image_bytes=screenshot_bytes,
+        mime_type="image/png",
+        query=query,
+        vision_model=vision_model,
+        prompt_prefix=(
+            "Extract all text content{query_clause} from this page screenshot. "
+            "Return the content as clean plain text or markdown. "
+            "Include specific facts, numbers, names, and data. "
+            "Exclude navigation bars and footers."
+        ),
+    )
+    if error:
+        return "", "", error
+    if len(content) < 400:
+        return "", "", f"Vision extraction returned too little content ({len(content)} chars — page likely blocked)"
+    return content, "", None
 
 
 async def _scrape_json(url: str) -> Tuple[str, str, Optional[str]]:
@@ -917,6 +1150,26 @@ async def _scrape_image(url: str, query: str = "", vision_model: Optional[str] =
         return content, title, None
     except Exception as e:
         return "", "", f"Image extraction failed: {e}"
+
+
+async def _download_image_bytes(url: str) -> Tuple[Optional[bytes], str, Optional[str]]:
+    """Download raw image bytes for session caching."""
+    try:
+        async with httpx.AsyncClient(
+            follow_redirects=True,
+            timeout=ROUTING_HEURISTICS.image_json_timeout_s,
+            headers=_FETCH_HEADERS,
+        ) as client:
+            resp = await client.get(url)
+        resp.raise_for_status()
+        mime_type = (
+            _normalize_content_type(resp.headers.get("content-type", ""))
+            or mimetypes.guess_type(url)[0]
+            or "image/png"
+        )
+        return resp.content, mime_type, None
+    except Exception as e:
+        return None, "", f"Image extraction failed: {e}"
 
 
 # ---------------------------------------------------------------------------
@@ -1109,6 +1362,201 @@ async def _scrape_document(url: str, query: str = "", vision_model: Optional[str
         return "", "", f"Document conversion failed: {e}"
     content = _append_internal_links(content, None)
     return content, title, None
+
+
+async def _fetch_document_source_artifact(
+    url: str,
+    *,
+    vision_model: Optional[str],
+    max_pdf_pages: int,
+    known_content_type: str = "",
+    known_content_disposition: str = "",
+) -> Tuple[SourceArtifact, str, Optional[str]]:
+    """Fetch a query-agnostic cacheable artifact for a document URL."""
+    title = url.rsplit("/", 1)[-1] or "Document"
+    is_pdf = _looks_like_pdf_resource(url, known_content_type, known_content_disposition)
+
+    if not is_pdf and not (known_content_type or known_content_disposition):
+        try:
+            async with httpx.AsyncClient(
+                follow_redirects=True, timeout=_VALIDATION_TIMEOUT, headers=_FETCH_HEADERS
+            ) as client:
+                head = await client.head(url)
+            is_pdf = _looks_like_pdf_resource(
+                url,
+                head.headers.get("content-type", ""),
+                head.headers.get("content-disposition", ""),
+            )
+        except Exception:
+            is_pdf = url.lower().split("?")[0].endswith(".pdf")
+
+    if is_pdf:
+        pdf_bytes, error = await _download_pdf_bytes(url)
+        if error or not pdf_bytes:
+            return SourceArtifact(kind="text", title=title), title, error or "PDF returned empty content"
+
+        from docling_core.types.io import DocumentStream
+
+        def _convert_fast(pdf_bytes: bytes = pdf_bytes):
+            import gc
+            import io as _io
+
+            converter = _get_pdf_docling_converter()
+            filename = url.rsplit("/", 1)[-1].split("?")[0] or "document.pdf"
+            source = DocumentStream(name=filename, stream=_io.BytesIO(pdf_bytes))
+            result = converter.convert(source, page_range=(1, max_pdf_pages))
+            markdown = result.document.export_to_markdown()
+            del result
+            gc.collect()
+            return markdown
+
+        content = await asyncio.to_thread(_convert_fast)
+        content = _append_internal_links(content, None)
+        if len(content.strip()) < _MIN_PDF_TEXT_CHARS:
+            if vision_model:
+                return SourceArtifact(
+                    kind="binary",
+                    title=title,
+                    binary_bytes=pdf_bytes,
+                    mime_type="application/pdf",
+                ), title, None
+            return SourceArtifact(kind="text", title=title), title, (
+                f"[Image-only or scanned PDF — no extractable text layer. "
+                f"Extracted {len(content.strip())} chars. URL: {url}]"
+            )
+        return SourceArtifact(kind="text", title=title, text_content=content), title, None
+
+    from docling.document_converter import DocumentConverter
+
+    def _convert():
+        converter = DocumentConverter()
+        result = converter.convert(url)
+        return result.document.export_to_markdown()
+
+    try:
+        content = await asyncio.to_thread(_convert)
+    except Exception as e:
+        return SourceArtifact(kind="text", title=title), title, f"Document conversion failed: {e}"
+    content = _append_internal_links(content, None)
+    return SourceArtifact(kind="text", title=title, text_content=content), title, None
+
+
+async def fetch_query_agnostic_source_artifact(
+    url: str,
+    *,
+    wait_for: Optional[str] = None,
+    vision_model: Optional[str] = None,
+    allowed_domains: Optional[frozenset] = None,
+    max_pdf_pages: int = _PDF_MAX_PAGES_DEFAULT,
+) -> Tuple[Optional[SourceArtifact], Optional[str], ScrapeStrategy]:
+    """Fetch a query-agnostic source artifact suitable for session caching."""
+    plan = await _build_scrape_plan(url, allowed_domains=allowed_domains)
+    if plan.strategy == ScrapeStrategy.SKIP:
+        return None, f"Skipped: {plan.reason}", plan.strategy
+
+    try:
+        if plan.strategy == ScrapeStrategy.DOCUMENT:
+            artifact, title, error = await _fetch_document_source_artifact(
+                url,
+                vision_model=vision_model,
+                max_pdf_pages=max_pdf_pages,
+                known_content_type=plan.content_type,
+                known_content_disposition=plan.content_disposition,
+            )
+        elif plan.strategy == ScrapeStrategy.JSON:
+            content, title, error = await _scrape_json(url)
+            artifact = SourceArtifact(kind="text", title=title or "", text_content=content)
+        elif plan.strategy == ScrapeStrategy.IMAGE:
+            image_bytes, mime_type, error = await _download_image_bytes(url)
+            title = url.rsplit("/", 1)[-1] or "Image"
+            artifact = SourceArtifact(
+                kind="binary",
+                title=title,
+                binary_bytes=image_bytes or b"",
+                mime_type=mime_type,
+            )
+        elif plan.strategy == ScrapeStrategy.HTML_FAST:
+            artifact, error = await _scrape_html_fast_query_agnostic(
+                url,
+                wait_for=wait_for,
+                vision_model=vision_model,
+            )
+            title = artifact.title
+        else:
+            artifact, error = await _scrape_html_browser_query_agnostic(
+                url,
+                wait_for=wait_for,
+                vision_model=vision_model,
+            )
+            title = artifact.title
+    except Exception as e:
+        logger.error("[scrape] failed %s: %s", url, e)
+        return None, str(e), plan.strategy
+
+    if error:
+        if plan.likely_bot_detected:
+            logger.info("[scrape] bot_detected %s", url)
+            return None, f"bot_detected: {error}", plan.strategy
+        return None, error, plan.strategy
+
+    if artifact is None:
+        return None, "Extraction returned empty content", plan.strategy
+
+    if artifact.kind == "text" and not artifact.text_content.strip():
+        if plan.likely_bot_detected:
+            logger.info("[scrape] bot_detected %s", url)
+            return None, "bot_detected: Browser loaded page but returned empty content", plan.strategy
+        return None, "Extraction returned empty content", plan.strategy
+
+    if artifact.kind == "binary" and not artifact.binary_bytes:
+        return None, "Extraction returned empty content", plan.strategy
+
+    return artifact, None, plan.strategy
+
+
+async def materialize_source_artifact(
+    artifact: SourceArtifact,
+    *,
+    query: str,
+    vision_model: Optional[str],
+    max_content_chars: int,
+) -> Tuple[str, str, Optional[str]]:
+    """Turn a cached source artifact into the current query's scrape result."""
+    title = artifact.title
+    if artifact.kind == "text":
+        return _truncate_content(artifact.text_content, max_content_chars), title, None
+
+    if not vision_model:
+        return "", title, "Binary source requires vision_model for extraction"
+
+    if artifact.mime_type == "application/pdf":
+        content, error = await _vision_extract_pdf_bytes(
+            pdf_bytes=artifact.binary_bytes,
+            query=query,
+            vision_model=vision_model,
+        )
+    else:
+        mime_type = (
+            "image/png"
+            if artifact.mime_type == "application/x-page-screenshot"
+            else artifact.mime_type or "image/png"
+        )
+        content, error = await _vision_extract_image_bytes(
+            image_bytes=artifact.binary_bytes,
+            mime_type=mime_type,
+            query=query,
+            vision_model=vision_model,
+            prompt_prefix=(
+                "Extract all useful information{query_clause} from this image. "
+                "If it contains text, tables, charts, maps, labels, legends, or numeric values, capture them precisely. "
+                "Return clean plain text or markdown."
+            ),
+        )
+    if error:
+        return "", title, error
+    if artifact.mime_type == "application/x-page-screenshot" and len(content) < 400:
+        return "", title, f"Vision extraction returned too little content ({len(content)} chars — page likely blocked)"
+    return _truncate_content(content, max_content_chars), title, None
 
 
 # ---------------------------------------------------------------------------

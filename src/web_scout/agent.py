@@ -224,6 +224,7 @@ async def run_web_research(
     allowed_domains: Optional[List[str]] = None,
     max_pdf_pages: int = 50,
     max_content_chars: int = 30_000,
+    cache: bool = False,
 ) -> WebResearchResult:
     """Run deterministic web research pipeline."""
     from .utils import get_model
@@ -277,6 +278,7 @@ async def run_web_research(
         allowed_domains=_allowed,
         max_pdf_pages=max_pdf_pages,
         max_content_chars=max_content_chars,
+        use_session_cache=cache,
     )
 
     logger.info(

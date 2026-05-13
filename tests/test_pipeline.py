@@ -117,6 +117,31 @@ async def test_run_web_research_raises_for_missing_serper_api_key(monkeypatch):
         )
 
 
+@pytest.mark.asyncio
+async def test_run_web_research_passes_cache_flag_to_scrape_tool(monkeypatch):
+    """`cache=True` should enable the scrape tool's session cache flag."""
+    captured_kwargs = {}
+
+    async def _fake_scrape(url: str) -> str:
+        return "Source content " * 20
+
+    def _fake_factory(**kwargs):
+        captured_kwargs.update(kwargs)
+        return _fake_scrape
+
+    monkeypatch.setattr(_agent_module, "create_scrape_and_extract_tool", _fake_factory)
+    _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Done."))
+
+    await run_web_research(
+        query="fish production 2023",
+        models={"web_researcher": "dummy", "content_extractor": "dummy"},
+        direct_url="https://fao.org/fishery/static/report.pdf",
+        cache=True,
+    )
+
+    assert captured_kwargs["use_session_cache"] is True
+
+
 # ---------------------------------------------------------------------------
 # Direct URL mode — happy path
 # ---------------------------------------------------------------------------

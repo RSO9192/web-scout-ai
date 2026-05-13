@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
@@ -30,6 +31,7 @@ from ._heuristics import EXTRACTOR_HEURISTICS
 
 if TYPE_CHECKING:
     from .models import SearchQuery, UrlEntry
+    from .scraping import SourceArtifact
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +42,31 @@ _TRANSIENT_LLM_ERRORS = (
     litellm.BadGatewayError,
 )
 _RETRY_DELAYS = (1.0, 2.0, 4.0)
+
+
+@dataclass(frozen=True)
+class SourceCacheKey:
+    """Stable cache key for a query-agnostic source artifact."""
+
+    url: str
+    wait_for: str = ""
+    max_pdf_pages: int = 0
+
+
+@dataclass(frozen=True)
+class CachedSourceArtifact:
+    """Query-agnostic source artifact stored for the current Python process."""
+
+    url: str
+    title: str
+    artifact_kind: Literal["text", "binary"]
+    text_content: str = ""
+    binary_bytes: bytes = b""
+    mime_type: str = ""
+
+
+_SESSION_SOURCE_CACHE: dict[SourceCacheKey, CachedSourceArtifact] = {}
+_SESSION_SOURCE_IN_FLIGHT: dict[SourceCacheKey, asyncio.Future[CachedSourceArtifact]] = {}
 
 # JavaScript that queries all visible interactive elements on a page.
 # Returns a list of {tag, text} objects in a stable, deduplicated order.
@@ -563,6 +590,119 @@ def _append_min_successful_scrape_reminder(rendered: str, count_scraped: int, *,
     )
 
 
+def _make_source_cache_key(
+    *,
+    url: str,
+    strategy: Any,
+    wait_for: Optional[str],
+    max_pdf_pages: int,
+    cache_pdf_pages: bool = False,
+) -> SourceCacheKey:
+    """Build a cache key that only includes source-shaping parameters."""
+    strategy_name = getattr(strategy, "value", str(strategy))
+    return SourceCacheKey(
+        url=ResearchTracker.normalize_url(url),
+        wait_for=(wait_for or "") if strategy_name in {"SCRAPE_HTML", "SCRAPE_JS"} else "",
+        max_pdf_pages=max_pdf_pages if cache_pdf_pages else 0,
+    )
+
+
+def _cacheable_from_source_artifact(url: str, artifact: "SourceArtifact") -> CachedSourceArtifact:
+    """Convert a scraping-layer artifact into the session-cache representation."""
+    return CachedSourceArtifact(
+        url=url,
+        title=artifact.title,
+        artifact_kind=artifact.kind,
+        text_content=artifact.text_content,
+        binary_bytes=artifact.binary_bytes,
+        mime_type=artifact.mime_type,
+    )
+
+
+def _render_cached_page_text(url: str, title: str, content: str) -> str:
+    """Render cached page content back into the legacy raw_scrape contract."""
+    header = f"# {title}\nSource: {url}\n\n" if title else f"Source: {url}\n\n"
+    signals = []
+    if _has_fragment(url):
+        signals.append(
+            "[SPA: URL fragment detected — current content may be the wrong "
+            "tab/view. Call list_interactive_elements to find the data section.]"
+        )
+    if len(content) >= EXTRACTOR_HEURISTICS.thin_content_chars and _is_form_contaminated(content):
+        signals.append(
+            "[Form/survey content detected — actual data is likely behind "
+            "interactive elements. Call list_interactive_elements.]"
+        )
+    if signals:
+        return header + content + "\n\n" + "\n".join(signals)
+    return header + content
+
+
+def _render_cached_document_text(document_url: str, title: str, content: str) -> str:
+    """Render cached document content back into the legacy document tool contract."""
+    header = (
+        f"# {title}\nSource: {document_url}\n\n"
+        if title
+        else f"Source: {document_url}\n\n"
+    )
+    return header + content
+
+
+async def _get_or_fetch_session_source_artifact(
+    *,
+    url: str,
+    strategy: Any,
+    wait_for: Optional[str],
+    vision_model: Optional[str],
+    allowed_domains: Optional[frozenset],
+    max_pdf_pages: int,
+    cache_pdf_pages: bool = False,
+) -> tuple[Optional[CachedSourceArtifact], Optional[str]]:
+    """Load or fetch a query-agnostic source artifact for this Python process."""
+    from . import scraping as _scraping_module
+
+    key = _make_source_cache_key(
+        url=url,
+        strategy=strategy,
+        wait_for=wait_for,
+        max_pdf_pages=max_pdf_pages,
+        cache_pdf_pages=cache_pdf_pages,
+    )
+    cached = _SESSION_SOURCE_CACHE.get(key)
+    if cached is not None:
+        return cached, None
+
+    existing = _SESSION_SOURCE_IN_FLIGHT.get(key)
+    if existing is not None:
+        try:
+            return await asyncio.shield(existing), None
+        except Exception as exc:
+            return None, str(exc)
+
+    future: asyncio.Future[CachedSourceArtifact] = asyncio.get_running_loop().create_future()
+    _SESSION_SOURCE_IN_FLIGHT[key] = future
+    try:
+        artifact, error, _ = await _scraping_module.fetch_query_agnostic_source_artifact(
+            url,
+            wait_for=wait_for,
+            vision_model=vision_model,
+            allowed_domains=allowed_domains,
+            max_pdf_pages=max_pdf_pages,
+        )
+        if error or artifact is None:
+            if error is None:
+                error = "Extraction returned empty content"
+            future.set_exception(RuntimeError(error))
+            future.exception()
+            return None, error
+        cached = _cacheable_from_source_artifact(url, artifact)
+        _SESSION_SOURCE_CACHE[key] = cached
+        future.set_result(cached)
+        return cached, None
+    finally:
+        _SESSION_SOURCE_IN_FLIGHT.pop(key, None)
+
+
 def _build_success_outcome(
     *,
     url: str,
@@ -771,7 +911,7 @@ def _is_form_contaminated(content: str) -> bool:
     return False
 
 
-def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000, doc_cache: Optional[dict] = None, doc_in_flight: Optional[Dict[str, asyncio.Future[str]]] = None) -> tuple:
+def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000, doc_cache: Optional[dict] = None, doc_in_flight: Optional[Dict[str, asyncio.Future[str]]] = None, use_session_cache: bool = False) -> tuple:
     """Build a content extractor sub-agent with a URL-locked scraping tool.
 
     The ``raw_scrape`` tool is a closure that captures ``url`` and ``wait_for``
@@ -796,27 +936,44 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         Works with static HTML, JS-rendered pages, JSON endpoints, images,
         PDFs, DOCX, PPTX, and XLSX.
         """
-        content, title, error = await _scraping_module.scrape_url(url, wait_for, query=query, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars)
+        if use_session_cache:
+            plan = await _scraping_module._build_scrape_plan(url, allowed_domains=allowed_domains)
+            if plan.strategy == _scraping_module.ScrapeStrategy.SKIP:
+                return f"[Scrape failed: Skipped: {plan.reason}]"
+            cached_artifact, cache_error = await _get_or_fetch_session_source_artifact(
+                url=url,
+                strategy=plan.strategy,
+                wait_for=wait_for,
+                vision_model=vision_model,
+                allowed_domains=allowed_domains,
+                max_pdf_pages=max_pdf_pages,
+                cache_pdf_pages=_scraping_module._looks_like_pdf_resource(
+                    url,
+                    plan.content_type,
+                    plan.content_disposition,
+                ),
+            )
+            if cache_error or cached_artifact is None:
+                return f"[Scrape failed: {cache_error}]"
+            content, title, error = await _scraping_module.materialize_source_artifact(
+                _scraping_module.SourceArtifact(
+                    kind=cached_artifact.artifact_kind,
+                    title=cached_artifact.title,
+                    text_content=cached_artifact.text_content,
+                    binary_bytes=cached_artifact.binary_bytes,
+                    mime_type=cached_artifact.mime_type,
+                ),
+                query=query,
+                vision_model=vision_model,
+                max_content_chars=max_content_chars,
+            )
+        else:
+            content, title, error = await _scraping_module.scrape_url(url, wait_for, query=query, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars)
         if error:
             return f"[Scrape failed: {error}]"
         if not content.strip():
             return "[Page returned empty content]"
-        header = f"# {title}\nSource: {url}\n\n" if title else f"Source: {url}\n\n"
-
-        signals = []
-        if _has_fragment(url):
-            signals.append(
-                "[SPA: URL fragment detected — current content may be the wrong "
-                "tab/view. Call list_interactive_elements to find the data section.]"
-            )
-        if len(content) >= EXTRACTOR_HEURISTICS.thin_content_chars and _is_form_contaminated(content):
-            signals.append(
-                "[Form/survey content detected — actual data is likely behind "
-                "interactive elements. Call list_interactive_elements.]"
-            )
-        if signals:
-            return header + content + "\n\n" + "\n".join(signals)
-        return header + content
+        return _render_cached_page_text(url, title, content)
 
     @function_tool
     async def scrape_linked_document(document_url: str) -> str:
@@ -834,6 +991,47 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         Args:
             document_url: Absolute URL of the primary source document to fetch.
         """
+        plan = await _scraping_module._build_scrape_plan(document_url, allowed_domains=allowed_domains)
+        if plan.strategy != _SCRAPE_DOC:
+            return (
+                "[scrape_linked_document rejected: URL does not look like a primary "
+                f"document ({plan.reason}): {document_url}]"
+            )
+
+        if use_session_cache:
+            cached_artifact, cache_error = await _get_or_fetch_session_source_artifact(
+                url=document_url,
+                strategy=plan.strategy,
+                wait_for=None,
+                vision_model=vision_model,
+                allowed_domains=allowed_domains,
+                max_pdf_pages=max_pdf_pages,
+                cache_pdf_pages=_scraping_module._looks_like_pdf_resource(
+                    document_url,
+                    plan.content_type,
+                    plan.content_disposition,
+                ),
+            )
+            if cache_error or cached_artifact is None:
+                return f"[Document scrape failed: {cache_error}]"
+            content, title, error = await _scraping_module.materialize_source_artifact(
+                _scraping_module.SourceArtifact(
+                    kind=cached_artifact.artifact_kind,
+                    title=cached_artifact.title,
+                    text_content=cached_artifact.text_content,
+                    binary_bytes=cached_artifact.binary_bytes,
+                    mime_type=cached_artifact.mime_type,
+                ),
+                query=query,
+                vision_model=vision_model,
+                max_content_chars=max_content_chars,
+            )
+            if error:
+                return f"[Document scrape failed: {error}]"
+            if not content.strip():
+                return "[Document returned empty content]"
+            return _render_cached_document_text(document_url, title, content)
+
         norm = ResearchTracker.normalize_url(document_url)
         if doc_cache is not None and norm in doc_cache:
             return doc_cache[norm]
@@ -863,12 +1061,6 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
                 doc_in_flight.pop(norm, None)
 
     async def _scrape_linked_document_uncached(document_url: str, norm: str) -> str:
-        plan = await _scraping_module._build_scrape_plan(document_url, allowed_domains=allowed_domains)
-        if plan.strategy != _SCRAPE_DOC:
-            return (
-                "[scrape_linked_document rejected: URL does not look like a primary "
-                f"document ({plan.reason}): {document_url}]"
-            )
         content, title, error = await _scraping_module._scrape_document(
             document_url,
             query=query,
@@ -881,8 +1073,7 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
             return f"[Document scrape failed: {error}]"
         if not content.strip():
             return "[Document returned empty content]"
-        header = f"# {title}\nSource: {document_url}\n\n" if title else f"Source: {document_url}\n\n"
-        result = header + content
+        result = _render_cached_document_text(document_url, title, content)
         if doc_cache is not None:
             doc_cache[norm] = result
         return result
@@ -1237,6 +1428,7 @@ def create_scrape_and_extract_tool(
     allowed_domains: Optional[frozenset] = None,
     max_pdf_pages: int = 50,
     max_content_chars: int = 30_000,
+    use_session_cache: bool = False,
 ):
     """Create a scrape_and_extract function.
 
@@ -1312,7 +1504,7 @@ def create_scrape_and_extract_tool(
                 )
 
                 # Build a fresh extractor agent per call with url locked in the closure
-                extractor_agent, extractor_cleanup = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars, doc_cache=_doc_cache, doc_in_flight=_doc_in_flight)
+                extractor_agent, extractor_cleanup = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars, doc_cache=_doc_cache, doc_in_flight=_doc_in_flight, use_session_cache=use_session_cache)
 
                 input_text = (
                     f"Research query: {query}\n"
