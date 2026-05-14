@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-05-14
+
+### Changed
+
+- **Legacy Office routing is now explicit**: legacy Office binaries such as `.doc`, `.xls`, and `.ppt` are no longer routed into the docling document path. They are detected during URL validation and skipped with a deterministic unsupported-format reason instead of failing later during conversion.
+- **Follow-up document heuristics now match actual support**: direct follow-up candidate selection and document-link heuristics now treat `PDF`, `DOCX`, `PPTX`, and `XLSX` as supported document targets, and stop prioritizing legacy Office binaries that the extractor cannot parse.
+- **Direct-URL document deepening now uses authoritative routing**: direct URL mode now consults the same `_build_scrape_plan(...)` router used by the scraper, so extensionless document downloads and header-detected documents are treated consistently when deciding whether to suppress same-domain follow-up scraping.
+
+### Fixed
+
+- **Legacy Office document crashes**: URLs resolving to legacy Word/Excel/PowerPoint formats no longer reach docling and trigger `InputFormat ... does not match any allowed format` errors.
+- **Mixed-signal document detection**: when a server advertises a legacy MIME type but the filename or URL clearly indicates a supported format such as `.docx`, the router now prefers the supported extension and keeps the document path enabled.
+- **Linked-document validation metadata scope**: `scrape_linked_document` now correctly passes validation-discovered `Content-Type` and `Content-Disposition` metadata through its uncached path, restoring consistent behavior for extensionless document downloads.
+- **Version metadata alignment**: package version metadata is now aligned across `pyproject.toml` and `src/web_scout/__init__.py`.
+
 ## [1.2.0] - 2026-05-13
 
 ### Added

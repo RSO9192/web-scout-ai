@@ -1046,7 +1046,12 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
             doc_in_flight[norm] = future
 
         try:
-            result = await _scrape_linked_document_uncached(document_url, norm)
+            result = await _scrape_linked_document_uncached(
+                document_url,
+                norm,
+                known_content_type=plan.content_type,
+                known_content_disposition=plan.content_disposition,
+            )
         except Exception as exc:
             if future is not None and not future.done():
                 future.set_exception(exc)
@@ -1060,14 +1065,20 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
             if doc_in_flight is not None:
                 doc_in_flight.pop(norm, None)
 
-    async def _scrape_linked_document_uncached(document_url: str, norm: str) -> str:
+    async def _scrape_linked_document_uncached(
+        document_url: str,
+        norm: str,
+        *,
+        known_content_type: str,
+        known_content_disposition: str,
+    ) -> str:
         content, title, error = await _scraping_module._scrape_document(
             document_url,
             query=query,
             vision_model=vision_model,
             max_pdf_pages=max_pdf_pages,
-            known_content_type=plan.content_type,
-            known_content_disposition=plan.content_disposition,
+            known_content_type=known_content_type,
+            known_content_disposition=known_content_disposition,
         )
         if error:
             return f"[Document scrape failed: {error}]"

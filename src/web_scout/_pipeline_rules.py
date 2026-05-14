@@ -15,9 +15,6 @@ _DOCUMENT_EXTENSIONS: tuple[str, ...] = (
     ".docx",
     ".pptx",
     ".xlsx",
-    ".doc",
-    ".xls",
-    ".ppt",
 )
 _FOLLOWUP_POSITIVE_TOKENS: tuple[str, ...] = (
     "report",

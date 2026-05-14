@@ -23,7 +23,6 @@ from ._pipeline_rules import (
     _is_domain_mode_candidate,
     _is_promising_followup_url,
     _judge_synthesis,
-    _looks_like_document_url,
     _normalize_domain,
     _rank_followup_candidates,
 )
@@ -40,7 +39,7 @@ from ._prompts import (
     SYNTHESISER_INSTRUCTIONS,
 )
 from .models import WebResearchResult, WebResearchResultRaw
-from .scraping import _is_blocked_domain
+from .scraping import ScrapeStrategy, _build_scrape_plan, _is_blocked_domain
 from .tools import (
     ResearchTracker,
     _extract_rendered_followup_links,
@@ -644,6 +643,7 @@ async def _run_direct_url_mode(
     scrape_tool: Any,
     depth: dict[str, int],
     followup_model: Any,
+    allowed_domains: Optional[frozenset[str]] = None,
 ) -> None:
     """Handle direct-URL mode, including optional hub or same-domain deepening."""
     logger.info("[pipeline] scraping direct URL: %s", direct_url)
@@ -687,7 +687,8 @@ async def _run_direct_url_mode(
             await _gather_scrapes([scrape_tool(link) for link in chosen])
         return
 
-    if _looks_like_document_url(direct_url):
+    direct_plan = await _build_scrape_plan(direct_url, allowed_domains=allowed_domains)
+    if direct_plan.strategy == ScrapeStrategy.DOCUMENT:
         links_to_deepen: list[str] = []
     else:
         links_to_deepen = _outcome_followup_candidates(outcome)

@@ -289,6 +289,13 @@ def test_classify_failure_action_http_error():
     assert _classify_failure_action("Skipped: HTTP 503") == "source_http_error"
 
 
+def test_classify_failure_action_unsupported_legacy_document():
+    assert (
+        _classify_failure_action("Skipped: unsupported legacy Office document format (.doc)")
+        == "scrape_failed"
+    )
+
+
 def test_classify_failure_action_irrelevant_page():
     assert _classify_failure_action("[No relevant content found for this query]") == "scraped_irrelevant"
 

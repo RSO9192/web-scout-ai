@@ -111,6 +111,10 @@ def test_looks_like_document_url_xlsx():
     assert _looks_like_document_url("https://example.com/data.xlsx") is True
 
 
+def test_looks_like_document_url_legacy_doc_is_false():
+    assert _looks_like_document_url("https://example.com/legacy.doc") is False
+
+
 def test_looks_like_document_url_html_is_false():
     assert _looks_like_document_url("https://fao.org/page.html") is False
 

@@ -297,6 +297,7 @@ async def run_web_research(
             scrape_tool=scrape_tool,
             depth=depth,
             followup_model=followup_model,
+            allowed_domains=_allowed,
         )
     else:
         await _run_search_mode(

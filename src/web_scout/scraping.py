@@ -88,14 +88,21 @@ _JSON_CONTENT_TYPES = (
     "text/json",
 )
 
-_DOC_CONTENT_TYPES = (
+_SUPPORTED_DOC_CONTENT_TYPES = (
     "application/pdf",
     "application/vnd.openxmlformats-officedocument",
+)
+
+_UNSUPPORTED_LEGACY_DOC_CONTENT_TYPES = (
     "application/msword",
     "application/vnd.ms-",
 )
 
-_DOC_EXTENSIONS = (".pdf", ".docx", ".pptx", ".xlsx", ".doc", ".xls", ".ppt")
+_DOC_CONTENT_TYPES = _SUPPORTED_DOC_CONTENT_TYPES + _UNSUPPORTED_LEGACY_DOC_CONTENT_TYPES
+
+_SUPPORTED_DOC_EXTENSIONS = (".pdf", ".docx", ".pptx", ".xlsx")
+_UNSUPPORTED_LEGACY_DOC_EXTENSIONS = (".doc", ".xls", ".ppt")
+_DOC_EXTENSIONS = _SUPPORTED_DOC_EXTENSIONS + _UNSUPPORTED_LEGACY_DOC_EXTENSIONS
 
 _FETCH_HEADERS = {
     "User-Agent": (
@@ -214,6 +221,33 @@ def _looks_like_document_resource(url: str, content_type: str = "", content_disp
         return True
     filename = _filename_from_content_disposition(content_disposition).lower()
     return any(filename.endswith(ext) for ext in _DOC_EXTENSIONS)
+
+
+def _detect_document_extension(url: str, content_disposition: str = "") -> str:
+    url_path = url.lower().split("?", 1)[0].split("#", 1)[0]
+    for ext in _DOC_EXTENSIONS:
+        if url_path.endswith(ext):
+            return ext
+    filename = _filename_from_content_disposition(content_disposition).lower()
+    for ext in _DOC_EXTENSIONS:
+        if filename.endswith(ext):
+            return ext
+    return ""
+
+
+def _unsupported_legacy_document_reason(url: str, content_type: str = "", content_disposition: str = "") -> str:
+    ct = _normalize_content_type(content_type)
+    ext = _detect_document_extension(url, content_disposition)
+    if ext in _SUPPORTED_DOC_EXTENSIONS:
+        return ""
+    if ext in _UNSUPPORTED_LEGACY_DOC_EXTENSIONS:
+        return f"unsupported legacy Office document format ({ext})"
+    if ct == "application/msword":
+        return "unsupported legacy Office document format (.doc)"
+    if ct.startswith("application/vnd.ms-"):
+        suffix = f" ({ext})" if ext in _UNSUPPORTED_LEGACY_DOC_EXTENSIONS else f" ({ct})"
+        return f"unsupported legacy Office document format{suffix}"
+    return ""
 
 
 def _looks_like_pdf_resource(url: str, content_type: str = "", content_disposition: str = "") -> bool:
@@ -456,6 +490,9 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
     """Build a scrape routing plan for a URL before running any heavy extractor."""
     if _is_blocked_domain(url, allowed_domains=allowed_domains):
         return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, "blocked domain"))
+    unsupported_reason = _unsupported_legacy_document_reason(url)
+    if unsupported_reason:
+        return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, unsupported_reason))
     if _looks_like_document_resource(url):
         return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.DOCUMENT, "document-by-url"))
 
@@ -478,6 +515,9 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
                 ct = _normalize_content_type(head.headers.get("content-type", ""))
                 cd = head.headers.get("content-disposition", "")
 
+                unsupported_reason = _unsupported_legacy_document_reason(url, ct, cd)
+                if unsupported_reason:
+                    return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, unsupported_reason), phase="head")
                 if _looks_like_document_resource(url, ct, cd):
                     return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.DOCUMENT, ct, ct, cd), phase="head")
                 if any(ct.startswith(t) for t in _JSON_CONTENT_TYPES):
@@ -510,6 +550,13 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
             final_ct = _normalize_content_type(resp.headers.get("content-type", ""))
             final_cd = resp.headers.get("content-disposition", "")
 
+            unsupported_reason = _unsupported_legacy_document_reason(url, final_ct, final_cd)
+            if unsupported_reason:
+                return _log_scrape_plan(
+                    url,
+                    ScrapePlan(ScrapeStrategy.SKIP, unsupported_reason),
+                    phase="get",
+                )
             if _looks_like_document_resource(url, final_ct, final_cd):
                 return _log_scrape_plan(
                     url,
@@ -1291,6 +1338,9 @@ async def _scrape_document(url: str, query: str = "", vision_model: Optional[str
     large reports.
     """
     title = url.rsplit("/", 1)[-1] or "Document"
+    unsupported_reason = _unsupported_legacy_document_reason(url, known_content_type, known_content_disposition)
+    if unsupported_reason:
+        return "", title, f"Skipped: {unsupported_reason}"
     url_lower = url.lower().split("?")[0]
     is_pdf = _looks_like_pdf_resource(url, known_content_type, known_content_disposition)
 
@@ -1374,6 +1424,9 @@ async def _fetch_document_source_artifact(
 ) -> Tuple[SourceArtifact, str, Optional[str]]:
     """Fetch a query-agnostic cacheable artifact for a document URL."""
     title = url.rsplit("/", 1)[-1] or "Document"
+    unsupported_reason = _unsupported_legacy_document_reason(url, known_content_type, known_content_disposition)
+    if unsupported_reason:
+        return SourceArtifact(kind="text", title=title), title, f"Skipped: {unsupported_reason}"
     is_pdf = _looks_like_pdf_resource(url, known_content_type, known_content_disposition)
 
     if not is_pdf and not (known_content_type or known_content_disposition):

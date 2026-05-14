@@ -131,6 +131,7 @@ flowchart TD
 | Signal | Handler |
 | --- | --- |
 | URL or headers look like PDF/DOCX/PPTX/XLSX | `docling` document path |
+| URL or headers look like legacy DOC/XLS/PPT | Skip as unsupported legacy Office binary |
 | JSON content-type or JSON body | Structured JSON extraction |
 | Image content-type | Vision image extraction |
 | Static HTML | crawl4ai HTTP strategy |

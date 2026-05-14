@@ -6,8 +6,10 @@ All LLM and network calls are replaced with synchronous fakes via monkeypatch.
 """
 
 import pytest
+from unittest.mock import AsyncMock
 
 from web_scout import agent as _agent_module
+from web_scout import _pipeline_flow as _pipeline_flow_module
 from web_scout.agent import (
     CoverageEvaluation,
     FollowupSelection,
@@ -20,6 +22,7 @@ from web_scout.agent import (
     run_web_research,
 )
 from web_scout.models import UrlEntry, WebResearchResultRaw
+from web_scout.scraping import ScrapeStrategy
 from web_scout.tools import ResearchTracker
 
 # ---------------------------------------------------------------------------
@@ -153,6 +156,11 @@ async def test_direct_url_mode_scrapes_url_and_synthesizes(monkeypatch):
         monkeypatch,
         return_value="Fish production report content " * 20,
     )
+    monkeypatch.setattr(
+        _pipeline_flow_module,
+        "_build_scrape_plan",
+        AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.DOCUMENT})()),
+    )
     _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Fish rose 5% in 2023."))
 
     result = await run_web_research(
@@ -176,6 +184,11 @@ async def test_direct_url_mode_document_url_skips_follow_up_scraping(monkeypatch
             "[Related report](https://fao.org/fishery/other-report.pdf) "
         ) * 20,
     )
+    monkeypatch.setattr(
+        _pipeline_flow_module,
+        "_build_scrape_plan",
+        AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.DOCUMENT})()),
+    )
     _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Done."))
 
     await run_web_research(
@@ -186,6 +199,32 @@ async def test_direct_url_mode_document_url_skips_follow_up_scraping(monkeypatch
 
     # Only the direct URL itself should be scraped — no follow-ups
     assert scrape_calls == ["https://fao.org/fishery/report.pdf"]
+
+
+@pytest.mark.asyncio
+async def test_direct_url_mode_extensionless_document_url_skips_follow_up_scraping(monkeypatch):
+    """An extensionless direct document URL must use routing, not URL suffix heuristics."""
+    scrape_calls = _patch_scrape_tool(
+        monkeypatch,
+        return_value=(
+            "Report content. "
+            "[Related report](https://fao.org/fishery/other-report.pdf) "
+        ) * 20,
+    )
+    monkeypatch.setattr(
+        _pipeline_flow_module,
+        "_build_scrape_plan",
+        AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.DOCUMENT})()),
+    )
+    _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Done."))
+
+    await run_web_research(
+        query="fish production",
+        models={"web_researcher": "dummy", "content_extractor": "dummy"},
+        direct_url="https://fao.org/download?id=123",
+    )
+
+    assert scrape_calls == ["https://fao.org/download?id=123"]
 
 
 # ---------------------------------------------------------------------------
@@ -215,6 +254,11 @@ async def test_direct_url_hub_page_triggers_deepening(monkeypatch):
         _agent_module,
         "create_scrape_and_extract_tool",
         lambda **kwargs: _fake_scrape,
+    )
+    monkeypatch.setattr(
+        _pipeline_flow_module,
+        "_build_scrape_plan",
+        AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.HTML_FAST})()),
     )
 
     # Reranker returns the same candidates (first URL)
