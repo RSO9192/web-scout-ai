@@ -227,6 +227,71 @@ async def test_direct_url_mode_extensionless_document_url_skips_follow_up_scrapi
     assert scrape_calls == ["https://fao.org/download?id=123"]
 
 
+@pytest.mark.asyncio
+async def test_direct_url_mode_failed_page_does_not_mine_self_link_from_failure_text(monkeypatch):
+    """A failed direct URL should not re-scrape itself from the legacy failure wrapper."""
+    direct_url = "https://fao.org/fishery/report"
+    scrape_calls = _patch_scrape_tool(
+        monkeypatch,
+        return_value=(
+            f"No relevant content found at {direct_url}: "
+            "Skipped: HTTP 403 on GET"
+        ),
+    )
+    monkeypatch.setattr(
+        _pipeline_flow_module,
+        "_build_scrape_plan",
+        AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.HTML_FAST})()),
+    )
+    _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Done."))
+
+    await run_web_research(
+        query="fish production",
+        models={"web_researcher": "dummy", "content_extractor": "dummy"},
+        direct_url=direct_url,
+    )
+
+    assert scrape_calls == [direct_url]
+
+
+@pytest.mark.asyncio
+async def test_direct_url_mode_failed_page_can_deepen_explicit_followup_links(monkeypatch):
+    """A failed direct URL may still deepen when it exposes explicit follow-up links."""
+    direct_url = "https://fao.org/fishery/report"
+    followup_url = "https://fao.org/fishery/report.pdf"
+    scrape_calls = []
+
+    async def _fake_scrape(url: str) -> str:
+        scrape_calls.append(url)
+        if url == direct_url:
+            return (
+                f"No relevant content found at {direct_url}: Skipped: HTTP 403 on GET\n\n"
+                "**Relevant Links found on page:**\n"
+                f"- {followup_url}"
+            )
+        return "Resolved follow-up content " * 20
+
+    monkeypatch.setattr(
+        _agent_module,
+        "create_scrape_and_extract_tool",
+        lambda **kwargs: _fake_scrape,
+    )
+    monkeypatch.setattr(
+        _pipeline_flow_module,
+        "_build_scrape_plan",
+        AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.HTML_FAST})()),
+    )
+    _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Done."))
+
+    await run_web_research(
+        query="fish production",
+        models={"web_researcher": "dummy", "content_extractor": "dummy"},
+        direct_url=direct_url,
+    )
+
+    assert scrape_calls == [direct_url, followup_url]
+
+
 # ---------------------------------------------------------------------------
 # Direct URL mode — hub detection
 # ---------------------------------------------------------------------------

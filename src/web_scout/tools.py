@@ -175,11 +175,16 @@ def _extract_rendered_followup_links(content: str) -> list[str]:
     links: list[str] = []
     for match in re.finditer(r'\]\((https?://[^\s)]+)\)|(https?://\S+)', content):
         url = match.group(1) or match.group(2)
-        url = url.rstrip(".,;)>\"'")
+        url = url.rstrip(".,;:)>\"'")
         if url and url not in seen:
             seen.add(url)
             links.append(url)
     return links
+
+
+def _extract_explicit_rendered_followup_links(content: str) -> list[str]:
+    """Extract only the explicit rendered follow-up links section."""
+    return _extract_rendered_links_section(content)
 
 
 def _extract_rendered_links_section(content: str) -> list[str]:
