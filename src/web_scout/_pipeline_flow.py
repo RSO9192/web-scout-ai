@@ -23,7 +23,6 @@ from ._pipeline_rules import (
     _is_domain_mode_candidate,
     _is_promising_followup_url,
     _judge_synthesis,
-    _looks_like_document_url,
     _normalize_domain,
     _rank_followup_candidates,
 )
@@ -40,9 +39,10 @@ from ._prompts import (
     SYNTHESISER_INSTRUCTIONS,
 )
 from .models import WebResearchResult, WebResearchResultRaw
-from .scraping import _is_blocked_domain
+from .scraping import ScrapeStrategy, _build_scrape_plan, _is_blocked_domain
 from .tools import (
     ResearchTracker,
+    _extract_explicit_rendered_followup_links,
     _extract_rendered_followup_links,
     _is_rendered_list_page,
     _resolve_scrape_outcome,
@@ -631,9 +631,41 @@ def _extract_rendered_followup_candidates(content: str) -> list[str]:
     return _extract_rendered_followup_links(content)
 
 
-def _outcome_followup_candidates(outcome: ExtractorOutcome) -> list[str]:
-    """Read follow-up candidates from a typed outcome with legacy fallback."""
-    return outcome.relevant_links or _extract_rendered_followup_candidates(outcome.rendered_text)
+def _sanitize_followup_candidates(
+    links: list[str],
+    *,
+    parent_url: Optional[str] = None,
+) -> list[str]:
+    """Deduplicate follow-up candidates and optionally drop the parent URL itself."""
+    seen: set[str] = set()
+    sanitized: list[str] = []
+    parent_norm = ResearchTracker.normalize_url(parent_url) if parent_url else None
+
+    for link in links:
+        if not link:
+            continue
+        norm = ResearchTracker.normalize_url(link)
+        if norm in seen or (parent_norm and norm == parent_norm):
+            continue
+        seen.add(norm)
+        sanitized.append(link)
+
+    return sanitized
+
+
+def _outcome_followup_candidates(
+    outcome: ExtractorOutcome,
+    *,
+    parent_url: Optional[str] = None,
+) -> list[str]:
+    """Read follow-up candidates from an outcome without mining failure boilerplate."""
+    if outcome.relevant_links:
+        links = outcome.relevant_links
+    elif outcome.status == "failure":
+        links = _extract_explicit_rendered_followup_links(outcome.rendered_text)
+    else:
+        links = _extract_rendered_followup_candidates(outcome.rendered_text)
+    return _sanitize_followup_candidates(links, parent_url=parent_url)
 
 
 async def _run_direct_url_mode(
@@ -644,6 +676,7 @@ async def _run_direct_url_mode(
     scrape_tool: Any,
     depth: dict[str, int],
     followup_model: Any,
+    allowed_domains: Optional[frozenset[str]] = None,
 ) -> None:
     """Handle direct-URL mode, including optional hub or same-domain deepening."""
     logger.info("[pipeline] scraping direct URL: %s", direct_url)
@@ -660,7 +693,7 @@ async def _run_direct_url_mode(
     )
     if outcome.page_type == "list":
         candidates: list[str] = []
-        for link in _outcome_followup_candidates(outcome):
+        for link in _outcome_followup_candidates(outcome, parent_url=direct_url):
             if link and link not in candidates:
                 candidates.append(link)
 
@@ -669,7 +702,7 @@ async def _run_direct_url_mode(
             logger.info("[pipeline] hub pagination: scraping next page %s", next_page)
             next_content = await scrape_tool(next_page)
             next_outcome = _resolve_scrape_outcome(scrape_tool, next_page, next_content)
-            for link in _outcome_followup_candidates(next_outcome):
+            for link in _outcome_followup_candidates(next_outcome, parent_url=next_page):
                 if link and link not in candidates:
                     candidates.append(link)
 
@@ -687,10 +720,11 @@ async def _run_direct_url_mode(
             await _gather_scrapes([scrape_tool(link) for link in chosen])
         return
 
-    if _looks_like_document_url(direct_url):
+    direct_plan = await _build_scrape_plan(direct_url, allowed_domains=allowed_domains)
+    if direct_plan.strategy == ScrapeStrategy.DOCUMENT:
         links_to_deepen: list[str] = []
     else:
-        links_to_deepen = _outcome_followup_candidates(outcome)
+        links_to_deepen = _outcome_followup_candidates(outcome, parent_url=direct_url)
 
     if not links_to_deepen:
         return

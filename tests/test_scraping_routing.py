@@ -3,6 +3,7 @@
 import pytest
 
 from web_scout.scraping import (
+    _SKIP,
     _SCRAPE_DOC,
     _SCRAPE_HTML,
     _SCRAPE_IMAGE,
@@ -105,6 +106,50 @@ async def test_validate_url_routes_direct_pdf_without_network(monkeypatch):
     verdict, detail = await _validate_url("https://example.org/report.pdf")
     assert verdict == _SCRAPE_DOC
     assert detail == "document-by-url"
+
+
+@pytest.mark.asyncio
+async def test_validate_url_skips_direct_legacy_doc_without_network(monkeypatch):
+    from web_scout import scraping
+
+    class _UnexpectedAsyncClient:
+        def __init__(self, *args, **kwargs):
+            raise AssertionError("network probe should not run for direct legacy document URLs")
+
+    monkeypatch.setattr(scraping.httpx, "AsyncClient", _UnexpectedAsyncClient)
+
+    verdict, detail = await _validate_url("https://example.org/report.doc")
+    assert verdict == _SKIP
+    assert detail == "unsupported legacy Office document format (.doc)"
+
+
+@pytest.mark.asyncio
+async def test_validate_url_skips_extensionless_legacy_doc_from_headers(monkeypatch):
+    from web_scout import scraping
+
+    head = _MockResponse(headers={"content-type": "application/msword"})
+    monkeypatch.setattr(scraping.httpx, "AsyncClient", _mock_async_client_factory(head_response=head))
+
+    verdict, detail = await _validate_url("https://example.org/download?id=123")
+    assert verdict == _SKIP
+    assert detail == "unsupported legacy Office document format (.doc)"
+
+
+@pytest.mark.asyncio
+async def test_validate_url_prefers_supported_filename_over_legacy_mime(monkeypatch):
+    from web_scout import scraping
+
+    head = _MockResponse(
+        headers={
+            "content-type": "application/msword",
+            "content-disposition": 'attachment; filename="report.docx"',
+        }
+    )
+    monkeypatch.setattr(scraping.httpx, "AsyncClient", _mock_async_client_factory(head_response=head))
+
+    verdict, detail = await _validate_url("https://example.org/download?id=123")
+    assert verdict == _SCRAPE_DOC
+    assert detail == "application/msword"
 
 
 @pytest.mark.asyncio

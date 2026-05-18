@@ -12,6 +12,7 @@ from web_scout.tools import (
     _build_failure_outcome,
     _build_success_outcome,
     _classify_failure_action,
+    _extract_rendered_followup_links,
     _ExtractorOutput,
     _get_or_fetch_session_source_artifact,
     _make_source_cache_key,
@@ -289,6 +290,13 @@ def test_classify_failure_action_http_error():
     assert _classify_failure_action("Skipped: HTTP 503") == "source_http_error"
 
 
+def test_classify_failure_action_unsupported_legacy_document():
+    assert (
+        _classify_failure_action("Skipped: unsupported legacy Office document format (.doc)")
+        == "scrape_failed"
+    )
+
+
 def test_classify_failure_action_irrelevant_page():
     assert _classify_failure_action("[No relevant content found for this query]") == "scraped_irrelevant"
 
@@ -433,6 +441,14 @@ def test_resolve_scrape_outcome_reconstructs_typed_outcome_from_legacy_string():
     assert outcome.title == "Example Report"
     assert outcome.content == "Useful extracted content"
     assert outcome.relevant_links == ["https://example.org/detail"]
+
+
+def test_extract_rendered_followup_links_strips_trailing_colon_from_bare_urls():
+    rendered = "See https://example.org/report: for the original source."
+
+    links = _extract_rendered_followup_links(rendered)
+
+    assert links == ["https://example.org/report"]
 
 
 def test_low_level_heuristics_are_frozen_in_private_config_module():
