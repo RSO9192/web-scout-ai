@@ -27,7 +27,7 @@ print(result.synthesis)
 
 Built-in web search tools in frameworks like the OpenAI Agents SDK return snippets — short excerpts from search results that the model has to reason from. They don't read the actual pages.
 
-`web-scout-ai` goes deeper: it scrapes, converts, and extracts relevant content from real pages — static HTML, JS-rendered sites, PDFs, DOCX, and JSON endpoints. You also control exactly which sources get scraped, how deep the pipeline goes, and what counts as good enough coverage before synthesis.
+`web-scout-ai` goes deeper: it scrapes, converts, and extracts relevant content from real pages — static HTML, JS-rendered sites, PDFs, DOCX/PPTX/XLSX, and JSON endpoints. Legacy Office binaries such as `.doc`, `.xls`, and `.ppt` are detected and skipped explicitly. You also control exactly which sources get scraped, how deep the pipeline goes, and what counts as good enough coverage before synthesis.
 
 No Tavily + crawl4ai + custom glue code. No open-ended agent you cannot control in production.
 
