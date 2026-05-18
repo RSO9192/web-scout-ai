@@ -68,7 +68,6 @@ class FollowupHeuristics:
     report_query_bonus: int = 4
     keyword_overlap_bonus: int = 2
     identifier_detail_bonus: int = 2
-    kenya_bonus: int = 2
     shallow_page_min_score: int = 3
 
 

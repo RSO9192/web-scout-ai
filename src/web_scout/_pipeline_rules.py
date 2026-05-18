@@ -28,9 +28,6 @@ _FOLLOWUP_POSITIVE_TOKENS: tuple[str, ...] = (
     "execsum",
     "study",
     "analysis",
-    "trend",
-    "state-of-the-climate",
-    "climatology",
     "monitoring",
     "dataset",
     "download",
@@ -38,23 +35,12 @@ _FOLLOWUP_POSITIVE_TOKENS: tuple[str, ...] = (
     "paper",
 )
 _FOLLOWUP_NEGATIVE_TOKENS: tuple[str, ...] = (
-    "service",
-    "services",
-    "forecast",
-    "daily-forecast",
-    "weekly-forecast",
-    "seasonal-forecast",
-    "weather-warning",
-    "weather-warnings",
-    "warning",
-    "warnings",
     "home",
     "homepage",
     "contact",
     "about",
     "vision-statement",
     "department-history",
-    "geography-research",
     "mapviewer",
 )
 _FOLLOWUP_GENERIC_SEGMENTS: frozenset[str] = frozenset(
@@ -128,7 +114,6 @@ _QUERY_REPORT_HINTS: tuple[str, ...] = (
     "analysis",
     "current status",
     "recent trend",
-    "state of the climate",
     "bulletin",
 )
 _QUERY_STOPWORDS: frozenset[str] = frozenset(
@@ -152,9 +137,6 @@ _QUERY_STOPWORDS: frozenset[str] = frozenset(
         "changes",
         "pattern",
         "patterns",
-        "spatial",
-        "interannual",
-        "variability",
         "trend",
         "trends",
     }
@@ -282,7 +264,7 @@ def _score_followup_candidate(query: str, url: str) -> int:
         score += FOLLOWUP_HEURISTICS.document_bonus
     if any(
         token in normalized_joined
-        for token in ("report", "bulletin", "assessment", "analysis", "state-of-the-climate")
+        for token in ("report", "bulletin", "assessment", "analysis")
     ):
         score += FOLLOWUP_HEURISTICS.report_bonus
     if any(token in normalized_joined for token in ("publication", "document", "download")):
@@ -316,8 +298,6 @@ def _score_followup_candidate(query: str, url: str) -> int:
         )
     if _looks_like_identifier_detail_page(path_segments):
         score += FOLLOWUP_HEURISTICS.identifier_detail_bonus
-    if "kenya" in query_lower and "kenya" in normalized_joined:
-        score += FOLLOWUP_HEURISTICS.kenya_bonus
     return score
 
 

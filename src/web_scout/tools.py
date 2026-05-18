@@ -839,9 +839,9 @@ rich content with no signals — interaction is a fallback, not a default.
 After reading the page, ask yourself: **is this a metadata or catalogue page that links to a primary source document?**
 
 Signs of a metadata/catalogue page:
-- A legal database record (e.g. FAOLEX, EUR-Lex, national law portals) with a link to the law or regulation PDF.
-- A library or repository entry with a link to the full report or paper PDF.
-- A dataset/publication index page with a link to the main document.
+- A legal database record with a link to the law or regulation PDF.
+- A library repository entry with a link to the full report or paper PDF.
+- An open data catalog or publication index page with a link to the main document.
 
 **If yes: call ``scrape_linked_document`` with the URL of the primary document (PDF, DOCX, etc.).**
 - Use the single most important document link — the one that IS the primary source, not supplementary annexes.
@@ -851,8 +851,8 @@ Signs of a metadata/catalogue page:
 **If no:** skip this step and go straight to Step 3.
 
 Examples of when to call ``scrape_linked_document``:
-- FAOLEX page for a law → call it on the `.pdf` link that is the law text itself.
-- A UN treaty repository page → call it on the treaty PDF.
+- A database record for a specific document → call it on the `.pdf` link that is the document text itself.
+- A repository page → call it on the main file PDF.
 - A report catalogue entry → call it on the full report PDF.
 
 Examples of when NOT to call it:
@@ -862,7 +862,7 @@ Examples of when NOT to call it:
 
 ## Step 3 — Extract relevant content
 From all the content you have gathered (page + document if fetched), extract everything that directly answers the research query:
-- Include specific facts, numbers, dates, exact names (species, locations), statistics, regulations, quotes, and full context.
+- Include specific facts, numbers, dates, exact names, statistics, quotas, quotes, and full context.
 - VERY IMPORTANT: Do NOT describe the page structure. Extract the actual data.
 - Do NOT over-summarize. We need a detailed account of the relevant information.
 - Exclude navigation, ads, boilerplate, and completely off-topic sections.
@@ -916,7 +916,7 @@ def _is_form_contaminated(content: str) -> bool:
     return False
 
 
-def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000, doc_cache: Optional[dict] = None, doc_in_flight: Optional[Dict[str, asyncio.Future[str]]] = None, use_session_cache: bool = False, max_interactive_clicks: int = EXTRACTOR_HEURISTICS.max_interactive_clicks) -> tuple:
+def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000, doc_cache: Optional[dict] = None, doc_in_flight: Optional[Dict[str, asyncio.Future[str]]] = None, use_session_cache: bool = False, max_interactive_clicks: int = EXTRACTOR_HEURISTICS.max_interactive_clicks, domain_expertise: Optional[str] = None) -> tuple:
     """Build a content extractor sub-agent with a URL-locked scraping tool.
 
     The ``raw_scrape`` tool is a closure that captures ``url`` and ``wait_for``
@@ -1219,6 +1219,10 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
 
         try:
             page = _page_holder[0]
+            
+            pre_click_content = await page.inner_text("body")
+            pre_click_text = pre_click_content.strip()
+            
             clicked = await page.evaluate(_CLICK_ELEMENT_JS, index)
             if not clicked:
                 return (
@@ -1246,6 +1250,9 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
 
             content = await page.inner_text("body")
             result = content.strip()
+            
+            if result == pre_click_text:
+                return f"[Clicking element {index} had no visible effect on the page content. Try a different element.]"
 
             if len(result) < EXTRACTOR_HEURISTICS.thin_content_chars:
                 result += (
@@ -1258,13 +1265,17 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         except Exception as e:
             return f"[click_element failed: {e}]"
 
+    instructions = _EXTRACTOR_INSTRUCTIONS
+    if domain_expertise:
+        instructions += f"\n\nDomain Expertise: {domain_expertise}\n"
+
     agent = Agent(
         name="content_extractor",
         model=model,
         tools=[raw_scrape, scrape_linked_document, list_interactive_elements, click_element],
         output_type=_ExtractorOutput,
         model_settings=ModelSettings(),
-        instructions=_EXTRACTOR_INSTRUCTIONS,
+        instructions=instructions,
     )
 
     async def cleanup() -> None:
@@ -1451,6 +1462,7 @@ def create_scrape_and_extract_tool(
     max_content_chars: int = 30_000,
     use_session_cache: bool = False,
     max_interactive_clicks: int = EXTRACTOR_HEURISTICS.max_interactive_clicks,
+    domain_expertise: Optional[str] = None,
 ):
     """Create a scrape_and_extract function.
 
@@ -1526,7 +1538,7 @@ def create_scrape_and_extract_tool(
                 )
 
                 # Build a fresh extractor agent per call with url locked in the closure
-                extractor_agent, extractor_cleanup = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars, doc_cache=_doc_cache, doc_in_flight=_doc_in_flight, use_session_cache=use_session_cache, max_interactive_clicks=max_interactive_clicks)
+                extractor_agent, extractor_cleanup = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars, doc_cache=_doc_cache, doc_in_flight=_doc_in_flight, use_session_cache=use_session_cache, max_interactive_clicks=max_interactive_clicks, domain_expertise=domain_expertise)
 
                 input_text = (
                     f"Research query: {query}\n"

@@ -148,8 +148,15 @@ def _build_query_agents(
     query_gen_model: Any,
     evaluator_model: Any,
     domain_expertise: Optional[str],
+    evaluator_extra_prompt: Optional[str] = None,
 ) -> tuple[Agent, Agent]:
     suffix = f"\nDomain Expertise: {domain_expertise}" if domain_expertise else ""
+    
+    # Append the extra quality sentence for the evaluator
+    eval_instructions = COVERAGE_EVALUATOR_INSTRUCTIONS + suffix
+    if evaluator_extra_prompt:
+        eval_instructions += f"\n\nQuality Guideline: {evaluator_extra_prompt}"
+
     query_gen_agent = Agent(
         name="query_generator",
         model=query_gen_model,
@@ -160,7 +167,7 @@ def _build_query_agents(
         name="coverage_evaluator",
         model=evaluator_model,
         output_type=CoverageEvaluation,
-        instructions=COVERAGE_EVALUATOR_INSTRUCTIONS + suffix,
+        instructions=eval_instructions,
     )
     return query_gen_agent, evaluator_agent
 
@@ -763,6 +770,7 @@ async def _run_search_mode_impl(
     tracker: ResearchTracker,
     scrape_tool: Any,
     allowed_domains: Optional[frozenset[str]],
+    evaluator_extra_prompt: Optional[str] = None,
     build_search_backend: Any,
     build_query_agents: Any,
     search_and_scrape_iteration: Any,
@@ -773,6 +781,7 @@ async def _run_search_mode_impl(
         query_gen_model=query_gen_model,
         evaluator_model=evaluator_model,
         domain_expertise=domain_expertise,
+        evaluator_extra_prompt=evaluator_extra_prompt,
     )
     state = SearchLoopState()
 

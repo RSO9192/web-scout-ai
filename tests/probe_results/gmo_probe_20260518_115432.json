@@ -1,0 +1,130 @@
+[
+  {
+    "query": "crop origin centres diversity wild relatives gene flow GMO risk Kenya",
+    "elapsed_seconds": 593.06,
+    "num_queries": 3,
+    "num_scraped": 4,
+    "num_failed": 3,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4779,
+    "error": null,
+    "search_queries": [
+      "biosafety assessment GMO impact on crop genetic diversity and wild relatives Kenya",
+      "centers of origin and diversity of major crops in Kenya wild relatives",
+      "gene flow risk from genetically modified crops to wild relatives in Kenya"
+    ],
+    "scraped": [
+      {
+        "url": "https://jcom.sissa.it/article/pubid/JCOM_2501_2026_A10/",
+        "title": "Public perceptions and information sources on genetically modified organisms in Kenya",
+        "content_chars": 2555,
+        "preview": "### GMO Adoption and Risks in Kenya Kenya commercialized Bt cotton (insect-resistant) in 2020. Cassava is currently awaiting varietal release, and research is ongoing for other GM crops such as maize. Despite these advancements, public perc"
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6204569/",
+        "title": "Vavilov's Collection of Worldwide Crop Genetic Resources in the 21st Century",
+        "content_chars": 3156,
+        "preview": "This article details the historical and current significance of plant genetic resource (PGR) collections, focusing on the Vavilov Institute of Plant Genetic Resources (VIR) and the theories of Nikolai Vavilov. ### Vavilov\u2019s Theory and Crop "
+      },
+      {
+        "url": "https://pubmed.ncbi.nlm.nih.gov/26667472/",
+        "title": "Risk assessment of gene flow from genetically engineered virus resistant cassava to wild relatives in Africa: an expert panel report",
+        "content_chars": 2362,
+        "preview": "This expert panel report assesses the environmental risks associated with gene flow from genetically engineered (GE) virus-resistant cassava (Manihot esculenta) to its 'wild' (naturalized) relative, Manihot glaziovii, in East Africa (includ"
+      },
+      {
+        "url": "https://www.academia.edu/145720674/Ecogeographical_distribution_of_wild_weedy_and_cultivated_Sorghum_bicolor_L_Moench_in_Kenya_implications_for_conservation_and_crop_to_wild_gene_flow",
+        "title": "Ecogeographical distribution of wild, weedy and cultivated Sorghum bicolor (L.) Moench in Kenya: implications for conservation and crop-to-wild gene flow",
+        "content_chars": 2995,
+        "preview": "### Crop Origin and Diversity Centers Kenya lies within a primary center of diversity for Sorghum (*Sorghum bicolor (L.) Moench*). While archaeological evidence identifies Sudan, Ethiopia, and West Africa as centers of origin with more than"
+      }
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.biosafetykenya.go.ke/wp-content/uploads/2025/10/Approved-Manual-Post-Release-Monitoring.pdf",
+        "title": "[PDF] Manual for post release monitoring of genetically modified crops in ...",
+        "error": "[scrape failed: [Scrape failed: No module named 'docling.datamodel.base_models']]"
+      },
+      {
+        "url": "https://www.ielrc.org/content/w0510.pdf",
+        "title": "[PDF] regulation of gmo crops and foods - ielrc.org",
+        "error": "[scrape failed: [Scrape failed: No module named 'docling.datamodel.base_models']]"
+      },
+      {
+        "url": "https://www.fao.org/africa/news-stories/news-detail/africa-s-crop-diversity-under-threat--action-needed-to-protect-food-security-and-nutrition/en",
+        "title": "Africa's crop diversity under threat, action needed to protect ...",
+        "error": "[scrape failed: [Scrape failed: Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/gee_llm/lib/python3.12/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://www.fao.org/africa/news-stories/news-detail/africa-s-crop-diversity-under-threat--action-needed-to-protect-food-security-and-nutrition/en\", waiting until \"networkidle\"]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "query": "GM crops commercial cultivation field trial crop wild relatives Kenya",
+    "elapsed_seconds": 386.82,
+    "num_queries": 3,
+    "num_scraped": 3,
+    "num_failed": 5,
+    "num_bot_detected": 1,
+    "synthesis_chars": 4351,
+    "error": null,
+    "search_queries": [
+      "biosafety assessment of GM crops gene flow to wild relatives in Kenya",
+      "current status of GM crop commercial cultivation and field trials in Kenya",
+      "Kenya National Biosafety Authority approval records for GM maize and cotton trials"
+    ],
+    "scraped": [
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10072116/",
+        "title": "Biosafety regulatory frameworks in Kenya, Nigeria, Uganda and Sweden and their potential impact on international R&D collaborations",
+        "content_chars": 3345,
+        "preview": "Kenya's biosafety landscape for GM crops includes established regulatory frameworks, commercial cultivation, and numerous field trials. ### Commercial Cultivation and Environmental Release in Kenya - **Bt Cotton:** Kenya approved Bt cotton "
+      },
+      {
+        "url": "https://jcom.sissa.it/article/pubid/JCOM_2501_2026_A10/",
+        "title": "Public perceptions and information sources on genetically modified organisms in Kenya",
+        "content_chars": 2770,
+        "preview": "### GM Crops and Commercial Cultivation in Kenya - **Bt Cotton (Insect-resistant):** Officially commercialized in 2020. It is currently being cultivated in several counties across six regions: Western, Nyanza, Coast, Eastern, Central, and R"
+      },
+      {
+        "url": "http://africenter.isaaa.org/kenyas-national-biosafety-authority-gives-gm-cotton-partial-nod/",
+        "title": "Kenya's National Biosafety Authority Gives GM Cotton Partial Nod | ISAAA - AFRICENTER",
+        "content_chars": 1724,
+        "preview": "- **GM Cotton Approval**: The National Biosafety Authority (NBA) of Kenya approved the environmental release (open field cultivation) of the **MON 15985** event, commonly known as **Bt cotton**. - **Scope and Purpose**: The approval was spe"
+      }
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.biosafetykenya.go.ke/wp-content/uploads/2025/07/Environmental-risk-assessment-guidelines.pdf",
+        "title": "[PDF] Environmental Risk Assessment Guidelines.",
+        "error": "[scrape failed: [Scrape failed: No module named 'docling.datamodel.base_models']]"
+      },
+      {
+        "url": "https://www.law.nyu.edu/sites/default/files/upload_documents/Kenya_GMO_220805.DOC",
+        "title": "[DOC] REGULATION OF GMO CROPS AND FOODS: KENYA CASE STUDY",
+        "error": "[scrape failed: [Scrape failed: Skipped: unsupported legacy Office document format (.doc)]]"
+      },
+      {
+        "url": "https://apps.fas.usda.gov/newgainapi/api/Report/DownloadReportByFileName?fileName=Agricultural%20Biotechnology%20Annual_Nairobi_Kenya_KE2023-0007",
+        "title": "[PDF] Report Name: Agricultural Biotechnology Annual - USDA/FAS",
+        "error": "[scrape failed: [Scrape failed: JSON extraction failed: Expecting value: line 1 column 1 (char 0)]]"
+      },
+      {
+        "url": "https://www.ielrc.org/content/w0510.pdf",
+        "title": "[PDF] regulation of gmo crops and foods - ielrc.org",
+        "error": "[scrape failed: [Scrape failed: No module named 'docling.datamodel.base_models']]"
+      },
+      {
+        "url": "https://kenyanwallstreet.com/kenya-moves-to-commercialise-genetically-modified-cassava",
+        "title": "Kenya Moves to Commercialise Genetically Modified Cassava",
+        "error": "[scrape failed: [Scrape failed: Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/gee_llm/lib/python3.12/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://kenyanwallstreet.com/kenya-moves-to-commercialise-genetically-modified-cassava\", waiting until \"networkidle\"]]"
+      }
+    ],
+    "bot_detected": [
+      {
+        "url": "https://kalroerepository.kalro.org/items/a8767998-aac1-42fe-b70c-af1465a00709",
+        "title": "Crop- to-wild geneflow: Environmental risk assessment for the ...",
+        "error": "[bot detection: [Scrape failed: bot_detected: Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/gee_llm/lib/python3.12/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://kalroerepository.kalro.org/items/a8767998-aac1-42fe-b70c-af1465a00709\", waiting until \"networkidle\"]]"
+      }
+    ]
+  }
+]
