@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.2.2] - 2026-05-18
+
+### Added
+
+- **Configurable interactive click budget**: `create_scrape_and_extract_tool` now accepts a `max_interactive_clicks` parameter (default: `5`) that controls how many Playwright clicks the content extractor sub-agent may perform per page. Previously this was only tunable via the internal heuristics dataclass.
+
+### Fixed
+
+- **Extractor sub-agent turn exhaustion on complex SPAs**: `list_interactive_elements` now returns the same hard-stop message as `click_element` once the click budget is exhausted. Previously the agent could call `list_interactive_elements` an unlimited number of times after hitting the click cap, burning through the 30-turn `Runner.run` budget and raising `Max turns (30) exceeded` on heavily interactive pages such as procurement data portals.
+
+
 ## [1.2.1] - 2026-05-14
 
 ### Changed

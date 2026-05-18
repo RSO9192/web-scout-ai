@@ -916,7 +916,7 @@ def _is_form_contaminated(content: str) -> bool:
     return False
 
 
-def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000, doc_cache: Optional[dict] = None, doc_in_flight: Optional[Dict[str, asyncio.Future[str]]] = None, use_session_cache: bool = False) -> tuple:
+def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000, doc_cache: Optional[dict] = None, doc_in_flight: Optional[Dict[str, asyncio.Future[str]]] = None, use_session_cache: bool = False, max_interactive_clicks: int = EXTRACTOR_HEURISTICS.max_interactive_clicks) -> tuple:
     """Build a content extractor sub-agent with a URL-locked scraping tool.
 
     The ``raw_scrape`` tool is a closure that captures ``url`` and ``wait_for``
@@ -1174,6 +1174,11 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         Only call this when raw_scrape returned thin content (under 500 chars).
         Do NOT call this if raw_scrape already returned rich content.
         """
+        if _click_count[0] >= max_interactive_clicks:
+            return (
+                f"INTERACTION LIMIT REACHED: {max_interactive_clicks} clicks used. "
+                "Synthesize from content gathered so far."
+            )
         try:
             page = await _ensure_interactive_page()
             elements = await page.evaluate(_GET_ELEMENTS_JS)
@@ -1206,9 +1211,9 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
                 "Call list_interactive_elements() first.]"
             )
 
-        if _click_count[0] >= EXTRACTOR_HEURISTICS.max_interactive_clicks:
+        if _click_count[0] >= max_interactive_clicks:
             return (
-                f"INTERACTION LIMIT REACHED: {EXTRACTOR_HEURISTICS.max_interactive_clicks} clicks used. "
+                f"INTERACTION LIMIT REACHED: {max_interactive_clicks} clicks used. "
                 "Synthesize from content gathered so far."
             )
 
@@ -1445,6 +1450,7 @@ def create_scrape_and_extract_tool(
     max_pdf_pages: int = 50,
     max_content_chars: int = 30_000,
     use_session_cache: bool = False,
+    max_interactive_clicks: int = EXTRACTOR_HEURISTICS.max_interactive_clicks,
 ):
     """Create a scrape_and_extract function.
 
@@ -1520,7 +1526,7 @@ def create_scrape_and_extract_tool(
                 )
 
                 # Build a fresh extractor agent per call with url locked in the closure
-                extractor_agent, extractor_cleanup = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars, doc_cache=_doc_cache, doc_in_flight=_doc_in_flight, use_session_cache=use_session_cache)
+                extractor_agent, extractor_cleanup = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars, doc_cache=_doc_cache, doc_in_flight=_doc_in_flight, use_session_cache=use_session_cache, max_interactive_clicks=max_interactive_clicks)
 
                 input_text = (
                     f"Research query: {query}\n"

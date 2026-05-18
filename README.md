@@ -137,6 +137,7 @@ result = await run_web_research(
     domain_expertise="climate science",  # optional
     allowed_domains=None,                # optional
     max_pdf_pages=50,                    # optional, default 50
+    max_interactive_clicks=5,            # optional, max Playwright clicks per page during extraction
     cache=False,                         # optional, reuse successful source artifacts in this Python process
 )
 ```
