@@ -1,0 +1,133 @@
+[
+  {
+    "query": "crop origin centres diversity wild relatives gene flow GMO risk Kenya",
+    "elapsed_seconds": 122.48,
+    "num_queries": 3,
+    "num_scraped": 5,
+    "num_failed": 3,
+    "num_bot_detected": 0,
+    "synthesis_chars": 5169,
+    "error": null,
+    "search_queries": [
+      "crop centers of origin and wild relatives diversity in Kenya research",
+      "biosafety risk assessment of GMO introduction on indigenous crop genetic resources Kenya",
+      "gene flow from genetically modified crops to wild relatives in Kenyan agriculture"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.frontiersin.org/journals/sustainable-food-systems/articles/10.3389/fsufs.2023.1113771/full",
+        "title": "Diversity and utilization of indigenous wild edible plants and their contribution to food security in Turkana County, Kenya",
+        "content_chars": 3236,
+        "preview": "### Diversity and Identification of Indigenous Wild Edible Plants (IWEPs) in Turkana, Kenya - **Species Richness**: A total of 73 IWEPs were identified by participants in Turkana County (Loima and Turkana South sub-counties), with 58 specie"
+      },
+      {
+        "url": "https://www.researchgate.net/publication/336632506_The_Genetic_Diversity_of_Popular_African_Leafy_Vegetables_in_Western_Kenya",
+        "title": "The Genetic Diversity of Popular African Leafy Vegetables in Western Kenya",
+        "content_chars": 2733,
+        "preview": "African leafy vegetables (ALVs) in Western Kenya exhibit significant genetic diversity, with many species still in the process of domestication or harvested from the wild. Popular species include Solanum spp. (African nightshade), Cleome gy"
+      },
+      {
+        "url": "https://jomcpeak.expressions.syr.edu/wp-content/uploads/131127_Chambers_BiosafetyGMCrops_Web.pdf",
+        "title": "Biosafety of GM Crops in Kenya, Uganda, and Tanzania: An Evolving Landscape of Regulatory Progress and Retreat",
+        "content_chars": 2041,
+        "preview": "In Kenya, the regulatory landscape for Genetically Modified (GM) crops is characterized by a 'science-based approach' that attempts to balance risks and benefits. Kenya was an early participant in biosafety capacity-building, starting with "
+      },
+      {
+        "url": "https://www.researchgate.net/publication/268514177_Crop-to-wild_gene_flow_environmental_risk_assessment_for_the_release_of_genetically_modified_sorghum_in_Kenya",
+        "title": "Crop-to-wild gene flow: environmental risk assessment for the release of genetically modified sorghum in Kenya",
+        "content_chars": 2469,
+        "preview": "Sorghum (Sorghum bicolor L. Moench) is a crop of global importance, with Africa being its primary centre of origin and diversity. This study evaluates the environmental risks associated with the release of genetically modified (GM) sorghum "
+      },
+      {
+        "url": "https://erepository.uonbi.ac.ke/bitstream/handle/11295/6197/JAMES%20IRERI%20KANYA%20PH.D%202010.pdf?sequence=1&isAllowed=y",
+        "title": "Gene Flow Between Cultivated Rice (Oryza sativa) and the Wild Rice (Oryza longistaminata), and its Potential Ecological Consequences in Kenya",
+        "content_chars": 3075,
+        "preview": "This research thesis investigates the potential for gene flow between cultivated rice (Oryza sativa) and its wild relative, Oryza longistaminata, in Kenya, specifically assessing the risks associated with the potential introduction of trans"
+      }
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.fao.org/pgrfa-gpa-archive/ken/kenya.pdf",
+        "title": "[PDF] KENYA: COUNTRY REPORT TO THE FAO INTERNATIONAL ...",
+        "error": "[scrape failed: [Scrape failed: PDF inaccessible (httpx: HTTPStatusError: Server error '502 Bad Gateway' for url 'https://www.fao.org/pgrfa-gpa-archive/ken/kenya.pdf'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/502; raw-byte: HTTPError: HTTP Error 502: Bad Gateway; browser download also failed)]]"
+      },
+      {
+        "url": "https://dr.lib.iastate.edu/bitstreams/6a61a96f-a9f0-4639-a9f1-9a433d8c9622/download",
+        "title": "[PDF] Morphological Variation in the Wild-Weedy Complex of Sorghum ...",
+        "error": "[scrape failed: [Scrape failed: Blocked by anti-bot protection: Structural: minimal_text, no_content_elements (237 bytes, 0 chars visible)]]"
+      },
+      {
+        "url": "https://apps.fas.usda.gov/newgainapi/api/Report/DownloadReportByFileName?fileName=Agricultural%20Biotechnology%20Annual_Nairobi_Kenya_KE2023-0007",
+        "title": "[PDF] Report Name: Agricultural Biotechnology Annual - USDA/FAS",
+        "error": "[scrape failed: [Scrape failed: JSON extraction failed: Expecting value: line 1 column 1 (char 0)]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "query": "GM crops commercial cultivation field trial crop wild relatives Kenya",
+    "elapsed_seconds": 132.04,
+    "num_queries": 3,
+    "num_scraped": 5,
+    "num_failed": 2,
+    "num_bot_detected": 1,
+    "synthesis_chars": 5227,
+    "error": null,
+    "search_queries": [
+      "biosafety assessments of GM crop gene flow to wild relatives in Kenya",
+      "ecological impact of genetically modified maize and cotton on crop wild relatives in Kenya",
+      "commercial cultivation and field trial status of GM crops in Kenya"
+    ],
+    "scraped": [
+      {
+        "url": "https://jcom.sissa.it/article/pubid/JCOM_2501_2026_A10/",
+        "title": "Public perceptions and information sources on genetically modified organisms in Kenya",
+        "content_chars": 2426,
+        "preview": "Kenya has established a regulatory framework for Genetically Modified Organisms (GMOs) through the Biosafety Act No. 2 of 2009. ### Commercial Cultivation Status - **Bt Cotton:** Commercialized in 2020. This insect-resistant transgenic crop"
+      },
+      {
+        "url": "https://scielo.org.za/scielo.php?script=sci_arttext&pid=S2663-323X2022000100014",
+        "title": "Green crimes: The impact of genetically modified organisms on promoting food security in Kenya",
+        "content_chars": 2298,
+        "preview": "Kenya's involvement with Genetically Modified Organisms (GMOs) has transitioned from a decade-long ban to active commercialization and field trials. The 2012 cabinet ban on GM food imports, prompted by the retracted S\u00e9ralini Report, was lif"
+      },
+      {
+        "url": "https://www.nepad.org/file-download/download/public/127523",
+        "title": "Environmental Issues Related to Genetically Modified Crops in Africa - NEPAD Policy Brief No. 3",
+        "content_chars": 3081,
+        "preview": "In Kenya, national legislative frameworks are being developed to facilitate the regulation and use of agricultural biotechnology. Transgenic events under field trials in several African countries (including Kenya) include maize, cassava, co"
+      },
+      {
+        "url": "https://kenyanwallstreet.com/kenya-moves-to-commercialise-genetically-modified-cassava",
+        "title": "Kenya Moves to Commercialise Genetically Modified Cassava",
+        "content_chars": 1762,
+        "preview": "Kenya's National Environment Management Authority (NEMA) has invited public comments on a proposal by the Kenya Agricultural and Livestock Research Organization (KALRO) to commercialise genetically modified (GM) cassava across 18 counties. "
+      },
+      {
+        "url": "https://www.isaaa.org/kc/cropbiotechupdate/article/default.asp?ID=20477",
+        "title": "Kenya's Environment Court Dismisses Case Challenging Importation and Cultivation of GM Crops",
+        "content_chars": 1666,
+        "preview": "On October 12, 2023, Kenya's Environment Court dismissed a legal challenge filed by the Law Society of Kenya (LSK) that sought to block the importation and cultivation of genetically modified (GM) crops. This ruling supports the Kenyan gove"
+      }
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://apps.fas.usda.gov/newgainapi/api/Report/DownloadReportByFileName?fileName=Agricultural%20Biotechnology%20Annual_Nairobi_Kenya_KE2023-0007",
+        "title": "[PDF] Report Name: Agricultural Biotechnology Annual - USDA/FAS",
+        "error": "[scrape failed: [Scrape failed: JSON extraction failed: Expecting value: line 1 column 1 (char 0)]]"
+      },
+      {
+        "url": "https://apps.fas.usda.gov/newgainapi/api/Report/DownloadReportByFileName?fileName=Kenya%27s%20Court%20of%20Appeal%20Issued%20an%20Injunction%20on%20Genetically%20Engineered%20Products_Nairobi_Kenya_KE2025-0007.pdf",
+        "title": "[PDF] Report Name:Kenya's Court of Appeal Issued an Injunction on ...",
+        "error": "[scrape failed: [Scrape failed: JSON extraction failed: Expecting value: line 1 column 1 (char 0)]]"
+      }
+    ],
+    "bot_detected": [
+      {
+        "url": "https://kalroerepository.kalro.org/items/a8767998-aac1-42fe-b70c-af1465a00709",
+        "title": "Crop- to-wild geneflow: Environmental risk assessment for the ...",
+        "error": "[bot detection: [Scrape failed: bot_detected: Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/web-agent/lib/python3.12/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://kalroerepository.kalro.org/items/a8767998-aac1-42fe-b70c-af1465a00709\", waiting until \"networkidle\"\n\n\nCode context:\n 773                                   tag=\"GOTO\",\n 774                                   params={\"url\": url},\n 775                               )\n 776                               response = None\n 777                           else:\n 778 \u2192                             raise RuntimeError(f\"Failed on navigating ACS-GOTO:\\n{str(e)}\")\n 779   \n 780                       # \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n 781                       # Walk the redirect chain.  Playwright returns only the last\n 782                       # hop, so we trace the `request.redirected_from` links until the\n 783                       # first response that differs from the final one and surface its]]"
+      }
+    ]
+  }
+]

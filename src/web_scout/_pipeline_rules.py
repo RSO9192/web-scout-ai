@@ -116,6 +116,17 @@ _QUERY_REPORT_HINTS: tuple[str, ...] = (
     "recent trend",
     "bulletin",
 )
+_QUERY_FORECAST_HINTS: tuple[str, ...] = (
+    "forecast",
+    "outlook",
+    "warning",
+    "warnings",
+    "advisory",
+    "seasonal forecast",
+    "monthly forecast",
+    "weekly forecast",
+    "daily forecast",
+)
 _QUERY_STOPWORDS: frozenset[str] = frozenset(
     {
         "the",
@@ -212,6 +223,11 @@ def _query_prefers_report_pages(query: str) -> bool:
     return any(token in query_lower for token in _QUERY_REPORT_HINTS)
 
 
+def _query_prefers_forecast_pages(query: str) -> bool:
+    query_lower = query.lower()
+    return any(token in query_lower for token in _QUERY_FORECAST_HINTS)
+
+
 def _extract_query_keywords(query: str) -> set[str]:
     return {
         token
@@ -240,6 +256,14 @@ def _looks_like_identifier_detail_page(path_segments: list[str]) -> bool:
             token in "/".join(path_segments)
             for token in ("handle", "record", "item", "bitstream")
         )
+    )
+
+
+def _looks_like_operational_forecast_or_warning_url(url: str) -> bool:
+    normalized = urlparse(url).path.lower().replace("_", "-")
+    return any(
+        token in normalized
+        for token in ("forecast", "warning", "warnings", "outlook", "advisory")
     )
 
 
@@ -309,6 +333,9 @@ def _rank_followup_candidates(query: str, candidates: list[str]) -> list[str]:
         if norm in seen:
             continue
         seen.add(norm)
+        domain = urlparse(url).netloc.lower().split(":", 1)[0].removeprefix("www.")
+        if not domain or not _is_promising_followup_url(url, domain, query=query):
+            continue
         score = _score_followup_candidate(query, url)
         if score > 0:
             ranked.append((score, idx, url))
@@ -346,6 +373,8 @@ def _is_promising_followup_url(url: str, base_domain: str, query: str = "") -> b
     if non_index_segments and non_index_segments[0] in _FOLLOWUP_NEGATIVE_TOKENS:
         if not any(tok in normalized_joined for tok in _FOLLOWUP_POSITIVE_TOKENS):
             return False
+    if _looks_like_operational_forecast_or_warning_url(url) and not _query_prefers_forecast_pages(query):
+        return False
     if any(tok in normalized_joined for tok in _DATA_PORTAL_TOKENS):
         return _query_prefers_data_pages(query)
     if len(non_index_segments) <= 2 and not parsed.query:

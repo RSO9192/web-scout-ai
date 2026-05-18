@@ -32,6 +32,7 @@ import httpx
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
 
 from ._heuristics import ROUTING_HEURISTICS
+from ._page_classifier import classify_html_page_shape
 
 logger = logging.getLogger(__name__)
 
@@ -181,6 +182,38 @@ def _is_json(text: str) -> bool:
         return False
 
 
+def _looks_like_html_body(text: str) -> bool:
+    stripped = text.lstrip()
+    if not stripped:
+        return False
+    prefix = stripped[:512].lower()
+    return (
+        prefix.startswith("<!doctype html")
+        or prefix.startswith("<html")
+        or "<head" in prefix
+        or "<body" in prefix
+    )
+
+
+def _sniff_document_payload(
+    payload: bytes,
+    *,
+    content_type: str = "",
+    content_disposition: str = "",
+) -> bool:
+    if not payload:
+        return False
+    if payload[:4] == b"%PDF":
+        return True
+    if payload[:4] == b"PK\x03\x04":
+        ct = _normalize_content_type(content_type)
+        filename = _filename_from_content_disposition(content_disposition).lower()
+        if any(ct.startswith(t) for t in _SUPPORTED_DOC_CONTENT_TYPES):
+            return True
+        return any(filename.endswith(ext) for ext in _SUPPORTED_DOC_EXTENSIONS)
+    return False
+
+
 def _extract_text_from_html(html: str) -> str:
     """Strip script/style blocks then all tags; return plain text."""
     html = re.sub(r"<script[^>]*>.*?</script>", " ", html, flags=re.S | re.I)
@@ -278,30 +311,7 @@ def _looks_like_auth_wall(html_lower: str) -> bool:
 
 
 def _looks_like_metadata_page(html: str) -> bool:
-    lower = html.lower()
-    hrefs = _extract_hrefs_from_html(html)
-    if not hrefs:
-        return False
-
-    doc_links = [href for href in hrefs if _looks_like_document_resource(href)]
-    if doc_links:
-        return True
-
-    metadata_markers = (
-        "full text",
-        "download",
-        "document",
-        "report",
-        "dataset",
-        "publication",
-        "regulation",
-        "law",
-        "view details",
-        "metadata",
-        "repository",
-        "catalog",
-    )
-    return len(hrefs) >= 5 or any(marker in lower for marker in metadata_markers)
+    return classify_html_page_shape(html).page_type == "record_page"
 
 
 def _trim_json_value(
@@ -461,6 +471,8 @@ def _plan_low_text_html(url: str, *, size: int, text_chars: int, script_tags: in
             text_chars=text_chars,
             script_tags=script_tags,
         )
+    if text_chars >= ROUTING_HEURISTICS.rich_html_static_text_chars:
+        return None
     density = text_chars / size if size else 0.0
     if script_tags >= ROUTING_HEURISTICS.heavy_spa_script_count and density < ROUTING_HEURISTICS.heavy_spa_text_density:
         return _log_scrape_plan(
@@ -500,6 +512,7 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
         async with httpx.AsyncClient(
             follow_redirects=True, timeout=_VALIDATION_TIMEOUT, headers=_FETCH_HEADERS
         ) as client:
+            head_json_hint = False
             # Step 1: HEAD request
             try:
                 head = await client.head(url)
@@ -521,7 +534,7 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
                 if _looks_like_document_resource(url, ct, cd):
                     return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.DOCUMENT, ct, ct, cd), phase="head")
                 if any(ct.startswith(t) for t in _JSON_CONTENT_TYPES):
-                    return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.JSON, ct), phase="head")
+                    head_json_hint = True
                 if any(ct.startswith(t) for t in _IMAGE_CONTENT_TYPES):
                     return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.IMAGE, ct), phase="head")
                 if any(ct.startswith(t) for t in _BINARY_CONTENT_TYPES):
@@ -563,7 +576,44 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
                     ScrapePlan(ScrapeStrategy.DOCUMENT, final_ct, final_ct, final_cd),
                     phase="get",
                 )
-            if any(final_ct.startswith(t) for t in _JSON_CONTENT_TYPES) or _is_json(resp.text):
+            if _sniff_document_payload(
+                resp.content,
+                content_type=final_ct,
+                content_disposition=final_cd,
+            ):
+                return _log_scrape_plan(
+                    url,
+                    ScrapePlan(
+                        ScrapeStrategy.DOCUMENT,
+                        final_ct or "document-by-body-sniff",
+                        final_ct,
+                        final_cd,
+                    ),
+                    phase="get",
+                )
+            if any(final_ct.startswith(t) for t in _JSON_CONTENT_TYPES) or head_json_hint:
+                if _is_json(resp.text):
+                    return _log_scrape_plan(
+                        url,
+                        ScrapePlan(ScrapeStrategy.JSON, final_ct or "json-by-body-sniff"),
+                        phase="get",
+                    )
+                if _looks_like_html_body(resp.text):
+                    logger.info(
+                        "[scrape-plan] json-hint overridden by HTML body url=%s final_ct=%s",
+                        url,
+                        final_ct or "(empty)",
+                    )
+                else:
+                    return _log_scrape_plan(
+                        url,
+                        ScrapePlan(
+                            ScrapeStrategy.SKIP,
+                            f"JSON-like endpoint returned non-JSON payload ({final_ct or 'unknown content-type'})",
+                        ),
+                        phase="get",
+                    )
+            if _is_json(resp.text):
                 return _log_scrape_plan(
                     url,
                     ScrapePlan(ScrapeStrategy.JSON, final_ct or "json-by-body-sniff"),
@@ -581,6 +631,7 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
             text = _extract_text_from_html(html)
             text_chars = len(text)
             lower = html.lower()
+            shape = classify_html_page_shape(html)
 
             # Thin content: paywall, login wall, or near-empty page
             if text_chars < ROUTING_HEURISTICS.short_html_text_chars:
@@ -591,6 +642,20 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
                     script_tags=script_tags,
                     lower_html=lower,
                     html=html,
+                )
+
+            if shape.page_type == "record_page" and text_chars < ROUTING_HEURISTICS.rich_html_static_text_chars:
+                return _log_scrape_plan(
+                    url,
+                    ScrapePlan(
+                        ScrapeStrategy.HTML_FAST,
+                        f"metadata-like HTML ({text_chars} text chars from {size} chars HTML)",
+                    ),
+                    size=size,
+                    text_chars=text_chars,
+                    script_tags=script_tags,
+                    doc_links=shape.document_link_count,
+                    metadata_markers=shape.metadata_marker_count,
                 )
 
             plan = _plan_low_text_html(

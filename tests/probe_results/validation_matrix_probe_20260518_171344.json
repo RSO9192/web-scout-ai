@@ -1,0 +1,665 @@
+[
+  {
+    "name": "open_global_methane_iea",
+    "mode": "open",
+    "query": "Global methane emissions from oil and gas 2023 2024 trends abatement opportunities IEA",
+    "elapsed_seconds": 75.57,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 8,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4257,
+    "error": null,
+    "search_queries": [
+      "IEA Global Methane Tracker 2024 report oil and gas sector emissions",
+      "methane abatement opportunities and costs oil gas IEA 2023 2024",
+      "IEA 2024 trends global methane emissions oil and gas industry updates"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_cholera_africa",
+    "mode": "open",
+    "query": "Current cholera hotspots in eastern and southern Africa 2024 2025 response vaccine constraints",
+    "elapsed_seconds": 126.42,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 8,
+    "num_failed": 1,
+    "num_bot_detected": 0,
+    "synthesis_chars": 6973,
+    "error": null,
+    "search_queries": [
+      "global oral cholera vaccine shortage impact on African response 2024 2025",
+      "cholera outbreak hotspots eastern and southern Africa 2024 2025 situation updates",
+      "WHO UNICEF cholera response challenges vaccine supply constraints East South Africa"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.unicef.org/esa/reports/cholera-outbreak-eastern-and-southern-africa-2024",
+        "title": "Cholera Outbreak in Eastern and Southern Africa - Unicef",
+        "error": "[scrape failed: [Scrape failed: Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/web-agent/lib/python3.12/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://www.unicef.org/esa/reports/cholera-outbreak-eastern-and-southern-africa-2024\", waiting until \"networkidle\"\n\n\nCode context:\n 773                                   tag=\"GOTO\",\n 774                                   params={\"url\": url},\n 775                               )\n 776                               response = None\n 777                           else:\n 778 \u2192                             raise RuntimeError(f\"Failed on navigating ACS-GOTO:\\n{str(e)}\")\n 779   \n 780                       # \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n 781                       # Walk the redirect chain.  Playwright returns only the last\n 782                       # hop, so we trace the `request.redirected_from` links until the\n 783                       # first response that differs from the final one and surface its]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "open_adaptation_gap",
+    "mode": "open",
+    "query": "Global adaptation finance gap 2023 2024 adaptation gap report key findings and priorities",
+    "elapsed_seconds": 55.73,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 5,
+    "num_failed": 1,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4273,
+    "error": null,
+    "search_queries": [
+      "UNEP Adaptation Gap Report 2024 priorities and implementation strategies for climate adaptation",
+      "UNEP Adaptation Gap Report 2023 key findings and adaptation finance gap statistics",
+      "current global adaptation finance gap 2023-2024 comparison and international funding flows"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://unfccc.int/sites/default/files/resource/Finance_Gap_Update.pdf",
+        "title": "[PDF] Adaptation Finance Gap Update 2023 - UNFCCC",
+        "error": "[scrape failed: [Scrape failed: URL did not return a PDF (got text/html)]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "open_bluefin_quotas_diverse",
+    "mode": "open",
+    "query": "Eastern Atlantic Mediterranean bluefin tuna quotas 2022 2026 stock assessment and management procedure",
+    "elapsed_seconds": 100.88,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 10,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 5258,
+    "error": null,
+    "search_queries": [
+      "ICCAT Eastern Atlantic and Mediterranean bluefin tuna TAC 2023-2025 quotas",
+      "2022 SCRS stock assessment report Eastern Atlantic Mediterranean bluefin tuna",
+      "ICCAT management procedure for Atlantic bluefin tuna management strategy evaluation results"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_venice_coastal_risk",
+    "mode": "open",
+    "query": "Venice sea level rise flood frequency coastal risk projections and MOSE effectiveness under IPCC scenarios",
+    "elapsed_seconds": 226.22,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 1,
+    "num_bot_detected": 0,
+    "synthesis_chars": 5312,
+    "error": null,
+    "search_queries": [
+      "Venice sea level rise projections IPCC AR6 SSP scenarios flood frequency",
+      "impact of climate change on Venice coastal flood risk assessment and lagoon dynamics",
+      "MOSE barrier effectiveness and limitations future sea level rise scenarios"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.researchgate.net/publication/404356157_The_MOSE_Barrier_System_in_Venice_Lessons_Learned_and_Applicability_to_US_Coastal_Infrastructure",
+        "title": "(PDF) The MOSE Barrier System in Venice: Lessons Learned and ...",
+        "error": "[scrape failed: [Scrape failed: Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/web-agent/lib/python3.12/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://www.researchgate.net/publication/404356157_The_MOSE_Barrier_System_in_Venice_Lessons_Learned_and_Applicability_to_US_Coastal_Infrastructure\", waiting until \"networkidle\"\n\n\nCode context:\n 773                                   tag=\"GOTO\",\n 774                                   params={\"url\": url},\n 775                               )\n 776                               response = None\n 777                           else:\n 778 \u2192                             raise RuntimeError(f\"Failed on navigating ACS-GOTO:\\n{str(e)}\")\n 779   \n 780                       # \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n 781                       # Walk the redirect chain.  Playwright returns only the last\n 782                       # hop, so we trace the `request.redirected_from` links until the\n 783                       # first response that differs from the final one and surface its]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "open_cerrado_deforestation_diverse",
+    "mode": "open",
+    "query": "Brazilian Cerrado deforestation 2023 2025 commodity drivers soy cattle and enforcement actions",
+    "elapsed_seconds": 101.83,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 8,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 5887,
+    "error": null,
+    "search_queries": [
+      "Brazil government enforcement actions against Cerrado deforestation 2023 2024 2025",
+      "soy and beef supply chain regulations impact on Cerrado land clearing 2023-2025",
+      "Cerrado deforestation trends 2023-2025 soy and cattle commodity drivers analysis"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_sofi_hunger_diverse",
+    "mode": "open",
+    "query": "Global hunger and food insecurity trends 2022 2024 SOFI report regional patterns",
+    "elapsed_seconds": 144.93,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 8,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4644,
+    "error": null,
+    "search_queries": [
+      "SOFI report 2024 global hunger statistics and regional trends 2022-2024",
+      "prevalence of undernourishment by region 2022-2024 SOFI report key findings",
+      "FAO State of Food Security and Nutrition in the World 2024 regional food insecurity patterns"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_amr_burden",
+    "mode": "open",
+    "query": "Global antimicrobial resistance mortality burden evidence policy priorities and regional patterns",
+    "elapsed_seconds": 171.44,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 8,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3922,
+    "error": null,
+    "search_queries": [
+      "regional trends and disparities in antimicrobial resistance mortality rates by WHO region",
+      "global policy priorities and strategic frameworks for addressing antimicrobial resistance burden",
+      "global burden of bacterial antimicrobial resistance 2019 GRAM study mortality results"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_green_hydrogen_africa",
+    "mode": "open",
+    "query": "Green hydrogen projects in Namibia Mauritania and Morocco export plans infrastructure constraints",
+    "elapsed_seconds": 149.89,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 1,
+    "num_bot_detected": 0,
+    "synthesis_chars": 5082,
+    "error": null,
+    "search_queries": [
+      "infrastructure constraints and port development for green hydrogen export in Morocco Mauritania and Namibia",
+      "green hydrogen export strategies and project status in Namibia Mauritania and Morocco 2024",
+      "challenges for green hydrogen infrastructure and pipeline projects in Namibia Mauritania and Morocco"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://res4africa.org/wp-content/uploads/2023/12/R4A-GH2-paper-final-24.11.23.pdf",
+        "title": "[PDF] Towards a Green Hydrogen Ecosystem - RES4Africa Foundation",
+        "error": "[scrape failed: [Scrape failed: PDF inaccessible (httpx: HTTPStatusError: Client error '403 Forbidden' for url 'https://res4africa.org/wp-content/uploads/2023/12/R4A-GH2-paper-final-24.11.23.pdf'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403; raw-byte: HTTPError: HTTP Error 403: Forbidden; browser download also failed)]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "open_coral_bleaching",
+    "mode": "open",
+    "query": "Global coral bleaching 2024 2025 marine heatwave impacts reef outlook and scientific assessments",
+    "elapsed_seconds": 82.62,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 5,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 2405,
+    "error": null,
+    "search_queries": [
+      "scientific projections for coral reef thermal stress and bleaching outlook 2025",
+      "impact of 2024 marine heatwaves on Great Barrier Reef and Caribbean coral mortality",
+      "NOAA Coral Reef Watch fourth global bleaching event 2024 2025 assessment"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_iccat_bluefin_diverse",
+    "mode": "domain",
+    "query": "ICCAT bluefin tuna quotas stock assessment and management procedure 2022 2026",
+    "elapsed_seconds": 199.69,
+    "include_domains": [
+      "iccat.int"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 10,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3595,
+    "error": null,
+    "search_queries": [
+      "site:iccat.int SCRS bluefin tuna stock assessment 2022 2024 report",
+      "site:iccat.int Atlantic bluefin tuna management procedure 2022 2026 quotas",
+      "site:iccat.int Recommendation 22-08 western eastern Atlantic bluefin tuna TAC"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_ipcc_coasts",
+    "mode": "domain",
+    "query": "Sea level rise coastal flood risk adaptation and Venice IPCC scenarios",
+    "elapsed_seconds": 104.25,
+    "include_domains": [
+      "ipcc.ch"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 8,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4913,
+    "error": null,
+    "search_queries": [
+      "Venice sea level rise projections IPCC scenarios SSP RCP site:ipcc.ch",
+      "coastal adaptation strategies Venice MOSE IPCC report site:ipcc.ch",
+      "Venice coastal flood risk sea level rise adaptation site:ipcc.ch"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_who_cholera",
+    "mode": "domain",
+    "query": "Cholera outbreaks eastern and southern Africa vaccine supply and WHO situation updates",
+    "elapsed_seconds": 115.61,
+    "include_domains": [
+      "who.int"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 10,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 7469,
+    "error": null,
+    "search_queries": [
+      "site:who.int oral cholera vaccine OCV supply and stockpile Africa updates",
+      "site:who.int multi-country cholera outbreak external situation reports 2023-2024",
+      "site:who.int cholera outbreak Eastern and Southern Africa situation reports 2024"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_fao_sofi",
+    "mode": "domain",
+    "query": "SOFI 2024 hunger food insecurity prevalence and undernourishment trends",
+    "elapsed_seconds": 155.87,
+    "include_domains": [
+      "fao.org",
+      "openknowledge.fao.org"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 5,
+    "num_failed": 1,
+    "num_bot_detected": 0,
+    "synthesis_chars": 5013,
+    "error": null,
+    "search_queries": [
+      "site:openknowledge.fao.org \"SOFI 2024\" \"State of Food Security and Nutrition\" moderate or severe food insecurity FIES",
+      "site:fao.org \"SOFI 2024\" global regional hunger figures and food insecurity prevalence statistics",
+      "site:fao.org OR site:openknowledge.fao.org \"SOFI 2024\" prevalence of undernourishment (PoU) hunger trends"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://openknowledge.fao.org/bitstreams/21cfaa48-a15e-4b62-a8fd-c2d7f2c8d979/download",
+        "title": "[PDF] COMMITTEE ON WORLD FOOD SECURITY",
+        "error": "[scrape failed: [Scrape failed: Blocked by anti-bot protection: Structural: minimal_text, no_content_elements (237 bytes, 0 chars visible)]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_pmc_amr",
+    "mode": "domain",
+    "query": "antimicrobial resistance mortality burden global regional evidence policy priorities",
+    "elapsed_seconds": 64.62,
+    "include_domains": [
+      "pmc.ncbi.nlm.nih.gov"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4117,
+    "error": null,
+    "search_queries": [
+      "site:pmc.ncbi.nlm.nih.gov AMR mortality burden \"low- and middle-income countries\" policy framework",
+      "site:pmc.ncbi.nlm.nih.gov \"global burden\" antimicrobial resistance mortality estimates regional",
+      "site:pmc.ncbi.nlm.nih.gov \"antimicrobial resistance\" policy priorities evidence-based interventions mortality"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_frontiers_foodsystems",
+    "mode": "domain",
+    "query": "wild edible plants food systems nutrition resilience and biodiversity evidence",
+    "elapsed_seconds": 50.59,
+    "include_domains": [
+      "frontiersin.org"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 5996,
+    "error": null,
+    "search_queries": [
+      "site:frontiersin.org \"wild edible plants\" nutrition resilience food systems biodiversity",
+      "site:frontiersin.org indigenous wild plants food system sustainability biodiversity evidence",
+      "site:frontiersin.org \"wild food plants\" nutritional security climate resilience biodiversity conservation"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_worldbank_morocco_climate",
+    "mode": "domain",
+    "query": "Morocco historical climate trends temperature variability drought and precipitation patterns",
+    "elapsed_seconds": 55.71,
+    "include_domains": [
+      "climateknowledgeportal.worldbank.org"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 5,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4512,
+    "error": null,
+    "search_queries": [
+      "site:climateknowledgeportal.worldbank.org Morocco historical temperature and precipitation trends",
+      "site:climateknowledgeportal.worldbank.org Morocco drought patterns and historical climate variability",
+      "site:climateknowledgeportal.worldbank.org Morocco climate risk country profile historical observations"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_scielo_biosafety_diverse",
+    "mode": "domain",
+    "query": "GM crops ecological risk biosafety governance Africa case study evidence",
+    "elapsed_seconds": 74.61,
+    "include_domains": [
+      "scielo.org.za"
+    ],
+    "direct_url": null,
+    "num_queries": 5,
+    "num_scraped": 2,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3441,
+    "error": null,
+    "search_queries": [
+      "site:scielo.org.za \"GM crops\" biosafety governance ecological risk Africa evidence",
+      "site:scielo.org.za biosafety regulatory frameworks GM crops South Africa ecological risk",
+      "site:scielo.org.za genetically modified crops environmental impact case studies Africa",
+      "site:scielo.org.za biosafety governance GM crops Kenya Nigeria Burkina Faso case study",
+      "site:scielo.org.za GM crops ecological risk \"gene flow\" \"pest resistance\" \"non-target organisms\" Africa"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_nature_precip_diverse",
+    "mode": "domain",
+    "query": "precipitation spatial patterns climate change extremes and hydrometeorology",
+    "elapsed_seconds": 73.45,
+    "include_domains": [
+      "nature.com"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 10,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4307,
+    "error": null,
+    "search_queries": [
+      "site:nature.com \"hydrometeorology\" extreme precipitation events trends",
+      "site:nature.com \"spatial patterns\" precipitation \"climate change\" extremes",
+      "site:nature.com impact of climate change on hydrometeorological spatial variability"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_noaa_coral",
+    "mode": "domain",
+    "query": "coral bleaching marine heatwave reef outlook NOAA scientific updates",
+    "elapsed_seconds": 75.21,
+    "include_domains": [
+      "noaa.gov"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 9,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 5685,
+    "error": null,
+    "search_queries": [
+      "site:noaa.gov \"Coral Reef Watch\" global coral bleaching outlook and heatwave monitoring",
+      "site:noaa.gov marine heatwaves impact on coral reef ecosystems scientific updates",
+      "site:noaa.gov NOAA Coral Reef Watch bleaching alert status and technical reports 2024"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_iccat_pdf_diverse",
+    "mode": "direct",
+    "query": "ICCAT bluefin tuna quotas and management recommendation text",
+    "elapsed_seconds": 42.34,
+    "include_domains": [],
+    "direct_url": "https://www.iccat.int/Documents/Recs/compendiopdf-e/2022-08-e.pdf",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 2351,
+    "error": null,
+    "search_queries": [
+      "ICCAT bluefin tuna quotas and management recommendation text"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_ipcc_coastal_html",
+    "mode": "direct",
+    "query": "Coastal flood risk sea level rise adaptation and Venice-relevant IPCC context",
+    "elapsed_seconds": 66.11,
+    "include_domains": [],
+    "direct_url": "https://www.ipcc.ch/report/ar6/wg2/chapter/chapter-13/",
+    "num_queries": 1,
+    "num_scraped": 4,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3957,
+    "error": null,
+    "search_queries": [
+      "Coastal flood risk sea level rise adaptation and Venice-relevant IPCC context"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_sofi_pdf_diverse",
+    "mode": "direct",
+    "query": "Global hunger and food insecurity trends 2024 SOFI report key findings",
+    "elapsed_seconds": 64.75,
+    "include_domains": [],
+    "direct_url": "https://data.unicef.org/wp-content/uploads/2024/07/SOFI2024_Report_EN_web.pdf",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3755,
+    "error": null,
+    "search_queries": [
+      "Global hunger and food insecurity trends 2024 SOFI report key findings"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_nepad_pdf_diverse",
+    "mode": "direct",
+    "query": "African agricultural biotechnology biosafety policy overview and regional context",
+    "elapsed_seconds": 23.99,
+    "include_domains": [],
+    "direct_url": "https://www.nepad.org/file-download/download/public/127523",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3557,
+    "error": null,
+    "search_queries": [
+      "African agricultural biotechnology biosafety policy overview and regional context"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_scielo_html_diverse",
+    "mode": "direct",
+    "query": "GM crops ecological risk and biosafety governance in Africa",
+    "elapsed_seconds": 25.69,
+    "include_domains": [],
+    "direct_url": "https://scielo.org.za/scielo.php?script=sci_arttext&pid=S2663-323X2022000100014",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3315,
+    "error": null,
+    "search_queries": [
+      "GM crops ecological risk and biosafety governance in Africa"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_frontiers_foodsystems",
+    "mode": "direct",
+    "query": "Wild edible plants food systems resilience and biodiversity evidence",
+    "elapsed_seconds": 54.18,
+    "include_domains": [],
+    "direct_url": "https://www.frontiersin.org/journals/sustainable-food-systems/articles/10.3389/fsufs.2023.1113771/full",
+    "num_queries": 1,
+    "num_scraped": 3,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3503,
+    "error": null,
+    "search_queries": [
+      "Wild edible plants food systems resilience and biodiversity evidence"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_nature_precip_diverse",
+    "mode": "direct",
+    "query": "Precipitation spatial patterns climate change and extremes evidence",
+    "elapsed_seconds": 22.39,
+    "include_domains": [],
+    "direct_url": "https://www.nature.com/articles/s41598-024-63786-2",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 2495,
+    "error": null,
+    "search_queries": [
+      "Precipitation spatial patterns climate change and extremes evidence"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_pmc_precip",
+    "mode": "direct",
+    "query": "Kenya precipitation variability and historical trend evidence",
+    "elapsed_seconds": 21.51,
+    "include_domains": [],
+    "direct_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 2170,
+    "error": null,
+    "search_queries": [
+      "Kenya precipitation variability and historical trend evidence"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_who_sofi_html",
+    "mode": "direct",
+    "query": "SOFI 2024 hunger and food insecurity summary",
+    "elapsed_seconds": 58.5,
+    "include_domains": [],
+    "direct_url": "https://www.who.int/publications/m/item/the-state-of-food-security-and-nutrition-in-the-world-2024",
+    "num_queries": 1,
+    "num_scraped": 2,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3520,
+    "error": null,
+    "search_queries": [
+      "SOFI 2024 hunger and food insecurity summary"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_worldbank_climate",
+    "mode": "direct",
+    "query": "Kenya historical climate trends precipitation variability and extremes summary",
+    "elapsed_seconds": 56.19,
+    "include_domains": [],
+    "direct_url": "https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical",
+    "num_queries": 1,
+    "num_scraped": 3,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3566,
+    "error": null,
+    "search_queries": [
+      "Kenya historical climate trends precipitation variability and extremes summary"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  }
+]

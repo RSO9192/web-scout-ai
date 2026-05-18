@@ -2,10 +2,12 @@
 
 Usage:
     PYTHONPATH=src python tests/gmo_probe.py
+    PYTHONPATH=src python tests/gmo_probe.py --env-file /path/to/.env
 """
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import logging
@@ -111,7 +113,12 @@ async def _run_one(query: str) -> FullProbeResult:
 
 
 async def main() -> None:
-    load_dotenv(ENV_FILE, override=False)
+    parser = argparse.ArgumentParser(description="Run the targeted GMO/max-turn regression probe.")
+    parser.add_argument("--env-file", default=str(ENV_FILE), help="Path to dotenv file with API keys.")
+    parser.add_argument("--output-dir", default=str(OUTPUT_DIR), help="Directory where the JSON report is written.")
+    args = parser.parse_args()
+
+    load_dotenv(args.env_file, override=False)
     configure_logging(logging.INFO)
 
     report: list[FullProbeResult] = []
@@ -119,16 +126,21 @@ async def main() -> None:
         logging.getLogger("web_scout.probe").info("probing: %s", query)
         report.append(await _run_one(query))
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_path = OUTPUT_DIR / f"gmo_probe_{timestamp}.json"
+    output_path = output_dir / f"gmo_probe_{timestamp}.json"
     output_path.write_text(json.dumps([asdict(item) for item in report], indent=2), encoding="utf-8")
     print(f"\nReport saved: {output_path}")
 
     # Print a quick summary to stdout
     for r in report:
         print(f"\n--- {r.query[:70]} ---")
-        print(f"  elapsed: {r.elapsed_seconds}s | scraped: {r.num_scraped} | failed: {r.num_failed} | bot: {r.num_bot_detected}")
+        print(
+            "  elapsed: "
+            f"{r.elapsed_seconds}s | scraped: {r.num_scraped} | "
+            f"failed: {r.num_failed} | bot: {r.num_bot_detected}"
+        )
         if r.error:
             print(f"  ERROR: {r.error}")
         for f in r.scrape_failed:

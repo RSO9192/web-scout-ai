@@ -1,6 +1,6 @@
 # Tests
 
-This folder contains three different kinds of checks:
+This folder contains three kinds of checks:
 
 - `pytest` unit and integration tests for local deterministic behavior
 - live probe scripts for inspecting real package behavior against search/scraping/LLM backends
@@ -76,9 +76,8 @@ The live presets skip cleanly when required API keys are missing.
 ### Probe scripts
 
 - `query_probe.py`: search + scrape smoke probe without LLM synthesis
-- `matrix_probe.py`: mixed open-web, domain-restricted, and direct-URL live cases
-- `diverse_matrix_probe.py`: broader mixed live matrix with more varied topics
-- `full_query_probe.py`: full end-to-end search + scrape + synthesis probe
+- `validation_matrix_probe.py`: maintained live matrix for open-web, domain-restricted, and direct-URL cases; supports `--preset standard` and `--preset diverse`
+- `gmo_probe.py`: targeted regression probe for the extractor/max-turn failure class
 - `quality_probe.py`: prints a scored report for a few end-to-end research tasks
 
 ### Benchmarks
@@ -107,7 +106,7 @@ Use `behavior` when:
 Use the individual probe scripts when:
 
 - you want to tune one specific probe family directly
-- you want control over limits like `--max-results`, `--max-scrapes`, or `--limit`
+- you want control over limits like `--max-results`, `--max-scrapes`, or `--preset`
 
 ## Environment Notes
 
@@ -126,7 +125,7 @@ If you prefer not to export them in your shell, pass `--env-file /path/to/.env` 
 Generated artifacts in this folder:
 
 - `run_results/`: timestamped runs from `run_checks.py`
-- `probe_results/`: older or direct probe outputs
+- `probe_results/`: saved outputs from ad hoc live probes
 - `benchmark_results/`: benchmark JSON/Markdown reports
 
 These are useful when you want to compare runs over time or inspect a failure after the fact.
