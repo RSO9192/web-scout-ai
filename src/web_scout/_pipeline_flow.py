@@ -56,6 +56,23 @@ async def _gather_scrapes(tasks: list) -> list:
     return await asyncio.gather(*tasks)
 
 
+def _looks_like_document_followup(url: str) -> bool:
+    lower = url.lower()
+    path = lower.split("?", 1)[0].split("#", 1)[0]
+    if path.endswith((".pdf", ".docx", ".pptx", ".xlsx")):
+        return True
+    return any(
+        marker in lower
+        for marker in (
+            "/download",
+            "/bitstream/",
+            "/bitstreams/",
+            "download?",
+            "file-download",
+        )
+    )
+
+
 async def _rerank_followup_urls(
     *,
     query: str,
@@ -148,8 +165,15 @@ def _build_query_agents(
     query_gen_model: Any,
     evaluator_model: Any,
     domain_expertise: Optional[str],
+    evaluator_extra_prompt: Optional[str] = None,
 ) -> tuple[Agent, Agent]:
     suffix = f"\nDomain Expertise: {domain_expertise}" if domain_expertise else ""
+
+    # Append the extra quality sentence for the evaluator
+    eval_instructions = COVERAGE_EVALUATOR_INSTRUCTIONS + suffix
+    if evaluator_extra_prompt:
+        eval_instructions += f"\n\nQuality Guideline: {evaluator_extra_prompt}"
+
     query_gen_agent = Agent(
         name="query_generator",
         model=query_gen_model,
@@ -160,7 +184,7 @@ def _build_query_agents(
         name="coverage_evaluator",
         model=evaluator_model,
         output_type=CoverageEvaluation,
-        instructions=COVERAGE_EVALUATOR_INSTRUCTIONS + suffix,
+        instructions=eval_instructions,
     )
     return query_gen_agent, evaluator_agent
 
@@ -730,20 +754,29 @@ async def _run_direct_url_mode(
         return
 
     direct_domain = _normalize_domain(direct_url)
+    high_value_document_links = [
+        link
+        for link in links_to_deepen
+        if _looks_like_document_followup(link)
+    ]
     same_domain_links = [
         link
         for link in links_to_deepen
         if direct_domain and _is_promising_followup_url(link, direct_domain, query=query)
     ]
-    if not same_domain_links:
+    candidate_links: list[str] = []
+    for link in high_value_document_links + same_domain_links:
+        if link not in candidate_links:
+            candidate_links.append(link)
+    if not candidate_links:
         return
 
     chosen = await _rerank_followup_urls(
         query=query,
         parent_url=direct_url,
         parent_content=outcome.rendered_text,
-        candidates=same_domain_links,
-        cap=min(3, len(same_domain_links)),
+        candidates=candidate_links,
+        cap=min(3, len(candidate_links)),
         model=followup_model,
     )
     logger.info("[pipeline] deepening on %d links from direct URL", len(chosen))
@@ -763,6 +796,7 @@ async def _run_search_mode_impl(
     tracker: ResearchTracker,
     scrape_tool: Any,
     allowed_domains: Optional[frozenset[str]],
+    evaluator_extra_prompt: Optional[str] = None,
     build_search_backend: Any,
     build_query_agents: Any,
     search_and_scrape_iteration: Any,
@@ -773,6 +807,7 @@ async def _run_search_mode_impl(
         query_gen_model=query_gen_model,
         evaluator_model=evaluator_model,
         domain_expertise=domain_expertise,
+        evaluator_extra_prompt=evaluator_extra_prompt,
     )
     state = SearchLoopState()
 

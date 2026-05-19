@@ -26,6 +26,7 @@ class RoutingHeuristics:
     low_text_spa_script_count: int = 3
     heavy_spa_script_count: int = 15
     heavy_spa_text_density: float = 0.06
+    rich_html_static_text_chars: int = 3000
     soft_404_text_chars: int = 1000
     html_fast_thin_content_chars: int = 200
     bm25_threshold: float = 1.0
@@ -40,6 +41,9 @@ class RoutingHeuristics:
 @dataclass(frozen=True)
 class ExtractorHeuristics:
     thin_content_chars: int = 500
+    rich_content_chars: int = 1500
+    recovery_min_content_chars: int = 1000
+    max_extractor_turns: int = 15
     max_interactive_clicks: int = 5
     interactive_page_goto_timeout_ms: int = 30_000
     interactive_wait_timeout_ms: int = 3_000
@@ -68,7 +72,6 @@ class FollowupHeuristics:
     report_query_bonus: int = 4
     keyword_overlap_bonus: int = 2
     identifier_detail_bonus: int = 2
-    kenya_bonus: int = 2
     shallow_page_min_score: int = 3
 
 

@@ -126,7 +126,7 @@ class WebResearchResult(BaseModel):
 ```python
 result = await run_web_research(
     query="latest IPCC findings on sea level rise",
-    models={
+    models={                                         # optional, defaults to gemini-3-flash-preview
         "web_researcher": "openai/gpt-4o-mini",
         "content_extractor": "gemini/gemini-2.0-flash",
     },
@@ -137,7 +137,9 @@ result = await run_web_research(
     domain_expertise="climate science",  # optional
     allowed_domains=None,                # optional
     max_pdf_pages=50,                    # optional, default 50
+    max_content_chars=30_000,           # optional, max chars fed to extractor per page, default 30 000
     cache=False,                         # optional, reuse successful source artifacts in this Python process
+    coverage_criteria=None,              # optional, extra instructions for the coverage evaluator
 )
 ```
 
@@ -318,13 +320,3 @@ It is probably not the right tool if you only need simple search snippets or if 
 - Python `>=3.10`
 - API key for at least one supported LLM provider
 - `SERPER_API_KEY` for the Serper search backend (generous free tier)
-
-## Brand Assets
-
-- Full logo: `[assets/web-scout-logo.svg](assets/web-scout-logo.svg)`
-- Square logo mark (avatar-safe): `[assets/web-scout-logo-mark.svg](assets/web-scout-logo-mark.svg)`
-- Social card preview: `[assets/web-scout-social-card.svg](assets/web-scout-social-card.svg)`
-
-## License
-
-MIT

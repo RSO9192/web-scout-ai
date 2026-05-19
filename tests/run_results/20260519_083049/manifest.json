@@ -1,0 +1,47 @@
+{
+  "preset": "quick",
+  "run_dir": "/Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tests/run_results/20260519_083049",
+  "results": [
+    {
+      "name": "lint",
+      "description": "Static lint check for src and tests.",
+      "command": [
+        "/Users/riccardo/.local/share/mamba/envs/web-agent/bin/python",
+        "-m",
+        "ruff",
+        "check",
+        "src",
+        "tests"
+      ],
+      "started_at": "2026-05-19T08:30:49",
+      "elapsed_seconds": 0.03,
+      "status": "passed",
+      "return_code": 0,
+      "log_path": "tests/run_results/20260519_083049/lint.log",
+      "junit_path": null,
+      "missing_env": []
+    },
+    {
+      "name": "unit-fast",
+      "description": "Targeted unit slice for pipeline, URL normalization, and dedupe behavior.",
+      "command": [
+        "/Users/riccardo/.local/share/mamba/envs/web-agent/bin/python",
+        "-m",
+        "pytest",
+        "tests/test_pipeline.py",
+        "tests/test_scrape_tool_dedupe.py",
+        "tests/test_url_utils.py",
+        "-q",
+        "--junitxml",
+        "/Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tests/run_results/20260519_083049/unit-fast.xml"
+      ],
+      "started_at": "2026-05-19T08:30:49",
+      "elapsed_seconds": 2.71,
+      "status": "passed",
+      "return_code": 0,
+      "log_path": "tests/run_results/20260519_083049/unit-fast.log",
+      "junit_path": "tests/run_results/20260519_083049/unit-fast.xml",
+      "missing_env": []
+    }
+  ]
+}

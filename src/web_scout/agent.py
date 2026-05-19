@@ -97,6 +97,7 @@ _DEPTH_PRESETS = {
         "urls_first": 6,
         "urls_followup": 4,
         "hub_deepening_cap": 10,
+        "evaluator_extra_prompt": None,
     },
     "deep": {
         "max_iterations": 3,
@@ -105,6 +106,7 @@ _DEPTH_PRESETS = {
         "urls_first": 12,
         "urls_followup": 8,
         "hub_deepening_cap": 15,
+        "evaluator_extra_prompt": "Be extremely strict: do not consider the query fully answered unless the extracted data is of high quality, specific, and actionable.",
     },
 }
 
@@ -118,12 +120,14 @@ def _build_query_agents(
     query_gen_model: Any,
     evaluator_model: Any,
     domain_expertise: Optional[str],
+    evaluator_extra_prompt: Optional[str] = None,
 ):
     """Compatibility wrapper kept on the public module for tests and monkeypatching."""
     return _build_query_agents_impl(
         query_gen_model=query_gen_model,
         evaluator_model=evaluator_model,
         domain_expertise=domain_expertise,
+        evaluator_extra_prompt=evaluator_extra_prompt,
     )
 
 
@@ -188,6 +192,7 @@ async def _run_search_mode(
     tracker: ResearchTracker,
     scrape_tool: Any,
     allowed_domains: Optional[frozenset[str]],
+    evaluator_extra_prompt: Optional[str] = None,
 ) -> None:
     """Run the iterative search loop using agent-module symbols for compatibility.
 
@@ -206,6 +211,7 @@ async def _run_search_mode(
         tracker=tracker,
         scrape_tool=scrape_tool,
         allowed_domains=allowed_domains,
+        evaluator_extra_prompt=evaluator_extra_prompt,
         build_search_backend=_build_search_backend,
         build_query_agents=_build_query_agents,
         search_and_scrape_iteration=_search_and_scrape_iteration,
@@ -215,25 +221,43 @@ async def _run_search_mode(
 
 async def run_web_research(
     query: str,
-    models: Dict[str, str],
+    models: Optional[Dict[str, str]] = None,
     include_domains: Optional[List[str]] = None,
     direct_url: Optional[str] = None,
     search_backend: str = "serper",
     domain_expertise: Optional[str] = None,
-    research_depth: str = "standard",
+    research_depth: str | dict = "standard",
     allowed_domains: Optional[List[str]] = None,
     max_pdf_pages: int = 50,
     max_content_chars: int = 30_000,
     cache: bool = False,
+    coverage_criteria: Optional[str] = None,
 ) -> WebResearchResult:
     """Run deterministic web research pipeline."""
     from .utils import get_model
+    if models is None:
+        models = DEFAULT_WEB_RESEARCH_MODELS
 
-    if research_depth not in _DEPTH_PRESETS:
-        raise ValueError(
-            f"Unknown research_depth={research_depth!r}. Use 'standard' or 'deep'."
-        )
-    depth = _DEPTH_PRESETS[research_depth]
+    if isinstance(research_depth, str):
+        if research_depth not in _DEPTH_PRESETS:
+            raise ValueError(
+                f"Unknown research_depth={research_depth!r}. Use 'standard' or 'deep' or a custom dict."
+            )
+        depth_config = dict(_DEPTH_PRESETS[research_depth])
+    elif isinstance(research_depth, dict):
+        depth_config = dict(research_depth)
+    else:
+        raise ValueError("research_depth must be a string or a dictionary.")
+
+    evaluator_extra_prompt = depth_config.pop("evaluator_extra_prompt", None)
+
+    if coverage_criteria:
+        if evaluator_extra_prompt:
+            evaluator_extra_prompt += f"\n{coverage_criteria}"
+        else:
+            evaluator_extra_prompt = coverage_criteria
+
+    depth = depth_config
 
     if include_domains:
         include_domains = [_normalize_domain(domain) for domain in include_domains]
@@ -279,6 +303,7 @@ async def run_web_research(
         max_pdf_pages=max_pdf_pages,
         max_content_chars=max_content_chars,
         use_session_cache=cache,
+        domain_expertise=domain_expertise,
     )
 
     logger.info(
@@ -312,6 +337,7 @@ async def run_web_research(
             tracker=tracker,
             scrape_tool=scrape_tool,
             allowed_domains=_allowed,
+            evaluator_extra_prompt=evaluator_extra_prompt,
         )
 
     return await _synthesise_result(

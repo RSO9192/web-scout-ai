@@ -1,0 +1,677 @@
+[
+  {
+    "name": "open_kenya_precip_variability",
+    "mode": "open",
+    "query": "Kenya interannual variability and long-term trends in precipitation current status and recent trend",
+    "elapsed_seconds": 344.58,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 8,
+    "num_failed": 1,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4247,
+    "error": null,
+    "search_queries": [
+      "current status of rainfall patterns and climate change in Kenya recent data",
+      "Kenya long-term precipitation trends and interannual variability analysis 1980-2024",
+      "Kenya annual and seasonal precipitation variability drivers and recent trend reports"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://medium.com/@koomeworks/mapping-kenyas-long-term-mam-rainfall-patterns-1981-2024-using-google-earth-engine-8b17188a2673",
+        "title": "Mapping Kenya's Long-Term MAM Rainfall Patterns (1981 ...",
+        "error": "[scrape failed: [Scrape failed: Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/web-agent/lib/python3.12/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://medium.com/@koomeworks/mapping-kenyas-long-term-mam-rainfall-patterns-1981-2024-using-google-earth-engine-8b17188a2673\", waiting until \"networkidle\"\n\n\nCode context:\n 773                                   tag=\"GOTO\",\n 774                                   params={\"url\": url},\n 775                               )\n 776                               response = None\n 777                           else:\n 778 \u2192                             raise RuntimeError(f\"Failed on navigating ACS-GOTO:\\n{str(e)}\")\n 779   \n 780                       # \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n 781                       # Walk the redirect chain.  Playwright returns only the last\n 782                       # hop, so we trace the `request.redirected_from` links until the\n 783                       # first response that differs from the final one and surface its]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "open_kenya_precip_spatial",
+    "mode": "open",
+    "query": "Kenya spatial patterns of precipitation change current status and recent trend",
+    "elapsed_seconds": 165.81,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4926,
+    "error": null,
+    "search_queries": [
+      "recent spatial patterns of precipitation changes in Kenya regional analysis",
+      "spatio-temporal analysis of long and short rains trends in Kenya current status",
+      "Kenya spatial distribution of rainfall trends and variability 1981-2024"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_kenya_state_climate",
+    "mode": "open",
+    "query": "State of the climate Kenya precipitation trends rainfall variability",
+    "elapsed_seconds": 133.61,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3154,
+    "error": null,
+    "search_queries": [
+      "historical precipitation trends and rainfall variability in Kenya analysis",
+      "Kenya Meteorological Department state of the climate report rainfall patterns",
+      "impact of climate change on spatial and temporal rainfall distribution in Kenya"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_fsc_procurement",
+    "mode": "open",
+    "query": "FSC MSC RSPO PEFC certification recognized producers government procurement rules Turkana, West Pokot, Kenya",
+    "elapsed_seconds": 203.36,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 5,
+    "num_scraped": 8,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4464,
+    "error": null,
+    "search_queries": [
+      "FSC MSC RSPO PEFC certified producers and suppliers in Turkana and West Pokot Kenya",
+      "Kenya Public Procurement Regulatory Authority guidelines for sustainability certified products FSC MSC RSPO PEFC",
+      "Kenya government procurement policy FSC MSC RSPO PEFC certification West Pokot Turkana",
+      "FSC MSC RSPO PEFC certified producers and companies list Turkana West Pokot Kenya",
+      "Turkana County Government and West Pokot County specific procurement manuals sustainability policies and green public procurement guidelines"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_gmo_gene_flow",
+    "mode": "open",
+    "query": "crop origin centres diversity wild relatives gene flow GMO risk Kenya",
+    "elapsed_seconds": 90.66,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 8,
+    "num_failed": 1,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3623,
+    "error": null,
+    "search_queries": [
+      "gene flow risk from GMOs to crop wild relatives in Kenya case studies",
+      "potential impact of genetically modified crops on Kenya's crop genetic diversity",
+      "centers of crop diversity and wild relatives of indigenous crops in Kenya"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.law.nyu.edu/sites/default/files/upload_documents/Kenya_GMO_220805.DOC",
+        "title": "[DOC] REGULATION OF GMO CROPS AND FOODS: KENYA CASE STUDY",
+        "error": "[scrape failed: [Scrape failed: Skipped: unsupported legacy Office document format (.doc)]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "open_gmo_commercialisation",
+    "mode": "open",
+    "query": "GM crops commercial cultivation field trial crop wild relatives Kenya",
+    "elapsed_seconds": 177.67,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 4,
+    "num_failed": 1,
+    "num_bot_detected": 1,
+    "synthesis_chars": 5068,
+    "error": null,
+    "search_queries": [
+      "Kenya National Biosafety Authority field trials GM crops impact on wild relatives",
+      "gene flow risk assessment between GM crops and crop wild relatives in Kenya",
+      "status of commercial cultivation and field trials for GM crops in Kenya"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.law.nyu.edu/sites/default/files/upload_documents/Kenya_GMO_220805.DOC",
+        "title": "REGULATION OF GMO CROPS AND FOODS: KENYA ...",
+        "error": "[scrape failed: [Scrape failed: Skipped: unsupported legacy Office document format (.doc)]]"
+      }
+    ],
+    "bot_detected": [
+      {
+        "url": "https://kalroerepository.kalro.org/items/a8767998-aac1-42fe-b70c-af1465a00709",
+        "title": "Crop- to-wild geneflow: Environmental risk assessment for the ...",
+        "error": "[bot detection: [Scrape failed: bot_detected: Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/web-agent/lib/python3.12/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://kalroerepository.kalro.org/items/a8767998-aac1-42fe-b70c-af1465a00709\", waiting until \"networkidle\"\n\n\nCode context:\n 773                                   tag=\"GOTO\",\n 774                                   params={\"url\": url},\n 775                               )\n 776                               response = None\n 777                           else:\n 778 \u2192                             raise RuntimeError(f\"Failed on navigating ACS-GOTO:\\n{str(e)}\")\n 779   \n 780                       # \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n 781                       # Walk the redirect chain.  Playwright returns only the last\n 782                       # hop, so we trace the `request.redirected_from` links until the\n 783                       # first response that differs from the final one and surface its]]"
+      }
+    ]
+  },
+  {
+    "name": "open_iccat_quotas",
+    "mode": "open",
+    "query": "What specific Total Allowable Catch quotas has ICCAT set for Eastern Atlantic and Mediterranean bluefin tuna for each year from 2022 to 2026, and what were the scientific basis and stock assessment results behind each decision?",
+    "elapsed_seconds": 176.28,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4612,
+    "error": null,
+    "search_queries": [
+      "ICCAT recommendations Eastern Atlantic and Mediterranean bluefin tuna TAC 2022 2023 2024 2025 2026",
+      "SCRS stock assessment results Eastern Atlantic bluefin tuna 2022-2024 scientific advice",
+      "ICCAT management procedure for bluefin tuna TAC 2023-2025 decision basis report"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_venice_mose",
+    "mode": "open",
+    "query": "What are the projected sea level rise impacts on Venice specifically, including flood frequency projections and MOSE barrier effectiveness under different IPCC scenarios?",
+    "elapsed_seconds": 77.23,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 4,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4212,
+    "error": null,
+    "search_queries": [
+      "MOSE barrier system effectiveness and operational limits future sea levels",
+      "long-term vulnerability of Venice to sea level rise and MOSE performance reports",
+      "Venice sea level rise projections and flood frequency under IPCC SSP scenarios"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_cerrado_ibama",
+    "mode": "open",
+    "query": "Current deforestation rates in the Brazilian Cerrado, main commodity drivers, and recent IBAMA enforcement actions 2023 2025",
+    "elapsed_seconds": 64.04,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 5,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 5600,
+    "error": null,
+    "search_queries": [
+      "IBAMA environmental enforcement actions Brazilian Cerrado 2023-2025 fines and operations and fines",
+      "main commodity drivers Cerrado deforestation soy production cattle ranching 2024",
+      "Brazilian Cerrado deforestation statistics 2023 2025 INPE PRODES DETER monthly reports"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_sofi_hunger",
+    "mode": "open",
+    "query": "Global hunger and food insecurity trends 2022 2024 FAO SOFI report",
+    "elapsed_seconds": 105.49,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 5540,
+    "error": null,
+    "search_queries": [
+      "FAO SOFI report 2024 key findings global hunger food insecurity trends",
+      "The State of Food Security and Nutrition in the World 2024 regional statistics comparison",
+      "FAO 2022-2024 global food insecurity progress and challenges report"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_meteo_kenya_precip",
+    "mode": "domain",
+    "query": "Kenya precipitation current status recent trend state of the climate",
+    "elapsed_seconds": 472.31,
+    "include_domains": [
+      "meteo.go.ke"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4169,
+    "error": null,
+    "search_queries": [
+      "site:meteo.go.ke seasonal rainfall performance current status Kenya",
+      "site:meteo.go.ke historical precipitation data Kenya recent trends analysis",
+      "site:meteo.go.ke \"State of the Climate\" Kenya precipitation trends"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_iccat_bluefin",
+    "mode": "domain",
+    "query": "ICCAT Eastern Atlantic Mediterranean bluefin tuna quotas 2022 2026 scientific basis",
+    "elapsed_seconds": 176.9,
+    "include_domains": [
+      "iccat.int"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 9,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4292,
+    "error": null,
+    "search_queries": [
+      "site:iccat.int SCRS report bluefin tuna stock assessment management advice 2022 2023 2024 2025 2026",
+      "site:iccat.int \"bluefin tuna\" Eastern Atlantic Mediterranean quotas 2022-2026 scientific basis",
+      "site:iccat.int Recommendation TAC management procedure bluefin tuna 2022 2026"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_ipcc_venice",
+    "mode": "domain",
+    "query": "Venice sea level rise impacts flood frequency MOSE IPCC scenarios",
+    "elapsed_seconds": 118.47,
+    "include_domains": [
+      "ipcc.ch"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 2791,
+    "error": null,
+    "search_queries": [
+      "Venice sea level rise MOSE flood frequency site:ipcc.ch",
+      "Venice lagoon flood risk adaptation MOSE effectiveness site:ipcc.ch",
+      "IPCC AR6 Venice regional sea level projections scenarios site:ipcc.ch"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_fsc_procurement",
+    "mode": "domain",
+    "query": "FSC public procurement Africa Kenya certification guidance",
+    "elapsed_seconds": 71.62,
+    "include_domains": [
+      "fsc.org",
+      "africa.fsc.org"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 8,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4865,
+    "error": null,
+    "search_queries": [
+      "site:fsc.org \"public procurement\" Africa Kenya certification",
+      "site:africa.fsc.org Kenya sustainable procurement forest certification standards",
+      "site:africa.fsc.org Kenya public procurement certification guidance"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_openknowledge_sofi",
+    "mode": "domain",
+    "query": "Global hunger food insecurity trends 2022 2024 SOFI report",
+    "elapsed_seconds": 374.21,
+    "include_domains": [
+      "openknowledge.fao.org"
+    ],
+    "direct_url": null,
+    "num_queries": 5,
+    "num_scraped": 13,
+    "num_failed": 2,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3349,
+    "error": null,
+    "search_queries": [
+      "site:openknowledge.fao.org global food insecurity hunger trends 2022 2023 2024",
+      "site:openknowledge.fao.org \"State of Food Security and Nutrition in the World\" 2024",
+      "site:openknowledge.fao.org SOFI report prevalence of undernourishment statistics 2024",
+      "site:openknowledge.fao.org \"2024\" prevalence of undernourishment \"8.2%\"",
+      "site:openknowledge.fao.org \"2024\" global hunger projections food insecurity trends"
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://openknowledge.fao.org/bitstreams/71094035-28bf-42d5-ba80-13fa84c5a82d/download",
+        "title": "[PDF] Aquaculture growth potential in Kyrgyzstan",
+        "error": "[scrape failed: [Scrape failed: Blocked by anti-bot protection: Structural: minimal_text, no_content_elements (237 bytes, 0 chars visible)]]"
+      },
+      {
+        "url": "https://openknowledge.fao.org/bitstreams/c1a616b8-f0f8-4447-9a64-9863769444bc/download",
+        "title": "",
+        "error": "[scrape failed: [Scrape failed: Blocked by anti-bot protection: Structural: minimal_text, no_content_elements (237 bytes, 0 chars visible)]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_pmc_kenya_precip",
+    "mode": "domain",
+    "query": "Kenya precipitation variability trend study historical climate",
+    "elapsed_seconds": 75.8,
+    "include_domains": [
+      "pmc.ncbi.nlm.nih.gov"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 5145,
+    "error": null,
+    "search_queries": [
+      "site:pmc.ncbi.nlm.nih.gov Kenya seasonal rainfall variability historical climate study",
+      "site:pmc.ncbi.nlm.nih.gov Kenya precipitation variability historical trend analysis",
+      "site:pmc.ncbi.nlm.nih.gov Kenya rainfall patterns climate change historical data"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_worldbank_kenya_climate",
+    "mode": "domain",
+    "query": "Kenya climate trends variability historical precipitation",
+    "elapsed_seconds": 52.78,
+    "include_domains": [
+      "climateknowledgeportal.worldbank.org"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 5,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 4133,
+    "error": null,
+    "search_queries": [
+      "Kenya historical annual mean precipitation trends site:climateknowledgeportal.worldbank.org",
+      "Kenya observed precipitation time series data site:climateknowledgeportal.worldbank.org",
+      "Kenya climate variability and rainfall anomalies site:climateknowledgeportal.worldbank.org"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_scielo_gmo",
+    "mode": "domain",
+    "query": "GM crops Kenya biosafety gene flow wild relatives",
+    "elapsed_seconds": 46.82,
+    "include_domains": [
+      "scielo.org.za"
+    ],
+    "direct_url": null,
+    "num_queries": 5,
+    "num_scraped": 0,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 875,
+    "error": null,
+    "search_queries": [
+      "site:scielo.org.za biosafety assessment Kenya genetically modified wild relatives",
+      "site:scielo.org.za \"gene flow\" \"wild relatives\" Kenya transgenic crops",
+      "site:scielo.org.za \"GM crops\" Kenya biosafety gene flow",
+      "site:scielo.org.za \"Kenya\" \"gene flow\" \"wild relatives\" GM crops",
+      "site:scielo.org.za \"Kenya\" biosafety environmental risk \"genetically modified\""
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_frontiers_gmo",
+    "mode": "domain",
+    "query": "Kenya wild edible plants genetic diversity biosafety food systems",
+    "elapsed_seconds": 118.68,
+    "include_domains": [
+      "frontiersin.org"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 13,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 6187,
+    "error": null,
+    "search_queries": [
+      "site:frontiersin.org biosafety assessment and genetic resource conservation of Kenyan wild edible plants",
+      "site:frontiersin.org genetic diversity and characterization of wild edible plants in Kenya",
+      "site:frontiersin.org wild edible plants contribution to food systems and nutrition in Kenya"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_ucsb_kenya_climate",
+    "mode": "domain",
+    "query": "Kenya current climate trend analysis rainfall change",
+    "elapsed_seconds": 100.03,
+    "include_domains": [
+      "legacy.geog.ucsb.edu",
+      "geog.ucsb.edu"
+    ],
+    "direct_url": null,
+    "num_queries": 5,
+    "num_scraped": 2,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 3629,
+    "error": null,
+    "search_queries": [
+      "site:legacy.geog.ucsb.edu CHIRPS Kenya precipitation change trends",
+      "site:geog.ucsb.edu Kenya rainfall trend analysis climate change",
+      "site:geog.ucsb.edu Kenya East Africa seasonal rainfall patterns long rains",
+      "site:geog.ucsb.edu Kenya rainfall trends 2010-2024 East African climate paradox IPCC AR6",
+      "site:geog.ucsb.edu Kenya long rains decline 2020s observational data analysis CHIRPS"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_meteo_pdf",
+    "mode": "direct",
+    "query": "Kenya precipitation current status and recent trend",
+    "elapsed_seconds": 93.13,
+    "include_domains": [],
+    "direct_url": "https://meteo.go.ke/documents/1353/State_of_the_Climate_Kenya_2024_v1.pdf",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 2035,
+    "error": null,
+    "search_queries": [
+      "Kenya precipitation current status and recent trend"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_ucsb_html",
+    "mode": "direct",
+    "query": "Kenya precipitation current status and long-term trend",
+    "elapsed_seconds": 40.09,
+    "include_domains": [],
+    "direct_url": "https://legacy.geog.ucsb.edu/current-climate-trend-analysis-of-kenya-by-chris-funk/",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 2776,
+    "error": null,
+    "search_queries": [
+      "Kenya precipitation current status and long-term trend"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_iccat_pdf",
+    "mode": "direct",
+    "query": "ICCAT eastern Atlantic Mediterranean bluefin tuna quotas and scientific basis",
+    "elapsed_seconds": 26.09,
+    "include_domains": [],
+    "direct_url": "https://www.iccat.int/Documents/Recs/compendiopdf-e/2022-08-e.pdf",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 1647,
+    "error": null,
+    "search_queries": [
+      "ICCAT eastern Atlantic Mediterranean bluefin tuna quotas and scientific basis"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_ipcc_html",
+    "mode": "direct",
+    "query": "Venice sea level rise flood frequency and adaptation context",
+    "elapsed_seconds": 16.41,
+    "include_domains": [],
+    "direct_url": "https://www.ipcc.ch/report/ar6/wg2/chapter/chapter-9/",
+    "num_queries": 1,
+    "num_scraped": 0,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 257,
+    "error": null,
+    "search_queries": [
+      "Venice sea level rise flood frequency and adaptation context"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_fsc_kenya_pdf",
+    "mode": "direct",
+    "query": "Kenya FSC forest management standard requirements",
+    "elapsed_seconds": 28.11,
+    "include_domains": [],
+    "direct_url": "https://fsc.org/sites/default/files/2021-01/FSC-STD-KEN-01-2021%20EN_INS-GFSS%20Kenya.pdf",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 2012,
+    "error": null,
+    "search_queries": [
+      "Kenya FSC forest management standard requirements"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_openknowledge_handle",
+    "mode": "direct",
+    "query": "Global hunger and food insecurity trends 2022 2024",
+    "elapsed_seconds": 77.0,
+    "include_domains": [],
+    "direct_url": "https://openknowledge.fao.org/handle/20.500.14283/am882e",
+    "num_queries": 1,
+    "num_scraped": 0,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 346,
+    "error": null,
+    "search_queries": [
+      "Global hunger and food insecurity trends 2022 2024"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_nepad_pdf",
+    "mode": "direct",
+    "query": "Kenya agricultural biotechnology biosafety policy overview",
+    "elapsed_seconds": 19.06,
+    "include_domains": [],
+    "direct_url": "https://www.nepad.org/file-download/download/public/127523",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 1607,
+    "error": null,
+    "search_queries": [
+      "Kenya agricultural biotechnology biosafety policy overview"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_scielo_html",
+    "mode": "direct",
+    "query": "GM crops ecological risk and biosafety governance in Africa",
+    "elapsed_seconds": 37.02,
+    "include_domains": [],
+    "direct_url": "https://scielo.org.za/scielo.php?script=sci_arttext&pid=S2663-323X2022000100014",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 2775,
+    "error": null,
+    "search_queries": [
+      "GM crops ecological risk and biosafety governance in Africa"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_frontiers_html",
+    "mode": "direct",
+    "query": "Wild edible plants genetic diversity food systems Kenya",
+    "elapsed_seconds": 51.06,
+    "include_domains": [],
+    "direct_url": "https://www.frontiersin.org/journals/sustainable-food-systems/articles/10.3389/fsufs.2023.1113771/full",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 2266,
+    "error": null,
+    "search_queries": [
+      "Wild edible plants genetic diversity food systems Kenya"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_nature_html",
+    "mode": "direct",
+    "query": "Kenya precipitation spatial patterns recent change",
+    "elapsed_seconds": 22.61,
+    "include_domains": [],
+    "direct_url": "https://www.nature.com/articles/s41598-024-63786-2",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "synthesis_chars": 1976,
+    "error": null,
+    "search_queries": [
+      "Kenya precipitation spatial patterns recent change"
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  }
+]

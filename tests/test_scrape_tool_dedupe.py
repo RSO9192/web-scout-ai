@@ -1,22 +1,23 @@
 import asyncio
+from unittest.mock import AsyncMock
 
 import pytest
 
 from web_scout._heuristics import EXTRACTOR_HEURISTICS, FOLLOWUP_HEURISTICS, ROUTING_HEURISTICS
 from web_scout.tools import (
+    _SESSION_SOURCE_CACHE,
+    _SESSION_SOURCE_IN_FLIGHT,
     CachedSourceArtifact,
     ResearchTracker,
     SourceCacheKey,
-    _SESSION_SOURCE_CACHE,
-    _SESSION_SOURCE_IN_FLIGHT,
     _build_failure_outcome,
     _build_success_outcome,
     _classify_failure_action,
     _extract_rendered_followup_links,
     _ExtractorOutput,
     _get_or_fetch_session_source_artifact,
-    _make_source_cache_key,
     _is_rendered_list_page,
+    _make_source_cache_key,
     _render_failed_extractor_output,
     _render_successful_extractor_output,
     _resolve_scrape_outcome,
@@ -43,7 +44,7 @@ def _clear_session_source_cache():
 
 @pytest.mark.asyncio
 async def test_scrape_tool_reuses_inflight_request(monkeypatch):
-    from web_scout import tools
+    from web_scout import scraping, tools
 
     tracker = ResearchTracker()
     call_count = 0
@@ -69,6 +70,11 @@ async def test_scrape_tool_reuses_inflight_request(monkeypatch):
         "_build_extractor_agent",
         lambda *args, **kwargs: (object(), _no_cleanup),
     )
+    monkeypatch.setattr(
+        scraping,
+        "scrape_url",
+        AsyncMock(return_value=("Pre-fetched page content " * 80, "Example", None)),
+    )
     monkeypatch.setattr(tools.Runner, "run", _fake_run)
 
     scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
@@ -80,6 +86,68 @@ async def test_scrape_tool_reuses_inflight_request(monkeypatch):
     assert tracker.scrape_count == 1
     assert "Useful extracted content" in result1
     assert result1 == result2
+
+
+@pytest.mark.asyncio
+async def test_scrape_tool_recovers_prefetched_content_when_extractor_fails(monkeypatch):
+    from web_scout import scraping, tools
+
+    tracker = ResearchTracker()
+
+    async def _failing_run(agent, input_text, max_turns=15):
+        raise RuntimeError("max turns exceeded")
+
+    async def _no_cleanup():
+        pass
+
+    monkeypatch.setattr(
+        tools,
+        "_build_extractor_agent",
+        lambda *args, **kwargs: (object(), _no_cleanup),
+    )
+    monkeypatch.setattr(
+        scraping,
+        "scrape_url",
+        AsyncMock(return_value=("Recoverable source facts and figures. " * 100, "Report", None)),
+    )
+    monkeypatch.setattr(tools.Runner, "run", _failing_run)
+
+    scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
+    result = await scrape_tool("https://example.org/report")
+
+    assert "Extractor failed after successful scrape" in result
+    assert "Recoverable source facts" in result
+    assert tracker.count_for_action("scraped") == 1
+
+
+@pytest.mark.asyncio
+async def test_scrape_tool_unexpected_internal_error_returns_failure_and_unblocks_waiters(monkeypatch):
+    from web_scout import scraping, tools
+
+    tracker = ResearchTracker()
+
+    monkeypatch.setattr(
+        scraping,
+        "scrape_url",
+        AsyncMock(return_value=("Recoverable source facts and figures. " * 30, "Report", None)),
+    )
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("builder exploded")
+
+    monkeypatch.setattr(tools, "_build_extractor_agent", _boom)
+
+    scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
+    url = "https://example.org/report"
+
+    result1, result2 = await asyncio.gather(scrape_tool(url), scrape_tool(url))
+
+    assert "internal error: RuntimeError: builder exploded" in result1
+    assert (
+        "internal error: RuntimeError: builder exploded" in result2
+        or "Already attempted this URL" in result2
+    )
+    assert "Already attempted this URL" in await scrape_tool(url)
 
 
 @pytest.mark.asyncio
@@ -453,7 +521,11 @@ def test_extract_rendered_followup_links_strips_trailing_colon_from_bare_urls():
 
 def test_low_level_heuristics_are_frozen_in_private_config_module():
     assert ROUTING_HEURISTICS.short_html_text_chars == 150
+    assert ROUTING_HEURISTICS.rich_html_static_text_chars == 3000
     assert EXTRACTOR_HEURISTICS.thin_content_chars == 500
+    assert EXTRACTOR_HEURISTICS.rich_content_chars == 1500
+    assert EXTRACTOR_HEURISTICS.recovery_min_content_chars == 1000
+    assert EXTRACTOR_HEURISTICS.max_extractor_turns == 15
     assert EXTRACTOR_HEURISTICS.max_interactive_clicks == 5
     assert FOLLOWUP_HEURISTICS.shortlist_multiplier == 3
 

@@ -28,9 +28,6 @@ _FOLLOWUP_POSITIVE_TOKENS: tuple[str, ...] = (
     "execsum",
     "study",
     "analysis",
-    "trend",
-    "state-of-the-climate",
-    "climatology",
     "monitoring",
     "dataset",
     "download",
@@ -38,23 +35,12 @@ _FOLLOWUP_POSITIVE_TOKENS: tuple[str, ...] = (
     "paper",
 )
 _FOLLOWUP_NEGATIVE_TOKENS: tuple[str, ...] = (
-    "service",
-    "services",
-    "forecast",
-    "daily-forecast",
-    "weekly-forecast",
-    "seasonal-forecast",
-    "weather-warning",
-    "weather-warnings",
-    "warning",
-    "warnings",
     "home",
     "homepage",
     "contact",
     "about",
     "vision-statement",
     "department-history",
-    "geography-research",
     "mapviewer",
 )
 _FOLLOWUP_GENERIC_SEGMENTS: frozenset[str] = frozenset(
@@ -88,6 +74,13 @@ _FOLLOWUP_LIST_SEGMENTS: frozenset[str] = frozenset(
         "publications",
         "publications-full",
         "database",
+        "section",
+        "sections",
+        "topic",
+        "topics",
+        "research-topic",
+        "research-topics",
+        "magazine",
     }
 )
 _FOLLOWUP_DETAIL_TOKENS: tuple[str, ...] = (
@@ -107,6 +100,9 @@ _FOLLOWUP_DETAIL_TOKENS: tuple[str, ...] = (
     "bitstream",
 )
 _DATA_PORTAL_TOKENS: tuple[str, ...] = ("maproom", "dataset", "data", "api", "csv", "thredds")
+_FOLLOWUP_HUB_PATH_TOKENS: frozenset[str] = frozenset(
+    {"section", "sections", "topic", "topics", "research-topic", "research-topics", "magazine"}
+)
 _QUERY_DATA_HINTS: tuple[str, ...] = (
     "dataset",
     "data portal",
@@ -128,8 +124,18 @@ _QUERY_REPORT_HINTS: tuple[str, ...] = (
     "analysis",
     "current status",
     "recent trend",
-    "state of the climate",
     "bulletin",
+)
+_QUERY_FORECAST_HINTS: tuple[str, ...] = (
+    "forecast",
+    "outlook",
+    "warning",
+    "warnings",
+    "advisory",
+    "seasonal forecast",
+    "monthly forecast",
+    "weekly forecast",
+    "daily forecast",
 )
 _QUERY_STOPWORDS: frozenset[str] = frozenset(
     {
@@ -152,9 +158,6 @@ _QUERY_STOPWORDS: frozenset[str] = frozenset(
         "changes",
         "pattern",
         "patterns",
-        "spatial",
-        "interannual",
-        "variability",
         "trend",
         "trends",
     }
@@ -230,6 +233,11 @@ def _query_prefers_report_pages(query: str) -> bool:
     return any(token in query_lower for token in _QUERY_REPORT_HINTS)
 
 
+def _query_prefers_forecast_pages(query: str) -> bool:
+    query_lower = query.lower()
+    return any(token in query_lower for token in _QUERY_FORECAST_HINTS)
+
+
 def _extract_query_keywords(query: str) -> set[str]:
     return {
         token
@@ -261,6 +269,30 @@ def _looks_like_identifier_detail_page(path_segments: list[str]) -> bool:
     )
 
 
+def _looks_like_operational_forecast_or_warning_url(url: str) -> bool:
+    normalized = urlparse(url).path.lower().replace("_", "-")
+    return any(
+        token in normalized
+        for token in ("forecast", "warning", "warnings", "outlook", "advisory")
+    )
+
+
+def _looks_like_topic_or_section_hub_url(url: str) -> bool:
+    parsed = urlparse(url)
+    path_segments = [seg.lower() for seg in parsed.path.strip("/").split("/") if seg]
+    if not path_segments or _looks_like_document_url(url):
+        return False
+    if not any(seg in _FOLLOWUP_HUB_PATH_TOKENS for seg in path_segments):
+        return False
+    if _looks_like_identifier_detail_page(path_segments):
+        return False
+    terminal = path_segments[-1]
+    if terminal in _FOLLOWUP_HUB_PATH_TOKENS:
+        return True
+    joined = "/".join(path_segments)
+    return "research-topics/" in joined or "/sections/" in joined
+
+
 def _score_followup_candidate(query: str, url: str) -> int:
     parsed = urlparse(url)
     path = parsed.path.strip("/")
@@ -272,7 +304,6 @@ def _score_followup_candidate(query: str, url: str) -> int:
     joined = "/".join(path_segments)
     normalized_joined = joined.replace("_", "-")
     terminal = joined.rsplit("/", 1)[-1] if joined else ""
-    query_lower = query.lower()
     query_keywords = _extract_query_keywords(query)
 
     score = 0
@@ -282,7 +313,7 @@ def _score_followup_candidate(query: str, url: str) -> int:
         score += FOLLOWUP_HEURISTICS.document_bonus
     if any(
         token in normalized_joined
-        for token in ("report", "bulletin", "assessment", "analysis", "state-of-the-climate")
+        for token in ("report", "bulletin", "assessment", "analysis")
     ):
         score += FOLLOWUP_HEURISTICS.report_bonus
     if any(token in normalized_joined for token in ("publication", "document", "download")):
@@ -316,8 +347,6 @@ def _score_followup_candidate(query: str, url: str) -> int:
         )
     if _looks_like_identifier_detail_page(path_segments):
         score += FOLLOWUP_HEURISTICS.identifier_detail_bonus
-    if "kenya" in query_lower and "kenya" in normalized_joined:
-        score += FOLLOWUP_HEURISTICS.kenya_bonus
     return score
 
 
@@ -329,6 +358,9 @@ def _rank_followup_candidates(query: str, candidates: list[str]) -> list[str]:
         if norm in seen:
             continue
         seen.add(norm)
+        domain = urlparse(url).netloc.lower().split(":", 1)[0].removeprefix("www.")
+        if not domain or not _is_promising_followup_url(url, domain, query=query):
+            continue
         score = _score_followup_candidate(query, url)
         if score > 0:
             ranked.append((score, idx, url))
@@ -357,6 +389,8 @@ def _is_promising_followup_url(url: str, base_domain: str, query: str = "") -> b
 
     if terminal in _FOLLOWUP_NEGATIVE_TOKENS:
         return False
+    if _looks_like_topic_or_section_hub_url(url):
+        return False
     if _looks_like_paginated_index_page(url):
         return False
     if terminal in _FOLLOWUP_GENERIC_SEGMENTS and len(non_index_segments) <= 2:
@@ -366,6 +400,8 @@ def _is_promising_followup_url(url: str, base_domain: str, query: str = "") -> b
     if non_index_segments and non_index_segments[0] in _FOLLOWUP_NEGATIVE_TOKENS:
         if not any(tok in normalized_joined for tok in _FOLLOWUP_POSITIVE_TOKENS):
             return False
+    if _looks_like_operational_forecast_or_warning_url(url) and not _query_prefers_forecast_pages(query):
+        return False
     if any(tok in normalized_joined for tok in _DATA_PORTAL_TOKENS):
         return _query_prefers_data_pages(query)
     if len(non_index_segments) <= 2 and not parsed.query:

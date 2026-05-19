@@ -40,6 +40,179 @@ def _find_tool(agent, name: str):
     raise AssertionError(f"Tool '{name}' not found on agent. Available: {[getattr(t, 'name', t) for t in agent.tools]}")
 
 
+def _tool_names(agent) -> set[str]:
+    return {getattr(tool, "name", str(tool)) for tool in agent.tools}
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "fish production",
+        "GM crops commercial cultivation field trial crop wild relatives Kenya",
+        "government procurement certification recognized producers Kenya",
+    ],
+)
+def test_rich_prefetched_agent_has_no_tools_regardless_of_query(query):
+    agent, cleanup = _build_extractor_agent(
+        model="dummy",
+        query=query,
+        url="https://example.org/report",
+        wait_for=None,
+        pre_fetched_content="Specific article content with facts, numbers, and locations. " * 80,
+    )
+
+    names = _tool_names(agent)
+    assert "list_interactive_elements" not in names
+    assert "click_element" not in names
+    assert "scrape_linked_document" not in names
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "fish production",
+        "GM crops commercial cultivation field trial crop wild relatives Kenya",
+    ],
+)
+def test_signaled_prefetched_agent_exposes_interactive_tools_regardless_of_query(query):
+    agent, cleanup = _build_extractor_agent(
+        model="dummy",
+        query=query,
+        url="https://example.org/app#/data",
+        wait_for=None,
+        pre_fetched_content=(
+            "Navigation shell\n\n"
+            "[SPA: URL fragment detected — current content may be the wrong tab/view.]"
+        ),
+    )
+
+    names = _tool_names(agent)
+    assert "list_interactive_elements" in names
+    assert "click_element" in names
+
+
+def test_signal_does_not_override_strong_content_page():
+    agent, cleanup = _build_extractor_agent(
+        model="dummy",
+        query="global hunger and food insecurity trends",
+        url="https://example.org/publication/sofi-2024",
+        wait_for=None,
+        pre_fetched_content=(
+            "# SOFI 2024 publication\n"
+            "Source: https://example.org/publication/sofi-2024\n\n"
+            "[Form/survey content detected — actual data is likely behind navigation or tabs.]\n\n"
+            + (
+                "The report documents global hunger and food insecurity trends, gives "
+                "regional prevalence figures, compares 2022, 2023, and 2024, and "
+                "details the drivers of deterioration in Africa and Western Asia. "
+            ) * 40
+        ),
+    )
+
+    names = _tool_names(agent)
+    assert "list_interactive_elements" not in names
+    assert "click_element" not in names
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "fish production",
+        "government procurement certification recognized producers Kenya",
+    ],
+)
+def test_metadata_prefetched_agent_exposes_linked_document_only_regardless_of_query(query):
+    agent, cleanup = _build_extractor_agent(
+        model="dummy",
+        query=query,
+        url="https://example.org/record/10",
+        wait_for=None,
+        pre_fetched_content=(
+            "# Repository record\n"
+            "Source: https://example.org/record/10\n\n"
+            "Repository metadata record\n"
+            "Title: Sustainable procurement in Kenya.\n"
+            "Authors: Example Author.\n"
+            "Published: 2024.\n"
+            "Abstract: Summary page only; the full analysis is in the linked file.\n"
+            "Keywords: procurement, sustainability, certification.\n"
+            "Full text PDF: https://example.org/download/report.pdf\n"
+            "Citation: Example Journal 2024.\n"
+        ),
+    )
+
+    names = _tool_names(agent)
+    assert "scrape_linked_document" in names
+    assert "list_interactive_elements" not in names
+    assert "click_element" not in names
+
+
+def test_rich_direct_document_content_does_not_expose_linked_document_tool():
+    agent, cleanup = _build_extractor_agent(
+        model="dummy",
+        query="fish production",
+        url="https://example.org/report.pdf",
+        wait_for=None,
+        pre_fetched_content=(
+            "# Annual Report\n"
+            "Source: https://example.org/report.pdf\n\n"
+            + "Specific report content with findings, statistics, and policy rules. " * 80
+        ),
+    )
+
+    names = _tool_names(agent)
+    assert "scrape_linked_document" not in names
+    assert "list_interactive_elements" not in names
+    assert "click_element" not in names
+
+
+def test_rich_content_with_reference_pdf_does_not_expose_linked_document_tool():
+    agent, cleanup = _build_extractor_agent(
+        model="dummy",
+        query="public procurement certification",
+        url="https://example.org/article",
+        wait_for=None,
+        pre_fetched_content=(
+            "This article explains procurement policy and cites a background PDF "
+            "https://example.org/background.pdf. "
+            + "Specific content with rules, certification references, and factual context. " * 80
+        ),
+    )
+
+    names = _tool_names(agent)
+    assert "scrape_linked_document" not in names
+    assert "list_interactive_elements" not in names
+    assert "click_element" not in names
+
+
+def test_publication_landing_page_with_download_and_abstract_stays_tool_free():
+    agent, cleanup = _build_extractor_agent(
+        model="dummy",
+        query="Kenya climate trends precipitation",
+        url="https://example.org/publication/state-of-climate",
+        wait_for=None,
+        pre_fetched_content=(
+            "# State of Climate Publication\n"
+            "Source: https://example.org/publication/state-of-climate\n\n"
+            "Abstract: This publication summarises rainfall variability, observed trends, "
+            "recent anomalies, and seasonal outlooks for Kenya.\n"
+            "Authors: Kenya Meteorological Department.\n"
+            "Published: 2025.\n"
+            "Download PDF: https://example.org/files/state-of-climate.pdf\n\n"
+            + (
+                "The report explains multi-year precipitation patterns, regional contrasts, "
+                "flood and drought episodes, and the interpretation of recent rainfall data. "
+                "It includes detailed narrative findings that are already directly usable. "
+            ) * 18
+        ),
+    )
+
+    names = _tool_names(agent)
+    assert "scrape_linked_document" not in names
+    assert "list_interactive_elements" not in names
+    assert "click_element" not in names
+
+
 # ---------------------------------------------------------------------------
 # list_interactive_elements
 # ---------------------------------------------------------------------------
@@ -232,6 +405,7 @@ async def test_click_element_stale_index():
     mock_page.goto = AsyncMock()
     mock_page.evaluate = AsyncMock(side_effect=[fake_elements, False])
     mock_page.wait_for_load_state = AsyncMock()
+    mock_page.inner_text = AsyncMock(return_value="before click")
 
     mock_context = AsyncMock()
     mock_context.new_page = AsyncMock(return_value=mock_page)
@@ -271,7 +445,7 @@ async def test_click_element_thin_content_warning():
     mock_page.evaluate = AsyncMock(side_effect=[fake_elements, True])
     mock_page.wait_for_load_state = AsyncMock()
     mock_page.url = "https://example.org/portal"
-    mock_page.inner_text = AsyncMock(return_value="short content")  # under 500 chars
+    mock_page.inner_text = AsyncMock(side_effect=["before click", "short content"])  # under 500 chars
 
     mock_context = AsyncMock()
     mock_context.new_page = AsyncMock(return_value=mock_page)
@@ -436,6 +610,7 @@ async def test_click_element_blocks_navigation_to_blocked_domain():
     # After click, the page navigated to a blocked domain
     mock_page.url = "https://www.youtube.com/watch?v=xyz"
     mock_page.go_back = AsyncMock()
+    mock_page.inner_text = AsyncMock(return_value="before click")
 
     mock_pw_cm = _make_mock_browser(mock_page)
 

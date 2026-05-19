@@ -1,0 +1,1920 @@
+[
+  {
+    "name": "open_global_methane_iea",
+    "mode": "open",
+    "query": "Global methane emissions from oil and gas 2023 2024 trends abatement opportunities IEA",
+    "elapsed_seconds": 80.41,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 19,
+    "synthesis_chars": 4928,
+    "synthesis_citation_count": 18,
+    "total_scraped_chars": 14596,
+    "avg_scraped_chars": 2432.7,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "IEA methane abatement opportunities and cost-effectiveness in oil and gas sector 2023-2024",
+      "IEA reports on fossil fuel methane emissions reduction progress and strategies 2024",
+      "IEA Global Methane Tracker 2024 oil and gas emissions trends and data"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.iea.org/energy-system/fossil-fuels/methane-abatement",
+        "title": "Methane Abatement - Energy System - IEA",
+        "content_chars": 2808,
+        "preview": "In 2023, global energy-related methane emissions reached nearly 130 million tonnes (Mt), representing a slight increase from 2022 levels. Methane emissions from the energy sector plateaued near record highs through 2025. Oil and gas operations remain the large",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.belfercenter.org/research-analysis/methane-abatement-costs-oil-and-gas-industry-survey-and-synthesis",
+        "title": "Methane Abatement Costs in the Oil and Gas Industry: Survey and Synthesis",
+        "content_chars": 2175,
+        "preview": "The International Energy Agency (IEA) 2024 Methane Tracker reports that the global oil and gas (O&G) sector emitted approximately 77 million metric tons of methane in 2023. Analysis suggests that slightly more than 50% of these emissions could be abated at no ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iea.org/reports/global-methane-tracker-2025/key-findings",
+        "title": "Key findings \u2013 Global Methane Tracker 2025",
+        "content_chars": 2847,
+        "preview": "In 2024, energy-related methane emissions remained above 120 million tonnes (Mt) annually, with the fossil fuel sector responsible for nearly one-third of all human-caused methane emissions. Despite a record production of oil, gas, and coal, limited mitigation",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://iea.blob.core.windows.net/assets/2c0cf2d5-3910-46bc-a271-1367edfed212/GlobalMethaneTracker2025.pdf",
+        "title": "Global Methane Tracker 2025 - International Energy Agency (IEA)",
+        "content_chars": 2274,
+        "preview": "In 2024, total energy-related methane emissions remained high at approximately 145 million tonnes (Mt), of which the fossil fuel sector (oil, natural gas, and coal) accounted for nearly 120 Mt. Specifically, oil operations were responsible for 45 Mt, natural g",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iea.org/reports/global-methane-tracker-2024",
+        "title": "Global Methane Tracker 2024",
+        "content_chars": 3153,
+        "preview": "The Global Methane Tracker 2024 provides the following key data and insights regarding methane emissions from the energy sector: ### 1. 2023 Emission Trends - **Total Emissions:** Methane emissions from the energy sector remained near record highs in 2023, tot",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iea.org/reports/global-methane-tracker-2025",
+        "title": "Global Methane Tracker 2025 \u2013 Analysis - IEA",
+        "content_chars": 1339,
+        "preview": "According to the IEA Global Methane Tracker 2025, the energy sector\u2014comprising oil, natural gas, coal, and bioenergy\u2014is responsible for more than 35% of methane emissions from human activity. Methane itself accounts for approximately 30% of the global temperat",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_cholera_africa",
+    "mode": "open",
+    "query": "Current cholera hotspots in eastern and southern Africa 2024 2025 response vaccine constraints",
+    "elapsed_seconds": 85.09,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 8,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 17,
+    "synthesis_chars": 5262,
+    "synthesis_citation_count": 16,
+    "total_scraped_chars": 13830,
+    "avg_scraped_chars": 1728.8,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "cholera outbreaks eastern and southern Africa 2024 2025 epidemiological reports hotspots",
+      "global oral cholera vaccine shortage 2024 2025 impact on Africa response",
+      "UNICEF WHO cholera emergency response challenges southern Africa 2024 vaccine supply constraints"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.ecdc.europa.eu/en/all-topics-z/cholera/surveillance-and-disease-data/cholera-monthly",
+        "title": "Cholera worldwide overview - ECDC",
+        "content_chars": 1532,
+        "preview": "In 2025 and 2026, several countries in Eastern and Southern Africa reported significant cholera activity. ### Country Specific Data (2025-2026 Comparisons): - **South Sudan:** A major hotspot. In 2025 (as of March 17), 25,179 cases and 389 deaths were reported",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.nicd.ac.za/wp-content/uploads/2025/05/Cholera-Global-and-Southern-Africa-Update_April_2025.pdf",
+        "title": "Cholera Global and Southern Africa Update - April 2025",
+        "content_chars": 2406,
+        "preview": "As of April 2025, cholera remains a Grade 3 emergency (WHO's highest alert level). In the first quarter of 2025, 116,574 cases and 1,514 deaths were reported globally, with Africa bearing the heaviest burden. ### Current Hotspots in Southern Africa - **Malawi*",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/emergencies/disease-outbreak-news/item/2025-DON579",
+        "title": "Cholera \u2013 Multi-country with a focus on countries experiencing current surges (29 August 2025)",
+        "content_chars": 2224,
+        "preview": "As of August 2025, the global cholera situation has deteriorated significantly, particularly in Africa which reported 172,750 cases and 3,763 deaths (CFR 2.2%) between January 1 and August 17, 2025. Major Hotspots in Eastern, Southern, and Central Africa: - De",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.unocha.org/publications/report/democratic-republic-congo/southern-and-eastern-africa-cholera-situation-snapshot-january-2025",
+        "title": "Southern and Eastern Africa: Cholera Situation Snapshot (As of January 2025)",
+        "content_chars": 921,
+        "preview": "As of February 17, 2025, the Southern and Eastern Africa (SEA) region continues to struggle with cholera. In 2024, the region experienced the deadliest cholera outbreak of the past decade, with more than 221,465 cases reported as of December 31, 2024. Major ho",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://africacdc.org/download/mid-year-brief-multi-country-cholera-outbreak-in-africa-1-january-31-july-2025/",
+        "title": "Mid-Year Brief: Multi-Country Cholera Outbreak in Africa (1 January \u2013 31 July 2025)",
+        "content_chars": 788,
+        "preview": "Between 2014 and 2024, cholera cases in Africa increased by 141% (from 105,287 to 254,075 cases) and deaths rose by 151% (from 1,882 to 4,725), affecting 20 countries. This trend is driven by limited WASH (water, hygiene, and sanitation) infrastructure, confli",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12115386/",
+        "title": "Allocation of Oral Cholera Vaccines in Africa - PMC",
+        "content_chars": 2111,
+        "preview": "As of early 2025, Sub-Saharan Africa remains one of the hardest-hit regions by cholera, with over 230,000 cases and 4,000 deaths reported across 14 countries since the start of 2023. Research indicates a geographical shift in risk from West Africa to Central a",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/news/item/20-03-2024-millions-at-risk-from-cholera-due-to-lack-of-clean-water-soap-and-toilets-and-shortage-of-cholera-vaccine",
+        "title": "Millions at risk from cholera due to lack of clean water, soap and toilets, and shortage of cholera vaccine",
+        "content_chars": 1748,
+        "preview": "Cholera has been surging globally since 2021, with 473,000 cases reported to WHO in 2022 and preliminary data for 2023 revealing over 700,000 cases. Several outbreaks have high case fatality rates exceeding the 1% threshold. The International Coordinating Grou",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.unicef.org/supply/all-press-releases",
+        "title": "UNICEF Supply Division Press Releases - Cholera Response and Vaccine Supply 2024-2025",
+        "content_chars": 2100,
+        "preview": "As of 2024 and 2025, the cholera response in Eastern and Southern Africa is characterized by the following developments regarding hotspots, vaccine supply, and diagnostics: - **Vaccine Supply and Resumption of Preventive Campaigns**: After a three-year period ",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_adaptation_gap",
+    "mode": "open",
+    "query": "Global adaptation finance gap 2023 2024 adaptation gap report key findings and priorities",
+    "elapsed_seconds": 92.56,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 15,
+    "synthesis_chars": 4390,
+    "synthesis_citation_count": 14,
+    "total_scraped_chars": 11823,
+    "avg_scraped_chars": 1970.5,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "UNEP Adaptation Gap Report 2023 key findings and finance gap statistics",
+      "global climate adaptation finance needs vs actual flows 2024 report",
+      "priorities for closing the global adaptation finance gap 2023 2024"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.unep.org/resources/adaptation-gap-report-2025",
+        "title": "Adaptation Gap Report 2025 | UNEP - UN Environment Programme",
+        "content_chars": 1847,
+        "preview": "The Adaptation Gap Report 2025: Running on Empty provides updated findings on the global adaptation finance gap, specifically highlighting data for 2023 and 2024. Key findings include: - **Adaptation Finance Gap**: The gap for developing countries is widening.",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://unepccc.org/adaptation-gap-reports/",
+        "title": "Adaptation Gap Reports - UNEP Copenhagen Climate Centre",
+        "content_chars": 2056,
+        "preview": "The UNEP Adaptation Gap Reports provide an annual science-based assessment of global progress on adaptation planning, financing, and implementation. Key findings and priorities for 2023 and 2024 include: ### Adaptation Gap Report 2024 - **Finance Gap:** There ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.unep.org/resources/adaptation-gap-report-2024",
+        "title": "Adaptation Gap Report 2024 | UNEP - UN Environment Programme",
+        "content_chars": 2447,
+        "preview": "The UNEP Adaptation Gap Report 2024, titled \"Come hell and high water,\" identifies a critical and massive gap between adaptation finance needs and current flows. Key findings and priorities for 2023-2024 include: **Adaptation Finance Gap and Flows:** - **Curre",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.carbonbrief.org/un-report-five-charts-which-explain-the-gap-in-finance-for-climate-adaptation/",
+        "title": "UN report: Five charts which explain the \u2018gap\u2019 in finance for climate adaptation - Carbon Brief",
+        "content_chars": 1552,
+        "preview": "The 2024/2025 UNEP Adaptation Gap Report, titled 'Running on empty', identifies a massive shortfall in climate adaptation finance for developing nations. Key findings: 1. Finance Gap and Needs: Developing countries require $310\u2013365 billion annually by 2035. Wi",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://unfccc.int/sites/default/files/resource/Finance_Gap_Update.pdf",
+        "title": "Adaptation Finance Gap Update 2023: Underfinanced. Underprepared.",
+        "content_chars": 2396,
+        "preview": "The Adaptation Finance Gap Update 2023, part of the UNEP Adaptation Gap Report 2023, provides updated estimates for adaptation costs, needs, and the resulting finance gap for developing countries. ### Key Finance Gap Findings - **Adaptation Finance Gap Definit",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.climatepolicyinitiative.org/publication/global-landscape-of-climate-finance-2024/",
+        "title": "Global Landscape of Climate Finance 2024",
+        "content_chars": 1525,
+        "preview": "The Global Landscape of Climate Finance 2024 report by Climate Policy Initiative (CPI), published October 31, 2024, reveals that global climate finance reached USD 1.46 trillion in 2022. Key findings and data points from the document include: 1) Total Global C",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_bluefin_quotas_diverse",
+    "mode": "open",
+    "query": "Eastern Atlantic Mediterranean bluefin tuna quotas 2022 2026 stock assessment and management procedure",
+    "elapsed_seconds": 120.59,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 8,
+    "num_failed": 1,
+    "num_bot_detected": 0,
+    "num_snippet_only": 16,
+    "synthesis_chars": 4297,
+    "synthesis_citation_count": 11,
+    "total_scraped_chars": 16776,
+    "avg_scraped_chars": 2097.0,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "SCRS stock assessment report Eastern Atlantic Mediterranean bluefin tuna 2022 2024",
+      "ICCAT management procedure Eastern Atlantic and Mediterranean bluefin tuna 2023-2026",
+      "ICCAT Recommendation 22-08 multi-annual management plan bluefin tuna TAC 2023-2025"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.iccat.int/en/assess.html",
+        "title": "ICCAT Stock Assessments and Management Procedures",
+        "content_chars": 1518,
+        "preview": "The International Commission for the Conservation of Atlantic Tunas (ICCAT) provides stock assessments and scientific advice for Eastern Atlantic and Mediterranean bluefin tuna (E-BFT). Key Information for 2022-2026: - **Assessment Cycle**: The last assessment",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://oap.ospar.org/en/ospar-assessments/committee-assessments/biodiversity-committee/status-assesments/atlantic-bluefin-tuna/",
+        "title": "Atlantic Bluefin Tuna Status Assessment 2025 - OSPAR",
+        "content_chars": 1557,
+        "preview": "The 2022 ICCAT stock assessment for the Eastern Atlantic and Mediterranean (EAM) bluefin tuna (Thunnus thynnus) indicates the population is in good status with Spawning Stock Biomass (SSB) at its highest level since the 1960s. Fishing mortality (F) for both ju",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iccat.int/Documents/Meetings/Docs/2022/REPORTS/2022_EBFT_SA_ENG.pdf",
+        "title": "Report of the 2022 ICCAT Eastern Atlantic and Mediterranean Bluefin Tuna Stock Assessment Meeting",
+        "content_chars": 2573,
+        "preview": "The 2022 ICCAT stock assessment for Eastern Atlantic and Mediterranean Bluefin Tuna (E-BFT) utilized three modeling platforms\u2014Virtual Population Analysis (VPA), Stock Synthesis (SS), and the Age Structured Assessment Program (ASAP)\u2014to evaluate the stock status",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iccat.int/Documents/Recs/compendiopdf-e/2022-09-e.pdf",
+        "title": "Recommendation 22-09: Management Procedure for Atlantic Bluefin Tuna (East and West)",
+        "content_chars": 2454,
+        "preview": "ICCAT Recommendation 22-09 establishes a Management Procedure (MP) to calculate the Total Allowable Catch (TAC) for both the Western Atlantic and the Eastern Atlantic and Mediterranean management areas. ### Management Objectives and Implementation - **Manageme",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iccat.int/Documents/Recs/compendiopdf-e/2023-07-e.pdf",
+        "title": "ICCAT Recommendation 23-07: Management Procedure for Atlantic Bluefin Tuna",
+        "content_chars": 2159,
+        "preview": "ICCAT Recommendation 23-07 establishes a Management Procedure (MP) for both the Western Atlantic and the Eastern Atlantic and Mediterranean management areas. ### Management Objectives - **Stock Status:** Both stocks must have a 60% or greater probability of be",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://thefishingdaily.com/latest-news/iccat-agree-implementation-of-a-management-procedure-for-atlantic-bluefin-tuna/",
+        "title": "ICCAT agree implementation of a Management Procedure for Atlantic bluefin tuna",
+        "content_chars": 1473,
+        "preview": "In November 2022, the International Commission for the Conservation of Atlantic Tunas (ICCAT) adopted a novel Management Procedure (MP) for Atlantic bluefin tuna, representing the first adopted harvest strategy in ICCAT history for this species. This measure w",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iccat.int/Documents/Recs/compendiopdf-e/2024-05-e.pdf",
+        "title": "Recommendation by ICCAT Amending Recommendation 22-08: Multi-annual Management Plan for Bluefin Tuna in the Eastern Atlantic and Mediterranean",
+        "content_chars": 2437,
+        "preview": "The International Commission for the Conservation of Atlantic Tunas (ICCAT) has established a multi-annual management plan for Eastern Atlantic and Mediterranean bluefin tuna (Thunnus thynnus) based on a Management Procedure (MP) adopted in 2022. ### Managemen",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iccat.int/Documents/Recs/compendiopdf-e/2023-06-e.pdf",
+        "title": "ICCAT Recommendation 23-06 Amending Recommendation 22-08 (Multi-annual Management Plan for Bluefin Tuna in the Eastern Atlantic and Mediterranean)",
+        "content_chars": 2605,
+        "preview": "This document (Recommendation 23-06) amends Recommendation 22-08, which established the multi-annual management plan for bluefin tuna in the Eastern Atlantic and the Mediterranean. ### Farming and Capacity Management - **Annual Farming Management Plan:** Each ",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.med-ac.eu/files/documentazione_eventi/2022/10/5_ortiz_kimoto_iccat_medac_oct_2022_1_.pdf",
+        "title": "[PDF] ICCAT Secretariat - (17 October 2022) - Med-ac",
+        "error": "[scrape failed: [Scrape failed: PDF inaccessible (httpx: HTTPStatusError: Client error '404 Not Found' for url 'https://www.med-ac.eu/files/documentazione_eventi/2022/10/5_ortiz_kimoto_iccat_medac_oct_2022_1_.pdf'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404; raw-byte: HTTPError: HTTP Error 404: Not Found; browser download also failed)]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "open_venice_coastal_risk",
+    "mode": "open",
+    "query": "Venice sea level rise flood frequency coastal risk projections and MOSE effectiveness under IPCC scenarios",
+    "elapsed_seconds": 82.96,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 5,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 19,
+    "synthesis_chars": 5496,
+    "synthesis_citation_count": 15,
+    "total_scraped_chars": 11640,
+    "avg_scraped_chars": 2328.0,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "Venice sea level rise projections IPCC SSP scenarios 2050 2100",
+      "Venice flood frequency and coastal risk assessment IPCC AR6 data",
+      "effectiveness of MOSE barrier system under high emission climate scenarios"
+    ],
+    "scraped": [
+      {
+        "url": "https://earth.gov/sealevel/us/sea-level-101/future-sea-level/dive-deeper/",
+        "title": "Dive Deeper | Future Sea Level \u2013 U.S. Sea Level Change",
+        "content_chars": 2211,
+        "preview": "This page provides definitions and global mean sea level (GMSL) targets for the IPCC 6th Assessment Report (AR6) scenarios, which serve as the foundation for regional projections such as those for Venice. ### IPCC AR6 Sea Level Scenarios (GMSL by 2100) - **Low",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.preventionweb.net/publication/multi-temporal-relative-sea-level-rise-scenarios-2150-venice-lagoon",
+        "title": "Multi-temporal relative sea level rise scenarios up to 2150 for the Venice lagoon",
+        "content_chars": 2241,
+        "preview": "This study provides a comprehensive analysis of future relative sea level rise (RSLR) and flooding risk in the Venice Lagoon, Italy, extending projections to the year 2150. It integrates climate change projections from the IPCC Sixth Assessment Report (AR6) wi",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.nature.com/articles/s41598-026-39108-z",
+        "title": "Long-term adaptation pathways for Venice and its lagoon under sea-level rise",
+        "content_chars": 2784,
+        "preview": "Venice faces severe risks from relative sea-level rise (SLR), which has caused 18 of the city's 28 extreme flooding events (flooding >60% of the city) within the last 23 years. This is driven by a combination of global SLR and local land subsidence. Over 50% o",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.nature.com/articles/s41612-023-00513-0",
+        "title": "Attributing Venice Acqua Alta events to a changing climate and evaluating the efficacy of MoSE adaptation strategy",
+        "content_chars": 2298,
+        "preview": "Venice has experienced a sea-level rise of approximately 26 centimeters over the past century. Future projections for extreme total water level changes indicate increases of 20 to 40 cm for the RCP4.5 scenario (by 2100) and the RCP8.5 scenario (by 2050). Under",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.deltares.nl/en/news/significant-additional-measures-needed-to-protect-venice-from-rising-sea-levels",
+        "title": "Additional measures for protection Venice from sea level rise | Deltares",
+        "content_chars": 2106,
+        "preview": "Venice's vulnerability to flooding is driven by relative sea-level rise, a combination of climate change-induced rise and local land subsidence affecting the city for over 150 years. More than half of Venice is currently situated between 0.8 and 1.2 meters abo",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_cerrado_deforestation_diverse",
+    "mode": "open",
+    "query": "Brazilian Cerrado deforestation 2023 2025 commodity drivers soy cattle and enforcement actions",
+    "elapsed_seconds": 240.0,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 0,
+    "num_scraped": 0,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 0,
+    "synthesis_chars": 0,
+    "synthesis_citation_count": 0,
+    "total_scraped_chars": 0,
+    "avg_scraped_chars": 0.0,
+    "num_low_value_scraped": 0,
+    "error": "TimeoutError: case exceeded 240s",
+    "search_queries": [],
+    "scraped": [],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_sofi_hunger_diverse",
+    "mode": "open",
+    "query": "Global hunger and food insecurity trends 2022 2024 SOFI report regional patterns",
+    "elapsed_seconds": 107.7,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 8,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 15,
+    "synthesis_chars": 5624,
+    "synthesis_citation_count": 16,
+    "total_scraped_chars": 15787,
+    "avg_scraped_chars": 1973.4,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "SOFI 2024 regional patterns of food insecurity Africa Asia Latin America comparison",
+      "State of Food Security and Nutrition in the World 2024 report global hunger trends 2022-2024",
+      "FAO SOFI 2024 report prevalence of undernourishment and food insecurity statistics by region"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.fao.org/interactive/state-of-food-security-nutrition/en/",
+        "title": "Understanding food insecurity | FAO SOFI 2024 Report",
+        "content_chars": 1873,
+        "preview": "The State of Food Security and Nutrition in the World 2024 (SOFI 2024) report indicates that global food insecurity has remained virtually unchanged over the last four years, staying significantly higher than pre-COVID-19 pandemic levels. **Regional and Urban-",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://sdg2advocacyhub.org/wp-content/uploads/2024/07/SOFI-2024-Report.pdf",
+        "title": "The State of Food Security and Nutrition in the World (SOFI) 2024 Report",
+        "content_chars": 2800,
+        "preview": "The 2024 State of Food Security and Nutrition in the World (SOFI) report, produced by FAO, IFAD, UNICEF, WFP, and WHO, provides the following trends and data for 2022\u20132024: ### Global Hunger and Food Insecurity Trends - **Hunger Levels (2021\u20132023):** Global hu",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.wfp.org/publications/state-food-security-and-nutrition-world-sofi-report",
+        "title": "The State of Food Security and Nutrition in the World (SOFI) Report | World Food Programme",
+        "content_chars": 1085,
+        "preview": "In 2024, it is estimated that between 638 and 720 million people (7.8% to 8.8% of the global population) faced hunger. While there has been some recovery in recent years, global hunger levels remain above pre-COVID-19 pandemic levels. The world is currently no",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://knowledge4policy.ec.europa.eu/publication/state-food-security-nutrition-world-2025-sofi_en",
+        "title": "The State of Food Security and Nutrition in the World 2025 (SOFI) - Summary of Trends 2022-2024",
+        "content_chars": 2699,
+        "preview": "The State of Food Security and Nutrition in the World 2025 (SOFI) report provides the following trends and regional patterns for global hunger and food insecurity from 2022 to 2024: ### Global Hunger (Undernourishment) - **2024 Levels**: An estimated 8.2% of t",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://fscluster.org/sites/default/files/2025-01/cd3877en.pdf",
+        "title": "Regional Overview of Food Security and Nutrition Latin America and the Caribbean 2024",
+        "content_chars": 2205,
+        "preview": "The 2024 Regional Overview for Latin America and the Caribbean (LAC) indicates that while the region has shown signs of improvement in the last two years (2022\u20132024), hunger remains a significant challenge with figures higher than those observed prior to the C",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.fao.org/publications/fao-flagship-publications/the-state-of-food-security-and-nutrition-in-the-world/en",
+        "title": "The State of Food Security and Nutrition in the World (SOFI) - FAO Flagship Publications",
+        "content_chars": 1438,
+        "preview": "The State of Food Security and Nutrition in the World (SOFI) is an annual report produced jointly by FAO, IFAD, UNICEF, WFP, and WHO to monitor global progress toward ending hunger and malnutrition. It provides the most scrutinized global figures on undernouri",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/publications/m/item/the-state-of-food-security-and-nutrition-in-the-world-2024",
+        "title": "The state of food security and nutrition in the world 2024",
+        "content_chars": 1392,
+        "preview": "The 2024 edition of 'The State of Food Security and Nutrition in the World' (SOFI) report, published on July 24, 2024, provides the latest monitoring data for Sustainable Development Goal (SDG) 2 targets 2.1 and 2.2. The report highlights that global hunger nu",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://reliefweb.int/report/world/state-food-security-and-nutrition-world-report-2024-financing-end-hunger-food-insecurity-and-malnutrition-all-its-forms-enarruzhit",
+        "title": "The State of Food Security and Nutrition in the World Report 2024: Financing to end hunger, food insecurity and malnutrition in all its forms",
+        "content_chars": 2295,
+        "preview": "The 2024 State of Food Security and Nutrition in the World (SOFI) report reveals that global hunger levels have plateaued for three consecutive years (2021\u20132023), with approximately 733 million people (1 in 11 globally) facing hunger in 2023. This represents a",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_amr_burden",
+    "mode": "open",
+    "query": "Global antimicrobial resistance mortality burden evidence policy priorities and regional patterns",
+    "elapsed_seconds": 94.35,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 21,
+    "synthesis_chars": 5301,
+    "synthesis_citation_count": 16,
+    "total_scraped_chars": 13847,
+    "avg_scraped_chars": 2307.8,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "WHO AMR global action plan policy priorities and implementation challenges",
+      "regional variations in antimicrobial resistance mortality rates and pathogen prevalence",
+      "global burden of bacterial antimicrobial resistance mortality estimates GRAM study"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.qjsamr.org/technical-work/updating-the-global-action-plan-on-amr",
+        "title": "Updating the Global Action Plan on AMR",
+        "content_chars": 1596,
+        "preview": "The 79th UN General Assembly (UNGA) Political Declaration on Antimicrobial Resistance (AMR) has mandated the Quadripartite organizations (FAO, UNEP, WHO, and WOAH) to update the Global Action Plan (GAP-AMR) by 2026. This update aims to foster a robust and incl",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/news-room/fact-sheets/detail/antimicrobial-resistance",
+        "title": "Antimicrobial Resistance Fact Sheet - World Health Organization",
+        "content_chars": 2339,
+        "preview": "Antimicrobial resistance (AMR) is a top global public health threat. In 2019, bacterial AMR was estimated to be directly responsible for 1.27 million global deaths and contributed to a total of 4.95 million deaths. Low- and middle-income countries (LMICs) are ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.nature.com/articles/s41591-026-04257-1",
+        "title": "Evaluation of antimicrobial resistance governance across 193 countries to inform the 2026 Global Action Plan update",
+        "content_chars": 2472,
+        "preview": "Antimicrobial resistance (AMR) was responsible for an estimated 4.71 million deaths worldwide in 2021. Annual mortality is predicted to rise to 8.22 million by 2050, with projected economic losses up to 3.8% of global GDP, potentially pushing 28 million people",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12869091/",
+        "title": "The Global Epidemiology of Antimicrobial Resistance: Trends, Determinants, and Public Health Implications",
+        "content_chars": 2653,
+        "preview": "Antimicrobial resistance (AMR) is a primary global health threat. In 2019, an estimated 1.27 million deaths were directly attributed to AMR, with up to 4.95 million deaths indirectly associated with resistant infections. This mortality burden is comparable to ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(21)02724-0/fulltext",
+        "title": "Global burden of bacterial antimicrobial resistance in 2019: a systematic analysis",
+        "content_chars": 2384,
+        "preview": "In 2019, bacterial antimicrobial resistance (AMR) was a leading cause of death globally. The study estimated that 4.95 million (95% UI 3.62\u20136.57) deaths were associated with bacterial AMR, including 1.27 million (95% UI 0.911\u20131.71) deaths directly attributable",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://pubmed.ncbi.nlm.nih.gov/39299261/",
+        "title": "Global burden of bacterial antimicrobial resistance 1990-2021: a systematic analysis with forecasts to 2050",
+        "content_chars": 2403,
+        "preview": "This study provides a comprehensive global assessment of bacterial antimicrobial resistance (AMR) burden from 1990 to 2021, with forecasts to 2050. **Current Mortality Burden (2021):** - Estimated 4.71 million (95% UI 4.23-5.19) deaths associated with bacteria",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_green_hydrogen_africa",
+    "mode": "open",
+    "query": "Green hydrogen projects in Namibia Mauritania and Morocco export plans infrastructure constraints",
+    "elapsed_seconds": 153.84,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 5,
+    "num_failed": 1,
+    "num_bot_detected": 0,
+    "num_snippet_only": 17,
+    "synthesis_chars": 5839,
+    "synthesis_citation_count": 15,
+    "total_scraped_chars": 11776,
+    "avg_scraped_chars": 2355.2,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "Morocco green hydrogen pipeline and port infrastructure development for European export",
+      "Infrastructure constraints and logistical bottlenecks for green hydrogen production in Namibia and Mauritania",
+      "Green hydrogen export projects and roadmaps for Namibia Mauritania and Morocco 2024"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.policycenter.ma/interviews/europe-and-morocco-building-hydrogen-partnership",
+        "title": "Europe and Morocco: Building the Hydrogen Partnership | Policy Center for the New South",
+        "content_chars": 1546,
+        "preview": "Morocco is positioning itself as a strategic partner for Europe in the green hydrogen sector, focusing on energy transition, economic development, and export opportunities to the European market. The 'Morocco Offer' for green hydrogen establishes a comprehensi",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.hac.ma/bridgepoint/moroccos-green-hydrogen-strategy-investment-opportunities-explained",
+        "title": "Morocco's Green Hydrogen Strategy: Investment Opportunities Explained",
+        "content_chars": 2004,
+        "preview": "Morocco launched its national green hydrogen roadmap in 2021 with a target to capture 4% of global hydrogen demand by 2030 and produce 10 million tons annually by 2050, potentially generating $12 billion in revenue. **Export Plans & Markets:** - Primary export",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.idos-research.de/fileadmin/user_upload/pdfs/publikationen/discussion_paper/2024/DP__6.2024.pdf",
+        "title": "Green Hydrogen in Namibia: Opportunities and Risks (IDOS Discussion Paper 6/2024)",
+        "content_chars": 2718,
+        "preview": "Namibia is positioning itself as a major green hydrogen exporter, with a focus on its high renewable energy potential and strategic location. ### Projects and Export Plans - **Investment Scale**: The most significant announced project is by Hyphen Hydrogen Ene",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://ptx-hub.org/wp-content/uploads/2025/06/African-Green-Hydrogen-Report-2025.pdf?utm_source=www.hydrogen-rising.com&utm_medium=referral&utm_campaign=africa-s-hydrogen-execution-gap-set-to-start-closing-by-2026",
+        "title": "African Green Hydrogen Report 2025",
+        "content_chars": 2672,
+        "preview": "The African Green Hydrogen Report 2025, published by GIZ and the Africa Green Hydrogen Alliance (AGHA), details the strategic and technical landscape for green hydrogen (GH2) across the continent. Key insights related to Morocco, Namibia, and infrastructure co",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://publications.rifs-potsdam.de/rest/items/item_6003183_2/component/file_6003196/content",
+        "title": "The Politics of Green Hydrogen Cooperation: Emerging Dynamics in Morocco, Algeria and Mauritania",
+        "content_chars": 2836,
+        "preview": "This December 2023 study by the Research Institute for Sustainability (RIFS) analyzes green hydrogen developments in Morocco and Mauritania (Namibia is not covered in this document). ### Morocco - **Strategy:** Morocco is developing a new hydrogen policy calle",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://res4africa.org/wp-content/uploads/2023/12/R4A-GH2-paper-final-24.11.23.pdf",
+        "title": "[PDF] Towards a Green Hydrogen Ecosystem - RES4Africa Foundation",
+        "error": "[scrape failed: [Scrape failed: PDF inaccessible (httpx: HTTPStatusError: Client error '403 Forbidden' for url 'https://res4africa.org/wp-content/uploads/2023/12/R4A-GH2-paper-final-24.11.23.pdf'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403; raw-byte: HTTPError: HTTP Error 403: Forbidden; browser download also failed)]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "open_coral_bleaching",
+    "mode": "open",
+    "query": "Global coral bleaching 2024 2025 marine heatwave impacts reef outlook and scientific assessments",
+    "elapsed_seconds": 95.17,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 5,
+    "num_failed": 0,
+    "num_bot_detected": 2,
+    "num_snippet_only": 17,
+    "synthesis_chars": 4730,
+    "synthesis_citation_count": 14,
+    "total_scraped_chars": 9590,
+    "avg_scraped_chars": 1918.0,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "NOAA Coral Reef Watch global coral bleaching event outlook and predictions 2024-2025",
+      "status of the fourth global coral bleaching event reef health reports and future outlook",
+      "scientific assessments of marine heatwave impacts on coral reef mortality 2024 2025"
+    ],
+    "scraped": [
+      {
+        "url": "https://coralreefwatch.noaa.gov/satellite/research/coral_bleaching_report.php",
+        "title": "NOAA Coral Reef Watch Current Global Bleaching Status Update",
+        "content_chars": 1804,
+        "preview": "On April 15, 2024, NOAA and the International Coral Reef Initiative (ICRI) confirmed the world is experiencing its 4th global coral bleaching event (GCBE4). ### Key Statistics and Scope - **Impact Area:** From January 1, 2023, to September 30, 2025, bleaching-",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.noaa.gov/news-release/noaa-confirms-4th-global-coral-bleaching-event",
+        "title": "NOAA confirms 4th global coral bleaching event",
+        "content_chars": 2068,
+        "preview": "On April 15, 2024, NOAA and its partners confirmed the fourth global coral bleaching event on record, which is the second such event in the last decade. Significant coral bleaching has been documented in both the Northern and Southern Hemispheres across every ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://globalfundcoralreefs.org/reef-plus/events/status-of-the-fourth-global-bleaching-event/",
+        "title": "Status of the Fourth Global Bleaching Event - GFCR & ICRI Webinar",
+        "content_chars": 1213,
+        "preview": "On April 15, 2024, NOAA and the International Coral Reef Initiative (ICRI) officially announced the 4th Global Coral Bleaching Event, which is the second such event to occur within a single decade. This global marine heatwave has prompted urgent scientific ass",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://icriforum.org/4gbe-2025/",
+        "title": "84% of the world\u2019s coral reefs impacted in the most intense global coral bleaching event ever | ICRI",
+        "content_chars": 1863,
+        "preview": "The Fourth Global Coral Bleaching Event (4GBE) is officially the most intense on record and remains ongoing as of April 2025. Between January 1, 2023, and March 30, 2025, bleaching-level heat stress impacted 84% of the world\u2019s reefs, causing damage across 82 c",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.nature.com/articles/s43247-025-02790-4",
+        "title": "Inevitable global coral reef decline under climate change-induced thermal stresses",
+        "content_chars": 2642,
+        "preview": "A 2025 scientific assessment published in Nature Communications Earth & Environment reveals that coral reef ecosystems face a critical bleaching threshold of 7.9% annually, beyond which significant degradation occurs. This threshold represents the estimated bl",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": [
+      {
+        "url": "https://www.aims.gov.au/monitoring-great-barrier-reef/gbr-condition-summary-2024-25",
+        "title": "Annual Summary Report of Coral Reef Condition 2024/25 | AIMS",
+        "error": "[bot detection: [Scrape failed: bot_detected: Blocked by anti-bot protection: Structural: minimal_text, no_content_elements, script_heavy_shell (18203 bytes, 0 chars visible)]]"
+      },
+      {
+        "url": "https://www.aims.gov.au/research-topics/environmental-issues/coral-bleaching/coral-bleaching-events",
+        "title": "Coral bleaching events | AIMS",
+        "error": "[bot detection: [Scrape failed: bot_detected: Blocked by anti-bot protection: Structural: minimal_text, no_content_elements, script_heavy_shell (18576 bytes, 0 chars visible)]]"
+      }
+    ]
+  },
+  {
+    "name": "domain_iccat_bluefin_diverse",
+    "mode": "domain",
+    "query": "ICCAT bluefin tuna quotas stock assessment and management procedure 2022 2026",
+    "elapsed_seconds": 240.0,
+    "include_domains": [
+      "iccat.int"
+    ],
+    "direct_url": null,
+    "num_queries": 0,
+    "num_scraped": 0,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 0,
+    "synthesis_chars": 0,
+    "synthesis_citation_count": 0,
+    "total_scraped_chars": 0,
+    "avg_scraped_chars": 0.0,
+    "num_low_value_scraped": 0,
+    "error": "TimeoutError: case exceeded 240s",
+    "search_queries": [],
+    "scraped": [],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_ipcc_coasts",
+    "mode": "domain",
+    "query": "Sea level rise coastal flood risk adaptation and Venice IPCC scenarios",
+    "elapsed_seconds": 141.01,
+    "include_domains": [
+      "ipcc.ch"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 8,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 14,
+    "synthesis_chars": 3635,
+    "synthesis_citation_count": 9,
+    "total_scraped_chars": 17898,
+    "avg_scraped_chars": 2237.2,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "site:ipcc.ch Venice \"sea level rise\" coastal flood risk adaptation",
+      "site:ipcc.ch Venice IPCC scenarios \"RCP\" \"SSP\" sea level projections",
+      "site:ipcc.ch Venice adaptation measures \"MOSE\" coastal flooding risk"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.ipcc.ch/srocc/chapter/chapter-4-sea-level-rise-and-implications-for-low-lying-islands-coasts-and-communities/",
+        "title": "Chapter 4: Sea Level Rise and Implications for Low-Lying Islands, Coasts and Communities \u2014 IPCC Special Report on the Ocean and Cryosphere",
+        "content_chars": 2021,
+        "preview": "Global Mean Sea Level (GMSL) rise is accelerating, increasing from 1.4 mm yr\u20131 (1901\u20131990) to 3.6 mm yr\u20131 (2006\u20132015). Under RCP8.5, GMSL is projected to rise 0.61\u20131.10 m by 2100, with a rise of 2 m or more being a possibility that cannot be ruled out. By 2300",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://archive.ipcc.ch/ipccreports/tar/wg2/index.php?idp=499",
+        "title": "IPCC Third Assessment Report (TAR) Working Group II: Coastal Zones",
+        "content_chars": 2486,
+        "preview": "Coastal zones in Europe are highly vulnerable to sea-level rise (SLR) and extreme events. Significant inhabited areas in Italy, The Netherlands, England, Denmark, Germany, and Poland are already below normal high-tide levels. Under SRES climate change scenario",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.ipcc.ch/report/ar6/wg2/downloads/report/IPCC_AR6_WGII_CCP2_SM.pdf",
+        "title": "Cities and Settlements by the Sea Supplementary Material (IPCC AR6 WGII CCP2 SM)",
+        "content_chars": 1859,
+        "preview": "The IPCC AR6 WGII Supplementary Material provides a detailed assessment of climate change risks and adaptation for Venice, Italy (population 0.637 million). Venice is categorized as an estuarine city facing hazards from Sea Level Rise (SLR), subsidence, and ai",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.ipcc.ch/report/ar6/wg2/downloads/report/IPCC_AR6_WGII_Chapter13.pdf",
+        "title": "IPCC AR6 WGII Chapter 13: Europe \u2014 Impacts, Adaptation and Vulnerability",
+        "content_chars": 2637,
+        "preview": "Key Risk 4 (Flooding): Due to warming, changes in precipitation, and sea level rise (SLR), risks to people and infrastructures from coastal, riverine, and pluvial flooding will increase in Europe. Risks of inundation and extreme flooding will increase with the",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.ipcc.ch/site/assets/uploads/sites/3/2019/11/SROCC_SOD_Ch04_FINAL.pdf",
+        "title": "IPCC SROCC Chapter 4: Sea Level Rise and Implications for Low Lying Islands, Coasts and Communities",
+        "content_chars": 2912,
+        "preview": "The IPCC Special Report on the Ocean and Cryosphere in a Changing Climate (SROCC) Chapter 4 provides detailed projections and adaptation strategies for sea level rise (SLR) and coastal flooding. ### Sea Level Rise Scenarios (RCPs) - **RCP 2.6 (Low Emission Sce",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.ipcc.ch/report/ar6/syr/downloads/report/IPCC_AR6_SYR_FullVolume.pdf",
+        "title": "IPCC AR6 Synthesis Report (SYR) - Full Volume",
+        "content_chars": 2015,
+        "preview": "The IPCC AR6 Synthesis Report (SYR) integrates findings on sea level rise (SLR) and coastal flood risk from the Sixth Assessment Cycle. Key findings and section references from the document include: - **Current Status of Warming:** Global surface temperature r",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.ipcc.ch/report/ar6/wg2/chapter/chapter-13/",
+        "title": "Chapter 13: Europe | Climate Change 2022: Impacts, Adaptation and Vulnerability",
+        "content_chars": 2050,
+        "preview": "Sea level rise (SLR) represents an existential threat for European coastal communities and cultural heritage, particularly beyond 2100. Almost 50 million Europeans live within 10 meters above mean sea level. Coastal flood risks along low-lying coasts and estua",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.ipcc.ch/report/ar6/wg2/downloads/report/IPCC_AR6_WGII_FinalDraft_Chapter13.pdf",
+        "title": "IPCC AR6 WGII Chapter 13: Europe - Final Draft",
+        "content_chars": 1918,
+        "preview": "Key Risk 4 (Flooding) and Sea Level Rise (SLR): Risks to people and infrastructure from coastal, riverine, and pluvial flooding will increase in Europe due to warming, precipitation changes, and SLR (high confidence). Inundation and extreme flooding risks will",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_who_cholera",
+    "mode": "domain",
+    "query": "Cholera outbreaks eastern and southern Africa vaccine supply and WHO situation updates",
+    "elapsed_seconds": 134.02,
+    "include_domains": [
+      "who.int"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 10,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 20,
+    "synthesis_chars": 5635,
+    "synthesis_citation_count": 15,
+    "total_scraped_chars": 14761,
+    "avg_scraped_chars": 1476.1,
+    "num_low_value_scraped": 1,
+    "error": null,
+    "search_queries": [
+      "site:who.int \"cholera\" \"Eastern and Southern Africa\" situation reports 2024",
+      "site:who.int \"cholera\" vaccine supply OCV stockpile ICG updates",
+      "site:who.int \"multi-country outbreak of cholera\" external situation report Eastern Southern Africa"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.who.int/docs/default-source/coronaviruse/situation-reports/20240314_multi-country_outbreak-of-cholera_sitrep_12.pdf",
+        "title": "Multi-country outbreak of cholera: External Situation Report n. 12 (14 March 2024)",
+        "content_chars": 2455,
+        "preview": "As of 14 March 2024, WHO maintains a 'Very High' global risk assessment for cholera, classifying the resurgence as a Grade 3 emergency. **Vaccine Supply and Distribution:** - A critical shortage of Oral Cholera Vaccines (OCV) persists. From January 2023 to Feb",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/docs/default-source/coronaviruse/situation-reports/20240516_multi-country_outbreak-of-cholera_sitrep_-14.pdf?sfvrsn=902653eb_4&download=true",
+        "title": "Multi-country outbreak of cholera, External Situation Report n. 14 (16 May 2024)",
+        "content_chars": 3156,
+        "preview": "### WHO Situation Update & Risk Assessment - **Emergency Status:** WHO re-assessed the global risk as 'Very High' and maintains the cholera resurgence as a Grade 3 emergency (highest level) since January 2023. - **Global Burden (Jan 1 \u2013 April 28, 2024):** 145,",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://cdn.who.int/media/docs/default-source/documents/emergency-care/phsa-floods-southeast-africa-230225.pdf?sfvrsn=987f18e4_3&download=true",
+        "title": "Public Health Situation Analysis: Flooding across Southeast Africa (Madagascar, Malawi, Mozambique, South Africa, Zambia, Zimbabwe) - February 2026",
+        "content_chars": 2845,
+        "preview": "As of February 23, 2026, Southeast Africa is facing severe public health risks due to widespread flooding and cyclones affecting 1.5 million people. ### Cholera and Oral Cholera Vaccine (OCV) Status - **Mozambique:** There is an ongoing cholera outbreak. Mozam",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/groups/icg/cholera/stockpiles",
+        "title": "Cholera vaccine stockpiles - World Health Organization",
+        "content_chars": 1213,
+        "preview": "The International Coordinating Group (ICG) on Vaccine Provision manages the global Oral Cholera Vaccine (OCV) stockpile, established in 2013 to control cholera epidemics. From its creation until October 2022, approximately 73 million doses of OCV were shipped ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/publications/m/item/multi-country-outbreak-of-cholera--external-situation-report--32--26-november-2025",
+        "title": "Multi-country outbreak of cholera, external situation report #32 - 26 November 2025",
+        "content_chars": 1056,
+        "preview": "The WHO Multi-country outbreak of cholera External Situation Report #32, dated November 26, 2025, provides updates on the global cholera emergency and the status of the vaccine stockpile. Key information includes: - **Oral Cholera Vaccine (OCV) Stockpile (Octo",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/publications/m/item/multi-country-outbreak-of-cholera--external-situation-report--30--26-september-2025",
+        "title": "Multi-country outbreak of cholera, external situation report #30 - 26 September 2025",
+        "content_chars": 1235,
+        "preview": "The World Health Organization (WHO) External Situation Report #30 on the multi-country cholera outbreak, dated 26 September 2025, provides critical updates on the global vaccine supply and the ongoing upsurge (2021\u2013present). Key data points include: - Oral Cho",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/publications/m/item/multi-country-outbreak-of-cholera--external-situation-report--31--29-october-2025",
+        "title": "Multi-country outbreak of cholera, external situation report #31 - 29 October 2025",
+        "content_chars": 380,
+        "preview": "In September 2025, the average stockpile of Oral Cholera Vaccine (OCV) was 5.2 million doses. This exceeded the emergency threshold of 5 million doses during two weeks of the reporting period, marking the first time in three months that the average stockpile h",
+        "low_value": true,
+        "low_value_reason": "very_short"
+      },
+      {
+        "url": "https://www.who.int/publications/m/item/multi-country-outbreak-of-cholera--epidemiological-update--33--27-january-2026",
+        "title": "Multi-country outbreak of cholera, epidemiological update #33 - 27 January 2026",
+        "content_chars": 818,
+        "preview": "The World Health Organization (WHO) published the 'Multi-country outbreak of cholera, epidemiological update #33' on 27 January 2026. This report is a component of the WHO's ongoing monitoring of the global cholera upsurge that began in 2021. The update is cat",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/publications/m/item/multi-country-outbreak-of-cholera--external-situation-report--28--24-july-2025",
+        "title": "Multi-country outbreak of cholera, external situation report #28 - 24 July 2025",
+        "content_chars": 786,
+        "preview": "As of June 2025, the global Oral Cholera Vaccine (OCV) stockpile is experiencing significant strain. The average stockpile was recorded at 2.9 million doses, which is notably below the minimum emergency stockpile target of five million doses. This marks the fi",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/publications/m/item/multi-country-outbreak-of-cholera--external-situation-report--29--28-august-2025",
+        "title": "Multi-country outbreak of cholera, external situation report #29 - 28 August 2025",
+        "content_chars": 817,
+        "preview": "The World Health Organization (WHO) External Situation Report #29, published on 28 August 2025, provides data on the multi-country cholera outbreak with a focus on regional impacts and resource availability: - Vaccine Supply: In July 2025, the average stockpil",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_fao_sofi",
+    "mode": "domain",
+    "query": "SOFI 2024 hunger food insecurity prevalence and undernourishment trends",
+    "elapsed_seconds": 138.33,
+    "include_domains": [
+      "fao.org",
+      "openknowledge.fao.org"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 7,
+    "num_failed": 1,
+    "num_bot_detected": 0,
+    "num_snippet_only": 15,
+    "synthesis_chars": 5457,
+    "synthesis_citation_count": 18,
+    "total_scraped_chars": 15444,
+    "avg_scraped_chars": 2206.3,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "SOFI 2024 prevalence of undernourishment PoU global and regional trends site:fao.org",
+      "SOFI 2024 moderate or severe food insecurity prevalence statistics site:openknowledge.fao.org",
+      "The State of Food Security and Nutrition in the World 2024 hunger indicators data site:fao.org"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.fao.org/americas/news/news-detail/sofi-2024/en",
+        "title": "SOFI 2024: Hunger numbers stubbornly high for three consecutive years as global crises deepen",
+        "content_chars": 2163,
+        "preview": "The State of Food Security and Nutrition in the World (SOFI) 2024 report indicates that global hunger levels have plateaued for three consecutive years. In 2023, approximately 733 million people (mid-range) faced hunger, equivalent to 1 in 11 people globally a",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://openknowledge.fao.org/handle/20.500.14283/cd1254en",
+        "title": "The State of Food Security and Nutrition in the World 2024",
+        "content_chars": 2223,
+        "preview": "The State of Food Security and Nutrition in the World (SOFI) 2024 report reveals that hunger and food insecurity trends are not currently on track to meet Sustainable Development Goal (SDG) Target 2.1 (ending hunger) or Target 2.2 (eliminating all forms of mal",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://openknowledge.fao.org/handle/20.500.14283/cd4739en",
+        "title": "Europe and Central Asia Regional Overview of Food Security and Nutrition 2024",
+        "content_chars": 1771,
+        "preview": "The 2024 Regional Overview for Europe and Central Asia (ECA) provides key data on hunger and food insecurity trends for 2023, citing global figures from the SOFI 2024 cycle. In 2023, global undernourishment remained at 9.1 percent. In the ECA region, prevalenc",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.fao.org/3/cd6008en/online/state-food-security-and-nutrition-2025/ending-hunger-food-security.html",
+        "title": "2.1 Food security indicators: latest updates and progress towards ending hunger and ensuring food security",
+        "content_chars": 2900,
+        "preview": "The State of Food Security and Nutrition in the World (SOFI) 2025 report (providing data through 2024) indicates a slight decrease in global hunger and food insecurity, though levels remain significantly higher than in 2015. ### Global Hunger and Undernourishm",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://openknowledge.fao.org/handle/20.500.14283/cd6008en",
+        "title": "The State of Food Security and Nutrition in the World (SOFI) 2024 and 2025",
+        "content_chars": 1744,
+        "preview": "The provided page contains details for both the 2025 and 2024 'The State of Food Security and Nutrition in the World' (SOFI) reports. SOFI 2024 - Financing to End Hunger, Food Insecurity and Malnutrition: - Trends: Six years from the 2030 deadline, hunger and ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.fao.org/3/cd1254en/online/state-food-security-and-nutrition-2024/ending-hunger-food-security.html",
+        "title": "SOFI 2024: Food Security Indicators and Progress Towards Ending Hunger",
+        "content_chars": 2289,
+        "preview": "In 2023, global hunger (Prevalence of Undernourishment - PoU) affected approximately 9.1% of the population, compared to 7.5% in 2019. It is estimated that between 713 and 757 million people (mid-range 733 million) faced hunger in 2023, which is 152 million mo",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.fao.org/3/cd1254en/online/state-food-security-and-nutrition-2024/executive-summary.html",
+        "title": "Executive Summary - The State of Food Security and Nutrition in the World 2024",
+        "content_chars": 2354,
+        "preview": "The 2024 SOFI report reveals that global hunger has persisted at nearly the same level for three consecutive years (2021\u20132023). In 2023, between 713 and 757 million people (8.9% to 9.4% of the global population) were undernourished. The mid-range estimate is 7",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.fao.org/publications/fao-flagship-publications/the-state-of-food-security-and-nutrition-in-the-world/en",
+        "title": "The State of Food Security and Nutrition in the World",
+        "error": "[scrape failed: [Scrape failed: Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/web-agent/lib/python3.12/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://www.fao.org/publications/fao-flagship-publications/the-state-of-food-security-and-nutrition-in-the-world/en\", waiting until \"networkidle\"\n\n\nCode context:\n 773                                   tag=\"GOTO\",\n 774                                   params={\"url\": url},\n 775                               )\n 776                               response = None\n 777                           else:\n 778 \u2192                             raise RuntimeError(f\"Failed on navigating ACS-GOTO:\\n{str(e)}\")\n 779   \n 780                       # \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n 781                       # Walk the redirect chain.  Playwright returns only the last\n 782                       # hop, so we trace the `request.redirected_from` links until the\n 783                       # first response that differs from the final one and surface its]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_pmc_amr",
+    "mode": "domain",
+    "query": "antimicrobial resistance mortality burden global regional evidence policy priorities",
+    "elapsed_seconds": 103.08,
+    "include_domains": [
+      "pmc.ncbi.nlm.nih.gov"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 10,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 16,
+    "synthesis_chars": 6932,
+    "synthesis_citation_count": 21,
+    "total_scraped_chars": 25971,
+    "avg_scraped_chars": 2597.1,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "site:pmc.ncbi.nlm.nih.gov antimicrobial resistance attributable deaths by pathogen and region evidence",
+      "site:pmc.ncbi.nlm.nih.gov global and regional mortality burden of antimicrobial resistance systematic review",
+      "site:pmc.ncbi.nlm.nih.gov AMR policy priorities public health interventions and global action plans"
+    ],
+    "scraped": [
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8841637/",
+        "title": "Global burden of bacterial antimicrobial resistance in 2019: a systematic analysis",
+        "content_chars": 2201,
+        "preview": "In 2019, bacterial antimicrobial resistance (AMR) was associated with an estimated 4.95 million (95% UI 3.62\u20136.57) deaths globally, including 1.27 million (0.911\u20131.71) deaths directly attributable to AMR. The magnitude of this health problem is comparable to o",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10700598/",
+        "title": "Burden of infectious diseases and bacterial antimicrobial resistance in China: a systematic analysis for the global burden of disease study 2019",
+        "content_chars": 2350,
+        "preview": "In 2019, infectious diseases and bacterial antimicrobial resistance (AMR) represented a major public health threat in China and globally. Global findings from the GBD 2019 study indicate 13.7 million deaths from infectious diseases annually. AMR was associated",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10805005/",
+        "title": "The burden of bacterial antimicrobial resistance in the WHO African region in 2019: a cross-country systematic analysis",
+        "content_chars": 3057,
+        "preview": "In 2019, antimicrobial resistance (AMR) was a leading cause of death globally, with an estimated 4.95 million deaths associated with bacterial AMR and 1.27 million deaths attributable to it. This study focuses on the WHO African region, which bears the highest",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10505822/",
+        "title": "The burden of antimicrobial resistance in the Americas in 2019: a cross-country systematic analysis",
+        "content_chars": 2617,
+        "preview": "In 2019, antimicrobial resistance (AMR) in the WHO Region of the Americas was associated with 569,000 deaths (95% UI 406,000\u2013771,000) and directly attributable to 141,000 deaths (99,900\u2013196,000). Globally, AMR was estimated to be associated with 4.95 million d",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11718157/",
+        "title": "Global burden of bacterial antimicrobial resistance 1990\u20132021: a systematic analysis with forecasts to 2050",
+        "content_chars": 2604,
+        "preview": "In 2021, an estimated 4.71 million (95% UI 4.23\u20135.19) deaths were associated with bacterial antimicrobial resistance (AMR), including 1.14 million (1.00\u20131.28) deaths attributable to bacterial AMR. Historical trends from 1990 to 2021 show a significant shift in",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12869091/",
+        "title": "The Global Epidemiology of Antimicrobial Resistance: Trends, Determinants, and Public Health Implications",
+        "content_chars": 2910,
+        "preview": "Antimicrobial resistance (AMR) is a leading global health threat. In 2019, an estimated 1.27 million deaths were directly attributed to AMR, and up to 4.95 million deaths were indirectly associated with resistant infections. This mortality burden is comparable",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10520421/",
+        "title": "Lives lost and disease burden related to antimicrobial resistance in the Americas can no longer be ignored",
+        "content_chars": 1702,
+        "preview": "In 2019, antimicrobial resistance (AMR) in 35 countries of the Americas resulted in approximately 141,000 deaths directly attributable to AMR and 569,000 deaths associated with AMR, representing 11% of the global mortality burden related to resistance. Deaths ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9630253/",
+        "title": "The burden of bacterial antimicrobial resistance in the WHO European region in 2019: a cross-country systematic analysis",
+        "content_chars": 2828,
+        "preview": "In 2019, bacterial antimicrobial resistance (AMR) was associated with an estimated 541,000 deaths (95% UI 370,000\u2013763,000) and was directly attributable to 133,000 deaths (90,100\u2013188,000) in the WHO European region. Globally, bacterial AMR is estimated to have",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11543637/",
+        "title": "WHO global research priorities for antimicrobial resistance in human health",
+        "content_chars": 2656,
+        "preview": "The WHO has identified 40 global research priorities for antimicrobial resistance (AMR) in human health to be addressed by 2030. These priorities are categorized into four themes: Prevention (4), Diagnosis (6), Treatment and Care (11), and Overarching themes (",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9574789/",
+        "title": "Assessment of the inclusion of vaccination as an intervention to reduce antimicrobial resistance in AMR national action plans: a global review",
+        "content_chars": 3046,
+        "preview": "Antimicrobial resistance (AMR) is a significant threat to global health, with projections indicating that by 2050, 10 million deaths annually will be attributable to drug-resistant bacteria. In 2019, Streptococcus pneumoniae alone was responsible for nearly 60",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_frontiers_foodsystems",
+    "mode": "domain",
+    "query": "wild edible plants food systems nutrition resilience and biodiversity evidence",
+    "elapsed_seconds": 53.39,
+    "include_domains": [
+      "frontiersin.org"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 11,
+    "synthesis_chars": 5524,
+    "synthesis_citation_count": 13,
+    "total_scraped_chars": 15382,
+    "avg_scraped_chars": 2563.7,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "site:frontiersin.org \"wild edible plants\" nutrition resilience \"food systems\"",
+      "site:frontiersin.org nutritional value \"wild edible plants\" sustainable food systems resilience",
+      "site:frontiersin.org \"wild edible plants\" biodiversity evidence \"food security\""
+    ],
+    "scraped": [
+      {
+        "url": "https://www.frontiersin.org/journals/sustainable-food-systems/articles/10.3389/fsufs.2025.1686446/full",
+        "title": "Wild edible plants for food security, dietary diversity, and nutraceuticals: a global overview of emerging research",
+        "content_chars": 2493,
+        "preview": "Wild edible plants (WEPs) are vital components of local food systems (LFS), historically improving nutrition, dietary diversity, and food security for indigenous communities. Integrating WEPs into food systems reduces the carbon footprint of intensive farming ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.frontiersin.org/journals/sustainable-food-systems/articles/10.3389/fsufs.2023.1117805/full",
+        "title": "Valorizing staple Native American food plants as a food resilience resource",
+        "content_chars": 2664,
+        "preview": "Wild edible plants (WEPs), specifically Native American food plants (NAFPs), are critical genetic resources for increasing agrobiodiversity and food system resilience against climate change and global catastrophic risks (GCRs) such as nuclear winter, asteroid ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.frontiersin.org/journals/sustainable-food-systems/articles/10.3389/fsufs.2023.1198187/full",
+        "title": "The importance of wild edible plant and macrofungi diversity to attain food security for the tribes of eastern India\u2014a quantitative study",
+        "content_chars": 2920,
+        "preview": "This study investigates the diversity of wild edible species (WES) used by tribal communities, specifically the Santals, in the laterite region of eastern India (districts of Bankura, Medinipur, Purulia, Burdwan, and Birbhum). It highlights the critical role o",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.frontiersin.org/journals/sustainable-food-systems/articles/10.3389/fsufs.2023.1113771/full",
+        "title": "Diversity and utilization of indigenous wild edible plants and their contribution to food security in Turkana County, Kenya",
+        "content_chars": 2077,
+        "preview": "Research in Turkana County, Kenya, identified 73 Indigenous Wild Edible Plants (IWEPs), with 58 species fully identified across 30 plant families and one fungus. These plants are crucial to traditional food systems, especially in arid and semi-arid regions. Ke",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.frontiersin.org/journals/sustainable-food-systems/articles/10.3389/fsufs.2026.1811120/abstract",
+        "title": "Lycium shawii (Solanaceae): Nutritional Composition, Phytochemistry, and Food-Use Prospects of a Desert Edible Plant",
+        "content_chars": 2556,
+        "preview": "Wild edible plants (WEPs) are critical resources for dietary resilience in arid and semi-arid ecosystems, especially where traditional farming is limited by water shortages, low soil fertility, and extreme temperatures. Lycium shawii is a thorny desert shrub n",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.frontiersin.org/journals/sustainable-food-systems/articles/10.3389/fsufs.2025.1686446/pdf",
+        "title": "Wild edible plants for food security, dietary diversity, and nutraceuticals: a global overview of emerging research",
+        "content_chars": 2672,
+        "preview": "Wild edible plants (WEPs) are vital to global food systems, with approximately 1 billion people consuming them daily. They enhance nutrition, dietary diversity, and food security, particularly for indigenous and nutritionally disadvantaged groups. WEPs are ric",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_worldbank_morocco_climate",
+    "mode": "domain",
+    "query": "Morocco historical climate trends temperature variability drought and precipitation patterns",
+    "elapsed_seconds": 49.55,
+    "include_domains": [
+      "climateknowledgeportal.worldbank.org"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 3,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 7,
+    "synthesis_chars": 4562,
+    "synthesis_citation_count": 13,
+    "total_scraped_chars": 7346,
+    "avg_scraped_chars": 2448.7,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "site:climateknowledgeportal.worldbank.org Morocco drought frequency and climate variability analysis",
+      "site:climateknowledgeportal.worldbank.org Morocco historical climate data observations and patterns",
+      "site:climateknowledgeportal.worldbank.org Morocco historical temperature and precipitation trends"
+    ],
+    "scraped": [
+      {
+        "url": "https://climateknowledgeportal.worldbank.org/sites/default/files/country-profiles/17189-WB_Morocco%20Country%20Profile-WEB.pdf",
+        "title": "Climate Risk Country Profile: Morocco",
+        "content_chars": 3051,
+        "preview": "Morocco's climate is characterized by significant variability and is currently experiencing a faster warming rate than the global average. ### Historical Temperature Trends (1971\u20132020) * **Rate of Increase:** Surface air temperature rose by 0.43&deg;C per deca",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://climateknowledgeportal.worldbank.org/sites/default/files/2021-09/15725-WB_Morocco%20Country%20Profile-WEB.pdf",
+        "title": "Climate Risk Country Profile: Morocco (2021)",
+        "content_chars": 2968,
+        "preview": "Morocco's climate is characterized by significant regional variation influenced by the Atlantic Ocean, the Mediterranean Sea, and the Sahara Desert. The Atlas Mountains divide the Mediterranean northern coastal zone from the southern interior desert regions. H",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://climateknowledgeportal.worldbank.org/country/morocco/trends-variability-historical",
+        "title": "Morocco - Trends & Variability (ERA5) | Climate Change Knowledge Portal",
+        "content_chars": 1327,
+        "preview": "Morocco's historical climate data, analyzed via ERA5 reanalysis at 0.25 degree resolution, indicates a distinct warming trend over the last 50 years. The warmest months within this period frequently occur closer to the present day, with climate change signals ",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_scielo_biosafety_diverse",
+    "mode": "domain",
+    "query": "GM crops ecological risk biosafety governance Africa case study evidence",
+    "elapsed_seconds": 49.0,
+    "include_domains": [
+      "scielo.org.za"
+    ],
+    "direct_url": null,
+    "num_queries": 5,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 25,
+    "synthesis_chars": 2994,
+    "synthesis_citation_count": 4,
+    "total_scraped_chars": 2177,
+    "avg_scraped_chars": 2177.0,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "site:scielo.org.za environmental impact GM crops biosafety policy Africa evidence",
+      "site:scielo.org.za \"GM crops\" ecological risk biosafety governance Africa",
+      "site:scielo.org.za genetically modified organisms biosafety regulation Africa case study",
+      "biosafety governance frameworks Kenya Nigeria Burkina Faso case studies GMO",
+      "genetically modified crops ecological risk gene flow non-target organisms Africa evidence"
+    ],
+    "scraped": [
+      {
+        "url": "https://scielo.org.za/pdf/pelj/v19n1/40.pdf",
+        "title": "Organic Food Certification in South Africa: A Private Sector Mechanism in Need of State Regulation?",
+        "content_chars": 2177,
+        "preview": "This research paper analyzes the governance and regulatory landscape of the organic food sector in South Africa, which directly intersects with the management and exclusion of Genetically Modified Organisms (GMOs). Key findings regarding GM governance and bios",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_nature_precip_diverse",
+    "mode": "domain",
+    "query": "precipitation spatial patterns climate change extremes and hydrometeorology",
+    "elapsed_seconds": 126.3,
+    "include_domains": [
+      "nature.com"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 10,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 18,
+    "synthesis_chars": 4925,
+    "synthesis_citation_count": 13,
+    "total_scraped_chars": 23670,
+    "avg_scraped_chars": 2367.0,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "site:nature.com \"spatial distribution\" of precipitation extremes under climate change",
+      "site:nature.com \"hydrometeorology\" extreme rainfall intensification spatial patterns",
+      "site:nature.com \"precipitation spatial patterns\" climate change extremes"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.nature.com/articles/s41598-023-36470-0",
+        "title": "Spatial\u2013temporal variation of extreme precipitation in the Yellow\u2013Huai\u2013Hai\u2013Yangtze Basin of China | Scientific Reports",
+        "content_chars": 2913,
+        "preview": "This study analyzes the spatial-temporal variation of extreme precipitation in the Yellow\u2013Huai\u2013Hai\u2013Yangtze Basin (FMB) of China, using data from 1842 meteorological stations and 7 CMIP6 climate models (SSP1-2.6, SSP3-7.0, SSP5-8.5). The FMB consists of the Yan",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.nature.com/articles/s44304-026-00173-z",
+        "title": "Extreme precipitation changes in relation to urbanization",
+        "content_chars": 2243,
+        "preview": "This study analyzes multi-decadal daily precipitation records to quantify how urbanization affects extreme precipitation patterns compared to global climate change drivers. Key Findings from Global Dataset (GHCNd, 1962\u20132021): - The average frequency of extreme",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.nature.com/nature-index/topics/l4/climate-modelling-and-projections-of-precipitation-extremes",
+        "title": "Climate Modelling and Projections of Precipitation Extremes - Nature Index",
+        "content_chars": 1799,
+        "preview": "Climate modelling of precipitation extremes integrates global climate models (GCMs) and regional climate models (RCMs) to simulate heavy rainfall events. GCMs provide large-scale boundary fields and atmospheric circulation patterns, while RCMs utilize dynamica",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.nature.com/articles/s41598-026-47708-y_reference.pdf",
+        "title": "Widespread shift toward extreme dominated precipitation with pronounced trends in arid and mediterranean regions",
+        "content_chars": 2189,
+        "preview": "This study introduces the Extreme Precipitation Fraction (EPF)\u2014the ratio of the annual maximum daily precipitation to total annual precipitation\u2014to quantify the dominance of extremes within annual rainfall. Historically (1980\u20132014), the highest mean EPF values",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.nature.com/articles/s41598-024-65618-9",
+        "title": "Bracing for impact: how shifting precipitation extremes may influence physical climate risks in an uncertain future | Scientific Reports",
+        "content_chars": 2627,
+        "preview": "This study analyzes shifting precipitation extremes and physical climate risks across the contiguous United States (CONUS) using the high-resolution gridMET dataset (4 km, 1/24th degree resolution) from 1979 to 2022, which utilizes 483,879 gridded stations. Th",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.nature.com/articles/s41598-025-06050-5",
+        "title": "Comprehensive global assessment of precipitation trend and pattern variability considering their distribution dynamics",
+        "content_chars": 2515,
+        "preview": "This study analyzes global precipitation variability from 1891 to 2019 using the Global Precipitation Climatology Centre (GPCC) dataset. Key findings include: - **General Trends**: 59% of the world exhibited an increasing trend in annual precipitation, while 4",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.nature.com/articles/s41467-024-48533-5",
+        "title": "Urban development pattern\u2019s influence on extreme rainfall occurrences",
+        "content_chars": 2646,
+        "preview": "A global study of 1,790 inland cities (2003\u20132018) reveals that urban development patterns significantly influence spatial patterns of extreme rainfall. ### Key Findings on Precipitation Spatial Patterns and Extremes: - **Divergent Responses:** Compact urban de",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.nature.com/articles/s41598-026-43029-2",
+        "title": "Assessing the environmental costs of multi-scale recurrent neural networks for sustainable extreme rainfall nowcasting",
+        "content_chars": 2301,
+        "preview": "The study highlights that climate change is increasing the frequency and intensity of extreme precipitation events, particularly torrential rains with high hourly rainfall rates. Impacts are more pronounced in tropical areas like Brazil, where climate change i",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.nature.com/articles/s41612-026-01345-4",
+        "title": "Spatial patterns of Asian summer monsoon precipitation in the Chinese monsoon region since the LGM | npj Climate and Atmospheric Science",
+        "content_chars": 2178,
+        "preview": "This research analyzes stalagmite records from Dongshiya and Laomu caves (DSYL) on the southeastern margin of the Loess Plateau to reconstruct precipitation spatial patterns in the Chinese monsoon region (CMR) over the last 25.5 ka. Key findings regarding spat",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.nature.com/articles/s41598-022-26047-8",
+        "title": "Evaluation of IMERG and ERA5 precipitation products over the Mongolian Plateau | Scientific Reports",
+        "content_chars": 2259,
+        "preview": "This study evaluates the performance of IMERG (satellite) and ERA5 (reanalysis) precipitation products over the Mongolian Plateau (2001\u20132018), a region highly sensitive to climate change and ecologically fragile. ### Spatial and Temporal Patterns - Precipitati",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_noaa_coral",
+    "mode": "domain",
+    "query": "coral bleaching marine heatwave reef outlook NOAA scientific updates",
+    "elapsed_seconds": 53.81,
+    "include_domains": [
+      "noaa.gov"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 16,
+    "synthesis_chars": 2819,
+    "synthesis_citation_count": 8,
+    "total_scraped_chars": 9998,
+    "avg_scraped_chars": 1666.3,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "site:noaa.gov \"Coral Reef Watch\" global bleaching outlook scientific updates",
+      "site:noaa.gov marine heatwave impact on coral reefs data 2024",
+      "site:noaa.gov NOAA satellite monitoring coral bleaching heat stress reports"
+    ],
+    "scraped": [
+      {
+        "url": "https://coralreefwatch.noaa.gov/satellite/research/coral_bleaching_report.php",
+        "title": "NOAA Coral Reef Watch Current Global Bleaching: Status Update & Data Submission",
+        "content_chars": 1710,
+        "preview": "On April 15, 2024, NOAA and the International Coral Reef Initiative (ICRI) confirmed that the world is experiencing its 4th global coral bleaching event (GCBE4). This is currently the largest global bleaching event on record. From January 1, 2023, to September",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.noaa.gov/news-release/researchers-assess-florida-keys-coral-health-following-marine-heat-wave",
+        "title": "Researchers assess Florida Keys coral health following marine heat wave | National Oceanic and Atmospheric Administration",
+        "content_chars": 1810,
+        "preview": "A scientific mission conducted in February 2024 by NOAA\u2019s Mission: Iconic Reefs program and partners (Mote Marine Laboratory & Aquarium, Coral Restoration Foundation) assessed the impact of the record-breaking 2023 marine heat wave on coral reefs in the Florid",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://floridakeys.noaa.gov/coral-bleaching-faqs.html",
+        "title": "Marine Heatwave and Coral Bleaching Response FAQs | Florida Keys National Marine Sanctuary",
+        "content_chars": 1774,
+        "preview": "In mid-2023, the Florida Keys National Marine Sanctuary experienced a severe marine heatwave. The optimal temperature range for reef-building corals is 73.4\u00b0F - 84.2\u00b0F (23\u00b0C - 29\u00b0C); a rise of just 2\u00b0F (1\u00b0C) can cause corals to expel their symbiotic algae (ble",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://floridakeys.noaa.gov/news/2024/coral-research-cruise.html",
+        "title": "Mission: Iconic Reefs surveys impact to corals",
+        "content_chars": 1506,
+        "preview": "On February 14, 2024, a scientific mission was completed by NOAA\u2019s Mission: Iconic Reefs program, Mote Marine Laboratory & Aquarium, and the Coral Restoration Foundation to quantify the impact of the 2023 marine heatwave on corals in the Florida Keys National ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://coralreefwatch.noaa.gov/product/marine_heatwave/",
+        "title": "NOAA Coral Reef Watch - Marine Heatwave Watch Product (v1.0.1)",
+        "content_chars": 1247,
+        "preview": "The NOAA Coral Reef Watch (CRW) Daily Global 5km Satellite Marine Heatwave Watch Product (Version 1.0.1) provides monitoring of heat stress levels impacting coral reefs. The product utilizes the Hobday et al. (2018) classification system for Marine Heatwave (M",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://coralreefwatch.noaa.gov/satellite/bleachingoutlook_cfs/outlook_cfs.php",
+        "title": "NOAA Coral Reef Watch Coral Bleaching Heat Stress Outlook (CFS based)",
+        "content_chars": 1951,
+        "preview": "The NOAA Coral Reef Watch (CRW) provides an experimental probabilistic Four-Month Coral Bleaching Outlook (Version 5.0) at a 0.5x0.5 degree spatial resolution. Updated weekly on Tuesdays, the product predicts the likelihood of coral bleaching heat stress reach",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_iccat_pdf_diverse",
+    "mode": "direct",
+    "query": "ICCAT bluefin tuna quotas and management recommendation text",
+    "elapsed_seconds": 31.29,
+    "include_domains": [],
+    "direct_url": "https://www.iccat.int/Documents/Recs/compendiopdf-e/2022-08-e.pdf",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 0,
+    "synthesis_chars": 3776,
+    "synthesis_citation_count": 5,
+    "total_scraped_chars": 2704,
+    "avg_scraped_chars": 2704.0,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "ICCAT bluefin tuna quotas and management recommendation text"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.iccat.int/Documents/Recs/compendiopdf-e/2022-08-e.pdf",
+        "title": "ICCAT Recommendation 22-08: Multi-annual Management Plan for Bluefin Tuna in the Eastern Atlantic and Mediterranean",
+        "content_chars": 2704,
+        "preview": "ICCAT Recommendation 22-08 establishes a multi-annual management plan for Eastern Atlantic and Mediterranean bluefin tuna (Thunnus thynnus) beginning in 2023. ### TAC and Quota Allocations (2023-2025) The Total Allowable Catch (TAC), inclusive of dead discards",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_ipcc_coastal_html",
+    "mode": "direct",
+    "query": "Coastal flood risk sea level rise adaptation and Venice-relevant IPCC context",
+    "elapsed_seconds": 44.19,
+    "include_domains": [],
+    "direct_url": "https://www.ipcc.ch/report/ar6/wg2/chapter/chapter-13/",
+    "num_queries": 1,
+    "num_scraped": 2,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 0,
+    "synthesis_chars": 3951,
+    "synthesis_citation_count": 8,
+    "total_scraped_chars": 4297,
+    "avg_scraped_chars": 2148.5,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "Coastal flood risk sea level rise adaptation and Venice-relevant IPCC context"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.ipcc.ch/report/ar6/wg2/chapter/chapter-13/",
+        "title": "IPCC AR6 WG2 Chapter 13: Europe | Impacts, Adaptation and Vulnerability",
+        "content_chars": 2329,
+        "preview": "The IPCC AR6 WG2 Chapter 13 identifies four key risks for Europe, with Key Risk 4 (KR4) specifically addressing coastal and riverine flooding. Coastal flood risks will increase due to sea level rise (SLR) compounded by storm surges and river runoff. Coastal fl",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.ipcc.ch/report/ar6/wg2/",
+        "title": "IPCC AR6 Working Group II: Impacts, Adaptation and Vulnerability",
+        "content_chars": 1968,
+        "preview": "The IPCC Sixth Assessment Report (AR6) Working Group II (WGII) provides extensive global and regional assessments of climate change impacts, risks, and adaptation strategies relevant to coastal flood risk and sea level rise. Key sections identified as critical",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_sofi_pdf_diverse",
+    "mode": "direct",
+    "query": "Global hunger and food insecurity trends 2024 SOFI report key findings",
+    "elapsed_seconds": 37.74,
+    "include_domains": [],
+    "direct_url": "https://data.unicef.org/wp-content/uploads/2024/07/SOFI2024_Report_EN_web.pdf",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 0,
+    "synthesis_chars": 2884,
+    "synthesis_citation_count": 7,
+    "total_scraped_chars": 3141,
+    "avg_scraped_chars": 3141.0,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "Global hunger and food insecurity trends 2024 SOFI report key findings"
+    ],
+    "scraped": [
+      {
+        "url": "https://data.unicef.org/wp-content/uploads/2024/07/SOFI2024_Report_EN_web.pdf",
+        "title": "The State of Food Security and Nutrition in the World 2024 (SOFI 2024)",
+        "content_chars": 3141,
+        "preview": "The 2024 State of Food Security and Nutrition in the World (SOFI) report, titled 'Financing to end hunger, food insecurity and malnutrition in all its forms,' highlights the following key trends and findings: ### 1. Global Hunger Trends (Prevalence of Undernou",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_nepad_pdf_diverse",
+    "mode": "direct",
+    "query": "African agricultural biotechnology biosafety policy overview and regional context",
+    "elapsed_seconds": 23.24,
+    "include_domains": [],
+    "direct_url": "https://www.nepad.org/file-download/download/public/127523",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 0,
+    "synthesis_chars": 3858,
+    "synthesis_citation_count": 6,
+    "total_scraped_chars": 2747,
+    "avg_scraped_chars": 2747.0,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "African agricultural biotechnology biosafety policy overview and regional context"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.nepad.org/file-download/download/public/127523",
+        "title": "Policy Brief No. 3: Environmental Issues Related to Genetically Modified Crops in Africa",
+        "content_chars": 2747,
+        "preview": "In Africa, agricultural biotechnology adoption has progressed primarily in South Africa, Burkina Faso, and Egypt, where farmers commercially grow genetically modified (GM) crops including Bt cotton and Bt maize. Other nations, specifically Kenya, Uganda, Niger",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_scielo_html_diverse",
+    "mode": "direct",
+    "query": "GM crops ecological risk and biosafety governance in Africa",
+    "elapsed_seconds": 27.67,
+    "include_domains": [],
+    "direct_url": "https://scielo.org.za/scielo.php?script=sci_arttext&pid=S2663-323X2022000100014",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 0,
+    "synthesis_chars": 3151,
+    "synthesis_citation_count": 5,
+    "total_scraped_chars": 2666,
+    "avg_scraped_chars": 2666.0,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "GM crops ecological risk and biosafety governance in Africa"
+    ],
+    "scraped": [
+      {
+        "url": "https://scielo.org.za/scielo.php?script=sci_arttext&pid=S2663-323X2022000100014",
+        "title": "Green crimes: The impact of genetically modified organisms on promoting food security in Kenya",
+        "content_chars": 2666,
+        "preview": "Kenya's biosafety governance is anchored in the Biosafety Act of 2009, which implements the requirements of the 2000 Cartagena Protocol on Biosafety (CPB). The CPB prioritizes the precautionary principle, allowing governments to restrict GMOs even without full",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_frontiers_foodsystems",
+    "mode": "direct",
+    "query": "Wild edible plants food systems resilience and biodiversity evidence",
+    "elapsed_seconds": 37.44,
+    "include_domains": [],
+    "direct_url": "https://www.frontiersin.org/journals/sustainable-food-systems/articles/10.3389/fsufs.2023.1113771/full",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 0,
+    "synthesis_chars": 2811,
+    "synthesis_citation_count": 4,
+    "total_scraped_chars": 1956,
+    "avg_scraped_chars": 1956.0,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "Wild edible plants food systems resilience and biodiversity evidence"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.frontiersin.org/journals/sustainable-food-systems/articles/10.3389/fsufs.2023.1113771/full",
+        "title": "Diversity and utilization of indigenous wild edible plants and their contribution to food security in Turkana County, Kenya",
+        "content_chars": 1956,
+        "preview": "Indigenous Wild Edible Plants (IWEPs) are consumed by approximately 1 in 7 people globally, offering a source of nutrients and dietary improvement for poor households. In Kenya, 800 IWEPs have been documented: 400 species used as fruits, 200 as vegetables, 100",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_nature_precip_diverse",
+    "mode": "direct",
+    "query": "Precipitation spatial patterns climate change and extremes evidence",
+    "elapsed_seconds": 23.32,
+    "include_domains": [],
+    "direct_url": "https://www.nature.com/articles/s41598-024-63786-2",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 0,
+    "synthesis_chars": 1555,
+    "synthesis_citation_count": 1,
+    "total_scraped_chars": 2312,
+    "avg_scraped_chars": 2312.0,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "Precipitation spatial patterns climate change and extremes evidence"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.nature.com/articles/s41598-024-63786-2",
+        "title": "Observations of enhanced rainfall variability in Kenya, East Africa",
+        "content_chars": 2312,
+        "preview": "A study of rainfall patterns in Kenya from 1981 to 2021 provides evidence of substantial variability in local rainfall patterns and increased frequency of extreme events. Key findings include: - **Temporal Trends and Extremes**: Results show an increased frequ",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_pmc_precip",
+    "mode": "direct",
+    "query": "Kenya precipitation variability and historical trend evidence",
+    "elapsed_seconds": 23.49,
+    "include_domains": [],
+    "direct_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 0,
+    "synthesis_chars": 1889,
+    "synthesis_citation_count": 1,
+    "total_scraped_chars": 2799,
+    "avg_scraped_chars": 2799.0,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "Kenya precipitation variability and historical trend evidence"
+    ],
+    "scraped": [
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/",
+        "title": "Observations of enhanced rainfall variability in Kenya, East Africa",
+        "content_chars": 2799,
+        "preview": "This study analyzes rainfall variability in Kenya from 1981 to 2021 using the CHIRPS v2.0 dataset. Key findings indicate substantial variability at both national and county levels, with an increased frequency of extreme wet and dry events over time. ### Histor",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_who_sofi_html",
+    "mode": "direct",
+    "query": "SOFI 2024 hunger and food insecurity summary",
+    "elapsed_seconds": 46.0,
+    "include_domains": [],
+    "direct_url": "https://www.who.int/publications/m/item/the-state-of-food-security-and-nutrition-in-the-world-2024",
+    "num_queries": 1,
+    "num_scraped": 2,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 0,
+    "synthesis_chars": 2387,
+    "synthesis_citation_count": 6,
+    "total_scraped_chars": 4669,
+    "avg_scraped_chars": 2334.5,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "SOFI 2024 hunger and food insecurity summary"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.who.int/publications/m/item/the-state-of-food-security-and-nutrition-in-the-world-2024",
+        "title": "The State of Food Security and Nutrition in the World 2024",
+        "content_chars": 2189,
+        "preview": "The 2024 State of Food Security and Nutrition in the World (SOFI) report reveals that hunger numbers have remained stubbornly high for three consecutive years, with between 713 and 757 million people (approximately 9.1% of the global population) facing hunger ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/news/item/24-07-2024-hunger-numbers-stubbornly-high-for-three-consecutive-years-as-global-crises-deepen--un-report",
+        "title": "Hunger numbers stubbornly high for three consecutive years as global crises deepen: UN report (SOFI 2024)",
+        "content_chars": 2480,
+        "preview": "The 2024 State of Food Security and Nutrition in the World (SOFI) report reveals that global hunger levels have plateaued for three consecutive years, with approximately 733 million people (range 713\u2013757 million) undernourished in 2023. This is roughly 152 mil",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_worldbank_climate",
+    "mode": "direct",
+    "query": "Kenya historical climate trends precipitation variability and extremes summary",
+    "elapsed_seconds": 53.64,
+    "include_domains": [],
+    "direct_url": "https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical",
+    "num_queries": 1,
+    "num_scraped": 3,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 0,
+    "synthesis_chars": 2474,
+    "synthesis_citation_count": 7,
+    "total_scraped_chars": 4894,
+    "avg_scraped_chars": 1631.3,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "Kenya historical climate trends precipitation variability and extremes summary"
+    ],
+    "scraped": [
+      {
+        "url": "https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical",
+        "title": "Kenya Historical Climate Trends, Variability and Extremes (World Bank CCKP)",
+        "content_chars": 2187,
+        "preview": "Kenya's historical climate is characterized by significant natural variability, primarily driven by the El Ni\u00f1o \u2013 Southern Oscillation (ENSO) and internal variability within the coupled atmosphere-ocean-land-ice system. ### Data and Methodology - **Source**: D",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://climateknowledgeportal.worldbank.org/country/kenya/enso",
+        "title": "Kenya - ENSO (ERA5) | Climate Change Knowledge Portal",
+        "content_chars": 1213,
+        "preview": "The El Ni\u00f1o\u2013Southern Oscillation (ENSO) is the most significant driver of interannual natural climate variability in Kenya, alternating between El Ni\u00f1o (warm phase) and La Ni\u00f1a (cool phase) approximately every 3\u20137 years. These cycles shape worldwide patterns o",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://climateknowledgeportal.worldbank.org/country/kenya/natural-disasters-historical",
+        "title": "Kenya - Historical Natural Disasters | Climate Change Knowledge Portal",
+        "content_chars": 1494,
+        "preview": "The Climate Change Knowledge Portal (CCKP) provides data on Kenya's historical exposure to natural disasters, including heatwaves, floods, landslides, and earthquakes. Key insights from the portal regarding climate-related extremes include: - Impact of Climate",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  }
+]

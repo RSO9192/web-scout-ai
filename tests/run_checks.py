@@ -62,12 +62,13 @@ def _step_catalog(run_dir: Path, env_file: str | None) -> dict[str, StepSpec]:
         "lint": StepSpec(
             name="lint",
             description="Static lint check for src and tests.",
-            command=["ruff", "check", "src", "tests"],
+            command=python_cmd + ["-m", "ruff", "check", "src", "tests"],
         ),
         "unit-fast": StepSpec(
             name="unit-fast",
             description="Targeted unit slice for pipeline, URL normalization, and dedupe behavior.",
-            command=[
+            command=python_cmd + [
+                "-m",
                 "pytest",
                 "tests/test_pipeline.py",
                 "tests/test_scrape_tool_dedupe.py",
@@ -79,7 +80,7 @@ def _step_catalog(run_dir: Path, env_file: str | None) -> dict[str, StepSpec]:
         "unit-all": StepSpec(
             name="unit-all",
             description="Full local pytest suite with runtime warnings promoted to errors.",
-            command=["pytest", "-W", "error::RuntimeWarning"],
+            command=python_cmd + ["-m", "pytest", "-W", "error::RuntimeWarning"],
             junit_name="unit-all.xml",
         ),
         "query-probe": StepSpec(
@@ -97,36 +98,28 @@ def _step_catalog(run_dir: Path, env_file: str | None) -> dict[str, StepSpec]:
             ],
             required_env=("SERPER_API_KEY",),
         ),
-        "matrix-probe": StepSpec(
-            name="matrix-probe",
-            description="Mixed open/domain/direct live probe across a small case set.",
+        "validation-matrix": StepSpec(
+            name="validation-matrix",
+            description="Maintained live matrix across open, domain-restricted, and direct-URL cases.",
             command=python_cmd
             + [
-                "tests/matrix_probe.py",
-                "--limit",
-                "2",
-                "--search-backend",
-                "serper",
-                "--research-depth",
+                "tests/validation_matrix_probe.py",
+                "--preset",
                 "standard",
+                "--concurrency",
+                "2",
                 "--output-dir",
                 str(run_dir),
             ]
             + env_file_args,
             required_env=("SERPER_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY"),
         ),
-        "full-query-probe": StepSpec(
-            name="full-query-probe",
-            description="End-to-end live research probe with synthesis on one manual query.",
+        "gmo-probe": StepSpec(
+            name="gmo-probe",
+            description="Targeted live regression probe for the historical extractor/max-turn failure class.",
             command=python_cmd
             + [
-                "tests/full_query_probe.py",
-                "--limit",
-                "1",
-                "--search-backend",
-                "serper",
-                "--research-depth",
-                "standard",
+                "tests/gmo_probe.py",
                 "--output-dir",
                 str(run_dir),
             ]
@@ -139,8 +132,8 @@ def _step_catalog(run_dir: Path, env_file: str | None) -> dict[str, StepSpec]:
 PRESETS = {
     "quick": ["lint", "unit-fast"],
     "unit": ["lint", "unit-all"],
-    "behavior": ["query-probe", "matrix-probe", "full-query-probe"],
-    "all": ["lint", "unit-all", "query-probe", "matrix-probe", "full-query-probe"],
+    "behavior": ["query-probe", "validation-matrix", "gmo-probe"],
+    "all": ["lint", "unit-all", "query-probe", "validation-matrix", "gmo-probe"],
 }
 
 

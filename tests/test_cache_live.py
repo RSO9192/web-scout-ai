@@ -14,8 +14,8 @@ import asyncio
 import time
 
 from web_scout.tools import (
-    ResearchTracker,
     _SESSION_SOURCE_CACHE,
+    ResearchTracker,
     create_scrape_and_extract_tool,
 )
 from web_scout.utils import get_model
@@ -62,7 +62,7 @@ async def main():
     print("    PASS: artifact stored in _SESSION_SOURCE_CACHE")
 
     # ── second call — must use cache ─────────────────────────────────────────
-    print(f"\n[3] Second scrape (same URL) with cache=True ...")
+    print("\n[3] Second scrape (same URL) with cache=True ...")
     t2 = time.perf_counter()
     result2 = await scrape(TEST_URL)
     t3 = time.perf_counter()
@@ -79,11 +79,11 @@ async def main():
         print(f"    result2 preview: {result2[:120]!r}")
 
     # ── with cache=False — should not touch _SESSION_SOURCE_CACHE ────────────
-    print(f"\n[4] Scrape with cache=False (should NOT hit session cache) ...")
+    print("\n[4] Scrape with cache=False (should NOT hit session cache) ...")
     _SESSION_SOURCE_CACHE.clear()  # reset to isolate
     scrape_no_cache, _ = await _make_tool(use_cache=False)
     t4 = time.perf_counter()
-    result_nc = await scrape_no_cache(TEST_URL)
+    await scrape_no_cache(TEST_URL)
     t5 = time.perf_counter()
     elapsed_nc = t5 - t4
     print(f"    Done in {elapsed_nc:.2f}s")
@@ -94,7 +94,7 @@ async def main():
         print("    PASS: _SESSION_SOURCE_CACHE remains empty with cache=False")
 
     # ── cache=True: second call significantly faster than first ──────────────
-    print(f"\n[5] Timing summary:")
+    print("\n[5] Timing summary:")
     print(f"    cache=True  first call : {elapsed1:.2f}s")
     print(f"    cache=True  second call: {elapsed2:.2f}s  (tracker dedupe — instant)")
     print(f"    cache=False first call : {elapsed_nc:.2f}s")

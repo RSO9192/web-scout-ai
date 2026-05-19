@@ -3,11 +3,13 @@
 import pytest
 
 from web_scout.scraping import (
-    _SKIP,
     _SCRAPE_DOC,
     _SCRAPE_HTML,
     _SCRAPE_IMAGE,
+    _SCRAPE_JS,
     _SCRAPE_JSON,
+    _SKIP,
+    _append_internal_links,
     _download_pdf_bytes,
     _looks_like_document_resource,
     _trim_json_value,
@@ -31,6 +33,23 @@ class _MockResponse:
         import json
 
         return json.loads(self.text)
+
+
+class _MockLink:
+    def __init__(self, href: str, text: str = ""):
+        self.href = href
+        self.text = text
+
+
+class _MockResultLinks:
+    def __init__(self, internal=None, external=None):
+        self.internal = internal or []
+        self.external = external or []
+
+
+class _MockCrawlerResult:
+    def __init__(self, internal=None, external=None):
+        self.links = _MockResultLinks(internal=internal, external=external)
 
 
 def _mock_async_client_factory(head_response=None, get_response=None):
@@ -74,6 +93,18 @@ def test_trim_json_value_limits_large_collections():
     assert len(trimmed["items"]) == 6
     assert trimmed["items"][-1] == "... 25 more items omitted"
     assert "truncated" in trimmed["nested"]["a"]["b"]
+
+
+def test_append_internal_links_keeps_icon_only_external_document_links():
+    content = "Repository record content"
+    result = _MockCrawlerResult(
+        external=[_MockLink("https://cdn.example.org/laws/kenya-forestry-law.pdf", "")]
+    )
+
+    enriched = _append_internal_links(content, result)
+
+    assert "### Links on Page:" in enriched
+    assert "https://cdn.example.org/laws/kenya-forestry-law.pdf" in enriched
 
 
 @pytest.mark.asyncio
@@ -157,7 +188,12 @@ async def test_validate_url_routes_json_response(monkeypatch):
     from web_scout import scraping
 
     head = _MockResponse(headers={"content-type": "application/json; charset=utf-8"})
-    monkeypatch.setattr(scraping.httpx, "AsyncClient", _mock_async_client_factory(head_response=head))
+    get = _MockResponse(headers={"content-type": "application/json; charset=utf-8"}, text='{"ok": true}')
+    monkeypatch.setattr(
+        scraping.httpx,
+        "AsyncClient",
+        _mock_async_client_factory(head_response=head, get_response=get),
+    )
 
     verdict, detail = await _validate_url("https://example.org/api/data")
     assert verdict == _SCRAPE_JSON
@@ -200,6 +236,114 @@ async def test_validate_url_keeps_short_metadata_pages(monkeypatch):
     verdict, detail = await _validate_url("https://example.org/record/10")
     assert verdict == _SCRAPE_HTML
     assert "metadata" in detail
+
+
+@pytest.mark.asyncio
+async def test_validate_url_keeps_rich_script_heavy_html_on_fast_path(monkeypatch):
+    """Script-heavy pages with enough static text should not be routed to Playwright."""
+    from web_scout import scraping
+
+    head = _MockResponse(headers={"content-type": "text/html"})
+    scripts = "\n".join(
+        f"<script>const payload{i} = '{'x' * 4000}';</script>"
+        for i in range(20)
+    )
+    body_text = "Kenya procurement certification producer rule. " * 100
+    html = f"<html><head><title>Rich page</title>{scripts}</head><body>{body_text}</body></html>"
+    get = _MockResponse(headers={"content-type": "text/html"}, text=html)
+    monkeypatch.setattr(
+        scraping.httpx,
+        "AsyncClient",
+        _mock_async_client_factory(head_response=head, get_response=get),
+    )
+
+    verdict, detail = await _validate_url("https://example.org/rich-script-page")
+
+    assert verdict == _SCRAPE_HTML
+    assert verdict != _SCRAPE_JS
+    assert "static HTML" in detail
+
+
+@pytest.mark.asyncio
+async def test_validate_url_rich_publication_page_with_download_stays_static(monkeypatch):
+    from web_scout import scraping
+
+    head = _MockResponse(headers={"content-type": "text/html"})
+    prose = (
+        "The page already contains substantial narrative findings on rainfall "
+        "trends, regional contrasts, recent anomalies, and climate impacts. "
+        "It explains how the recent observations compare with longer-term "
+        "climatology and seasonal performance across Kenya. "
+    ) * 10
+    html = """
+    <html>
+      <head><title>State of Climate Publication</title></head>
+      <body>
+        <h1>State of Climate Publication</h1>
+        <p>Abstract: This publication summarises Kenya precipitation variability,
+        observed trends, recent anomalies, and seasonal outlooks.</p>
+        <p>Authors: Kenya Meteorological Department. Published: 2025.</p>
+        <p><a href="/files/state-of-climate.pdf">Download PDF</a></p>
+        <p>%s</p>
+      </body>
+    </html>
+    """ % prose
+    get = _MockResponse(headers={"content-type": "text/html"}, text=html)
+    monkeypatch.setattr(
+        scraping.httpx,
+        "AsyncClient",
+        _mock_async_client_factory(head_response=head, get_response=get),
+    )
+
+    verdict, detail = await _validate_url("https://example.org/publication/state-of-climate")
+
+    assert verdict == _SCRAPE_HTML
+    assert "metadata-like HTML" not in detail
+    assert "static HTML" in detail
+
+
+@pytest.mark.asyncio
+async def test_validate_url_overrides_json_head_with_pdf_payload(monkeypatch):
+    from web_scout import scraping
+
+    head = _MockResponse(headers={"content-type": "application/json"})
+    get = _MockResponse(
+        headers={
+            "content-type": "application/json",
+            "content-disposition": 'attachment; filename="report.pdf"',
+        },
+        text="%PDF-1.7 mock data",
+        content=b"%PDF-1.7 mock data",
+    )
+    monkeypatch.setattr(
+        scraping.httpx,
+        "AsyncClient",
+        _mock_async_client_factory(head_response=head, get_response=get),
+    )
+
+    verdict, detail = await _validate_url("https://example.org/download?id=123")
+
+    assert verdict == _SCRAPE_DOC
+    assert detail == "application/json"
+
+
+@pytest.mark.asyncio
+async def test_validate_url_overrides_json_head_with_html_payload(monkeypatch):
+    from web_scout import scraping
+
+    head = _MockResponse(headers={"content-type": "application/json"})
+    html = "<html><head><title>Report page</title></head><body>" + ("Kenya rainfall analysis " * 100) + "</body></html>"
+    get = _MockResponse(headers={"content-type": "application/json"}, text=html, content=html.encode("utf-8"))
+    monkeypatch.setattr(
+        scraping.httpx,
+        "AsyncClient",
+        _mock_async_client_factory(head_response=head, get_response=get),
+    )
+
+    verdict, detail = await _validate_url("https://example.org/download?id=123")
+
+    assert verdict == _SCRAPE_HTML
+    assert "static HTML" in detail
 
 
 @pytest.mark.asyncio

@@ -1,4 +1,7 @@
 """Unit tests for URL/domain utility helpers."""
+
+import pytest
+
 from web_scout.agent import (
     _build_allowed_domain_set,
     _find_next_page_url,
@@ -88,12 +91,35 @@ def test_is_promising_followup_url_allows_document_download():
     ) is True
 
 
-def test_is_promising_followup_url_rejects_off_query_forecast_document():
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Kenya precipitation current status and recent trend state of the climate",
+        "GM crops commercial cultivation field trial crop wild relatives Kenya",
+        "government procurement certification recognized producers county policy Kenya",
+    ],
+)
+def test_is_promising_followup_url_rejects_operational_forecast_document_for_non_forecast_queries(query):
     assert _is_promising_followup_url(
         "https://meteo.go.ke/documents/2537/March-April-May_MAM_2026_Seasonal_Weather_Forecast.pdf",
         "meteo.go.ke",
-        query="Kenya precipitation current status and recent trend state of the climate",
+        query=query,
     ) is False
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Kenya seasonal weather forecast outlook",
+        "Kenya rainfall warning advisory forecast",
+    ],
+)
+def test_is_promising_followup_url_allows_forecast_document_for_forecast_queries(query):
+    assert _is_promising_followup_url(
+        "https://meteo.go.ke/documents/2537/March-April-May_MAM_2026_Seasonal_Weather_Forecast.pdf",
+        "meteo.go.ke",
+        query=query,
+    ) is True
 
 
 def test_is_promising_followup_url_rejects_publications_list_page():
@@ -156,6 +182,33 @@ def test_rank_followup_candidates_rejects_paginated_indexes_and_off_query_docs()
         "Kenya drought impacts on agriculture current status and recent trend",
         [
             "https://www.fao.org/markets-and-trade/publications/publications-full/83/en?page=18&tabInx=0",
+            "https://meteo.go.ke/documents/2537/March-April-May_MAM_2026_Seasonal_Weather_Forecast.pdf",
+            "https://openknowledge.fao.org/handle/20.500.14283/am882e",
+        ],
+    )
+    assert ranked == ["https://openknowledge.fao.org/handle/20.500.14283/am882e"]
+
+
+def test_is_promising_followup_url_rejects_frontiers_section_hub():
+    assert _is_promising_followup_url(
+        "https://www.frontiersin.org/journals/sustainable-food-systems/sections/land-livelihoods-and-food-security",
+        "frontiersin.org",
+        query="wild edible plants food systems resilience and biodiversity evidence",
+    ) is False
+
+
+def test_is_promising_followup_url_rejects_research_topic_magazine_hub():
+    assert _is_promising_followup_url(
+        "https://www.frontiersin.org/research-topics/33257/indigenous-food-systems-to-address-food-security-and-nutritional-status/magazine",
+        "frontiersin.org",
+        query="wild edible plants food systems resilience and biodiversity evidence",
+    ) is False
+
+
+def test_rank_followup_candidates_rejects_forecast_docs_for_unrelated_topic():
+    ranked = _rank_followup_candidates(
+        "GM crops commercial cultivation field trial crop wild relatives Kenya",
+        [
             "https://meteo.go.ke/documents/2537/March-April-May_MAM_2026_Seasonal_Weather_Forecast.pdf",
             "https://openknowledge.fao.org/handle/20.500.14283/am882e",
         ],

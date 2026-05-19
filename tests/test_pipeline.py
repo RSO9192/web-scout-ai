@@ -5,11 +5,12 @@ synthesis judge retry, and _rerank_followup_urls edge cases.
 All LLM and network calls are replaced with synchronous fakes via monkeypatch.
 """
 
-import pytest
 from unittest.mock import AsyncMock
 
-from web_scout import agent as _agent_module
+import pytest
+
 from web_scout import _pipeline_flow as _pipeline_flow_module
+from web_scout import agent as _agent_module
 from web_scout.agent import (
     CoverageEvaluation,
     FollowupSelection,
@@ -285,6 +286,51 @@ async def test_direct_url_mode_failed_page_can_deepen_explicit_followup_links(mo
 
     await run_web_research(
         query="fish production",
+        models={"web_researcher": "dummy", "content_extractor": "dummy"},
+        direct_url=direct_url,
+    )
+
+    assert scrape_calls == [direct_url, followup_url]
+
+
+@pytest.mark.asyncio
+async def test_direct_url_mode_can_deepen_cross_domain_document_followup(monkeypatch):
+    """A direct record page may deepen to a primary document even on another domain."""
+    direct_url = "https://www.fao.org/faolex/results/details/en/c/LEX-FAOC243040"
+    followup_url = "https://cdn.example.org/laws/kenya-forestry-law.pdf"
+    scrape_calls = []
+
+    async def _fake_scrape(url: str) -> str:
+        scrape_calls.append(url)
+        if url == direct_url:
+            return (
+                "National forestry strategy metadata.\n\n"
+                "### Links on Page:\n"
+                f"- [kenya-forestry-law.pdf]({followup_url})"
+            )
+        return "Resolved PDF content " * 20
+
+    monkeypatch.setattr(
+        _agent_module,
+        "create_scrape_and_extract_tool",
+        lambda **kwargs: _fake_scrape,
+    )
+    monkeypatch.setattr(
+        _pipeline_flow_module,
+        "_build_scrape_plan",
+        AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.HTML_FAST})()),
+    )
+
+    async def _fake_run(agent_obj, prompt, **kwargs):
+        output_type = getattr(agent_obj, "output_type", None)
+        if output_type is FollowupSelection:
+            return _FakeRunResult(FollowupSelection(selected_urls=[followup_url]))
+        return _FakeRunResult(WebResearchResultRaw(synthesis="Done."))
+
+    monkeypatch.setattr(_agent_module.Runner, "run", _fake_run)
+
+    await run_web_research(
+        query="Kenya forestry law",
         models={"web_researcher": "dummy", "content_extractor": "dummy"},
         direct_url=direct_url,
     )

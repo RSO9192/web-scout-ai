@@ -1,0 +1,46 @@
+$ /Users/riccardo/.local/share/mamba/envs/web-agent/bin/python -m pytest tests/test_pipeline.py tests/test_scrape_tool_dedupe.py tests/test_url_utils.py -q --junitxml /Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tests/run_results/20260519_091800/unit-fast.xml
+
+.......................F................................................ [ 70%]
+..............................                                           [100%]
+=================================== FAILURES ===================================
+_ test_scrape_tool_unexpected_internal_error_returns_failure_and_unblocks_waiters _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x12aa5a4b0>
+
+    @pytest.mark.asyncio
+    async def test_scrape_tool_unexpected_internal_error_returns_failure_and_unblocks_waiters(monkeypatch):
+        from web_scout import scraping, tools
+    
+        tracker = ResearchTracker()
+    
+        monkeypatch.setattr(
+            scraping,
+            "scrape_url",
+            AsyncMock(return_value=("Recoverable source facts and figures. " * 30, "Report", None)),
+        )
+    
+        def _boom(*args, **kwargs):
+            raise RuntimeError("builder exploded")
+    
+        monkeypatch.setattr(tools, "_build_extractor_agent", _boom)
+    
+        scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
+        url = "https://example.org/report"
+    
+        result1, result2 = await asyncio.gather(scrape_tool(url), scrape_tool(url))
+    
+        assert "internal error: RuntimeError: builder exploded" in result1
+>       assert result1 == result2
+E       AssertionError: assert 'No relevant ... scrape them!' == '[Already att...fferent URL.]'
+E         
+E         - [Already attempted this URL — it failed: [scrape failed: [Scrape failed: internal error: RuntimeError: builder exploded]]. Move on to a different URL.]
+E         + No relevant content found at https://example.org/report: [Scrape failed: internal error: RuntimeError: builder exploded]
+E         + 
+E         + ⚠ REMINDER: You MUST successfully scrape AT LEAST 2 high-quality sources before synthesising and finishing. You currently have 0 successful scrape(s). You MUST find other URLs and scrape them!
+
+tests/test_scrape_tool_dedupe.py:146: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    web_scout.tools:tools.py:1873 [extract] unexpected scrape failure for https://example.org/report (type=RuntimeError): builder exploded
+=========================== short test summary info ============================
+FAILED tests/test_scrape_tool_dedupe.py::test_scrape_tool_unexpected_internal_error_returns_failure_and_unblocks_waiters
+1 failed, 101 passed in 2.09s
