@@ -1,3 +1,0 @@
-$ ruff check src tests
-
-All checks passed!

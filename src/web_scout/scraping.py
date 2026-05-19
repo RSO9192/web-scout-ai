@@ -16,6 +16,7 @@ Provides a single ``scrape_url`` function that:
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 import mimetypes
@@ -32,6 +33,7 @@ import httpx
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
 
 from ._heuristics import ROUTING_HEURISTICS
+from ._page_classifier import classify_html_page_shape
 
 logger = logging.getLogger(__name__)
 
@@ -181,6 +183,38 @@ def _is_json(text: str) -> bool:
         return False
 
 
+def _looks_like_html_body(text: str) -> bool:
+    stripped = text.lstrip()
+    if not stripped:
+        return False
+    prefix = stripped[:512].lower()
+    return (
+        prefix.startswith("<!doctype html")
+        or prefix.startswith("<html")
+        or "<head" in prefix
+        or "<body" in prefix
+    )
+
+
+def _sniff_document_payload(
+    payload: bytes,
+    *,
+    content_type: str = "",
+    content_disposition: str = "",
+) -> bool:
+    if not payload:
+        return False
+    if payload[:4] == b"%PDF":
+        return True
+    if payload[:4] == b"PK\x03\x04":
+        ct = _normalize_content_type(content_type)
+        filename = _filename_from_content_disposition(content_disposition).lower()
+        if any(ct.startswith(t) for t in _SUPPORTED_DOC_CONTENT_TYPES):
+            return True
+        return any(filename.endswith(ext) for ext in _SUPPORTED_DOC_EXTENSIONS)
+    return False
+
+
 def _extract_text_from_html(html: str) -> str:
     """Strip script/style blocks then all tags; return plain text."""
     html = re.sub(r"<script[^>]*>.*?</script>", " ", html, flags=re.S | re.I)
@@ -278,30 +312,7 @@ def _looks_like_auth_wall(html_lower: str) -> bool:
 
 
 def _looks_like_metadata_page(html: str) -> bool:
-    lower = html.lower()
-    hrefs = _extract_hrefs_from_html(html)
-    if not hrefs:
-        return False
-
-    doc_links = [href for href in hrefs if _looks_like_document_resource(href)]
-    if doc_links:
-        return True
-
-    metadata_markers = (
-        "full text",
-        "download",
-        "document",
-        "report",
-        "dataset",
-        "publication",
-        "regulation",
-        "law",
-        "view details",
-        "metadata",
-        "repository",
-        "catalog",
-    )
-    return len(hrefs) >= 5 or any(marker in lower for marker in metadata_markers)
+    return classify_html_page_shape(html).page_type == "record_page"
 
 
 def _trim_json_value(
@@ -461,6 +472,8 @@ def _plan_low_text_html(url: str, *, size: int, text_chars: int, script_tags: in
             text_chars=text_chars,
             script_tags=script_tags,
         )
+    if text_chars >= ROUTING_HEURISTICS.rich_html_static_text_chars:
+        return None
     density = text_chars / size if size else 0.0
     if script_tags >= ROUTING_HEURISTICS.heavy_spa_script_count and density < ROUTING_HEURISTICS.heavy_spa_text_density:
         return _log_scrape_plan(
@@ -500,6 +513,7 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
         async with httpx.AsyncClient(
             follow_redirects=True, timeout=_VALIDATION_TIMEOUT, headers=_FETCH_HEADERS
         ) as client:
+            head_json_hint = False
             # Step 1: HEAD request
             try:
                 head = await client.head(url)
@@ -521,7 +535,7 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
                 if _looks_like_document_resource(url, ct, cd):
                     return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.DOCUMENT, ct, ct, cd), phase="head")
                 if any(ct.startswith(t) for t in _JSON_CONTENT_TYPES):
-                    return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.JSON, ct), phase="head")
+                    head_json_hint = True
                 if any(ct.startswith(t) for t in _IMAGE_CONTENT_TYPES):
                     return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.IMAGE, ct), phase="head")
                 if any(ct.startswith(t) for t in _BINARY_CONTENT_TYPES):
@@ -563,7 +577,44 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
                     ScrapePlan(ScrapeStrategy.DOCUMENT, final_ct, final_ct, final_cd),
                     phase="get",
                 )
-            if any(final_ct.startswith(t) for t in _JSON_CONTENT_TYPES) or _is_json(resp.text):
+            if _sniff_document_payload(
+                resp.content,
+                content_type=final_ct,
+                content_disposition=final_cd,
+            ):
+                return _log_scrape_plan(
+                    url,
+                    ScrapePlan(
+                        ScrapeStrategy.DOCUMENT,
+                        final_ct or "document-by-body-sniff",
+                        final_ct,
+                        final_cd,
+                    ),
+                    phase="get",
+                )
+            if any(final_ct.startswith(t) for t in _JSON_CONTENT_TYPES) or head_json_hint:
+                if _is_json(resp.text):
+                    return _log_scrape_plan(
+                        url,
+                        ScrapePlan(ScrapeStrategy.JSON, final_ct or "json-by-body-sniff"),
+                        phase="get",
+                    )
+                if _looks_like_html_body(resp.text):
+                    logger.info(
+                        "[scrape-plan] json-hint overridden by HTML body url=%s final_ct=%s",
+                        url,
+                        final_ct or "(empty)",
+                    )
+                else:
+                    return _log_scrape_plan(
+                        url,
+                        ScrapePlan(
+                            ScrapeStrategy.SKIP,
+                            f"JSON-like endpoint returned non-JSON payload ({final_ct or 'unknown content-type'})",
+                        ),
+                        phase="get",
+                    )
+            if _is_json(resp.text):
                 return _log_scrape_plan(
                     url,
                     ScrapePlan(ScrapeStrategy.JSON, final_ct or "json-by-body-sniff"),
@@ -581,6 +632,7 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
             text = _extract_text_from_html(html)
             text_chars = len(text)
             lower = html.lower()
+            shape = classify_html_page_shape(html)
 
             # Thin content: paywall, login wall, or near-empty page
             if text_chars < ROUTING_HEURISTICS.short_html_text_chars:
@@ -591,6 +643,25 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
                     script_tags=script_tags,
                     lower_html=lower,
                     html=html,
+                )
+
+            if (
+                shape.page_type == "record_page"
+                and shape.record_score >= 5
+                and shape.record_score >= shape.content_score + 2
+                and text_chars < ROUTING_HEURISTICS.rich_html_static_text_chars
+            ):
+                return _log_scrape_plan(
+                    url,
+                    ScrapePlan(
+                        ScrapeStrategy.HTML_FAST,
+                        f"metadata-like HTML ({text_chars} text chars from {size} chars HTML)",
+                    ),
+                    size=size,
+                    text_chars=text_chars,
+                    script_tags=script_tags,
+                    doc_links=shape.document_link_count,
+                    metadata_markers=shape.metadata_marker_count,
                 )
 
             plan = _plan_low_text_html(
@@ -754,13 +825,43 @@ def _pick_markdown(md, query: str) -> str:
     return str(md) if md else ""
 
 
+def _looks_like_document_link(href: str) -> bool:
+    lower = href.lower()
+    path = lower.split("?", 1)[0].split("#", 1)[0]
+    if path.endswith(_DOC_EXTENSIONS):
+        return True
+    return any(
+        marker in lower
+        for marker in (
+            "/download",
+            "/bitstream/",
+            "/bitstreams/",
+            "download?",
+            "file-download",
+        )
+    )
+
+
+def _link_text_fallback(href: str) -> str:
+    parsed = urlparse(href)
+    tail = unquote(parsed.path.rstrip("/").rsplit("/", 1)[-1]) if parsed.path else ""
+    if tail:
+        return tail
+    return parsed.netloc or href
+
+
 def _append_internal_links(content: str, result, limit: int = 50) -> str:
-    """Append a list of unique internal links to the end of the markdown content."""
+    """Append a list of useful page links to the end of the markdown content.
+
+    Preserve external links too, and keep icon-only document links by falling back
+    to the URL as the label. This matters for repository/detail pages whose primary
+    source links are rendered as file icons rather than visible anchor text.
+    """
     links_data = getattr(result, "links", {})
     if isinstance(links_data, dict):
-        links = links_data.get("internal", [])
+        links = list(links_data.get("internal", [])) + list(links_data.get("external", []))
     else:
-        links = getattr(links_data, "internal", [])
+        links = list(getattr(links_data, "internal", [])) + list(getattr(links_data, "external", []))
 
     link_lines = []
 
@@ -774,8 +875,13 @@ def _append_internal_links(content: str, result, limit: int = 50) -> str:
     for item in links:
         href = item.get("href", "") if isinstance(item, dict) else getattr(item, "href", "")
         text = (item.get("text", "") if isinstance(item, dict) else getattr(item, "text", "")).strip()
-        if href and text and text.lower() not in ("read more", "click here", "learn more"):
+        if not href:
+            continue
+        if text and text.lower() not in ("read more", "click here", "learn more"):
             link_lines.append(f"- [{text}]({href})")
+            continue
+        if _looks_like_document_link(href):
+            link_lines.append(f"- [{_link_text_fallback(href)}]({href})")
 
     if not link_lines:
         return content
@@ -783,8 +889,9 @@ def _append_internal_links(content: str, result, limit: int = 50) -> str:
     seen = set()
     unique_links = []
     for line in link_lines:
-        if line not in seen:
-            seen.add(line)
+        href = line.rsplit("](", 1)[-1].rstrip(")")
+        if href not in seen:
+            seen.add(href)
             unique_links.append(line)
 
     if unique_links:
@@ -990,7 +1097,6 @@ async def _scrape_html_browser_query_agnostic(
 
 async def _capture_page_screenshot(url: str) -> bytes:
     """Capture a viewport screenshot of a URL without performing any extraction."""
-    import base64
     from playwright.async_api import async_playwright
 
     async with async_playwright() as p:
@@ -1027,7 +1133,6 @@ async def _vision_extract_image_bytes(
     prompt_prefix: str,
 ) -> Tuple[str, Optional[str]]:
     """Run vision extraction on already-fetched image bytes."""
-    import base64
     import litellm
 
     try:

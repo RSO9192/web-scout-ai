@@ -1,0 +1,591 @@
+[
+  {
+    "name": "open_adaptation_gap_audit",
+    "mode": "open",
+    "query": "Global adaptation finance gap 2023 2024 adaptation gap report key findings and priorities",
+    "elapsed_seconds": 69.35,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 17,
+    "synthesis_chars": 5500,
+    "synthesis_citation_count": 18,
+    "total_scraped_chars": 13861,
+    "avg_scraped_chars": 2310.2,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "climate adaptation finance needs vs flows 2024 report priorities",
+      "global climate adaptation funding gap 2023 2024 policy recommendations and investment priorities",
+      "UNEP Adaptation Gap Report 2023 key findings and global adaptation finance gap statistics"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.carbonbrief.org/un-report-five-charts-which-explain-the-gap-in-finance-for-climate-adaptation/",
+        "title": "UN report: Five charts which explain the \u2018gap\u2019 in finance for climate adaptation - Carbon Brief",
+        "content_chars": 2832,
+        "preview": "The 2024/2025 UNEP Adaptation Gap Report, titled 'Running on empty,' reveals a critical shortfall in climate resilience funding for developing nations. Key findings include: ### Finance Gap and Needs - **Current Adaptation Finance Flows:** In 2023, developed n",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.climatepolicyinitiative.org/wp-content/uploads/2024/10/Global-Landscape-of-Climate-Finance-2024.pdf",
+        "title": "Global Landscape of Climate Finance 2024: Insights for COP29",
+        "content_chars": 2328,
+        "preview": "The Global Landscape of Climate Finance 2024 reports that annual global climate finance reached USD 1.46 trillion in 2022, but a fivefold increase to USD 7.4 trillion annually is required through 2030 to meet 1.5\u00b0C scenario goals. **Adaptation Finance Gap and ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.unepfi.org/climate-change/adaptation/",
+        "title": "Adaptation Finance \u2013 United Nations Environment Programme Finance Initiative",
+        "content_chars": 1598,
+        "preview": "The 2024 Adaptation Gap Report (AGR) estimates that the global adaptation finance gap is US$187\u2013359 billion per year. This significant gap indicates that public budgets are insufficient to meet climate adaptation challenges alone, necessitating greater private",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://gca.org/wp-content/uploads/2024/04/State-and-Trends-in-Climate-Adaptation-Finance-2024.pdf",
+        "title": "State and Trends in Climate Adaptation Finance 2024",
+        "content_chars": 3151,
+        "preview": "Key Findings on Global Adaptation Finance Gap (2023-2024): - Global climate finance reached USD 1.3 trillion annually in 2021-2022, but adaptation finance only accounted for USD 63 billion (5%), a decrease from 7% in 2019-2020. - Developing countries need appr",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.unep.org/resources/adaptation-gap-report-2023",
+        "title": "Adaptation Gap Report 2023 | UNEP - UN Environment Programme",
+        "content_chars": 1704,
+        "preview": "The UNEP Adaptation Gap Report 2023, titled 'Underfinanced. Underprepared.', provides a comprehensive assessment of the global climate adaptation finance landscape. Key findings and priorities include: 1. Adaptation Finance Gap: The adaptation finance gap is e",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.unep.org/resources/adaptation-gap-report-2025",
+        "title": "Adaptation Gap Report 2025: Key Findings and Finance Gap",
+        "content_chars": 2248,
+        "preview": "The UNEP Adaptation Gap Report 2025: Running on Empty highlights a critical and growing gap in adaptation finance for developing countries. ### Key Finance Figures and the Gap - **Adaptation Finance Needs:** The report estimates developing countries require US",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_sofi_hunger_audit",
+    "mode": "open",
+    "query": "Global hunger and food insecurity trends 2022 2024 SOFI report regional patterns",
+    "elapsed_seconds": 114.49,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 5,
+    "num_scraped": 7,
+    "num_failed": 1,
+    "num_bot_detected": 0,
+    "num_snippet_only": 24,
+    "synthesis_chars": 6148,
+    "synthesis_citation_count": 17,
+    "total_scraped_chars": 10868,
+    "avg_scraped_chars": 1552.6,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "SOFI 2024 regional food insecurity patterns Africa Asia Latin America data",
+      "comparison of global food insecurity statistics 2022 vs 2024 SOFI reports",
+      "State of Food Security and Nutrition in the World 2024 report global hunger trends",
+      "State of Food Security and Nutrition in the World 2023 regional hunger numbers and food insecurity trends 2022 data",
+      "SOFI 2022 report regional prevalence of undernourishment statistics for Africa Asia and Latin America 2021 data"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.wfp.org/publications/state-food-security-and-nutrition-world-sofi-report",
+        "title": "The State of Food Security and Nutrition in the World (SOFI) Report | World Food Programme",
+        "content_chars": 956,
+        "preview": "The 2025 State of Food Security and Nutrition in the World (SOFI) report estimates that between 638 and 720 million people, or approximately 7.8% to 8.8% of the global population, faced hunger in 2024. While there has been some recovery in recent years, hunger",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://sdg2advocacyhub.org/latest/global-hunger-declined-and-high-food-price-inflation-the-2025-sofi-report/",
+        "title": "Global hunger declined and high food price inflation \u2013 the 2025 SOFI report | SDG2 Advocacy Hub",
+        "content_chars": 1767,
+        "preview": "The 2025 State of Food Security and Nutrition in the World (SOFI) report, based on 2024 data, indicates that global hunger declined marginally in 2024. However, as many as 720 million people still faced hunger. At current rates, 512 million people are projecte",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.worldbank.org/en/topic/agriculture/brief/food-security-update",
+        "title": "Food Security Update | World Bank Solutions to Food Insecurity",
+        "content_chars": 1464,
+        "preview": "The World Bank's Food Security Update (March 2026) identifies conflict and climate shocks as the primary regional drivers of acute food insecurity. Although global agricultural prices eased through 2025, recent Middle East conflicts have disrupted oil and fert",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/publications/m/item/the-state-of-food-security-and-nutrition-in-the-world-2024",
+        "title": "The state of food security and nutrition in the world 2024",
+        "content_chars": 1146,
+        "preview": "The 2024 'State of Food Security and Nutrition in the World' (SOFI) report, published on July 24, 2024, reveals that global hunger numbers have remained stubbornly high for three consecutive years. The report serves as the annual monitoring tool for Sustainabl",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "http://www.ers.usda.gov/topics/food-nutrition-assistance/food-security-in-the-us/key-statistics-graphics",
+        "title": "Food Security in the U.S. - Key Statistics & Graphics | Economic Research Service",
+        "content_chars": 1384,
+        "preview": "In 2024, 13.7 percent (18.3 million) of U.S. households were food insecure, a figure not statistically significantly different from the 13.5 percent (18.0 million) in 2023 or the 12.8 percent in 2022. However, the 2024 prevalence was significantly higher than ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://openknowledge.fao.org/server/api/core/bitstreams/0556ea9c-65bb-46e9-aa6b-39fdeb8afbe7/content/sofi-statistics-rlc-2024/sdg-2-prevalence-undernourishment.html",
+        "title": "Latin America and the Caribbean - Regional Overview of Food Security and Nutrition 2024: Prevalence of Undernourishment",
+        "content_chars": 1699,
+        "preview": "According to the FAO 2024 regional statistics, global and regional hunger trends for 2022\u20132024 show a stagnation in global progress but significant improvements in Latin America and the Caribbean. ### Global Hunger Trends (2021\u20132023) - **Prevalence of Undernou",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/news/item/28-07-2025-global-hunger-declines-but-rises-in-africa-and-western-asia-un-report",
+        "title": "Global hunger declines, but rises in Africa and western Asia: UN report (SOFI 2025)",
+        "content_chars": 2452,
+        "preview": "The 2025 State of Food Security and Nutrition in the World (SOFI) report indicates that global hunger affected approximately 8.2% of the population (673 million people) in 2024, a decrease from 8.5% in 2023 and 8.7% in 2022. While this represents a reduction o",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://sdg.iisd.org/news/sofi-2025-reveals-regional-disparities-in-fighting-hunger/",
+        "title": "SOFI 2025 Reveals Regional Disparities in Fighting Hunger",
+        "error": "[scrape failed: [Scrape failed: Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/web-agent/lib/python3.12/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://sdg.iisd.org/news/sofi-2025-reveals-regional-disparities-in-fighting-hunger/\", waiting until \"networkidle\"\n\n\nCode context:\n 773                                   tag=\"GOTO\",\n 774                                   params={\"url\": url},\n 775                               )\n 776                               response = None\n 777                           else:\n 778 \u2192                             raise RuntimeError(f\"Failed on navigating ACS-GOTO:\\n{str(e)}\")\n 779   \n 780                       # \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n 781                       # Walk the redirect chain.  Playwright returns only the last\n 782                       # hop, so we trace the `request.redirected_from` links until the\n 783                       # first response that differs from the final one and surface its]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "open_venice_coastal_risk_audit",
+    "mode": "open",
+    "query": "Venice sea level rise flood frequency coastal risk projections and MOSE effectiveness under IPCC scenarios",
+    "elapsed_seconds": 117.44,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 7,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 18,
+    "synthesis_chars": 5067,
+    "synthesis_citation_count": 16,
+    "total_scraped_chars": 12299,
+    "avg_scraped_chars": 1757.0,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "Venice sea level rise projections IPCC scenarios flood frequency",
+      "coastal risk assessment Venice lagoon climate change impact 2100",
+      "MOSE barrier effectiveness future sea level rise modeling Venice"
+    ],
+    "scraped": [
+      {
+        "url": "https://nhess.copernicus.org/articles/21/2643/2021/",
+        "title": "Sea-level rise in Venice: historic and future trends (review article)",
+        "content_chars": 1602,
+        "preview": "Historical sea-level rise in Venice (1872\u20132019) was characterized by an average relative sea-level rise (RSLR) of approximately 2.5 mm/year. Subsidence contributed roughly half of this historical rise. After removing subsidence effects, the average sea-level r",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://earth.org/data_visualization/sea-level-rise-by-the-end-of-the-century-venice/",
+        "title": "Sea Level Rise Projection Map \u2013 Venice | Earth.Org",
+        "content_chars": 1586,
+        "preview": "Venice is highly vulnerable to sea level rise (SLR), with historical flood frequency increasing from fewer than 10 times per year to over 60 times per year over the last century. A record flood in late 2019 submerged 70% of the city, rising to over six feet in",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.ipcc.ch/report/ar6/wg2/figures/chapter-13/figure-13-box-13-1-1/",
+        "title": "Figure Box 13.1.1 | Venice sea level rise (SLR) and coastal flooding",
+        "content_chars": 1485,
+        "preview": "Figure Box 13.1.1 from the IPCC AR6 WGII report details the climate risks, sea level rise (SLR) projections, and flooding frequency for Venice. Key findings and data structures highlighted in the figure include: - Historical Context: The report tracks the evol",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.preventionweb.net/news/rising-risk-analyzing-climate-changes-impact-venetian-coastlines",
+        "title": "Rising risk: Analyzing climate change\u2019s impact on Venetian coastlines",
+        "content_chars": 1594,
+        "preview": "A study led by researchers from the CMCC Foundation and Ca\u2019 Foscari University of Venice (under the Venezia2021 project) analyzed the vulnerability of Venice to climate change impacts, specifically rising sea levels, extreme waves, and storm surges. The resear",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.ingv.it/en/urp-press/Press-office/Press-releases/Climate-change-highlights-possible-sea-level-rise-scenarios-in-Venice",
+        "title": "Climate Change: Possible Sea Level Rise Scenarios highlighted in Venice - INGV",
+        "content_chars": 1843,
+        "preview": "A multidisciplinary study titled 'Multi-Temporal Relative Sea Level Rise Scenarios up to 2150 for the Venice Lagoon (Italy)', published in 'Remote Sensing', analyzes sea level rise (SLR) and subsidence using IPCC climate projections and geodetic data. Key Find",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://repository.tudelft.nl/file/File_1dad3b3d-f534-44ed-96e4-4a9861977314?preview=1",
+        "title": "The Effect of Sea Level Rise on the Operations of the MOSE Barrier in Venice",
+        "content_chars": 2441,
+        "preview": "Venice is a UNESCO World Heritage site situated in a 550 km\u00b2 lagoon connected to the Adriatic Sea via the Lido, Malamocco, and Chioggia inlets. The city faces escalating flood risks from a combination of astronomical tides, storm surges (primarily driven by Sc",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.diva-portal.org/smash/get/diva2:1778085/FULLTEXT01.pdf",
+        "title": "Sink or Swim: Sea Level Rise Adaptation in Venice, Italy - A case of citizen non-participation",
+        "content_chars": 1748,
+        "preview": "Venice faces escalating coastal risks due to sea level rise (SLR), with the IPCC Sixth Assessment Report (2022) projecting that impacts will continue to escalate beyond 2050 and 2100 due to committed warming. Global Mean Sea Level (GMSL) has risen by approxima",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_who_cholera_audit",
+    "mode": "domain",
+    "query": "Cholera outbreaks eastern and southern Africa vaccine supply and WHO situation updates",
+    "elapsed_seconds": 87.34,
+    "include_domains": [
+      "who.int"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 6,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 23,
+    "synthesis_chars": 5625,
+    "synthesis_citation_count": 14,
+    "total_scraped_chars": 11746,
+    "avg_scraped_chars": 1957.7,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "site:who.int oral cholera vaccine OCV supply shortage emergency stockpile updates",
+      "site:who.int cholera outbreak eastern and southern Africa situation reports 2023 2024",
+      "site:who.int WHO AFRO cholera response multi-country outbreak vaccine allocation"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.who.int/news/item/19-10-2022-shortage-of-cholera-vaccines-leads-to-temporary-suspension-of-two-dose-strategy--as-cases-rise-worldwide",
+        "title": "Shortage of cholera vaccines leads to temporary suspension of two-dose strategy, as cases rise worldwide",
+        "content_chars": 1782,
+        "preview": "As of October 19, 2022, the World Health Organization (WHO) and the International Coordinating Group (ICG) announced a temporary shift from a two-dose to a single-dose cholera vaccination strategy due to a critical global vaccine shortage. This pivot aims to m",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/news/item/04-02-2026-preventive-cholera-vaccination-resumes-as-global-supply-reaches-critical-milestone",
+        "title": "Preventive cholera vaccination resumes as global supply reaches critical milestone",
+        "content_chars": 1548,
+        "preview": "Global cholera vaccine supply has increased to a level sufficient to allow the resumption of life-saving preventive campaigns for the first time in over three years (since a 2022 halt). Mozambique is the first country to restart preventive vaccination. This ca",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/publications/m/item/multi-country-outbreak-of-cholera--external-situation-report--10---11-january-2024",
+        "title": "Multi-country outbreak of cholera, External situation report #10 - 11 January 2024",
+        "content_chars": 1457,
+        "preview": "This WHO External Situation Report (#10), published on January 11, 2024, provides a comprehensive update on the global cholera upsurge with data current as of December 15, 2023. Key facts and statistics extracted from the report include: 1. Affected Countries:",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.afro.who.int/health-topics/disease-outbreaks/cholera-who-african-region",
+        "title": "Cholera in the WHO African Region | WHO Regional Office for Africa",
+        "content_chars": 1693,
+        "preview": "As of July 31, 2024, the cholera outbreak in the WHO African Region has affected 14 countries: Burundi, Cameroon, Comoros, Democratic Republic of the Congo (DRC), Ethiopia, Kenya, Malawi, Mozambique, Nigeria, South Africa, United Republic of Tanzania, Uganda, ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/emergencies/disease-outbreak-news/item/2025-DON579",
+        "title": "Cholera \u2013 Multi-country with a focus on countries experiencing current surges (29 August 2025)",
+        "content_chars": 2174,
+        "preview": "As of 29 August 2025, WHO reports that the global cholera situation continues to deteriorate, with 409,222 cases and 4,738 deaths reported between 1 January and 17 August 2025. The African Region accounts for 172,750 cases and 3,763 deaths (Case Fatality Rate:",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://cdn.who.int/media/docs/default-source/2021-dha-docs/20251126_multi-country_outbreak-of-cholera_sitrep_32-final.pdf?sfvrsn=e39d5b9e_1&download=true",
+        "title": "WHO Multi-country Outbreak of Cholera Situation Report No. 32 (November 2025)",
+        "content_chars": 3092,
+        "preview": "As of October 26, 2025, the global cholera risk remains Very High. Since January 1, 2025, a cumulative 565,404 cases and 7,074 deaths have been reported across 32 countries. ### Eastern and Southern Africa Epidemiological Data (Jan 1 \u2013 Oct 26, 2025): - South S",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_fao_sofi_audit",
+    "mode": "domain",
+    "query": "SOFI 2024 hunger food insecurity prevalence and undernourishment trends",
+    "elapsed_seconds": 82.78,
+    "include_domains": [
+      "fao.org",
+      "openknowledge.fao.org"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 5,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 20,
+    "synthesis_chars": 4901,
+    "synthesis_citation_count": 15,
+    "total_scraped_chars": 11341,
+    "avg_scraped_chars": 2268.2,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "site:fao.org \"SOFI 2024\" prevalence of undernourishment and hunger trends",
+      "site:fao.org SOFI 2024 global and regional food security indicators and targets",
+      "site:openknowledge.fao.org \"State of Food Security and Nutrition in the World 2024\" prevalence of food insecurity statistics"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.fao.org/americas/news/news-detail/sofi-2024/en",
+        "title": "SOFI 2024: Hunger numbers stubbornly high for three consecutive years",
+        "content_chars": 2775,
+        "preview": "The 2024 State of Food Security and Nutrition in the World (SOFI) report indicates that global hunger has plateaued for three consecutive years, with approximately 733 million people (one in eleven globally) facing hunger in 2023. This represents an increase o",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.fao.org/interactive/state-of-food-security-nutrition/en/",
+        "title": "Understanding food insecurity | SOFI 2024",
+        "content_chars": 1352,
+        "preview": "The State of Food Security and Nutrition in the World 2024 (SOFI 2024) report indicates that global food insecurity in 2023 remained much higher than pre-COVID-19 levels, with levels staying virtually unchanged over the past four years. Key findings include: -",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.fao.org/newsroom/detail/world-must-look-to-south-america-success-in-reducing-hunger-fao-chief-economist/en",
+        "title": "World must look to South America's success in reducing hunger: FAO Chief Economist (SOFI 2024 Interview)",
+        "content_chars": 2794,
+        "preview": "The State of Food Security and Nutrition in the World (SOFI) 2024 report provides the following global and regional trends for hunger and food insecurity: ### Global Hunger and Food Insecurity (2023 Data) - **Hunger Prevalence:** In 2023, between 713 and 757 m",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://openknowledge.fao.org/handle/20.500.14283/cd1254en",
+        "title": "The State of Food Security and Nutrition in the World 2024 (SOFI)",
+        "content_chars": 2537,
+        "preview": "The 2024 edition of 'The State of Food Security and Nutrition in the World' (SOFI) report, themed 'Financing to end hunger, food insecurity and malnutrition in all its forms,' highlights that the world is significantly off-track to achieve Sustainable Developm",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.fao.org/3/cd1254en/online/state-food-security-and-nutrition-2024/ending-hunger-food-security.html",
+        "title": "SOFI 2024: Progress towards Ending Hunger and Ensuring Food Security",
+        "content_chars": 1883,
+        "preview": "The 2024 State of Food Security and Nutrition in the World (SOFI) report indicates that global hunger (Prevalence of Undernourishment - PoU) has persisted at nearly the same level for three consecutive years. In 2023, the global PoU was 9.1%, affecting an esti",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "domain_worldbank_morocco_climate_audit",
+    "mode": "domain",
+    "query": "Morocco historical climate trends temperature variability drought and precipitation patterns",
+    "elapsed_seconds": 79.28,
+    "include_domains": [
+      "climateknowledgeportal.worldbank.org"
+    ],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 4,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 7,
+    "synthesis_chars": 4150,
+    "synthesis_citation_count": 11,
+    "total_scraped_chars": 8211,
+    "avg_scraped_chars": 2052.8,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "site:climateknowledgeportal.worldbank.org Morocco historical temperature trends temperature variability",
+      "site:climateknowledgeportal.worldbank.org Morocco historical drought frequency climatology",
+      "site:climateknowledgeportal.worldbank.org Morocco historical precipitation patterns rainfall trends"
+    ],
+    "scraped": [
+      {
+        "url": "https://climateknowledgeportal.worldbank.org/country/morocco/trends-variability-historical",
+        "title": "Morocco - Historical Climate Trends and Variability (ERA5)",
+        "content_chars": 2349,
+        "preview": "Morocco's climate is characterized by significant natural variability, but long-term data indicates a distinct warming trend. Analysis of historical climate data (ERA5 reanalysis at 0.25\u00ba resolution) over 30-, 50-, and 70-year periods reveals the following pat",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://climateknowledgeportal.worldbank.org/sites/default/files/country-profiles/17189-WB_Morocco%20Country%20Profile-WEB.pdf",
+        "title": "Climate Risk Country Profile: Morocco",
+        "content_chars": 2589,
+        "preview": "Morocco is highly vulnerable to climate variability and change, characterized by increasing temperatures, decreasing total rainfall, and heightened frequency and intensity of droughts. ### Historical Temperature Trends (1971\u20132020) - **Warming Rate:** Surface a",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://climateknowledgeportal.worldbank.org/sites/default/files/2021-09/15725-WB_Morocco%20Country%20Profile-WEB.pdf",
+        "title": "Climate Risk Country Profile: Morocco (2021)",
+        "content_chars": 1779,
+        "preview": "Morocco's climate is influenced by the Atlantic Ocean, Mediterranean Sea, and Sahara Desert, featuring mild, wet winters and hot, dry summers. Between 1991 and 2020, the mean annual temperature was 18.05\u00b0C and mean annual precipitation was 301.6 mm. Historical",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://climateknowledgeportal.worldbank.org/country/morocco/natural-disasters-historical",
+        "title": "Morocco - Historical Natural Disasters | Climate Change Knowledge Portal",
+        "content_chars": 1494,
+        "preview": "Historical data for Morocco indicates that natural disasters, including heatwaves, floods, landslides, and earthquakes, are being influenced by a warming climate. This warming is altering the frequency, intensity, and geographic reach of these events. Specific",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_who_sofi_html_audit",
+    "mode": "direct",
+    "query": "SOFI 2024 hunger and food insecurity summary",
+    "elapsed_seconds": 59.21,
+    "include_domains": [],
+    "direct_url": "https://www.who.int/publications/m/item/the-state-of-food-security-and-nutrition-in-the-world-2024",
+    "num_queries": 1,
+    "num_scraped": 2,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 0,
+    "synthesis_chars": 3045,
+    "synthesis_citation_count": 7,
+    "total_scraped_chars": 3103,
+    "avg_scraped_chars": 1551.5,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "SOFI 2024 hunger and food insecurity summary"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.who.int/publications/m/item/the-state-of-food-security-and-nutrition-in-the-world-2024",
+        "title": "The State of Food Security and Nutrition in the World 2024",
+        "content_chars": 969,
+        "preview": "The 2024 State of Food Security and Nutrition in the World (SOFI) report, titled 'Financing to end hunger, food insecurity and malnutrition in all its forms,' provides the latest monitoring data for SDG Targets 2.1 and 2.2. Global hunger numbers have remained ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/news/item/24-07-2024-hunger-numbers-stubbornly-high-for-three-consecutive-years-as-global-crises-deepen--un-report",
+        "title": "Hunger numbers stubbornly high for three consecutive years as global crises deepen: UN report (SOFI 2024)",
+        "content_chars": 2134,
+        "preview": "The 2024 State of Food Security and Nutrition in the World (SOFI) report, themed 'Financing to end hunger, food insecurity and all forms of malnutrition,' reveals that global hunger levels have plateaued for three consecutive years. In 2023, approximately 733 ",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_worldbank_climate_audit",
+    "mode": "direct",
+    "query": "Kenya historical climate trends precipitation variability and extremes summary",
+    "elapsed_seconds": 45.77,
+    "include_domains": [],
+    "direct_url": "https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical",
+    "num_queries": 1,
+    "num_scraped": 3,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 0,
+    "synthesis_chars": 2219,
+    "synthesis_citation_count": 6,
+    "total_scraped_chars": 4532,
+    "avg_scraped_chars": 1510.7,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "Kenya historical climate trends precipitation variability and extremes summary"
+    ],
+    "scraped": [
+      {
+        "url": "https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical",
+        "title": "Kenya - Historical Climate Trends, Precipitation Variability and Extremes (ERA5)",
+        "content_chars": 1980,
+        "preview": "Historical climate trends and precipitation variability in Kenya are analyzed using ERA5 reanalysis data (0.25\u00ba x 0.25\u00ba resolution) across several time periods: 1951\u20132020, 1971\u20132020, and 1991\u20132020. Precipitation in Kenya is characterized by significantly highe",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://climateknowledgeportal.worldbank.org/country/kenya/enso",
+        "title": "Kenya - ENSO (ERA5) | Climate Change Knowledge Portal",
+        "content_chars": 1087,
+        "preview": "The El Ni\u0010o\u2013Southern Oscillation (ENSO) is identified as the most important driver of interannual natural climate variability in Kenya. ENSO cycles occur every 3\u20137 years, alternating between El Ni\u0010o (warm phase) and La Ni\u0011a (cool phase). These phases significa",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://climateknowledgeportal.worldbank.org/country/kenya/natural-disasters-historical",
+        "title": "Kenya - Historical Natural Disasters | Climate Change Knowledge Portal",
+        "content_chars": 1465,
+        "preview": "The Kenya Historical Natural Disasters page provides a high-level summary of the climate risks and disaster profiles for the country, though specific statistical data for precipitation variability and trends is held within interactive visualizations and linked",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "direct_frontiers_foodsystems_audit",
+    "mode": "direct",
+    "query": "Wild edible plants food systems resilience and biodiversity evidence",
+    "elapsed_seconds": 26.89,
+    "include_domains": [],
+    "direct_url": "https://www.frontiersin.org/journals/sustainable-food-systems/articles/10.3389/fsufs.2023.1113771/full",
+    "num_queries": 1,
+    "num_scraped": 1,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 0,
+    "synthesis_chars": 3476,
+    "synthesis_citation_count": 5,
+    "total_scraped_chars": 2543,
+    "avg_scraped_chars": 2543.0,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "Wild edible plants food systems resilience and biodiversity evidence"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.frontiersin.org/journals/sustainable-food-systems/articles/10.3389/fsufs.2023.1113771/full",
+        "title": "Diversity and utilization of indigenous wild edible plants and their contribution to food security in Turkana County, Kenya",
+        "content_chars": 2543,
+        "preview": "This study examines the role of Indigenous Wild Edible Plants (IWEPs) in food system resilience and biodiversity within Turkana County, Kenya. Globally, IWEPs are consumed by at least one in seven people daily. While they make up less than 1% of global caloric",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  }
+]

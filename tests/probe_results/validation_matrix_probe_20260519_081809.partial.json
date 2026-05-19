@@ -1,0 +1,405 @@
+[
+  {
+    "name": "open_global_methane_iea",
+    "mode": "open",
+    "query": "Global methane emissions from oil and gas 2023 2024 trends abatement opportunities IEA",
+    "elapsed_seconds": 131.52,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 9,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 14,
+    "synthesis_chars": 3357,
+    "synthesis_citation_count": 12,
+    "total_scraped_chars": 20586,
+    "avg_scraped_chars": 2287.3,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "IEA Global Methane Tracker 2024 report oil and gas emissions trends",
+      "methane abatement opportunities and costs oil and gas industry IEA 2024",
+      "global methane emissions from oil and gas sector 2023 2024 IEA data"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.iea.org/reports/global-methane-tracker-2024",
+        "title": "Global Methane Tracker 2024",
+        "content_chars": 2422,
+        "preview": "The 2024 Global Methane Tracker report indicates that methane emissions from the energy sector remained near record highs in 2023, totaling nearly 120 million tonnes (Mt). An additional 10 Mt comes from bioenergy. Of the 120 Mt, approximately 80 Mt came from t",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iea.org/reports/global-methane-tracker-2025",
+        "title": "Global Methane Tracker 2025 \u2013 Analysis - IEA",
+        "content_chars": 1304,
+        "preview": "The IEA Global Methane Tracker 2025 provides comprehensive data on methane emissions from the energy sector, which is responsible for over 35% of methane emissions from human activity. Key points include: - Impact: Methane is responsible for approximately 30% ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://iea.blob.core.windows.net/assets/d42fc095-f706-422a-9008-6b9e4e1ee616/GlobalMethaneTracker_Documentation.pdf",
+        "title": "Global Methane Tracker Documentation 2024 Version",
+        "content_chars": 2860,
+        "preview": "The IEA Global Methane Tracker 2024 provides methane emission estimates for the energy sector (coal, oil, natural gas, and bioenergy) through 2023 and 2024. ### 2023 Emissions Estimates and Methodology - Global coal mine methane (CMM) emissions for 2023 are es",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iea.org/reports/global-methane-tracker-2025/key-findings",
+        "title": "Global Methane Tracker 2025 \u2013 Key Findings",
+        "content_chars": 2426,
+        "preview": "Energy-related methane emissions remained above 120 million tonnes (Mt) annually in 2024, with the fossil fuel sector responsible for nearly one-third of all human-caused methane. In 2024, abandoned onshore oil and gas wells contributed just over 3 Mt, while a",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iea.org/reports/global-methane-tracker-2024/key-findings",
+        "title": "Key Findings \u2013 Global Methane Tracker 2024",
+        "content_chars": 2591,
+        "preview": "In 2023, methane emissions from the production and use of fossil fuels reached nearly 120 million tonnes (Mt), remaining near the record high seen in 2019. An additional 10 Mt came from bioenergy. While global fossil fuel supply expanded, the marginal decline ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://climateadaptationplatform.com/methane-tracker-reveals-emissions-trends-and-reduction-options/",
+        "title": "Methane Tracker Reveals Emissions Trends and Reduction Options - Climate Adaptation Platform",
+        "content_chars": 2289,
+        "preview": "The International Energy Agency (IEA) report (presented as May 2025 update) provides detailed trends and abatement data for global methane emissions in the energy sector. Key findings include: 1. Emissions Trends: Energy-related methane emissions remain high a",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://iea.blob.core.windows.net/assets/d65617f6-0c50-4fab-b255-afd86e3fea5a/AdvancingMethaneEmissionsReductionsbyNationalOilCompanies.pdf",
+        "title": "Advancing Methane Emissions Reductions by National Oil Companies - IEA Report",
+        "content_chars": 2920,
+        "preview": "According to the IEA, methane emissions and flaring from oil and gas operations remained near record levels in 2023-2024. National Oil Companies (NOCs) account for half of global oil and gas production in 2024 and control nearly 60% of global reserves. NOCs ar",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iea.org/reports/global-methane-tracker-2024/understanding-methane-emissions",
+        "title": "Understanding methane emissions \u2013 Global Methane Tracker 2024",
+        "content_chars": 1493,
+        "preview": "In 2023, the energy sector was responsible for nearly 130 Mt of methane emissions, accounting for more than one-third of total human-related methane emissions (second only to agriculture at ~145 Mt). Within the energy sector, oil operations contributed approxi",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.downtoearth.org.in/energy/methane-emissions-from-energy-sector-in-2024-remains-stubbornly-high-despite-available-measures-iea",
+        "title": "Methane Emissions from Energy Sector in 2024: IEA Trends and Abatement Analysis",
+        "content_chars": 2281,
+        "preview": "The International Energy Agency (IEA) Global Methane Tracker 2025 report reveals that global methane emissions from the energy sector remained at a record high of approximately 145 million tonnes (Mt) in 2024. This sector, including oil, natural gas, coal, and",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_cholera_africa",
+    "mode": "open",
+    "query": "Current cholera hotspots in eastern and southern Africa 2024 2025 response vaccine constraints",
+    "elapsed_seconds": 110.08,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 8,
+    "num_failed": 2,
+    "num_bot_detected": 0,
+    "num_snippet_only": 14,
+    "synthesis_chars": 6006,
+    "synthesis_citation_count": 20,
+    "total_scraped_chars": 18259,
+    "avg_scraped_chars": 2282.4,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "global oral cholera vaccine shortage impacts on eastern and southern africa response 2024 2025",
+      "latest cholera outbreak hotspots eastern and southern africa 2024 2025 data",
+      "WHO UNICEF cholera situation reports and response challenges eastern southern africa 2025"
+    ],
+    "scraped": [
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11142410/",
+        "title": "Cholera resurgence in Africa: assessing progress, challenges, and public health response towards the 2030 global elimination target",
+        "content_chars": 3137,
+        "preview": "As of early 2024, Eastern and Southern Africa are experiencing a significant cholera resurgence. ### 2024 Hotspots and Case Data By the third week of January 2024, six nations reported 5,796 new cases with active transmission occurring in 13 countries. The pri",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.who.int/emergencies/disease-outbreak-news/item/2025-DON579",
+        "title": "Cholera \u2013 Multi-country with a focus on countries experiencing current surges (29 August 2025)",
+        "content_chars": 2429,
+        "preview": "As of August 2025, cholera remains a significant public health challenge in Eastern and Southern Africa. Between 1 January and 17 August 2025, the African Region reported 172,750 cases and 3,763 deaths (CFR 2.2%). ### Current Hotspots (2024-2025) - **Democrati",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.nature.com/articles/s41467-025-64789-x",
+        "title": "Addressing the Recurrent and Protracted Cholera Outbreaks in Africa: Challenges and the Way Forward",
+        "content_chars": 1930,
+        "preview": "The 2024-2025 cholera response in Africa faces severe challenges due to recurrent outbreaks, with 535,321 cases and 4,007 deaths recorded in 2023. A 2024 readiness assessment by the WHO African Region revealed that no country demonstrated 'good' readiness; 21 ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.ecdc.europa.eu/en/all-topics-z/cholera/surveillance-and-disease-data/cholera-monthly",
+        "title": "Cholera Worldwide Overview - ECDC",
+        "content_chars": 1624,
+        "preview": "As of March 2026 (reporting period January to March 2026), several countries in Eastern and Southern Africa continue to report cholera cases, though many show a decrease compared to the same period in 2025. In South Sudan, 455 new cases and six deaths were rep",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://reliefweb.int/report/democratic-republic-congo/southern-and-eastern-africa-cholera-situation-snapshot-january-2025",
+        "title": "Southern and Eastern Africa: Cholera Situation Snapshot (As of January 2025)",
+        "content_chars": 1941,
+        "preview": "In 2024, Southern and Eastern African countries faced the deadliest cholera outbreak of the past decade, with more than 221,465 cases reported as of December 31, 2024. ### Current Hotspots (2024\u20132025) - **High Caseload Countries (2024):** Sudan, Democratic Rep",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://reliefweb.int/report/angola/unicef-eastern-and-southern-africa-region-humanitarian-situation-report-no-1-january-june-2025",
+        "title": "UNICEF Eastern and Southern Africa Region Humanitarian Situation Report No. 1: January - June 2025",
+        "content_chars": 1578,
+        "preview": "In the first half of 2025, the Eastern and Southern Africa Region (ESAR) experienced overlapping humanitarian crises, with public health emergencies being a primary challenge. Key details from the 2025 reporting period: - **Cholera Hotspots:** 12 of the 15 cou",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.nicd.ac.za/wp-content/uploads/2025/05/Cholera-Global-and-Southern-Africa-Update_April_2025.pdf",
+        "title": "Cholera Global and Southern Africa Update - April 2025",
+        "content_chars": 2286,
+        "preview": "As of April 2025, 18 African countries are experiencing active cholera transmission, with significant hotspots in Eastern and Southern Africa. ### Current Hotspots (2024-2025) - **Zambia:** Outbreak active since October 2023. In Q1 2025, Zambia reported 428 ne",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://cdn.who.int/media/docs/default-source/2021-dha-docs/20251126_multi-country_outbreak-of-cholera_sitrep_32-final.pdf?sfvrsn=e39d5b9e_1&download=true",
+        "title": "Multi-country outbreak of cholera, External Situation Report n. 32",
+        "content_chars": 3334,
+        "preview": "As of 26 October 2025, the African Region reported a cumulative 223,452 cholera cases and 4,955 deaths for the year. Key hotspots and response data for Eastern and Southern Africa include: ### Current Hotspots and Statistics (Jan 1 - Oct 26, 2025) - **South Su",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.unicef.org/esa/reports/cholera-outbreak-eastern-and-southern-africa-2024",
+        "title": "Cholera Outbreak in Eastern and Southern Africa - Unicef",
+        "error": "[scrape failed: [Scrape failed: Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/web-agent/lib/python3.12/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://www.unicef.org/esa/reports/cholera-outbreak-eastern-and-southern-africa-2024\", waiting until \"networkidle\"\n\n\nCode context:\n 773                                   tag=\"GOTO\",\n 774                                   params={\"url\": url},\n 775                               )\n 776                               response = None\n 777                           else:\n 778 \u2192                             raise RuntimeError(f\"Failed on navigating ACS-GOTO:\\n{str(e)}\")\n 779   \n 780                       # \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n 781                       # Walk the redirect chain.  Playwright returns only the last\n 782                       # hop, so we trace the `request.redirected_from` links until the\n 783                       # first response that differs from the final one and surface its]]"
+      },
+      {
+        "url": "https://www.unicef.org/esa/press-releases/esa-records-over-178000-cholera-cases-over-15-months",
+        "title": "Eastern and Southern Africa records over 178,000 cholera cases ...",
+        "error": "[scrape failed: [Scrape failed: Unexpected error in _crawl_web at line 778 in _crawl_web (../../../../../../../../../.local/share/mamba/envs/web-agent/lib/python3.12/site-packages/crawl4ai/async_crawler_strategy.py):\nError: Failed on navigating ACS-GOTO:\nPage.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://www.unicef.org/esa/press-releases/esa-records-over-178000-cholera-cases-over-15-months\", waiting until \"networkidle\"\n\n\nCode context:\n 773                                   tag=\"GOTO\",\n 774                                   params={\"url\": url},\n 775                               )\n 776                               response = None\n 777                           else:\n 778 \u2192                             raise RuntimeError(f\"Failed on navigating ACS-GOTO:\\n{str(e)}\")\n 779   \n 780                       # \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n 781                       # Walk the redirect chain.  Playwright returns only the last\n 782                       # hop, so we trace the `request.redirected_from` links until the\n 783                       # first response that differs from the final one and surface its]]"
+      }
+    ],
+    "bot_detected": []
+  },
+  {
+    "name": "open_adaptation_gap",
+    "mode": "open",
+    "query": "Global adaptation finance gap 2023 2024 adaptation gap report key findings and priorities",
+    "elapsed_seconds": 173.61,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 9,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 13,
+    "synthesis_chars": 3515,
+    "synthesis_citation_count": 10,
+    "total_scraped_chars": 21740,
+    "avg_scraped_chars": 2415.6,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "UNEP Adaptation Gap Report 2023 2024 key findings adaptation finance gap",
+      "global climate adaptation finance gap analysis and trends 2023-2024",
+      "UNEP Adaptation Gap Report 2023 priorities for closing the finance gap"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.unep.org/resources/adaptation-gap-report-2023",
+        "title": "Adaptation Gap Report 2023: Underfinanced. Underprepared.",
+        "content_chars": 2251,
+        "preview": "The UNEP Adaptation Gap Report 2023 reveals a significant and widening divide between climate adaptation needs and current financial support. Key findings and priorities include: ### 1. Adaptation Finance Gap - **Current Gap:** The adaptation finance gap is es",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://unepccc.org/adaptation-gap-reports/",
+        "title": "Adaptation Gap Reports - UNEP Copenhagen Climate Centre",
+        "content_chars": 2109,
+        "preview": "The Adaptation Gap Reports provide annual science-based assessments of global progress in adaptation planning, financing, and implementation. Key findings and priorities for recent years include: Adaptation Gap Report 2024 ('Huge uplift needed'): - Internation",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.unep.org/resources/adaptation-gap-report-2025",
+        "title": "Adaptation Gap Report 2025: Key Findings and Priorities",
+        "content_chars": 2386,
+        "preview": "The UNEP Adaptation Gap Report 2025 (Running on Empty) provides critical updates on the global adaptation finance gap, including data on 2023 and 2024 trends: ### 1. The Global Adaptation Finance Gap - **Current Finance Flows (2023):** International public ada",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.carbonbrief.org/un-report-five-charts-which-explain-the-gap-in-finance-for-climate-adaptation/",
+        "title": "UN report: Five charts which explain the \u2018gap\u2019 in finance for climate adaptation - Carbon Brief",
+        "content_chars": 2532,
+        "preview": "The UNEP Adaptation Gap Report (2025 cycle, titled 'Running on empty') reveals a significant shortfall in climate adaptation funding for developing nations. ### Key Finance Findings: - **Current Flows**: International public adaptation finance to developing co",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://weadapt.org/knowledge-base/governance-institutions-and-policy/unep-adaptation-gap-report-2024-come-hell-and-high-water/",
+        "title": "UNEP Adaptation Gap Report 2024: Come hell and high water",
+        "content_chars": 2719,
+        "preview": "The UNEP Adaptation Gap Report (AGR) 2024 provides an annual assessment of global progress in adaptation planning, implementation, and finance. Key findings regarding the finance gap and priorities: 1. Adaptation Finance Gap Scale: The gap between adaptation f",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://gca.org/reports/state-and-trends-in-climate-adaptation-finance-2024/",
+        "title": "State and Trends in Climate Adaptation Finance 2024 - Global Center on Adaptation",
+        "content_chars": 1892,
+        "preview": "The 'State and Trends in Climate Adaptation Finance 2024' report, published by the Global Center on Adaptation (GCA) on April 18, 2024, provides a comprehensive analysis of global adaptation finance with a specific focus on Africa. Key findings and structural ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.climatepolicyinitiative.org/wp-content/uploads/2024/10/Global-Landscape-of-Climate-Finance-2024.pdf",
+        "title": "Global Landscape of Climate Finance 2024: Insights for COP29",
+        "content_chars": 2899,
+        "preview": "The Global Landscape of Climate Finance 2024 report provides a comprehensive analysis of climate finance flows through 2022 and early estimates for 2023. Key findings regarding the adaptation finance gap and priorities include: ### Adaptation Finance Status an",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.unepfi.org/climate-change/adaptation/",
+        "title": "Adaptation Finance - UNEP Finance Initiative",
+        "content_chars": 2239,
+        "preview": "### Global Adaptation Finance Gap (2024 Findings) - **2024 Finance Gap Estimate:** The UNEP 2024 Adaptation Gap Report estimates the adaptation finance gap at **US$187\u2013359 billion per year**. - **Key Finding:** This scale of financing suggests that public budg",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://unfccc.int/sites/default/files/resource/Finance_Gap_Update.pdf",
+        "title": "Adaptation Finance Gap Update 2023: Underfinanced. Underprepared.",
+        "content_chars": 2713,
+        "preview": "The Adaptation Finance Gap Update 2023, part of the UNEP Adaptation Gap Report (AGR) 2023, provides updated estimates for the costs of adaptation and current finance flows for developing countries (non-Annex I countries). The report defines the adaptation fina",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  },
+  {
+    "name": "open_bluefin_quotas_diverse",
+    "mode": "open",
+    "query": "Eastern Atlantic Mediterranean bluefin tuna quotas 2022 2026 stock assessment and management procedure",
+    "elapsed_seconds": 92.17,
+    "include_domains": [],
+    "direct_url": null,
+    "num_queries": 3,
+    "num_scraped": 9,
+    "num_failed": 0,
+    "num_bot_detected": 0,
+    "num_snippet_only": 18,
+    "synthesis_chars": 4826,
+    "synthesis_citation_count": 14,
+    "total_scraped_chars": 19278,
+    "avg_scraped_chars": 2142.0,
+    "num_low_value_scraped": 0,
+    "error": null,
+    "search_queries": [
+      "ICCAT recommendation 22-08 management procedure Atlantic bluefin tuna quotas 2023-2025",
+      "East Atlantic Mediterranean bluefin tuna stock assessment 2022 SCRS report",
+      "ICCAT Eastern Atlantic and Mediterranean bluefin tuna TAC 2023-2025 management procedure"
+    ],
+    "scraped": [
+      {
+        "url": "https://www.iccat.int/Documents/Recs/compendiopdf-e/2024-05-e.pdf",
+        "title": "Recommendation by ICCAT establishing a Multi-Annual Management Plan for Bluefin Tuna in the Eastern Atlantic and Mediterranean (Rec. 24-05)",
+        "content_chars": 2459,
+        "preview": "ICCAT has transitioned from a recovery plan to a multi-annual management plan for Eastern Atlantic and Mediterranean bluefin tuna (Thunnus thynnus) based on SCRS advice that the stock status no longer requires emergency measures. ### Management Procedure (MP) ",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iccat.int/Documents/Recs/compendiopdf-e/2022-10-e.pdf",
+        "title": "Recommendation 22-10: Conservation and Management Plan for Western Atlantic Bluefin Tuna",
+        "content_chars": 2186,
+        "preview": "This document outlines the conservation and management plan for Western Atlantic bluefin tuna, while explicitly referencing the broader Management Procedure (MP) that governs both the Western and the Eastern Atlantic and Mediterranean stocks. Key details relev",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.fisheries.noaa.gov/s3/2025-09/BFT-Year-in-Review-Fall-AP-2025-Final-presentation-508-compliant-.pdf",
+        "title": "Atlantic Bluefin Tuna Fisheries 2025 Year in Review - HMS Advisory Panel Presentation",
+        "content_chars": 2269,
+        "preview": "The provided document details the management and quotas for Atlantic bluefin tuna (BFT) stocks, including the Eastern Atlantic and Mediterranean (EBFT) stock for the 2022-2026 period. ### Eastern Atlantic and Mediterranean (EBFT) Quotas and Management - **Annu",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iccat.int/Documents/Recs/compendiopdf-e/2023-07-e.pdf",
+        "title": "ICCAT Recommendation 23-07: Management Procedure for Atlantic Bluefin Tuna",
+        "content_chars": 2825,
+        "preview": "The International Commission for the Conservation of Atlantic Tunas (ICCAT) Recommendation 23-07 establishes a Management Procedure (MP) to calculate Total Allowable Catch (TAC) for both the Western Atlantic and the Eastern Atlantic and Mediterranean (EAM) man",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iccat.int/Documents/Recs/compendiopdf-e/2023-06-e.pdf",
+        "title": "ICCAT Recommendation 23-06: Multi-annual Management Plan for Bluefin Tuna in the Eastern Atlantic and the Mediterranean",
+        "content_chars": 2137,
+        "preview": "Recommendation 23-06 amends Recommendation 22-08, which established the Multi-annual Management Plan for Bluefin Tuna in the Eastern Atlantic and the Mediterranean. Key Management and Farming Measures: - Farming Management Plans: Each farm CPC must establish a",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iccat.int/en/assess.html",
+        "title": "ICCAT Stock Assessments and Management Procedures",
+        "content_chars": 1708,
+        "preview": "ICCAT conducts stock assessments to provide scientific advice for management, aiming to maintain populations at levels permitting maximum sustainable catch. For Atlantic Bluefin Tuna (Thunnus thynnus), the assessment schedule and management are divided into tw",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iccat.int/Documents/CVSP/CV079_2022/n_3/CV079030426.pdf",
+        "title": "Report of the 2022 ICCAT Eastern Atlantic and Mediterranean Bluefin Tuna Stock Assessment Meeting",
+        "content_chars": 2154,
+        "preview": "The 2022 stock assessment for Eastern Atlantic and Mediterranean bluefin tuna (E-BFT) utilized three modeling platforms: Virtual Population Analysis (VPA), Stock Synthesis (SS), and the Age-Structured Assessment Programme (ASAP). ### Stock Assessment Findings:",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://www.iccat.int/Documents/Recs/compendiopdf-e/2022-09-e.pdf",
+        "title": "ICCAT Recommendation 22-09: Management Procedure for Atlantic Bluefin Tuna",
+        "content_chars": 2115,
+        "preview": "ICCAT Recommendation 22-09 establishes a Management Procedure (MP) to calculate the Total Allowable Catch (TAC) for both Western and Eastern Atlantic and Mediterranean bluefin tuna. ### Management Objectives - **Stock Status:** Both stocks should have a 60% or",
+        "low_value": false,
+        "low_value_reason": ""
+      },
+      {
+        "url": "https://oceans-and-fisheries.ec.europa.eu/news/eu-secures-17-increase-bluefin-tuna-fishing-quota-iccat-annual-meeting-2025-11-27_en",
+        "title": "EU secures 17% increase of bluefin tuna fishing quota at ICCAT annual meeting",
+        "content_chars": 1425,
+        "preview": "Following the International Convention for the Conservation of Atlantic Tunas (ICCAT) annual meeting (concluded late 2024/early 2025), a new management agreement was reached for Eastern Atlantic and Mediterranean bluefin tuna: - **Total Allowable Catch (TAC) 2",
+        "low_value": false,
+        "low_value_reason": ""
+      }
+    ],
+    "scrape_failed": [],
+    "bot_detected": []
+  }
+]

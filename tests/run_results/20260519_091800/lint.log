@@ -1,0 +1,3 @@
+$ /Users/riccardo/.local/share/mamba/envs/web-agent/bin/python -m ruff check src tests
+
+All checks passed!

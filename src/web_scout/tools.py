@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field
 
 from ._extractor_contract import ExtractorOutcome
 from ._heuristics import EXTRACTOR_HEURISTICS
+from ._page_classifier import PageShapeAssessment, classify_prefetched_page_shape
 
 if TYPE_CHECKING:
     from .models import SearchQuery, UrlEntry
@@ -625,7 +626,7 @@ def _cacheable_from_source_artifact(url: str, artifact: "SourceArtifact") -> Cac
 
 
 def _render_cached_page_text(url: str, title: str, content: str) -> str:
-    """Render cached page content back into the legacy raw_scrape contract."""
+    """Render cached page content back into a text contract for extraction."""
     header = f"# {title}\nSource: {url}\n\n" if title else f"Source: {url}\n\n"
     signals = []
     if _has_fragment(url):
@@ -653,6 +654,75 @@ def _render_cached_document_text(document_url: str, title: str, content: str) ->
     return header + content
 
 
+def _prefetched_has_signal(content: str) -> bool:
+    return "[SPA:" in content or "[Form/survey" in content
+
+
+def _prefetched_is_thin(content: str) -> bool:
+    return len(content.strip()) < EXTRACTOR_HEURISTICS.thin_content_chars
+
+
+def _prefetched_has_strong_content(
+    content: str,
+    page_shape: Optional[PageShapeAssessment],
+) -> bool:
+    if not content or page_shape is None:
+        return False
+    if page_shape.page_type != "content_page":
+        return False
+    return (
+        page_shape.content_score >= 4
+        and page_shape.content_score >= page_shape.record_score + 1
+        and page_shape.content_score >= page_shape.interactive_score + 1
+        and page_shape.text_chars >= 3_000
+    )
+
+
+def _prefetched_allows_interaction(
+    content: str,
+    page_shape: Optional[PageShapeAssessment],
+) -> bool:
+    if not content:
+        return True
+
+    # Rich prose should stay on the cheap one-turn extraction path even if
+    # weak SPA/form markers are present in the rendered content.
+    if _prefetched_has_strong_content(content, page_shape):
+        return False
+
+    if _prefetched_has_signal(content):
+        return True
+
+    if (
+        page_shape is not None
+        and page_shape.page_type == "interactive_shell"
+        and page_shape.interactive_score >= 5
+    ):
+        return True
+
+    if not _prefetched_is_thin(content):
+        return False
+
+    if page_shape is None:
+        return True
+
+    return (
+        page_shape.page_type == "uncertain"
+        and page_shape.interactive_score >= 2
+        and page_shape.record_score < 5
+        and page_shape.content_score < 5
+    )
+
+
+def _prefetched_is_recoverable(content: str) -> bool:
+    stripped = content.strip()
+    if len(stripped) < EXTRACTOR_HEURISTICS.recovery_min_content_chars:
+        return False
+    return not (
+        stripped.startswith("[Scrape failed")
+        or stripped.startswith("[Page returned empty")
+        or stripped.startswith("[No relevant content")
+    )
 async def _get_or_fetch_session_source_artifact(
     *,
     url: str,
@@ -806,13 +876,13 @@ def _render_failed_extractor_output(
 _EXTRACTOR_INSTRUCTIONS = """\
 You are a precise and comprehensive content extractor for web research.
 
-You receive a URL and a research query. Your job:
+You receive a URL, a research query, and the pre-fetched page content. Your job:
 
-## Step 1 — Fetch the page
-Call ``raw_scrape`` to fetch the page content. Call it exactly once.
+## Step 1 — Review the provided page content
+Read the page content provided in the prompt. Do NOT ask to fetch the page again.
 
 ## Step 1b — Handle thin content or low-quality content with interaction
-If raw_scrape returned fewer than 500 characters of meaningful content
+If the provided content has fewer than 500 characters of meaningful text
 AND the page is not a document (PDF/DOCX/PPTX/XLSX):
 
 1. Call list_interactive_elements() to see what is clickable on the page.
@@ -823,7 +893,7 @@ AND the page is not a document (PDF/DOCX/PPTX/XLSX):
 4. If content remains thin after clicking all promising elements, proceed
    with what you have.
 
-Also call list_interactive_elements() if raw_scrape returned a message containing:
+Also call list_interactive_elements() if the content has a message containing:
 - "[SPA: URL fragment detected" — the page uses client-side routing; the visible
   content may be the wrong tab or view. Look for tabs, dropdowns, or section
   selectors that navigate to the target data.
@@ -832,16 +902,16 @@ Also call list_interactive_elements() if raw_scrape returned a message containin
   actual content.
 In both cases, click the most promising element and use the updated content.
 
-Do NOT call list_interactive_elements() if raw_scrape already returned
-rich content with no signals — interaction is a fallback, not a default.
+Do NOT call list_interactive_elements() if the content is already
+rich with no signals — interaction is a fallback, not a default.
 
 ## Step 2 — Check for a primary source document
 After reading the page, ask yourself: **is this a metadata or catalogue page that links to a primary source document?**
 
 Signs of a metadata/catalogue page:
-- A legal database record (e.g. FAOLEX, EUR-Lex, national law portals) with a link to the law or regulation PDF.
-- A library or repository entry with a link to the full report or paper PDF.
-- A dataset/publication index page with a link to the main document.
+- A legal database record with a link to the law or regulation PDF.
+- A library repository entry with a link to the full report or paper PDF.
+- An open data catalog or publication index page with a link to the main document.
 
 **If yes: call ``scrape_linked_document`` with the URL of the primary document (PDF, DOCX, etc.).**
 - Use the single most important document link — the one that IS the primary source, not supplementary annexes.
@@ -851,8 +921,8 @@ Signs of a metadata/catalogue page:
 **If no:** skip this step and go straight to Step 3.
 
 Examples of when to call ``scrape_linked_document``:
-- FAOLEX page for a law → call it on the `.pdf` link that is the law text itself.
-- A UN treaty repository page → call it on the treaty PDF.
+- A database record for a specific document → call it on the `.pdf` link that is the document text itself.
+- A repository page → call it on the main file PDF.
 - A report catalogue entry → call it on the full report PDF.
 
 Examples of when NOT to call it:
@@ -862,7 +932,7 @@ Examples of when NOT to call it:
 
 ## Step 3 — Extract relevant content
 From all the content you have gathered (page + document if fetched), extract everything that directly answers the research query:
-- Include specific facts, numbers, dates, exact names (species, locations), statistics, regulations, quotes, and full context.
+- Include specific facts, numbers, dates, exact names, statistics, quotas, quotes, and full context.
 - VERY IMPORTANT: Do NOT describe the page structure. Extract the actual data.
 - Do NOT over-summarize. We need a detailed account of the relevant information.
 - Exclude navigation, ads, boilerplate, and completely off-topic sections.
@@ -880,8 +950,6 @@ is to identify and rank the item links, not to extract prose. Return up to 15 it
 
 If the page contains no relevant information, set ``relevant_content`` to:
 "[No relevant content found for this query]"
-
-If scraping fails, set ``relevant_content`` to the error message verbatim.
 
 Always write ``relevant_content`` and ``title`` in English, regardless of the source language.
 """
@@ -916,13 +984,8 @@ def _is_form_contaminated(content: str) -> bool:
     return False
 
 
-def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000, doc_cache: Optional[dict] = None, doc_in_flight: Optional[Dict[str, asyncio.Future[str]]] = None, use_session_cache: bool = False, max_interactive_clicks: int = EXTRACTOR_HEURISTICS.max_interactive_clicks) -> tuple:
+def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000, doc_cache: Optional[dict] = None, doc_in_flight: Optional[Dict[str, asyncio.Future[str]]] = None, use_session_cache: bool = False, max_interactive_clicks: int = EXTRACTOR_HEURISTICS.max_interactive_clicks, domain_expertise: Optional[str] = None, pre_fetched_content: str = "") -> tuple:
     """Build a content extractor sub-agent with a URL-locked scraping tool.
-
-    The ``raw_scrape`` tool is a closure that captures ``url`` and ``wait_for``
-    deterministically from the outer ``scrape_and_extract`` tool call.  The
-    sub-agent LLM cannot scrape a different URL — it calls ``raw_scrape()``
-    with no arguments and always fetches the correct page.
 
     A second tool ``scrape_linked_document`` lets the extractor fetch one
     primary source document (PDF, DOCX …) linked from the page, which is
@@ -932,53 +995,22 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
     from . import scraping as _scraping_module
     from .scraping import _SCRAPE_DOC, _is_blocked_domain
 
-    @function_tool
-    async def raw_scrape() -> str:
-        """Fetch and return the full content of the pre-set URL.
-
-        The URL is determined by the outer research task — no argument needed.
-        Validates the URL first (skips dead links, empty pages, binary files).
-        Works with static HTML, JS-rendered pages, JSON endpoints, images,
-        PDFs, DOCX, PPTX, and XLSX.
-        """
-        if use_session_cache:
-            plan = await _scraping_module._build_scrape_plan(url, allowed_domains=allowed_domains)
-            if plan.strategy == _scraping_module.ScrapeStrategy.SKIP:
-                return f"[Scrape failed: Skipped: {plan.reason}]"
-            cached_artifact, cache_error = await _get_or_fetch_session_source_artifact(
-                url=url,
-                strategy=plan.strategy,
-                wait_for=wait_for,
-                vision_model=vision_model,
-                allowed_domains=allowed_domains,
-                max_pdf_pages=max_pdf_pages,
-                cache_pdf_pages=_scraping_module._looks_like_pdf_resource(
-                    url,
-                    plan.content_type,
-                    plan.content_disposition,
-                ),
-            )
-            if cache_error or cached_artifact is None:
-                return f"[Scrape failed: {cache_error}]"
-            content, title, error = await _scraping_module.materialize_source_artifact(
-                _scraping_module.SourceArtifact(
-                    kind=cached_artifact.artifact_kind,
-                    title=cached_artifact.title,
-                    text_content=cached_artifact.text_content,
-                    binary_bytes=cached_artifact.binary_bytes,
-                    mime_type=cached_artifact.mime_type,
-                ),
-                query=query,
-                vision_model=vision_model,
-                max_content_chars=max_content_chars,
-            )
-        else:
-            content, title, error = await _scraping_module.scrape_url(url, wait_for, query=query, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars)
-        if error:
-            return f"[Scrape failed: {error}]"
-        if not content.strip():
-            return "[Page returned empty content]"
-        return _render_cached_page_text(url, title, content)
+    legacy_direct_agent = not pre_fetched_content
+    page_shape = classify_prefetched_page_shape(pre_fetched_content) if pre_fetched_content else None
+    allow_interaction = (
+        legacy_direct_agent
+        or _prefetched_allows_interaction(pre_fetched_content, page_shape)
+    )
+    allow_linked_document = (
+        legacy_direct_agent
+        or (
+            page_shape is not None
+            and page_shape.page_type == "record_page"
+            and page_shape.record_score >= 5
+            and page_shape.record_score >= page_shape.content_score + 2
+        )
+    )
+    linked_document_called = False
 
     @function_tool
     async def scrape_linked_document(document_url: str) -> str:
@@ -996,6 +1028,20 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         Args:
             document_url: Absolute URL of the primary source document to fetch.
         """
+        nonlocal linked_document_called
+        logger.info("[extract-tool] sub-agent calling scrape_linked_document for %s", document_url)
+        if not allow_linked_document:
+            return (
+                "[scrape_linked_document skipped: pre-fetched page content is already "
+                "rich and does not look like a metadata/catalogue page. Return the "
+                "structured extraction from the supplied content.]"
+            )
+        if linked_document_called and not legacy_direct_agent:
+            return (
+                "[scrape_linked_document skipped: a linked document was already "
+                "attempted for this page. Return the structured extraction now.]"
+            )
+        linked_document_called = True
         plan = await _scraping_module._build_scrape_plan(document_url, allowed_domains=allowed_domains)
         if plan.strategy != _SCRAPE_DOC:
             return (
@@ -1171,9 +1217,15 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         buttons, tabs, dropdowns, and load-more links with numeric indices.
         Call click_element(n) to interact with a specific element.
 
-        Only call this when raw_scrape returned thin content (under 500 chars).
-        Do NOT call this if raw_scrape already returned rich content.
+        Only call this when the pre-fetched content is thin (under 500 chars).
+        Do NOT call this if the content is already rich.
         """
+        logger.info("[extract-tool] sub-agent calling list_interactive_elements for %s", url)
+        if not allow_interaction:
+            return (
+                "[list_interactive_elements skipped: pre-fetched page content is "
+                "already rich. Return the structured extraction from the supplied content.]"
+            )
         if _click_count[0] >= max_interactive_clicks:
             return (
                 f"INTERACTION LIMIT REACHED: {max_interactive_clicks} clicks used. "
@@ -1205,6 +1257,7 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
             index: 1-based index of the element to click, as returned by
                 list_interactive_elements.
         """
+        logger.info("[extract-tool] sub-agent calling click_element(%d) for %s", index, url)
         if _page_holder[0] is None:
             return (
                 "[click_element error: no browser session open. "
@@ -1219,6 +1272,10 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
 
         try:
             page = _page_holder[0]
+            pre_click_url = _current_page_url()
+            pre_click_content = await page.inner_text("body")
+            pre_click_text = pre_click_content.strip()
+
             clicked = await page.evaluate(_CLICK_ELEMENT_JS, index)
             if not clicked:
                 return (
@@ -1247,6 +1304,18 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
             content = await page.inner_text("body")
             result = content.strip()
 
+            normalized_before = " ".join(pre_click_text.split())
+            normalized_after = " ".join(result.split())
+            if post_click_url == pre_click_url and normalized_after == normalized_before:
+                if len(result) < EXTRACTOR_HEURISTICS.thin_content_chars:
+                    return (
+                        f"[Clicking element {index} had no visible effect on the page content. "
+                        "Try a different element.]"
+                    )
+                result += (
+                    f"\n\n[Clicking element {index} had no visible effect on the page content.]"
+                )
+
             if len(result) < EXTRACTOR_HEURISTICS.thin_content_chars:
                 result += (
                     f"\n\n[Content still thin after click ({len(result)} chars) — "
@@ -1258,13 +1327,34 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         except Exception as e:
             return f"[click_element failed: {e}]"
 
+    instructions = _EXTRACTOR_INSTRUCTIONS
+    if domain_expertise:
+        instructions += f"\n\nDomain Expertise: {domain_expertise}\n"
+
+    agent_tools = []
+    if allow_linked_document:
+        agent_tools.append(scrape_linked_document)
+    if allow_interaction:
+        agent_tools.extend([list_interactive_elements, click_element])
+    logger.info(
+        "[extract] extractor_agent tools=%s chars=%d linked_doc=%s interaction=%s shape=%s doc_links=%s metadata_markers=%s url=%s",
+        [getattr(tool, "name", str(tool)) for tool in agent_tools],
+        len(pre_fetched_content),
+        allow_linked_document,
+        allow_interaction,
+        page_shape.page_type if page_shape is not None else "legacy",
+        page_shape.document_link_count if page_shape is not None else None,
+        page_shape.metadata_marker_count if page_shape is not None else None,
+        url,
+    )
+
     agent = Agent(
         name="content_extractor",
         model=model,
-        tools=[raw_scrape, scrape_linked_document, list_interactive_elements, click_element],
+        tools=agent_tools,
         output_type=_ExtractorOutput,
         model_settings=ModelSettings(),
-        instructions=_EXTRACTOR_INSTRUCTIONS,
+        instructions=instructions,
     )
 
     async def cleanup() -> None:
@@ -1451,11 +1541,12 @@ def create_scrape_and_extract_tool(
     max_content_chars: int = 30_000,
     use_session_cache: bool = False,
     max_interactive_clicks: int = EXTRACTOR_HEURISTICS.max_interactive_clicks,
+    domain_expertise: Optional[str] = None,
 ):
     """Create a scrape_and_extract function.
 
     Internally runs a dedicated content extractor sub-agent that:
-    1. Calls ``raw_scrape`` to fetch the page through the unified router.
+    1. Pre-fetches the page through the unified router.
     2. Optionally calls ``scrape_linked_document`` once for a primary source
        document linked from a metadata page.
     3. Reads the fetched content in its own isolated context.
@@ -1525,36 +1616,174 @@ def create_scrape_and_extract_tool(
                     else None
                 )
 
+                # Fetch content in Python before involving the agent
+                from . import scraping as _scraping_module
+
+                page_rendered = ""
+                is_failure = False
+
+                if use_session_cache:
+                    plan = await _scraping_module._build_scrape_plan(url, allowed_domains=allowed_domains)
+                    if plan.strategy == _scraping_module.ScrapeStrategy.SKIP:
+                        page_rendered = f"[Scrape failed: Skipped: {plan.reason}]"
+                        is_failure = True
+                    else:
+                        cached_artifact, cache_error = await _get_or_fetch_session_source_artifact(
+                            url=url,
+                            strategy=plan.strategy,
+                            wait_for=_wait_for,
+                            vision_model=vision_model,
+                            allowed_domains=allowed_domains,
+                            max_pdf_pages=max_pdf_pages,
+                            cache_pdf_pages=_scraping_module._looks_like_pdf_resource(
+                                url,
+                                plan.content_type,
+                                plan.content_disposition,
+                            ),
+                        )
+                        if cache_error or cached_artifact is None:
+                            page_rendered = f"[Scrape failed: {cache_error}]"
+                            is_failure = True
+                        else:
+                            content, title, error = await _scraping_module.materialize_source_artifact(
+                                _scraping_module.SourceArtifact(
+                                    kind=cached_artifact.artifact_kind,
+                                    title=cached_artifact.title,
+                                    text_content=cached_artifact.text_content,
+                                    binary_bytes=cached_artifact.binary_bytes,
+                                    mime_type=cached_artifact.mime_type,
+                                ),
+                                query=query,
+                                vision_model=vision_model,
+                                max_content_chars=max_content_chars,
+                            )
+                            if error:
+                                page_rendered = f"[Scrape failed: {error}]"
+                                is_failure = True
+                            elif not content.strip():
+                                page_rendered = "[Page returned empty content]"
+                                is_failure = True
+                            else:
+                                page_rendered = _render_cached_page_text(url, title, content)
+                else:
+                    content, title, error = await _scraping_module.scrape_url(url, _wait_for, query=query, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars)
+                    if error:
+                        page_rendered = f"[Scrape failed: {error}]"
+                        is_failure = True
+                    elif not content.strip():
+                        page_rendered = "[Page returned empty content]"
+                        is_failure = True
+                    else:
+                        page_rendered = _render_cached_page_text(url, title, content)
+
+                # If failed early, we don't even need the LLM
+                if is_failure:
+                    action = _classify_failure_action(page_rendered)
+                    if action in {"scraped_irrelevant", "blocked_by_policy"}:
+                        logger.debug("[extract] %s %s", action, url)
+                    elif action in {"source_http_error", "bot_detected"}:
+                        logger.info("[extract] %s %s", action, url)
+                    else:
+                        logger.info("[extract] scrape_failed %s", url)
+
+                    if tracker is not None:
+                        if action == "bot_detected":
+                            tracker.record_bot_detection(url, page_rendered)
+                        elif action == "blocked_by_policy":
+                            tracker.record_blocked_by_policy(url, page_rendered)
+                        elif action == "source_http_error":
+                            tracker.record_source_http_error(url, page_rendered)
+                        elif action == "scraped_irrelevant":
+                            tracker.record_scraped_irrelevant(url, page_rendered)
+                        else:
+                            tracker.record_scrape_failure(url, page_rendered)
+
+                    count_scraped = tracker.count_for_action("scraped") if tracker is not None else None
+                    outcome = _build_failure_outcome(
+                        url=url,
+                        content=page_rendered,
+                        count_scraped=count_scraped,
+                        failure_kind=action,
+                    )
+                    outcome_cache[norm] = outcome
+                    logger.info(
+                        "[extract] extractor_outcome status=failure failure_kind=%s url=%s (fast-path)",
+                        action,
+                        url,
+                    )
+                    future.set_result(outcome.rendered_text)
+                    return outcome.rendered_text
+
                 # Build a fresh extractor agent per call with url locked in the closure
-                extractor_agent, extractor_cleanup = _build_extractor_agent(extractor_model, query, url, _wait_for, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars, doc_cache=_doc_cache, doc_in_flight=_doc_in_flight, use_session_cache=use_session_cache, max_interactive_clicks=max_interactive_clicks)
+                extractor_agent, extractor_cleanup = _build_extractor_agent(
+                    extractor_model, query, url, _wait_for,
+                    vision_model=vision_model,
+                    allowed_domains=allowed_domains,
+                    max_pdf_pages=max_pdf_pages,
+                    max_content_chars=max_content_chars,
+                    doc_cache=_doc_cache,
+                    doc_in_flight=_doc_in_flight,
+                    use_session_cache=use_session_cache,
+                    max_interactive_clicks=max_interactive_clicks,
+                    domain_expertise=domain_expertise,
+                    pre_fetched_content=page_rendered
+                )
 
                 input_text = (
                     f"Research query: {query}\n"
                     f"URL: {url}\n\n"
-                    f"Call raw_scrape() to fetch the page, then extract relevant content."
+                    f"Here is the page content that has already been fetched for you:\n"
+                    f"==== PAGE CONTENT ====\n"
+                    f"{page_rendered}\n"
+                    f"======================\n\n"
+                    f"Please extract the relevant content."
                 )
 
                 try:
-                    result = await _run_with_retry(extractor_agent, input_text, max_turns=30)
+                    result = await _run_with_retry(
+                        extractor_agent,
+                        input_text,
+                        max_turns=EXTRACTOR_HEURISTICS.max_extractor_turns,
+                    )
                     output = result.final_output_as(_ExtractorOutput)
                 except Exception as e:
-                    logger.error("[extract] sub-agent failed for %s: %s", url, e)
-                    if tracker is not None:
-                        tracker.record_scrape_failure(url, str(e))
-                    final_output = f"Failed to extract content from {url}: {e}"
-                    outcome = ExtractorOutcome(
-                        url=url,
-                        status="failure",
-                        rendered_text=final_output,
-                        content=str(e),
-                        failure_kind="subagent_failed",
-                    )
-                    outcome_cache[norm] = outcome
-                    logger.info(
-                        "[extract] extractor_outcome status=failure failure_kind=%s url=%s",
-                        outcome.failure_kind,
+                    logger.error(
+                        "[extract] sub-agent failed for %s (type=%s): %s",
                         url,
+                        type(e).__name__,
+                        e,
                     )
+                    if _prefetched_is_recoverable(page_rendered):
+                        recovered_content = (
+                            "[Extractor failed after successful scrape; using pre-fetched content]\n"
+                            + _extract_primary_rendered_content(page_rendered)[:4500]
+                        )
+                        if tracker is not None:
+                            tracker.record_scrape(url, "", recovered_content)
+                        outcome = _build_success_outcome(
+                            url=url,
+                            title="",
+                            content=recovered_content,
+                            page_type="content",
+                            links=[],
+                            count_scraped=tracker.count_for_action("scraped") if tracker is not None else None,
+                        )
+                        logger.info("[extract] extractor_outcome status=success recovery=true url=%s", url)
+                    else:
+                        failure_text = (
+                            f"[Extractor failed after scrape and pre-fetched content was not recoverable: "
+                            f"{type(e).__name__}: {e}]"
+                        )
+                        if tracker is not None:
+                            tracker.record_scrape_failure(url, failure_text)
+                        outcome = _build_failure_outcome(
+                            url=url,
+                            content=failure_text,
+                            count_scraped=tracker.count_for_action("scraped") if tracker is not None else None,
+                            failure_kind="subagent_failed",
+                        )
+                        logger.info("[extract] extractor_outcome status=failure failure_kind=subagent_failed url=%s", url)
+                    outcome_cache[norm] = outcome
                     future.set_result(outcome.rendered_text)
                     return outcome.rendered_text
                 finally:
@@ -1640,9 +1869,30 @@ def create_scrape_and_extract_tool(
                 )
                 future.set_result(outcome.rendered_text)
                 return outcome.rendered_text
+        except Exception as exc:
+            logger.error(
+                "[extract] unexpected scrape failure for %s (type=%s): %s",
+                url,
+                type(exc).__name__,
+                exc,
+            )
+            failure_text = f"[Scrape failed: internal error: {type(exc).__name__}: {exc}]"
+            if tracker is not None:
+                tracker.record_scrape_failure(url, failure_text)
+            count_scraped = tracker.count_for_action("scraped") if tracker is not None else None
+            outcome = _build_failure_outcome(
+                url=url,
+                content=failure_text,
+                count_scraped=count_scraped,
+                failure_kind="scrape_failed",
+            )
+            outcome_cache[norm] = outcome
+            if not future.done():
+                future.set_result(outcome.rendered_text)
+            return outcome.rendered_text
         finally:
             if not future.done():
-                future.set_exception(RuntimeError("scrape aborted unexpectedly"))
+                future.cancel()
             in_flight.pop(norm, None)
 
     setattr(scrape_and_extract, "_outcome_cache", outcome_cache)
