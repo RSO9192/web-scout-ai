@@ -189,6 +189,22 @@ def test_rank_followup_candidates_rejects_paginated_indexes_and_off_query_docs()
     assert ranked == ["https://openknowledge.fao.org/handle/20.500.14283/am882e"]
 
 
+def test_is_promising_followup_url_rejects_frontiers_section_hub():
+    assert _is_promising_followup_url(
+        "https://www.frontiersin.org/journals/sustainable-food-systems/sections/land-livelihoods-and-food-security",
+        "frontiersin.org",
+        query="wild edible plants food systems resilience and biodiversity evidence",
+    ) is False
+
+
+def test_is_promising_followup_url_rejects_research_topic_magazine_hub():
+    assert _is_promising_followup_url(
+        "https://www.frontiersin.org/research-topics/33257/indigenous-food-systems-to-address-food-security-and-nutritional-status/magazine",
+        "frontiersin.org",
+        query="wild edible plants food systems resilience and biodiversity evidence",
+    ) is False
+
+
 def test_rank_followup_candidates_rejects_forecast_docs_for_unrelated_topic():
     ranked = _rank_followup_candidates(
         "GM crops commercial cultivation field trial crop wild relatives Kenya",

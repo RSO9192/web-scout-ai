@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.3.0] - 2026-05-19
+
+### Changed
+
+- **Extractor control flow is now prefetch-first and deterministic**: the content extractor no longer relies on a free-roaming `raw_scrape()` tool loop for normal pages. Python now prefetches the source first, passes the prefetched content into the extractor prompt, and keeps rich pages on a one-turn extraction path with no extra tools exposed.
+- **Page-shape routing now uses a shared lightweight classifier**: HTML routing and extractor tool gating now share the same structural page assessment (`content_page`, `record_page`, `interactive_shell`, `uncertain`) with scored `content`, `record`, and `interactive` signals plus a confidence margin.
+- **Tool exposure is materially stricter on content-rich pages**: strong prose now wins over weak metadata or SPA hints, reducing unnecessary Playwright interaction and linked-document deepening on ordinary article and publication pages.
+- **Follow-up ranking is more conservative and query-aware**: section/topic hubs and operational forecast or warning pages are filtered more aggressively when they do not match the query intent, so deepening prefers detail pages over broad portals.
+- **Direct-URL document following is more robust**: direct URL mode now treats high-confidence document follow-ups as eligible deepening targets even when they live on a different domain from the parent page, which restores expected behavior for repositories and catalogue records that point to authoritative PDFs on separate hosts.
+- **Browser link preservation is broader**: browser-rendered pages now retain external links and icon-only document links when they are converted into prefetched markdown, improving downstream record-page and follow-up detection on JavaScript-heavy detail pages.
+- **Validation tooling is stronger**: the maintained probe matrix now records content-quality fields such as scraped character counts, low-value source flags, and snippet-vs-scrape balance, making live regression checks more meaningful than simple pass/fail runs.
+
+### Fixed
+
+- **Extractor max-turn failures on content-rich pages**: the main failure mode where the sub-agent exhausted its turn budget after already having usable page content is addressed by prefetched extraction, stricter tool gating, and recovery from substantial prefetched content.
+- **Over-eager interactive fallback on medium-rich pages**: content-heavy WHO, FAO, World Bank, Frontiers-style pages are much less likely to receive Playwright interaction tools when the prefetched content is already substantive.
+- **FAOLEX-style detail pages now reach the primary document**: repository records that render legal or policy metadata in-page and expose the actual text as an icon/download link no longer stop at summarizing the record page alone. The linked document is now preserved and can be scraped as a follow-up source.
+- **Background `asyncio` future warning cleaned up**: unexpected internal scrape failures no longer leave a shared in-flight future resolved only via a synthetic `scrape aborted unexpectedly` exception, which previously produced noisy `Future exception was never retrieved` warnings during long live matrices. These failures now resolve into a normal failure outcome and the fallback future is cancelled if ever left unresolved.
+- **Misleading JSON/document routing on download-style endpoints**: response handling now relies more on the authoritative `GET` payload shape than on `HEAD` alone, improving routing of extensionless and API-style document downloads into the document path.
+
+
 ## [1.2.2] - 2026-05-18
 
 ### Added

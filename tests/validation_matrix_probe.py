@@ -11,6 +11,7 @@ import argparse
 import asyncio
 import json
 import logging
+import re
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -44,6 +45,16 @@ class Failure:
 
 
 @dataclass
+class SourceSummary:
+    url: str
+    title: str
+    content_chars: int
+    preview: str
+    low_value: bool
+    low_value_reason: str = ""
+
+
+@dataclass
 class CaseResult:
     name: str
     mode: str
@@ -55,9 +66,15 @@ class CaseResult:
     num_scraped: int = 0
     num_failed: int = 0
     num_bot_detected: int = 0
+    num_snippet_only: int = 0
     synthesis_chars: int = 0
+    synthesis_citation_count: int = 0
+    total_scraped_chars: int = 0
+    avg_scraped_chars: float = 0.0
+    num_low_value_scraped: int = 0
     error: Optional[str] = None
     search_queries: list[str] = field(default_factory=list)
+    scraped: list[SourceSummary] = field(default_factory=list)
     scrape_failed: list[Failure] = field(default_factory=list)
     bot_detected: list[Failure] = field(default_factory=list)
 
@@ -484,10 +501,98 @@ DIVERSE_DIRECT_CASES = [
 ]
 
 
+INTERACTION_AUDIT_CASES = [
+    ProbeCase(
+        name="open_adaptation_gap_audit",
+        mode="open",
+        query="Global adaptation finance gap 2023 2024 adaptation gap report key findings and priorities",
+    ),
+    ProbeCase(
+        name="open_sofi_hunger_audit",
+        mode="open",
+        query="Global hunger and food insecurity trends 2022 2024 SOFI report regional patterns",
+    ),
+    ProbeCase(
+        name="open_venice_coastal_risk_audit",
+        mode="open",
+        query=(
+            "Venice sea level rise flood frequency coastal risk projections "
+            "and MOSE effectiveness under IPCC scenarios"
+        ),
+        max_pdf_pages=30,
+    ),
+    ProbeCase(
+        name="domain_who_cholera_audit",
+        mode="domain",
+        query="Cholera outbreaks eastern and southern Africa vaccine supply and WHO situation updates",
+        include_domains=["who.int"],
+        max_pdf_pages=25,
+    ),
+    ProbeCase(
+        name="domain_fao_sofi_audit",
+        mode="domain",
+        query="SOFI 2024 hunger food insecurity prevalence and undernourishment trends",
+        include_domains=["fao.org", "openknowledge.fao.org"],
+        max_pdf_pages=25,
+    ),
+    ProbeCase(
+        name="domain_worldbank_morocco_climate_audit",
+        mode="domain",
+        query="Morocco historical climate trends temperature variability drought and precipitation patterns",
+        include_domains=["climateknowledgeportal.worldbank.org"],
+        max_pdf_pages=25,
+    ),
+    ProbeCase(
+        name="direct_who_sofi_html_audit",
+        mode="direct",
+        query="SOFI 2024 hunger and food insecurity summary",
+        direct_url="https://www.who.int/publications/m/item/the-state-of-food-security-and-nutrition-in-the-world-2024",
+        max_pdf_pages=25,
+    ),
+    ProbeCase(
+        name="direct_worldbank_climate_audit",
+        mode="direct",
+        query="Kenya historical climate trends precipitation variability and extremes summary",
+        direct_url="https://climateknowledgeportal.worldbank.org/country/kenya/trends-variability-historical",
+        max_pdf_pages=25,
+    ),
+    ProbeCase(
+        name="direct_frontiers_foodsystems_audit",
+        mode="direct",
+        query="Wild edible plants food systems resilience and biodiversity evidence",
+        direct_url="https://www.frontiersin.org/journals/sustainable-food-systems/articles/10.3389/fsufs.2023.1113771/full",
+        max_pdf_pages=25,
+    ),
+]
+
+
 CASE_PRESETS = {
     "standard": OPEN_CASES + DOMAIN_CASES + DIRECT_CASES,
     "diverse": DIVERSE_OPEN_CASES + DIVERSE_DOMAIN_CASES + DIVERSE_DIRECT_CASES,
+    "interaction_audit": INTERACTION_AUDIT_CASES,
 }
+
+
+def _preview(text: str, limit: int = 260) -> str:
+    return " ".join(text.split())[:limit]
+
+
+def _count_citations(text: str) -> int:
+    return len(re.findall(r"\[[^\]]+\]\(https?://[^\)]+\)", text or ""))
+
+
+def _low_value_reason(text: str) -> str:
+    normalized = " ".join(text.split())
+    if len(normalized) < 500:
+        return "very_short"
+    lower = normalized.lower()
+    if lower.count("http://") + lower.count("https://") >= 8:
+        return "link_heavy"
+    if "relevant follow-up links:" in lower and len(normalized) < 1200:
+        return "link_dump"
+    if lower.count("source: ") >= 2:
+        return "stacked_sources"
+    return ""
 
 
 async def _run_case(case: ProbeCase, search_backend: str, research_depth: str) -> CaseResult:
@@ -502,6 +607,18 @@ async def _run_case(case: ProbeCase, search_backend: str, research_depth: str) -
             research_depth=research_depth,
             max_pdf_pages=case.max_pdf_pages,
         )
+        scraped = [
+            SourceSummary(
+                url=item.url,
+                title=item.title,
+                content_chars=len(item.content),
+                preview=_preview(item.content),
+                low_value=bool(_low_value_reason(item.content)),
+                low_value_reason=_low_value_reason(item.content),
+            )
+            for item in result.scraped
+        ]
+        total_scraped_chars = sum(item.content_chars for item in scraped)
         return CaseResult(
             name=case.name,
             mode=case.mode,
@@ -513,8 +630,14 @@ async def _run_case(case: ProbeCase, search_backend: str, research_depth: str) -
             num_scraped=len(result.scraped),
             num_failed=len(result.scrape_failed),
             num_bot_detected=len(result.bot_detected),
+            num_snippet_only=len(result.snippet_only),
             synthesis_chars=len(result.synthesis),
+            synthesis_citation_count=_count_citations(result.synthesis),
+            total_scraped_chars=total_scraped_chars,
+            avg_scraped_chars=round(total_scraped_chars / max(len(scraped), 1), 1) if scraped else 0.0,
+            num_low_value_scraped=sum(1 for item in scraped if item.low_value),
             search_queries=[item.query for item in result.queries],
+            scraped=scraped,
             scrape_failed=[
                 Failure(url=item.url, title=item.title, error=item.content)
                 for item in result.scrape_failed
@@ -542,14 +665,43 @@ async def _run_cases(
     search_backend: str,
     research_depth: str,
     concurrency: int,
+    case_timeout_s: int,
+    partial_output_path: Optional[Path] = None,
 ) -> list[CaseResult]:
     semaphore = asyncio.Semaphore(max(1, concurrency))
     results: list[Optional[CaseResult]] = [None] * len(cases)
+    write_lock = asyncio.Lock()
+
+    async def _flush_partial() -> None:
+        if partial_output_path is None:
+            return
+        partial = [asdict(item) for item in results if item is not None]
+        async with write_lock:
+            partial_output_path.write_text(json.dumps(partial, indent=2), encoding="utf-8")
 
     async def _worker(index: int, case: ProbeCase) -> None:
         async with semaphore:
             logging.getLogger("web_scout.probe").info("validation case: %s (%s)", case.name, case.mode)
-            results[index] = await _run_case(case, search_backend, research_depth)
+            try:
+                if case_timeout_s > 0:
+                    result = await asyncio.wait_for(
+                        _run_case(case, search_backend, research_depth),
+                        timeout=case_timeout_s,
+                    )
+                else:
+                    result = await _run_case(case, search_backend, research_depth)
+            except asyncio.TimeoutError:
+                result = CaseResult(
+                    name=case.name,
+                    mode=case.mode,
+                    query=case.query,
+                    elapsed_seconds=float(case_timeout_s),
+                    include_domains=case.include_domains or [],
+                    direct_url=case.direct_url,
+                    error=f"TimeoutError: case exceeded {case_timeout_s}s",
+                )
+            results[index] = result
+            await _flush_partial()
 
     await asyncio.gather(*(_worker(index, case) for index, case in enumerate(cases)))
     return [item for item in results if item is not None]
@@ -562,9 +714,16 @@ def _mode_summary(results: list[CaseResult], mode: str) -> str:
     scraped = sum(item.num_scraped for item in subset)
     failed = sum(item.num_failed for item in subset)
     bot = sum(item.num_bot_detected for item in subset)
+    snippets = sum(item.num_snippet_only for item in subset)
+    low_value = sum(item.num_low_value_scraped for item in subset)
+    avg_chars = round(
+        sum(item.total_scraped_chars for item in subset) / max(scraped, 1),
+        1,
+    ) if scraped else 0.0
     return (
         f"{mode}: cases={cases} errored={errored} "
-        f"scraped={scraped} failed={failed} bot={bot}"
+        f"scraped={scraped} failed={failed} bot={bot} "
+        f"snippets={snippets} low_value={low_value} avg_chars={avg_chars}"
     )
 
 
@@ -577,6 +736,7 @@ async def main() -> None:
     parser.add_argument("--output-dir", default=str(OUTPUT_DIR))
     parser.add_argument("--limit", type=int, default=0, help="Optional overall case limit for dry runs.")
     parser.add_argument("--concurrency", type=int, default=3)
+    parser.add_argument("--case-timeout-s", type=int, default=240)
     args = parser.parse_args()
 
     load_dotenv(args.env_file, override=False)
@@ -584,18 +744,23 @@ async def main() -> None:
 
     preset_cases = CASE_PRESETS[args.preset]
     cases = preset_cases[: args.limit] if args.limit else preset_cases
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    partial_output_path = output_dir / f"validation_matrix_probe_{timestamp}.partial.json"
     report = await _run_cases(
         cases,
         search_backend=args.search_backend,
         research_depth=args.research_depth,
         concurrency=args.concurrency,
+        case_timeout_s=args.case_timeout_s,
+        partial_output_path=partial_output_path,
     )
 
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_path = output_dir / f"validation_matrix_probe_{timestamp}.json"
     output_path.write_text(json.dumps([asdict(item) for item in report], indent=2), encoding="utf-8")
+    if partial_output_path.exists():
+        partial_output_path.unlink()
 
     print(output_path)
     print(_mode_summary(report, "open"))

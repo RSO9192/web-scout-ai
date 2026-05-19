@@ -16,6 +16,7 @@ Provides a single ``scrape_url`` function that:
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 import mimetypes
@@ -644,7 +645,12 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
                     html=html,
                 )
 
-            if shape.page_type == "record_page" and text_chars < ROUTING_HEURISTICS.rich_html_static_text_chars:
+            if (
+                shape.page_type == "record_page"
+                and shape.record_score >= 5
+                and shape.record_score >= shape.content_score + 2
+                and text_chars < ROUTING_HEURISTICS.rich_html_static_text_chars
+            ):
                 return _log_scrape_plan(
                     url,
                     ScrapePlan(
@@ -819,13 +825,43 @@ def _pick_markdown(md, query: str) -> str:
     return str(md) if md else ""
 
 
+def _looks_like_document_link(href: str) -> bool:
+    lower = href.lower()
+    path = lower.split("?", 1)[0].split("#", 1)[0]
+    if path.endswith(_DOC_EXTENSIONS):
+        return True
+    return any(
+        marker in lower
+        for marker in (
+            "/download",
+            "/bitstream/",
+            "/bitstreams/",
+            "download?",
+            "file-download",
+        )
+    )
+
+
+def _link_text_fallback(href: str) -> str:
+    parsed = urlparse(href)
+    tail = unquote(parsed.path.rstrip("/").rsplit("/", 1)[-1]) if parsed.path else ""
+    if tail:
+        return tail
+    return parsed.netloc or href
+
+
 def _append_internal_links(content: str, result, limit: int = 50) -> str:
-    """Append a list of unique internal links to the end of the markdown content."""
+    """Append a list of useful page links to the end of the markdown content.
+
+    Preserve external links too, and keep icon-only document links by falling back
+    to the URL as the label. This matters for repository/detail pages whose primary
+    source links are rendered as file icons rather than visible anchor text.
+    """
     links_data = getattr(result, "links", {})
     if isinstance(links_data, dict):
-        links = links_data.get("internal", [])
+        links = list(links_data.get("internal", [])) + list(links_data.get("external", []))
     else:
-        links = getattr(links_data, "internal", [])
+        links = list(getattr(links_data, "internal", [])) + list(getattr(links_data, "external", []))
 
     link_lines = []
 
@@ -839,8 +875,13 @@ def _append_internal_links(content: str, result, limit: int = 50) -> str:
     for item in links:
         href = item.get("href", "") if isinstance(item, dict) else getattr(item, "href", "")
         text = (item.get("text", "") if isinstance(item, dict) else getattr(item, "text", "")).strip()
-        if href and text and text.lower() not in ("read more", "click here", "learn more"):
+        if not href:
+            continue
+        if text and text.lower() not in ("read more", "click here", "learn more"):
             link_lines.append(f"- [{text}]({href})")
+            continue
+        if _looks_like_document_link(href):
+            link_lines.append(f"- [{_link_text_fallback(href)}]({href})")
 
     if not link_lines:
         return content
@@ -848,8 +889,9 @@ def _append_internal_links(content: str, result, limit: int = 50) -> str:
     seen = set()
     unique_links = []
     for line in link_lines:
-        if line not in seen:
-            seen.add(line)
+        href = line.rsplit("](", 1)[-1].rstrip(")")
+        if href not in seen:
+            seen.add(href)
             unique_links.append(line)
 
     if unique_links:
@@ -1055,7 +1097,6 @@ async def _scrape_html_browser_query_agnostic(
 
 async def _capture_page_screenshot(url: str) -> bytes:
     """Capture a viewport screenshot of a URL without performing any extraction."""
-    import base64
     from playwright.async_api import async_playwright
 
     async with async_playwright() as p:
@@ -1092,7 +1133,6 @@ async def _vision_extract_image_bytes(
     prompt_prefix: str,
 ) -> Tuple[str, Optional[str]]:
     """Run vision extraction on already-fetched image bytes."""
-    import base64
     import litellm
 
     try:

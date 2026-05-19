@@ -74,6 +74,13 @@ _FOLLOWUP_LIST_SEGMENTS: frozenset[str] = frozenset(
         "publications",
         "publications-full",
         "database",
+        "section",
+        "sections",
+        "topic",
+        "topics",
+        "research-topic",
+        "research-topics",
+        "magazine",
     }
 )
 _FOLLOWUP_DETAIL_TOKENS: tuple[str, ...] = (
@@ -93,6 +100,9 @@ _FOLLOWUP_DETAIL_TOKENS: tuple[str, ...] = (
     "bitstream",
 )
 _DATA_PORTAL_TOKENS: tuple[str, ...] = ("maproom", "dataset", "data", "api", "csv", "thredds")
+_FOLLOWUP_HUB_PATH_TOKENS: frozenset[str] = frozenset(
+    {"section", "sections", "topic", "topics", "research-topic", "research-topics", "magazine"}
+)
 _QUERY_DATA_HINTS: tuple[str, ...] = (
     "dataset",
     "data portal",
@@ -267,6 +277,22 @@ def _looks_like_operational_forecast_or_warning_url(url: str) -> bool:
     )
 
 
+def _looks_like_topic_or_section_hub_url(url: str) -> bool:
+    parsed = urlparse(url)
+    path_segments = [seg.lower() for seg in parsed.path.strip("/").split("/") if seg]
+    if not path_segments or _looks_like_document_url(url):
+        return False
+    if not any(seg in _FOLLOWUP_HUB_PATH_TOKENS for seg in path_segments):
+        return False
+    if _looks_like_identifier_detail_page(path_segments):
+        return False
+    terminal = path_segments[-1]
+    if terminal in _FOLLOWUP_HUB_PATH_TOKENS:
+        return True
+    joined = "/".join(path_segments)
+    return "research-topics/" in joined or "/sections/" in joined
+
+
 def _score_followup_candidate(query: str, url: str) -> int:
     parsed = urlparse(url)
     path = parsed.path.strip("/")
@@ -278,7 +304,6 @@ def _score_followup_candidate(query: str, url: str) -> int:
     joined = "/".join(path_segments)
     normalized_joined = joined.replace("_", "-")
     terminal = joined.rsplit("/", 1)[-1] if joined else ""
-    query_lower = query.lower()
     query_keywords = _extract_query_keywords(query)
 
     score = 0
@@ -363,6 +388,8 @@ def _is_promising_followup_url(url: str, base_domain: str, query: str = "") -> b
     normalized_joined = joined.replace("_", "-")
 
     if terminal in _FOLLOWUP_NEGATIVE_TOKENS:
+        return False
+    if _looks_like_topic_or_section_hub_url(url):
         return False
     if _looks_like_paginated_index_page(url):
         return False

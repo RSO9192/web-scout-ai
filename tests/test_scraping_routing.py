@@ -3,12 +3,13 @@
 import pytest
 
 from web_scout.scraping import (
-    _SKIP,
     _SCRAPE_DOC,
     _SCRAPE_HTML,
     _SCRAPE_IMAGE,
     _SCRAPE_JS,
     _SCRAPE_JSON,
+    _SKIP,
+    _append_internal_links,
     _download_pdf_bytes,
     _looks_like_document_resource,
     _trim_json_value,
@@ -32,6 +33,23 @@ class _MockResponse:
         import json
 
         return json.loads(self.text)
+
+
+class _MockLink:
+    def __init__(self, href: str, text: str = ""):
+        self.href = href
+        self.text = text
+
+
+class _MockResultLinks:
+    def __init__(self, internal=None, external=None):
+        self.internal = internal or []
+        self.external = external or []
+
+
+class _MockCrawlerResult:
+    def __init__(self, internal=None, external=None):
+        self.links = _MockResultLinks(internal=internal, external=external)
 
 
 def _mock_async_client_factory(head_response=None, get_response=None):
@@ -75,6 +93,18 @@ def test_trim_json_value_limits_large_collections():
     assert len(trimmed["items"]) == 6
     assert trimmed["items"][-1] == "... 25 more items omitted"
     assert "truncated" in trimmed["nested"]["a"]["b"]
+
+
+def test_append_internal_links_keeps_icon_only_external_document_links():
+    content = "Repository record content"
+    result = _MockCrawlerResult(
+        external=[_MockLink("https://cdn.example.org/laws/kenya-forestry-law.pdf", "")]
+    )
+
+    enriched = _append_internal_links(content, result)
+
+    assert "### Links on Page:" in enriched
+    assert "https://cdn.example.org/laws/kenya-forestry-law.pdf" in enriched
 
 
 @pytest.mark.asyncio

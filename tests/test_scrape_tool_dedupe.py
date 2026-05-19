@@ -5,19 +5,19 @@ import pytest
 
 from web_scout._heuristics import EXTRACTOR_HEURISTICS, FOLLOWUP_HEURISTICS, ROUTING_HEURISTICS
 from web_scout.tools import (
+    _SESSION_SOURCE_CACHE,
+    _SESSION_SOURCE_IN_FLIGHT,
     CachedSourceArtifact,
     ResearchTracker,
     SourceCacheKey,
-    _SESSION_SOURCE_CACHE,
-    _SESSION_SOURCE_IN_FLIGHT,
     _build_failure_outcome,
     _build_success_outcome,
     _classify_failure_action,
     _extract_rendered_followup_links,
     _ExtractorOutput,
     _get_or_fetch_session_source_artifact,
-    _make_source_cache_key,
     _is_rendered_list_page,
+    _make_source_cache_key,
     _render_failed_extractor_output,
     _render_successful_extractor_output,
     _resolve_scrape_outcome,
@@ -118,6 +118,36 @@ async def test_scrape_tool_recovers_prefetched_content_when_extractor_fails(monk
     assert "Extractor failed after successful scrape" in result
     assert "Recoverable source facts" in result
     assert tracker.count_for_action("scraped") == 1
+
+
+@pytest.mark.asyncio
+async def test_scrape_tool_unexpected_internal_error_returns_failure_and_unblocks_waiters(monkeypatch):
+    from web_scout import scraping, tools
+
+    tracker = ResearchTracker()
+
+    monkeypatch.setattr(
+        scraping,
+        "scrape_url",
+        AsyncMock(return_value=("Recoverable source facts and figures. " * 30, "Report", None)),
+    )
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("builder exploded")
+
+    monkeypatch.setattr(tools, "_build_extractor_agent", _boom)
+
+    scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
+    url = "https://example.org/report"
+
+    result1, result2 = await asyncio.gather(scrape_tool(url), scrape_tool(url))
+
+    assert "internal error: RuntimeError: builder exploded" in result1
+    assert (
+        "internal error: RuntimeError: builder exploded" in result2
+        or "Already attempted this URL" in result2
+    )
+    assert "Already attempted this URL" in await scrape_tool(url)
 
 
 @pytest.mark.asyncio

@@ -49,6 +49,10 @@ class PageShapeAssessment:
     document_link_count: int = 0
     metadata_marker_count: int = 0
     list_line_ratio: float = 0.0
+    content_score: int = 0
+    record_score: int = 0
+    interactive_score: int = 0
+    confidence: int = 0
 
 
 def _looks_like_document_url(url: str) -> bool:
@@ -124,32 +128,115 @@ def _classify_page_shape(
     script_tags: int = 0,
 ) -> PageShapeAssessment:
     text_chars = len(text)
+    sparse_prose = paragraph_blocks <= 2 and sentence_count <= 4
     content_rich = (
         text_chars >= EXTRACTOR_HEURISTICS.rich_content_chars
         or (text_chars >= 1200 and paragraph_blocks >= 4 and sentence_count >= 6)
     )
-    sparse_prose = paragraph_blocks <= 2 and sentence_count <= 4
     link_heavy = href_count >= 8 and text_chars / max(href_count, 1) < 250
-    record_evidence = document_link_count >= 1 and metadata_marker_count >= 2
+    dominant_document_target = (
+        document_link_count >= 1
+        and (
+            href_count <= 3
+            or document_link_count == href_count
+            or document_link_count / max(href_count, 1) >= 0.5
+        )
+        and (
+            sparse_prose
+            or not content_rich
+            or (metadata_marker_count >= 4 and sentence_count <= 6)
+        )
+    )
     document_hub = document_link_count >= 2 and href_count >= 3
-    interactive_like = explicit_interactive or (
+    avg_paragraph_chars = text_chars / max(paragraph_blocks, 1)
+
+    content_score = 0
+    if text_chars >= EXTRACTOR_HEURISTICS.rich_content_chars:
+        content_score += 4
+    elif text_chars >= 1200:
+        content_score += 3
+    elif text_chars >= EXTRACTOR_HEURISTICS.thin_content_chars:
+        content_score += 1
+
+    if paragraph_blocks >= 4:
+        content_score += 2
+    elif paragraph_blocks >= 2:
+        content_score += 1
+
+    if sentence_count >= 8:
+        content_score += 2
+    elif sentence_count >= 4:
+        content_score += 1
+
+    if text_chars >= 1200 and sentence_count >= 12:
+        content_score += 1
+
+    if paragraph_blocks >= 2 and avg_paragraph_chars >= 140:
+        content_score += 1
+
+    record_score = 0
+    if document_link_count >= 1:
+        record_score += 2
+    if metadata_marker_count >= 4:
+        record_score += 2
+    elif metadata_marker_count >= 2:
+        record_score += 1
+    if dominant_document_target:
+        record_score += 2
+    if sparse_prose:
+        record_score += 2
+    if link_heavy:
+        record_score += 1
+    if document_hub:
+        record_score += 1
+    if text_chars < EXTRACTOR_HEURISTICS.rich_content_chars:
+        record_score += 1
+
+    interactive_score = 0
+    if explicit_interactive:
+        interactive_score += 5
+    if (
         text_chars < ROUTING_HEURISTICS.low_text_spa_chars
         and script_tags >= ROUTING_HEURISTICS.low_text_spa_script_count
-    ) or (
+    ):
+        interactive_score += 3
+    if (
         text_chars < EXTRACTOR_HEURISTICS.thin_content_chars
         and list_line_ratio >= EXTRACTOR_HEURISTICS.nav_dump_bullet_ratio
-    )
+    ):
+        interactive_score += 2
+    if (
+        script_tags >= ROUTING_HEURISTICS.heavy_spa_script_count
+        and text_chars < ROUTING_HEURISTICS.rich_html_static_text_chars
+    ):
+        interactive_score += 1
 
-    if interactive_like:
-        page_type: PageType = "interactive_shell"
-    elif record_evidence and (sparse_prose or not content_rich or link_heavy or document_hub):
+    if content_score >= 6 and content_score >= record_score + 2 and content_score >= interactive_score + 2:
+        page_type: PageType = "content_page"
+    elif (
+        interactive_score >= 5
+        and interactive_score >= content_score + 2
+        and interactive_score >= record_score + 1
+        and text_chars < ROUTING_HEURISTICS.rich_html_static_text_chars
+    ):
+        page_type = "interactive_shell"
+    elif (
+        record_score >= 5
+        and record_score >= content_score + 2
+        and record_score >= interactive_score + 1
+    ):
         page_type = "record_page"
-    elif content_rich:
+    elif content_score >= 4 and content_score >= max(record_score, interactive_score):
         page_type = "content_page"
-    elif record_evidence or (document_link_count >= 1 and metadata_marker_count >= 3 and sparse_prose):
+    elif interactive_score >= 6 and text_chars < EXTRACTOR_HEURISTICS.rich_content_chars:
+        page_type = "interactive_shell"
+    elif record_score >= 6 and sparse_prose:
         page_type = "record_page"
     else:
         page_type = "uncertain"
+
+    sorted_scores = sorted((content_score, record_score, interactive_score), reverse=True)
+    confidence = sorted_scores[0] - sorted_scores[1]
 
     return PageShapeAssessment(
         page_type=page_type,
@@ -160,6 +247,10 @@ def _classify_page_shape(
         document_link_count=document_link_count,
         metadata_marker_count=metadata_marker_count,
         list_line_ratio=list_line_ratio,
+        content_score=content_score,
+        record_score=record_score,
+        interactive_score=interactive_score,
+        confidence=confidence,
     )
 
 

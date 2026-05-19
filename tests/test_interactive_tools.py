@@ -91,6 +91,29 @@ def test_signaled_prefetched_agent_exposes_interactive_tools_regardless_of_query
     assert "click_element" in names
 
 
+def test_signal_does_not_override_strong_content_page():
+    agent, cleanup = _build_extractor_agent(
+        model="dummy",
+        query="global hunger and food insecurity trends",
+        url="https://example.org/publication/sofi-2024",
+        wait_for=None,
+        pre_fetched_content=(
+            "# SOFI 2024 publication\n"
+            "Source: https://example.org/publication/sofi-2024\n\n"
+            "[Form/survey content detected — actual data is likely behind navigation or tabs.]\n\n"
+            + (
+                "The report documents global hunger and food insecurity trends, gives "
+                "regional prevalence figures, compares 2022, 2023, and 2024, and "
+                "details the drivers of deterioration in Africa and Western Asia. "
+            ) * 40
+        ),
+    )
+
+    names = _tool_names(agent)
+    assert "list_interactive_elements" not in names
+    assert "click_element" not in names
+
+
 @pytest.mark.parametrize(
     "query",
     [

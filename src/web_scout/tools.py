@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 
 from ._extractor_contract import ExtractorOutcome
 from ._heuristics import EXTRACTOR_HEURISTICS
-from ._page_classifier import classify_prefetched_page_shape
+from ._page_classifier import PageShapeAssessment, classify_prefetched_page_shape
 
 if TYPE_CHECKING:
     from .models import SearchQuery, UrlEntry
@@ -662,6 +662,58 @@ def _prefetched_is_thin(content: str) -> bool:
     return len(content.strip()) < EXTRACTOR_HEURISTICS.thin_content_chars
 
 
+def _prefetched_has_strong_content(
+    content: str,
+    page_shape: Optional[PageShapeAssessment],
+) -> bool:
+    if not content or page_shape is None:
+        return False
+    if page_shape.page_type != "content_page":
+        return False
+    return (
+        page_shape.content_score >= 4
+        and page_shape.content_score >= page_shape.record_score + 1
+        and page_shape.content_score >= page_shape.interactive_score + 1
+        and page_shape.text_chars >= 3_000
+    )
+
+
+def _prefetched_allows_interaction(
+    content: str,
+    page_shape: Optional[PageShapeAssessment],
+) -> bool:
+    if not content:
+        return True
+
+    # Rich prose should stay on the cheap one-turn extraction path even if
+    # weak SPA/form markers are present in the rendered content.
+    if _prefetched_has_strong_content(content, page_shape):
+        return False
+
+    if _prefetched_has_signal(content):
+        return True
+
+    if (
+        page_shape is not None
+        and page_shape.page_type == "interactive_shell"
+        and page_shape.interactive_score >= 5
+    ):
+        return True
+
+    if not _prefetched_is_thin(content):
+        return False
+
+    if page_shape is None:
+        return True
+
+    return (
+        page_shape.page_type == "uncertain"
+        and page_shape.interactive_score >= 2
+        and page_shape.record_score < 5
+        and page_shape.content_score < 5
+    )
+
+
 def _prefetched_is_recoverable(content: str) -> bool:
     stripped = content.strip()
     if len(stripped) < EXTRACTOR_HEURISTICS.recovery_min_content_chars:
@@ -947,16 +999,16 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
     page_shape = classify_prefetched_page_shape(pre_fetched_content) if pre_fetched_content else None
     allow_interaction = (
         legacy_direct_agent
-        or _prefetched_has_signal(pre_fetched_content)
-        or (page_shape is not None and page_shape.page_type == "interactive_shell")
-        or (
-            _prefetched_is_thin(pre_fetched_content)
-            and (page_shape is None or page_shape.page_type != "record_page")
-        )
+        or _prefetched_allows_interaction(pre_fetched_content, page_shape)
     )
     allow_linked_document = (
         legacy_direct_agent
-        or (page_shape is not None and page_shape.page_type == "record_page")
+        or (
+            page_shape is not None
+            and page_shape.page_type == "record_page"
+            and page_shape.record_score >= 5
+            and page_shape.record_score >= page_shape.content_score + 2
+        )
     )
     linked_document_called = False
 
@@ -1817,9 +1869,30 @@ def create_scrape_and_extract_tool(
                 )
                 future.set_result(outcome.rendered_text)
                 return outcome.rendered_text
+        except Exception as exc:
+            logger.error(
+                "[extract] unexpected scrape failure for %s (type=%s): %s",
+                url,
+                type(exc).__name__,
+                exc,
+            )
+            failure_text = f"[Scrape failed: internal error: {type(exc).__name__}: {exc}]"
+            if tracker is not None:
+                tracker.record_scrape_failure(url, failure_text)
+            count_scraped = tracker.count_for_action("scraped") if tracker is not None else None
+            outcome = _build_failure_outcome(
+                url=url,
+                content=failure_text,
+                count_scraped=count_scraped,
+                failure_kind="scrape_failed",
+            )
+            outcome_cache[norm] = outcome
+            if not future.done():
+                future.set_result(outcome.rendered_text)
+            return outcome.rendered_text
         finally:
             if not future.done():
-                future.set_exception(RuntimeError("scrape aborted unexpectedly"))
+                future.cancel()
             in_flight.pop(norm, None)
 
     setattr(scrape_and_extract, "_outcome_cache", outcome_cache)

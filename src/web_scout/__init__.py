@@ -36,13 +36,18 @@ Public API
 - ``ResearchTracker`` — URL/query bookkeeping
 """
 
-__version__ = "1.2.2"
+__version__ = "1.3.0"
 
 import logging as _logging
 import os as _os
 
 # Avoid LiteLLM's import-time network probe and fallback warning.
 _os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "true")
+
+# Suppress import-time WARNING noise from LiteLLM (missing botocore etc.)
+# before litellm is pulled in transitively by .agent.
+_logging.getLogger("LiteLLM").setLevel(_logging.ERROR)
+_logging.getLogger("litellm").setLevel(_logging.ERROR)
 
 
 def _configure_third_party_runtime() -> None:

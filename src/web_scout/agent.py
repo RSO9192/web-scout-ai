@@ -221,7 +221,7 @@ async def _run_search_mode(
 
 async def run_web_research(
     query: str,
-    models: Dict[str, str],
+    models: Optional[Dict[str, str]] = None,
     include_domains: Optional[List[str]] = None,
     direct_url: Optional[str] = None,
     search_backend: str = "serper",
@@ -235,6 +235,8 @@ async def run_web_research(
 ) -> WebResearchResult:
     """Run deterministic web research pipeline."""
     from .utils import get_model
+    if models is None:
+        models = DEFAULT_WEB_RESEARCH_MODELS
 
     if isinstance(research_depth, str):
         if research_depth not in _DEPTH_PRESETS:
@@ -246,15 +248,15 @@ async def run_web_research(
         depth_config = dict(research_depth)
     else:
         raise ValueError("research_depth must be a string or a dictionary.")
-        
+
     evaluator_extra_prompt = depth_config.pop("evaluator_extra_prompt", None)
-    
+
     if coverage_criteria:
         if evaluator_extra_prompt:
             evaluator_extra_prompt += f"\n{coverage_criteria}"
         else:
             evaluator_extra_prompt = coverage_criteria
-            
+
     depth = depth_config
 
     if include_domains:
