@@ -211,7 +211,7 @@ async def test_session_source_cache_reuses_successful_fetches(monkeypatch):
 
     monkeypatch.setattr(tools, "_SESSION_SOURCE_CACHE", {})
     monkeypatch.setattr(tools, "_SESSION_SOURCE_IN_FLIGHT", {})
-    monkeypatch.setattr("web_scout.scraping.strategy.fetch_query_agnostic_source_artifact", _fake_fetch)
+    monkeypatch.setattr("web_scout.scraping.executor.fetch_query_agnostic_source_artifact", _fake_fetch)
 
     key_strategy = ScrapeStrategy.HTML_FAST
     first, first_error = await _get_or_fetch_session_source_artifact(
@@ -265,7 +265,7 @@ async def test_session_source_cache_dedupes_concurrent_misses(monkeypatch):
 
     monkeypatch.setattr(tools, "_SESSION_SOURCE_CACHE", {})
     monkeypatch.setattr(tools, "_SESSION_SOURCE_IN_FLIGHT", {})
-    monkeypatch.setattr("web_scout.scraping.strategy.fetch_query_agnostic_source_artifact", _fake_fetch)
+    monkeypatch.setattr("web_scout.scraping.executor.fetch_query_agnostic_source_artifact", _fake_fetch)
 
     first, second = await asyncio.gather(
         _get_or_fetch_session_source_artifact(
@@ -304,7 +304,7 @@ async def test_session_source_cache_does_not_store_failures(monkeypatch):
 
     monkeypatch.setattr(tools, "_SESSION_SOURCE_CACHE", {})
     monkeypatch.setattr(tools, "_SESSION_SOURCE_IN_FLIGHT", {})
-    monkeypatch.setattr("web_scout.scraping.strategy.fetch_query_agnostic_source_artifact", _fake_fetch)
+    monkeypatch.setattr("web_scout.scraping.executor.fetch_query_agnostic_source_artifact", _fake_fetch)
 
     first, first_error = await _get_or_fetch_session_source_artifact(
         url="https://example.org/report",

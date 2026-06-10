@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 from .constants import (
     BLOCKED_DOMAINS,
     DOC_EXTENSIONS,
+    PDF_MAGIC_BYTES,
     SUPPORTED_DOC_CONTENT_TYPES,
     SUPPORTED_DOC_EXTENSIONS,
     UNSUPPORTED_LEGACY_DOC_EXTENSIONS,
@@ -42,7 +43,7 @@ def sniff_document_payload(
 ) -> bool:
     if not payload:
         return False
-    if payload[:4] == b"%PDF":
+    if payload[:4] == PDF_MAGIC_BYTES:
         return True
     if payload[:4] == b"PK\x03\x04":
         ct = normalize_content_type(content_type)
@@ -116,6 +117,13 @@ def unsupported_legacy_document_reason(url: str, content_type: str = "", content
         suffix = f" ({ext})" if ext in UNSUPPORTED_LEGACY_DOC_EXTENSIONS else f" ({ct})"
         return f"unsupported legacy Office document format{suffix}"
     return ""
+
+
+def truncate_content(content: str, max_chars: int) -> str:
+    """Clip content to max_chars and append a truncation notice."""
+    if len(content) > max_chars:
+        return content[:max_chars] + f"\n\n[Truncated at {max_chars:,} chars]"
+    return content
 
 
 def trim_json_value(

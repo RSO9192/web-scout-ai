@@ -3,13 +3,11 @@
 import pytest
 
 from web_scout.scraping import scrape_url
+from web_scout.scraping._download import download_pdf
+from web_scout.scraping._markdown import append_links
 from web_scout.scraping.constants import BLOCKED_DOMAINS
 from web_scout.scraping.page_classifier import looks_like_document_resource
 from web_scout.scraping.plan import _validate_url
-from web_scout.scraping.strategy import (
-    _append_internal_links,
-    _download_pdf_bytes,
-)
 from web_scout.scraping.types import ScrapePlan, ScrapeStrategy
 from web_scout.scraping.utils import trim_json_value
 
@@ -94,11 +92,11 @@ def test_trim_json_value_limits_large_collections():
     assert "truncated" in trimmed["nested"]["a"]["b"]
 
 
-def test_append_internal_links_keeps_icon_only_external_document_links():
+def test_append_links_keeps_icon_only_external_document_links():
     content = "Repository record content"
     result = _MockCrawlerResult(external=[_MockLink("https://cdn.example.org/laws/kenya-forestry-law.pdf", "")])
 
-    enriched = _append_internal_links(content, result)
+    enriched = append_links(content, result)
 
     assert "### Links on Page:" in enriched
     assert "https://cdn.example.org/laws/kenya-forestry-law.pdf" in enriched
@@ -350,35 +348,24 @@ async def test_validate_url_overrides_json_head_with_html_payload(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_download_pdf_bytes_falls_back_to_raw_download(monkeypatch):
-    from web_scout.scraping import strategy as scraping_strategy
+async def test_download_pdf_falls_back_to_urllib(monkeypatch):
+    """When httpx fails, the Chain-of-Responsibility falls through to urllib."""
+    from web_scout.scraping import _download as dl
 
-    class _FailingAsyncClient:
-        def __init__(self, *args, **kwargs):
-            pass
+    async def _httpx_fails(self, url):
+        return None  # simulate httpx returning nothing
 
-        async def __aenter__(self):
-            return self
+    async def _urllib_succeeds(self, url):
+        return b"%PDF-1.7 mock data"
 
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def get(self, url):
-            raise RuntimeError("Unsupported content-encoding: None")
-
-    monkeypatch.setattr(scraping_strategy.httpx, "AsyncClient", _FailingAsyncClient)
-    monkeypatch.setattr(
-        scraping_strategy,
-        "_download_binary_via_urllib",
-        lambda url: (b"%PDF-1.7 mock data", "application/pdf"),
-    )
-
-    async def _unexpected_browser_download(url):
+    async def _browser_unexpected(self, url):
         raise AssertionError("browser fallback should not be needed")
 
-    monkeypatch.setattr(scraping_strategy, "_download_pdf_via_browser", _unexpected_browser_download)
+    monkeypatch.setattr(dl._HttpxDownloader, "_attempt", _httpx_fails)
+    monkeypatch.setattr(dl._UrllibDownloader, "_attempt", _urllib_succeeds)
+    monkeypatch.setattr(dl._BrowserDownloader, "_attempt", _browser_unexpected)
 
-    pdf_bytes, error = await _download_pdf_bytes("https://example.org/report.pdf")
+    pdf_bytes, error = await download_pdf("https://example.org/report.pdf")
 
     assert error is None
     assert pdf_bytes == b"%PDF-1.7 mock data"
@@ -386,8 +373,9 @@ async def test_download_pdf_bytes_falls_back_to_raw_download(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_scrape_url_passes_document_metadata_from_validation(monkeypatch):
-    """scrape_url should not discard content metadata discovered during validation."""
-    import web_scout.scraping as scraping
+    """scrape_url should not discard content metadata discovered during plan validation."""
+    import web_scout.scraping._scrape_url as scrape_url_module
+    from web_scout.scraping import _document as doc_module
 
     captured_kwargs = {}
 
@@ -400,11 +388,13 @@ async def test_scrape_url_passes_document_metadata_from_validation(monkeypatch):
         )
 
     async def _fake_scrape_document(url, **kwargs):
-        captured_kwargs.update(kwargs)
-        return "PDF content", "report.pdf", None
+        from web_scout.scraping.types import SourceArtifact
 
-    monkeypatch.setattr(scraping, "build_scrape_plan", _fake_build_scrape_plan)
-    monkeypatch.setattr(scraping, "scrape_document", _fake_scrape_document)
+        captured_kwargs.update(kwargs)
+        return SourceArtifact(kind="text", title="report.pdf", text_content="PDF content"), None
+
+    monkeypatch.setattr(scrape_url_module, "build_scrape_plan", _fake_build_scrape_plan)
+    monkeypatch.setattr(doc_module, "scrape_document", _fake_scrape_document)
 
     content, title, error = await scrape_url("https://example.org/download?id=123")
 
@@ -440,6 +430,34 @@ def test_abstract_available_publishers_not_blocked():
     ]
     for domain in abstract_available:
         assert domain not in BLOCKED_DOMAINS, f"{domain} has accessible content and should not be blocked"
+
+
+@pytest.mark.asyncio
+async def test_validate_url_skips_http_404(monkeypatch):
+    """A HEAD response with status 404 must produce a SKIP plan — no GET needed."""
+    from web_scout.scraping import plan as scraping_plan
+
+    head = _MockResponse(status_code=404)
+    monkeypatch.setattr(scraping_plan.httpx, "AsyncClient", _mock_async_client_factory(head_response=head))
+
+    verdict, detail = await _validate_url("https://example.org/dead-link")
+
+    assert verdict == ScrapeStrategy.SKIP
+    assert "404" in detail
+
+
+@pytest.mark.asyncio
+async def test_validate_url_skips_http_410(monkeypatch):
+    """A HEAD response with status 410 (Gone) must produce a SKIP plan."""
+    from web_scout.scraping import plan as scraping_plan
+
+    head = _MockResponse(status_code=410)
+    monkeypatch.setattr(scraping_plan.httpx, "AsyncClient", _mock_async_client_factory(head_response=head))
+
+    verdict, detail = await _validate_url("https://example.org/removed-page")
+
+    assert verdict == ScrapeStrategy.SKIP
+    assert "410" in detail
 
 
 def test_paywalled_publishers_remain_blocked():

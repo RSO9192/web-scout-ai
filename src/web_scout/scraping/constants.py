@@ -63,12 +63,16 @@ SUPPORTED_DOC_EXTENSIONS = (".pdf", ".docx", ".pptx", ".xlsx")
 UNSUPPORTED_LEGACY_DOC_EXTENSIONS = (".doc", ".xls", ".ppt")
 DOC_EXTENSIONS = SUPPORTED_DOC_EXTENSIONS + UNSUPPORTED_LEGACY_DOC_EXTENSIONS
 
+BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
+
 FETCH_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    ),
+    "User-Agent": BROWSER_USER_AGENT,
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.5",
 }
+
+LINKS_SECTION_HEADING = "### Links on Page:"
+
+PDF_MAGIC_BYTES = b"%PDF"

@@ -288,6 +288,7 @@ def looks_like_pdf_resource(url: str, content_type: str = "", content_dispositio
 
 
 def looks_like_auth_wall(html_lower: str) -> bool:
+    # TODO: It may produce false-positives on pages with both the content and the signin form.
     auth_markers = (
         "sign in",
         "log in",
@@ -314,6 +315,12 @@ _RENDERED_LINKS_HEADING = "**Relevant follow-up links:**"
 
 __all__ = [
     "PageShapeAssessment",
+    "PageType",
     "classify_html_page_shape",
     "classify_prefetched_page_shape",
+    "looks_like_metadata_page",
+    "looks_like_document_resource",
+    "looks_like_pdf_resource",
+    "looks_like_auth_wall",
+    "looks_like_html_body",
 ]

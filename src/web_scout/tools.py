@@ -734,7 +734,7 @@ async def _get_or_fetch_session_source_artifact(
     cache_pdf_pages: bool = False,
 ) -> tuple[Optional[CachedSourceArtifact], Optional[str]]:
     """Load or fetch a query-agnostic source artifact for this Python process."""
-    from .scraping import strategy as scraping_strategy
+    from .scraping import executor as scraping_executor
 
     key = _make_source_cache_key(
         url=url,
@@ -761,7 +761,7 @@ async def _get_or_fetch_session_source_artifact(
             artifact,
             error,
             _,
-        ) = await scraping_strategy.fetch_query_agnostic_source_artifact(
+        ) = await scraping_executor.fetch_query_agnostic_source_artifact(
             url,
             wait_for=wait_for,
             vision_model=vision_model,
@@ -1015,8 +1015,8 @@ def _build_extractor_agent(
     essential for metadata/catalogue pages (e.g. FAOLEX law records) where
     the page itself only contains a summary and the full text is in a document.
     """
+    from .scraping import executor as scraping_executor
     from .scraping import plan as scraping_plan
-    from .scraping import strategy as scraping_strategy
     from .scraping.page_classifier import looks_like_pdf_resource
     from .scraping.types import ScrapeStrategy, SourceArtifact
     from .scraping.utils import is_blocked_domain
@@ -1088,7 +1088,7 @@ def _build_extractor_agent(
             )
             if cache_error or cached_artifact is None:
                 return f"[Document scrape failed: {cache_error}]"
-            content, title, error = await scraping_strategy.materialize_source_artifact(
+            content, title, error = await scraping_executor.materialize_source_artifact(
                 SourceArtifact(
                     kind=cached_artifact.artifact_kind,
                     title=cached_artifact.title,
@@ -1146,7 +1146,7 @@ def _build_extractor_agent(
         known_content_type: str,
         known_content_disposition: str,
     ) -> str:
-        content, title, error = await scraping_strategy.scrape_document(
+        content, title, error = await scraping_executor.scrape_document(
             document_url,
             query=query,
             vision_model=vision_model,
@@ -1634,9 +1634,9 @@ def create_scrape_and_extract_tool(
                 _wait_for = wait_for if wait_for and wait_for.lower() not in ("null", "none", "") else None
 
                 # Fetch content in Python before involving the agent
+                from .scraping import executor as scraping_executor
                 from .scraping import plan as scraping_plan
                 from .scraping import scrape_url
-                from .scraping import strategy as scraping_strategy
                 from .scraping.page_classifier import looks_like_pdf_resource
                 from .scraping.types import ScrapeStrategy, SourceArtifact
 
@@ -1673,7 +1673,7 @@ def create_scrape_and_extract_tool(
                                 content,
                                 title,
                                 error,
-                            ) = await scraping_strategy.materialize_source_artifact(
+                            ) = await scraping_executor.materialize_source_artifact(
                                 SourceArtifact(
                                     kind=cached_artifact.artifact_kind,
                                     title=cached_artifact.title,

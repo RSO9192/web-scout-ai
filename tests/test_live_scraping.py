@@ -48,8 +48,16 @@ async def test_validate_url_live_static_html():
 
 @pytest.mark.asyncio
 async def test_validate_url_live_404_is_skipped():
-    """A 404 response must be skipped — no point scraping dead links."""
+    """A live 404 response must be routed to SKIP.
+
+    Uses httpbin.org which can be slow; the test is skipped if the server is
+    unreachable or times out so that transient network issues do not cause
+    spurious CI failures.  The routing logic for 4xx responses is covered by
+    the mocked ``test_validate_url_skips_http_404`` unit test.
+    """
     verdict, detail = await _validate_url("https://httpbin.org/status/404")
+    if "timed out" in detail or "GET failed" in detail or "validation error" in detail:
+        pytest.skip(f"httpbin.org unreachable in this environment: {detail}")
     assert verdict == ScrapeStrategy.SKIP, f"Expected SKIP for 404, got {verdict!r}: {detail}"
 
 
