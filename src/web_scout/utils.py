@@ -10,22 +10,22 @@ from agents.extensions.models.litellm_model import LitellmModel
 # Map of LiteLLM provider prefixes to their environment variable names.
 # See https://docs.litellm.ai/docs/providers for the full list.
 _PROVIDER_ENV_KEYS: dict[str, list[str]] = {
-    "openai":       ["OPENAI_API_KEY"],
-    "anthropic":    ["ANTHROPIC_API_KEY"],
-    "gemini":       ["GEMINI_API_KEY"],
-    "google":       ["GEMINI_API_KEY"],
-    "vertex_ai":    ["GOOGLE_APPLICATION_CREDENTIALS"],
-    "mistral":      ["MISTRAL_API_KEY"],
-    "cohere":       ["COHERE_API_KEY"],
-    "groq":         ["GROQ_API_KEY"],
-    "together_ai":  ["TOGETHERAI_API_KEY", "TOGETHER_API_KEY"],
+    "openai": ["OPENAI_API_KEY"],
+    "anthropic": ["ANTHROPIC_API_KEY"],
+    "gemini": ["GEMINI_API_KEY"],
+    "google": ["GEMINI_API_KEY"],
+    "vertex_ai": ["GOOGLE_APPLICATION_CREDENTIALS"],
+    "mistral": ["MISTRAL_API_KEY"],
+    "cohere": ["COHERE_API_KEY"],
+    "groq": ["GROQ_API_KEY"],
+    "together_ai": ["TOGETHERAI_API_KEY", "TOGETHER_API_KEY"],
     "fireworks_ai": ["FIREWORKS_API_KEY"],
-    "deepseek":     ["DEEPSEEK_API_KEY"],
-    "perplexity":   ["PERPLEXITYAI_API_KEY"],
-    "cerebras":     ["CEREBRAS_API_KEY"],
-    "sambanova":    ["SAMBANOVA_API_KEY"],
-    "azure":        ["AZURE_API_KEY"],
-    "bedrock":      ["AWS_ACCESS_KEY_ID"],
+    "deepseek": ["DEEPSEEK_API_KEY"],
+    "perplexity": ["PERPLEXITYAI_API_KEY"],
+    "cerebras": ["CEREBRAS_API_KEY"],
+    "sambanova": ["SAMBANOVA_API_KEY"],
+    "azure": ["AZURE_API_KEY"],
+    "bedrock": ["AWS_ACCESS_KEY_ID"],
 }
 
 # Providers that are natively supported by the OpenAI Agents SDK

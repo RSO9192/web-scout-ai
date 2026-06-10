@@ -42,7 +42,9 @@ def test_normalize_domain_uppercase():
 
 
 def test_build_allowed_domain_set_from_direct_url():
-    allowed = _build_allowed_domain_set(direct_url="https://www.sciencedirect.com/science/article/pii/S2214581825005567")
+    allowed = _build_allowed_domain_set(
+        direct_url="https://www.sciencedirect.com/science/article/pii/S2214581825005567"
+    )
     assert allowed == frozenset({"sciencedirect.com"})
 
 
@@ -77,18 +79,24 @@ def test_is_promising_followup_url_rejects_warning_page():
 
 
 def test_is_promising_followup_url_allows_publication_detail():
-    assert _is_promising_followup_url(
-        "https://meteo.go.ke/publications/state-of-the-climate-report-2025/",
-        "meteo.go.ke",
-    ) is True
+    assert (
+        _is_promising_followup_url(
+            "https://meteo.go.ke/publications/state-of-the-climate-report-2025/",
+            "meteo.go.ke",
+        )
+        is True
+    )
 
 
 def test_is_promising_followup_url_allows_document_download():
-    assert _is_promising_followup_url(
-        "https://meteo.go.ke/documents/3009/State_of_the_Climate_Report_2025.pdf",
-        "meteo.go.ke",
-        query="Kenya precipitation current status and recent trend",
-    ) is True
+    assert (
+        _is_promising_followup_url(
+            "https://meteo.go.ke/documents/3009/State_of_the_Climate_Report_2025.pdf",
+            "meteo.go.ke",
+            query="Kenya precipitation current status and recent trend",
+        )
+        is True
+    )
 
 
 @pytest.mark.parametrize(
@@ -99,12 +107,17 @@ def test_is_promising_followup_url_allows_document_download():
         "government procurement certification recognized producers county policy Kenya",
     ],
 )
-def test_is_promising_followup_url_rejects_operational_forecast_document_for_non_forecast_queries(query):
-    assert _is_promising_followup_url(
-        "https://meteo.go.ke/documents/2537/March-April-May_MAM_2026_Seasonal_Weather_Forecast.pdf",
-        "meteo.go.ke",
-        query=query,
-    ) is False
+def test_is_promising_followup_url_rejects_operational_forecast_document_for_non_forecast_queries(
+    query,
+):
+    assert (
+        _is_promising_followup_url(
+            "https://meteo.go.ke/documents/2537/March-April-May_MAM_2026_Seasonal_Weather_Forecast.pdf",
+            "meteo.go.ke",
+            query=query,
+        )
+        is False
+    )
 
 
 @pytest.mark.parametrize(
@@ -115,51 +128,69 @@ def test_is_promising_followup_url_rejects_operational_forecast_document_for_non
     ],
 )
 def test_is_promising_followup_url_allows_forecast_document_for_forecast_queries(query):
-    assert _is_promising_followup_url(
-        "https://meteo.go.ke/documents/2537/March-April-May_MAM_2026_Seasonal_Weather_Forecast.pdf",
-        "meteo.go.ke",
-        query=query,
-    ) is True
+    assert (
+        _is_promising_followup_url(
+            "https://meteo.go.ke/documents/2537/March-April-May_MAM_2026_Seasonal_Weather_Forecast.pdf",
+            "meteo.go.ke",
+            query=query,
+        )
+        is True
+    )
 
 
 def test_is_promising_followup_url_rejects_publications_list_page():
-    assert _is_promising_followup_url(
-        "https://meteo.go.ke/publications/",
-        "meteo.go.ke",
-        query="Kenya precipitation current status and recent trend",
-    ) is False
+    assert (
+        _is_promising_followup_url(
+            "https://meteo.go.ke/publications/",
+            "meteo.go.ke",
+            query="Kenya precipitation current status and recent trend",
+        )
+        is False
+    )
 
 
 def test_is_promising_followup_url_rejects_maproom_for_report_query():
-    assert _is_promising_followup_url(
-        "http://kmddl.meteo.go.ke:8081/maproom/Climatology/index.html",
-        "meteo.go.ke",
-        query="Kenya precipitation current status and recent trend",
-    ) is False
+    assert (
+        _is_promising_followup_url(
+            "http://kmddl.meteo.go.ke:8081/maproom/Climatology/index.html",
+            "meteo.go.ke",
+            query="Kenya precipitation current status and recent trend",
+        )
+        is False
+    )
 
 
 def test_is_promising_followup_url_allows_maproom_for_data_query():
-    assert _is_promising_followup_url(
-        "http://kmddl.meteo.go.ke:8081/maproom/Climatology/index.html",
-        "meteo.go.ke",
-        query="Kenya precipitation dataset maproom time series",
-    ) is True
+    assert (
+        _is_promising_followup_url(
+            "http://kmddl.meteo.go.ke:8081/maproom/Climatology/index.html",
+            "meteo.go.ke",
+            query="Kenya precipitation dataset maproom time series",
+        )
+        is True
+    )
 
 
 def test_is_promising_followup_url_rejects_paginated_publications_index():
-    assert _is_promising_followup_url(
-        "https://www.fao.org/markets-and-trade/publications/publications-full/83/en?page=18&tabInx=0",
-        "fao.org",
-        query="Kenya drought impacts on agriculture current status and recent trend",
-    ) is False
+    assert (
+        _is_promising_followup_url(
+            "https://www.fao.org/markets-and-trade/publications/publications-full/83/en?page=18&tabInx=0",
+            "fao.org",
+            query="Kenya drought impacts on agriculture current status and recent trend",
+        )
+        is False
+    )
 
 
 def test_is_promising_followup_url_allows_repository_detail_page():
-    assert _is_promising_followup_url(
-        "https://openknowledge.fao.org/handle/20.500.14283/am882e",
-        "fao.org",
-        query="Kenya drought impacts on agriculture current status and recent trend",
-    ) is True
+    assert (
+        _is_promising_followup_url(
+            "https://openknowledge.fao.org/handle/20.500.14283/am882e",
+            "fao.org",
+            query="Kenya drought impacts on agriculture current status and recent trend",
+        )
+        is True
+    )
 
 
 def test_rank_followup_candidates_prefers_report_pages_for_report_queries():
@@ -190,19 +221,25 @@ def test_rank_followup_candidates_rejects_paginated_indexes_and_off_query_docs()
 
 
 def test_is_promising_followup_url_rejects_frontiers_section_hub():
-    assert _is_promising_followup_url(
-        "https://www.frontiersin.org/journals/sustainable-food-systems/sections/land-livelihoods-and-food-security",
-        "frontiersin.org",
-        query="wild edible plants food systems resilience and biodiversity evidence",
-    ) is False
+    assert (
+        _is_promising_followup_url(
+            "https://www.frontiersin.org/journals/sustainable-food-systems/sections/land-livelihoods-and-food-security",
+            "frontiersin.org",
+            query="wild edible plants food systems resilience and biodiversity evidence",
+        )
+        is False
+    )
 
 
 def test_is_promising_followup_url_rejects_research_topic_magazine_hub():
-    assert _is_promising_followup_url(
-        "https://www.frontiersin.org/research-topics/33257/indigenous-food-systems-to-address-food-security-and-nutritional-status/magazine",
-        "frontiersin.org",
-        query="wild edible plants food systems resilience and biodiversity evidence",
-    ) is False
+    assert (
+        _is_promising_followup_url(
+            "https://www.frontiersin.org/research-topics/33257/indigenous-food-systems-to-address-food-security-and-nutritional-status/magazine",
+            "frontiersin.org",
+            query="wild edible plants food systems resilience and biodiversity evidence",
+        )
+        is False
+    )
 
 
 def test_rank_followup_candidates_rejects_forecast_docs_for_unrelated_topic():
@@ -286,6 +323,7 @@ def test_is_blocked_domain_allowed_set_empty_uses_full_blocklist():
 
 # --- Additional _normalize_url coverage ---
 
+
 def test_normalize_url_preserves_empty_query():
     url = "https://example.com/page?"
     # Trailing ? should not leave a hanging separator
@@ -295,9 +333,7 @@ def test_normalize_url_preserves_empty_query():
 
 def test_normalize_url_idempotent():
     url = "https://example.com/page?type=tech&country=ke"
-    assert ResearchTracker.normalize_url(url) == ResearchTracker.normalize_url(
-        ResearchTracker.normalize_url(url)
-    )
+    assert ResearchTracker.normalize_url(url) == ResearchTracker.normalize_url(ResearchTracker.normalize_url(url))
 
 
 def test_normalize_url_fragment_stripped():
@@ -307,6 +343,7 @@ def test_normalize_url_fragment_stripped():
 
 
 # --- Additional _is_blocked_domain coverage ---
+
 
 def test_is_blocked_domain_linkedin_blocked():
     assert _is_blocked_domain("https://linkedin.com/in/someone") is True
@@ -323,10 +360,13 @@ def test_is_blocked_domain_nature_not_blocked():
 
 def test_is_blocked_domain_publisher_allowed_when_in_allowed_set():
     allowed = frozenset({"sciencedirect.com"})
-    assert _is_blocked_domain(
-        "https://www.sciencedirect.com/science/article/pii/S2214581825005567",
-        allowed_domains=allowed,
-    ) is False
+    assert (
+        _is_blocked_domain(
+            "https://www.sciencedirect.com/science/article/pii/S2214581825005567",
+            allowed_domains=allowed,
+        )
+        is False
+    )
 
 
 def test_is_blocked_domain_allowed_set_only_removes_specified():
@@ -337,6 +377,7 @@ def test_is_blocked_domain_allowed_set_only_removes_specified():
 
 
 # --- Additional _find_next_page_url realistic content ---
+
 
 def test_find_next_page_url_in_real_markdown_table():
     content = (
@@ -350,10 +391,6 @@ def test_find_next_page_url_in_real_markdown_table():
 
 
 def test_find_next_page_url_ignores_other_links_with_same_domain():
-    content = (
-        "[Home](https://wocat.net/) "
-        "[About](https://wocat.net/about) "
-        "[Next](https://wocat.net/list/?page=2)"
-    )
+    content = "[Home](https://wocat.net/) [About](https://wocat.net/about) [Next](https://wocat.net/list/?page=2)"
     result = _find_next_page_url(content, "https://wocat.net/list/")
     assert result == "https://wocat.net/list/?page=2"

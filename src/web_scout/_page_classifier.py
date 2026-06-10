@@ -129,23 +129,14 @@ def _classify_page_shape(
 ) -> PageShapeAssessment:
     text_chars = len(text)
     sparse_prose = paragraph_blocks <= 2 and sentence_count <= 4
-    content_rich = (
-        text_chars >= EXTRACTOR_HEURISTICS.rich_content_chars
-        or (text_chars >= 1200 and paragraph_blocks >= 4 and sentence_count >= 6)
+    content_rich = text_chars >= EXTRACTOR_HEURISTICS.rich_content_chars or (
+        text_chars >= 1200 and paragraph_blocks >= 4 and sentence_count >= 6
     )
     link_heavy = href_count >= 8 and text_chars / max(href_count, 1) < 250
     dominant_document_target = (
         document_link_count >= 1
-        and (
-            href_count <= 3
-            or document_link_count == href_count
-            or document_link_count / max(href_count, 1) >= 0.5
-        )
-        and (
-            sparse_prose
-            or not content_rich
-            or (metadata_marker_count >= 4 and sentence_count <= 6)
-        )
+        and (href_count <= 3 or document_link_count == href_count or document_link_count / max(href_count, 1) >= 0.5)
+        and (sparse_prose or not content_rich or (metadata_marker_count >= 4 and sentence_count <= 6))
     )
     document_hub = document_link_count >= 2 and href_count >= 3
     avg_paragraph_chars = text_chars / max(paragraph_blocks, 1)
@@ -220,11 +211,7 @@ def _classify_page_shape(
         and text_chars < ROUTING_HEURISTICS.rich_html_static_text_chars
     ):
         page_type = "interactive_shell"
-    elif (
-        record_score >= 5
-        and record_score >= content_score + 2
-        and record_score >= interactive_score + 1
-    ):
+    elif record_score >= 5 and record_score >= content_score + 2 and record_score >= interactive_score + 1:
         page_type = "record_page"
     elif content_score >= 4 and content_score >= max(record_score, interactive_score):
         page_type = "content_page"

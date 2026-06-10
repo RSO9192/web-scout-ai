@@ -1,6 +1,9 @@
 """Unit tests for structural page-shape classification."""
 
-from web_scout._page_classifier import classify_html_page_shape, classify_prefetched_page_shape
+from web_scout._page_classifier import (
+    classify_html_page_shape,
+    classify_prefetched_page_shape,
+)
 
 
 def test_classify_html_rich_publication_page_with_download_is_content():
@@ -10,7 +13,8 @@ def test_classify_html_rich_publication_page_with_download_is_content():
         "It explains how the recent observations compare with longer-term climatology "
         "and seasonal performance across Kenya. "
     ) * 10
-    html = """
+    html = (
+        """
     <html>
       <head><title>State of Climate Publication</title></head>
       <body>
@@ -22,7 +26,9 @@ def test_classify_html_rich_publication_page_with_download_is_content():
         <p>%s</p>
       </body>
     </html>
-    """ % prose
+    """
+        % prose
+    )
 
     shape = classify_html_page_shape(html)
 
@@ -51,10 +57,7 @@ def test_classify_html_sparse_repository_record_is_record_page():
 
 
 def test_classify_prefetched_spa_shell_is_interactive():
-    content = (
-        "Navigation shell\n\n"
-        "[SPA: URL fragment detected — current content may be the wrong tab/view.]"
-    )
+    content = "Navigation shell\n\n[SPA: URL fragment detected — current content may be the wrong tab/view.]"
 
     shape = classify_prefetched_page_shape(content)
 
@@ -66,7 +69,8 @@ def test_classify_prefetched_article_with_reference_pdf_stays_content():
     content = (
         "This article explains procurement policy and cites a background PDF "
         "https://example.org/background.pdf. "
-        + "Specific content with rules, certification references, and factual context. " * 80
+        + "Specific content with rules, certification references, and factual context. "
+        * 80
     )
 
     shape = classify_prefetched_page_shape(content)

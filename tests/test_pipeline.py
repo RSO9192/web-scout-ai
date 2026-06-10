@@ -30,6 +30,7 @@ from web_scout.tools import ResearchTracker
 # Helpers shared across tests
 # ---------------------------------------------------------------------------
 
+
 def _make_entry(url: str, content: str = "") -> UrlEntry:
     return UrlEntry(url=url, content=content)
 
@@ -46,10 +47,7 @@ class _FakeRunResult:
 
 class _FakeSearchResponse:
     def __init__(self, urls):
-        self.results = [
-            type("R", (), {"url": url, "title": url, "snippet": ""})()
-            for url in urls
-        ]
+        self.results = [type("R", (), {"url": url, "title": url, "snippet": ""})() for url in urls]
 
 
 def _patch_scrape_tool(monkeypatch, return_value: str = "Some scraped content " * 30):
@@ -80,6 +78,7 @@ def _patch_runner(monkeypatch, output):
 # ---------------------------------------------------------------------------
 # Input validation
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_run_web_research_raises_for_invalid_research_depth():
@@ -150,6 +149,7 @@ async def test_run_web_research_passes_cache_flag_to_scrape_tool(monkeypatch):
 # Direct URL mode — happy path
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_direct_url_mode_scrapes_url_and_synthesizes(monkeypatch):
     """In direct-URL mode the pipeline scrapes exactly the given URL and returns a synthesis."""
@@ -180,10 +180,7 @@ async def test_direct_url_mode_document_url_skips_follow_up_scraping(monkeypatch
     scrape_calls = _patch_scrape_tool(
         monkeypatch,
         # Even if content contains links, they must be ignored for document URLs
-        return_value=(
-            "Report content. "
-            "[Related report](https://fao.org/fishery/other-report.pdf) "
-        ) * 20,
+        return_value=("Report content. [Related report](https://fao.org/fishery/other-report.pdf) ") * 20,
     )
     monkeypatch.setattr(
         _pipeline_flow_module,
@@ -203,14 +200,13 @@ async def test_direct_url_mode_document_url_skips_follow_up_scraping(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_direct_url_mode_extensionless_document_url_skips_follow_up_scraping(monkeypatch):
+async def test_direct_url_mode_extensionless_document_url_skips_follow_up_scraping(
+    monkeypatch,
+):
     """An extensionless direct document URL must use routing, not URL suffix heuristics."""
     scrape_calls = _patch_scrape_tool(
         monkeypatch,
-        return_value=(
-            "Report content. "
-            "[Related report](https://fao.org/fishery/other-report.pdf) "
-        ) * 20,
+        return_value=("Report content. [Related report](https://fao.org/fishery/other-report.pdf) ") * 20,
     )
     monkeypatch.setattr(
         _pipeline_flow_module,
@@ -229,15 +225,14 @@ async def test_direct_url_mode_extensionless_document_url_skips_follow_up_scrapi
 
 
 @pytest.mark.asyncio
-async def test_direct_url_mode_failed_page_does_not_mine_self_link_from_failure_text(monkeypatch):
+async def test_direct_url_mode_failed_page_does_not_mine_self_link_from_failure_text(
+    monkeypatch,
+):
     """A failed direct URL should not re-scrape itself from the legacy failure wrapper."""
     direct_url = "https://fao.org/fishery/report"
     scrape_calls = _patch_scrape_tool(
         monkeypatch,
-        return_value=(
-            f"No relevant content found at {direct_url}: "
-            "Skipped: HTTP 403 on GET"
-        ),
+        return_value=(f"No relevant content found at {direct_url}: Skipped: HTTP 403 on GET"),
     )
     monkeypatch.setattr(
         _pipeline_flow_module,
@@ -256,7 +251,9 @@ async def test_direct_url_mode_failed_page_does_not_mine_self_link_from_failure_
 
 
 @pytest.mark.asyncio
-async def test_direct_url_mode_failed_page_can_deepen_explicit_followup_links(monkeypatch):
+async def test_direct_url_mode_failed_page_can_deepen_explicit_followup_links(
+    monkeypatch,
+):
     """A failed direct URL may still deepen when it exposes explicit follow-up links."""
     direct_url = "https://fao.org/fishery/report"
     followup_url = "https://fao.org/fishery/report.pdf"
@@ -342,6 +339,7 @@ async def test_direct_url_mode_can_deepen_cross_domain_document_followup(monkeyp
 # Direct URL mode — hub detection
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_direct_url_hub_page_triggers_deepening(monkeypatch):
     """When the scraped page is a hub (contains the hub marker), follow-up links are scraped."""
@@ -397,6 +395,7 @@ async def test_direct_url_hub_page_triggers_deepening(monkeypatch):
 # Direct URL mode — synthesis judge retry
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_synthesis_judge_retries_when_hallucinated_citation(monkeypatch):
     """When the synthesiser produces a hallucinated citation, Runner.run is called a second time."""
@@ -409,14 +408,10 @@ async def test_synthesis_judge_retries_when_hallucinated_citation(monkeypatch):
         if len(run_calls) == 1:
             # First synthesis: contains a hallucinated URL not in valid_urls
             return _FakeRunResult(
-                WebResearchResultRaw(
-                    synthesis="Some fact [Hallucinated](https://invented.example.com/data)."
-                )
+                WebResearchResultRaw(synthesis="Some fact [Hallucinated](https://invented.example.com/data).")
             )
         # Retry synthesis: clean
-        return _FakeRunResult(
-            WebResearchResultRaw(synthesis="Clean synthesis with no citations.")
-        )
+        return _FakeRunResult(WebResearchResultRaw(synthesis="Clean synthesis with no citations."))
 
     monkeypatch.setattr(_agent_module.Runner, "run", _fake_run)
 
@@ -434,6 +429,7 @@ async def test_synthesis_judge_retries_when_hallucinated_citation(monkeypatch):
 # ---------------------------------------------------------------------------
 # _build_synth_prompt — domain expertise
 # ---------------------------------------------------------------------------
+
 
 def test_build_synth_prompt_includes_domain_expertise():
     """domain_expertise appears in the prompt so the synthesiser can use it."""
@@ -508,16 +504,20 @@ def test_select_search_urls_skips_bot_blocked_domains():
     tracker.record_bot_detection("https://blocked.org/b", "bot_detected: challenge page")
 
     search_results = [
-        _FakeSearchResponse([
-            "https://blocked.org/1",
-            "https://open.org/1",
-            "https://open2.org/1",
-        ]),
-        _FakeSearchResponse([
-            "https://blocked.org/2",
-            "https://open.org/2",
-            "https://open3.org/1",
-        ]),
+        _FakeSearchResponse(
+            [
+                "https://blocked.org/1",
+                "https://open.org/1",
+                "https://open2.org/1",
+            ]
+        ),
+        _FakeSearchResponse(
+            [
+                "https://blocked.org/2",
+                "https://open.org/2",
+                "https://open3.org/1",
+            ]
+        ),
     ]
 
     selected = _select_search_urls(
@@ -538,7 +538,9 @@ def test_select_search_urls_skips_bot_blocked_domains():
 
 
 @pytest.mark.asyncio
-async def test_evaluate_search_coverage_filters_bot_blocked_backlog_domains(monkeypatch):
+async def test_evaluate_search_coverage_filters_bot_blocked_backlog_domains(
+    monkeypatch,
+):
     tracker = ResearchTracker()
     tracker.record_scrape("https://reef.org/a", "Source A", "Useful reef extraction")
     tracker.record_search(
@@ -546,16 +548,24 @@ async def test_evaluate_search_coverage_filters_bot_blocked_backlog_domains(monk
         num_results=2,
         domains=None,
         results=[
-            type("R", (), {
-                "url": "https://blocked.org/threats",
-                "title": "Blocked Threats",
-                "snippet": "Looks promising.",
-            })(),
-            type("R", (), {
-                "url": "https://open.org/ningaloo",
-                "title": "Open Threats",
-                "snippet": "Looks promising too.",
-            })(),
+            type(
+                "R",
+                (),
+                {
+                    "url": "https://blocked.org/threats",
+                    "title": "Blocked Threats",
+                    "snippet": "Looks promising.",
+                },
+            )(),
+            type(
+                "R",
+                (),
+                {
+                    "url": "https://open.org/ningaloo",
+                    "title": "Open Threats",
+                    "snippet": "Looks promising too.",
+                },
+            )(),
         ],
     )
     tracker.record_bot_detection("https://blocked.org/a", "bot_detected: challenge page")
@@ -596,6 +606,7 @@ async def test_evaluate_search_coverage_filters_bot_blocked_backlog_domains(monk
 # _rerank_followup_urls — edge cases not covered in test_followup_reranker.py
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_rerank_followup_urls_skips_llm_when_candidates_lte_cap(monkeypatch):
     """When candidates count ≤ cap, the LLM is never called."""
@@ -623,7 +634,9 @@ async def test_rerank_followup_urls_skips_llm_when_candidates_lte_cap(monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_rerank_followup_urls_falls_back_to_heuristic_on_llm_exception(monkeypatch):
+async def test_rerank_followup_urls_falls_back_to_heuristic_on_llm_exception(
+    monkeypatch,
+):
     """When Runner.run raises an exception, heuristic ranking is used as fallback."""
 
     async def _fake_run(*args, **kwargs):
@@ -658,10 +671,12 @@ async def test_rerank_followup_urls_deduplicates_by_normalized_url(monkeypatch):
 
     async def _fake_run(agent_obj, prompt, **kwargs):
         return _FakeRunResult(
-            FollowupSelection(selected_urls=[
-                "https://fao.org/fishery/report-2023",
-                "https://fao.org/fishery/report-2022",
-            ])
+            FollowupSelection(
+                selected_urls=[
+                    "https://fao.org/fishery/report-2023",
+                    "https://fao.org/fishery/report-2022",
+                ]
+            )
         )
 
     monkeypatch.setattr(_agent_module.Runner, "run", _fake_run)

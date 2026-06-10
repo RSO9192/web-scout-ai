@@ -16,25 +16,29 @@ import re
 import time
 from dataclasses import dataclass
 
-from web_scout.agent import DEFAULT_WEB_RESEARCH_MODELS, WebResearchResult, run_web_research
+from web_scout.agent import (
+    DEFAULT_WEB_RESEARCH_MODELS,
+    WebResearchResult,
+    run_web_research,
+)
 
 MODELS = DEFAULT_WEB_RESEARCH_MODELS
 
 TASKS = [
     {
-        "mode":  "open-web",
+        "mode": "open-web",
         "label": "Global fish capture production trends 2022",
         "query": "global fish capture production trends 2022 statistics",
         "kwargs": {},
     },
     {
-        "mode":  "domain-restricted",
+        "mode": "domain-restricted",
         "label": "FAO aquaculture production by region",
         "query": "aquaculture production by region 2022",
         "kwargs": {"include_domains": ["fao.org"]},
     },
     {
-        "mode":  "direct-url",
+        "mode": "direct-url",
         "label": "FAO fishery overview page",
         "query": "fisheries and aquaculture global production overview",
         "kwargs": {"direct_url": "https://www.fao.org/fishery/en"},
@@ -46,6 +50,7 @@ TASKS = [
 # Scoring
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class QualityScore:
     mode: str
@@ -56,14 +61,14 @@ class QualityScore:
     n_snippet_only: int
     synthesis_chars: int
     citation_count: int
-    data_density: float   # numbers/stats per 500 chars
-    gap_reported: bool    # synthesis explicitly reports a data gap
+    data_density: float  # numbers/stats per 500 chars
+    gap_reported: bool  # synthesis explicitly reports a data gap
     score_sources: float  # 0–2
-    score_length: float   # 0–2
+    score_length: float  # 0–2
     score_citations: float  # 0–2
-    score_data: float     # 0–2
-    score_gap: float      # 0–2
-    total: float          # 0–10
+    score_data: float  # 0–2
+    score_gap: float  # 0–2
+    total: float  # 0–10
 
 
 def _score(result: WebResearchResult, mode: str, label: str, elapsed: float) -> QualityScore:
@@ -73,18 +78,26 @@ def _score(result: WebResearchResult, mode: str, label: str, elapsed: float) -> 
     n_snippet = len(result.snippet_only)
 
     # Citation count: markdown links [text](url)
-    citations = re.findall(r'\[[^\]]+\]\(https?://[^\)]+\)', synthesis)
+    citations = re.findall(r"\[[^\]]+\]\(https?://[^\)]+\)", synthesis)
     citation_count = len(citations)
 
     # Data density: numbers, percentages, years per 500 chars
-    numbers = re.findall(r'\b\d[\d,.]*\s*(?:%|million|billion|tonnes|Mt|km|kg|ha)?\b', synthesis)
+    numbers = re.findall(r"\b\d[\d,.]*\s*(?:%|million|billion|tonnes|Mt|km|kg|ha)?\b", synthesis)
     data_density = (len(numbers) / max(len(synthesis), 1)) * 500
 
     # Gap reporting
-    gap_reported = any(phrase in synthesis.lower() for phrase in [
-        "did not contain", "not available", "no data", "sources did not",
-        "not found", "coverage is limited", "could not find",
-    ])
+    gap_reported = any(
+        phrase in synthesis.lower()
+        for phrase in [
+            "did not contain",
+            "not available",
+            "no data",
+            "sources did not",
+            "not found",
+            "coverage is limited",
+            "could not find",
+        ]
+    )
 
     # Score: sources (0–2)
     if n_scraped >= 5:
@@ -127,19 +140,26 @@ def _score(result: WebResearchResult, mode: str, label: str, elapsed: float) -> 
         s_data = 0.5
 
     # Score: gap reporting (0–2) — honest synthesis
-    s_gap = 1.0 if gap_reported else 0.5   # reward gap reporting, don't penalise absence
+    s_gap = 1.0 if gap_reported else 0.5  # reward gap reporting, don't penalise absence
 
     total = s_sources + s_length + s_citations + s_data + s_gap
 
     return QualityScore(
-        mode=mode, label=label, elapsed_s=elapsed,
-        n_scraped=n_scraped, n_failed=n_failed, n_snippet_only=n_snippet,
+        mode=mode,
+        label=label,
+        elapsed_s=elapsed,
+        n_scraped=n_scraped,
+        n_failed=n_failed,
+        n_snippet_only=n_snippet,
         synthesis_chars=len(synthesis),
         citation_count=citation_count,
         data_density=round(data_density, 1),
         gap_reported=gap_reported,
-        score_sources=s_sources, score_length=s_length,
-        score_citations=s_citations, score_data=s_data, score_gap=s_gap,
+        score_sources=s_sources,
+        score_length=s_length,
+        score_citations=s_citations,
+        score_data=s_data,
+        score_gap=s_gap,
         total=round(total, 1),
     )
 
@@ -184,6 +204,7 @@ def _print_report(scores: list[QualityScore], syntheses: list[str]) -> None:
 
 async def main() -> None:
     import logging
+
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
 
     scores = []

@@ -16,8 +16,10 @@ from web_scout.tools import ResearchTracker, _build_extractor_agent
 
 def _make_ctx(tool_name="scrape_linked_document"):
     return ToolContext(
-        context=None, tool_name=tool_name,
-        tool_call_id="test-id", tool_arguments="{}",
+        context=None,
+        tool_name=tool_name,
+        tool_call_id="test-id",
+        tool_arguments="{}",
     )
 
 
@@ -41,19 +43,24 @@ def _doc_plan(content_type="application/pdf", content_disposition=""):
 # Task 1: shared document cache
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_scrape_linked_document_uses_cache_on_second_call():
     """scrape_linked_document fetches the document once; second call returns cached."""
     doc_cache: dict = {}
     agent, cleanup = _build_extractor_agent(
-        model="dummy", query="fish production", url="https://example.org/page",
-        wait_for=None, doc_cache=doc_cache,
+        model="dummy",
+        query="fish production",
+        url="https://example.org/page",
+        wait_for=None,
+        doc_cache=doc_cache,
     )
     tool = _find_tool(agent, "scrape_linked_document")
 
     doc_content = "Full report content about fish production. " * 30
 
     call_count = 0
+
     async def _fake_scrape_doc(url, **kwargs):
         nonlocal call_count
         call_count += 1
@@ -79,12 +86,18 @@ async def test_scrape_linked_document_cache_shared_across_agents():
     doc_cache: dict = {}
 
     agent1, cleanup1 = _build_extractor_agent(
-        model="dummy", query="fish production", url="https://example.org/page1",
-        wait_for=None, doc_cache=doc_cache,
+        model="dummy",
+        query="fish production",
+        url="https://example.org/page1",
+        wait_for=None,
+        doc_cache=doc_cache,
     )
     agent2, cleanup2 = _build_extractor_agent(
-        model="dummy", query="fish production", url="https://example.org/page2",
-        wait_for=None, doc_cache=doc_cache,
+        model="dummy",
+        query="fish production",
+        url="https://example.org/page2",
+        wait_for=None,
+        doc_cache=doc_cache,
     )
 
     tool1 = _find_tool(agent1, "scrape_linked_document")
@@ -119,12 +132,20 @@ async def test_scrape_linked_document_shares_inflight_fetch_across_agents():
     doc_in_flight: dict = {}
 
     agent1, cleanup1 = _build_extractor_agent(
-        model="dummy", query="fish production", url="https://example.org/page1",
-        wait_for=None, doc_cache=doc_cache, doc_in_flight=doc_in_flight,
+        model="dummy",
+        query="fish production",
+        url="https://example.org/page1",
+        wait_for=None,
+        doc_cache=doc_cache,
+        doc_in_flight=doc_in_flight,
     )
     agent2, cleanup2 = _build_extractor_agent(
-        model="dummy", query="fish production", url="https://example.org/page2",
-        wait_for=None, doc_cache=doc_cache, doc_in_flight=doc_in_flight,
+        model="dummy",
+        query="fish production",
+        url="https://example.org/page2",
+        wait_for=None,
+        doc_cache=doc_cache,
+        doc_in_flight=doc_in_flight,
     )
 
     tool1 = _find_tool(agent1, "scrape_linked_document")
@@ -159,7 +180,9 @@ async def test_scrape_linked_document_shares_inflight_fetch_across_agents():
 async def test_scrape_linked_document_no_cache_by_default():
     """_build_extractor_agent with no doc_cache still works (backward compatible)."""
     agent, cleanup = _build_extractor_agent(
-        model="dummy", query="fish", url="https://example.org/page",
+        model="dummy",
+        query="fish",
+        url="https://example.org/page",
         wait_for=None,
     )
     tool = _find_tool(agent, "scrape_linked_document")
@@ -181,7 +204,9 @@ async def test_scrape_linked_document_no_cache_by_default():
 async def test_scrape_linked_document_passes_validation_document_metadata():
     """Linked-document scraping reuses content metadata already found by validation."""
     agent, cleanup = _build_extractor_agent(
-        model="dummy", query="fish", url="https://example.org/page",
+        model="dummy",
+        query="fish",
+        url="https://example.org/page",
         wait_for=None,
     )
     tool = _find_tool(agent, "scrape_linked_document")
@@ -211,8 +236,11 @@ async def test_scrape_linked_document_passes_validation_document_metadata():
 # Task 3: coverage evaluation still runs even when many sources are scraped
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
-async def test_run_search_mode_runs_coverage_eval_when_four_sources_scraped(monkeypatch):
+async def test_run_search_mode_runs_coverage_eval_when_four_sources_scraped(
+    monkeypatch,
+):
     """The evaluator still decides sufficiency even if iteration 1 scraped 4 sources."""
     tracker = ResearchTracker()
     scrape_tool = AsyncMock()
@@ -231,7 +259,11 @@ async def test_run_search_mode_runs_coverage_eval_when_four_sources_scraped(monk
     coverage_mock = AsyncMock(return_value=False)
 
     monkeypatch.setattr(_agent_module, "_build_search_backend", lambda _backend: object())
-    monkeypatch.setattr(_agent_module, "_build_query_agents", lambda **kwargs: ("query-agent", "eval-agent"))
+    monkeypatch.setattr(
+        _agent_module,
+        "_build_query_agents",
+        lambda **kwargs: ("query-agent", "eval-agent"),
+    )
     monkeypatch.setattr(_agent_module, "_search_and_scrape_iteration", _fake_search_and_scrape_iteration)
     monkeypatch.setattr(_agent_module, "_evaluate_search_coverage", coverage_mock)
 
@@ -253,7 +285,9 @@ async def test_run_search_mode_runs_coverage_eval_when_four_sources_scraped(monk
 
 
 @pytest.mark.asyncio
-async def test_run_search_mode_runs_coverage_eval_when_less_than_four_sources_scraped(monkeypatch):
+async def test_run_search_mode_runs_coverage_eval_when_less_than_four_sources_scraped(
+    monkeypatch,
+):
     """The pipeline should still evaluate coverage when iteration 1 scraped fewer than 4 sources."""
     tracker = ResearchTracker()
     scrape_tool = AsyncMock()
@@ -272,7 +306,11 @@ async def test_run_search_mode_runs_coverage_eval_when_less_than_four_sources_sc
     coverage_mock = AsyncMock(return_value=True)
 
     monkeypatch.setattr(_agent_module, "_build_search_backend", lambda _backend: object())
-    monkeypatch.setattr(_agent_module, "_build_query_agents", lambda **kwargs: ("query-agent", "eval-agent"))
+    monkeypatch.setattr(
+        _agent_module,
+        "_build_query_agents",
+        lambda **kwargs: ("query-agent", "eval-agent"),
+    )
     monkeypatch.setattr(_agent_module, "_search_and_scrape_iteration", _fake_search_and_scrape_iteration)
     monkeypatch.setattr(_agent_module, "_evaluate_search_coverage", coverage_mock)
 

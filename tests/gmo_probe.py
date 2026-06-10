@@ -96,12 +96,10 @@ async def _run_one(query: str) -> FullProbeResult:
                 for item in result.scraped
             ],
             scrape_failed=[
-                ProbeFailure(url=item.url, title=item.title, error=item.content)
-                for item in result.scrape_failed
+                ProbeFailure(url=item.url, title=item.title, error=item.content) for item in result.scrape_failed
             ],
             bot_detected=[
-                ProbeFailure(url=item.url, title=item.title, error=item.content)
-                for item in result.bot_detected
+                ProbeFailure(url=item.url, title=item.title, error=item.content) for item in result.bot_detected
             ],
         )
     except Exception as e:
@@ -115,7 +113,11 @@ async def _run_one(query: str) -> FullProbeResult:
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Run the targeted GMO/max-turn regression probe.")
     parser.add_argument("--env-file", default=str(ENV_FILE), help="Path to dotenv file with API keys.")
-    parser.add_argument("--output-dir", default=str(OUTPUT_DIR), help="Directory where the JSON report is written.")
+    parser.add_argument(
+        "--output-dir",
+        default=str(OUTPUT_DIR),
+        help="Directory where the JSON report is written.",
+    )
     args = parser.parse_args()
 
     load_dotenv(args.env_file, override=False)

@@ -77,11 +77,14 @@ def _mock_async_client_factory(head_response=None, get_response=None):
 
 
 def test_looks_like_document_resource_uses_content_disposition():
-    assert _looks_like_document_resource(
-        "https://example.org/download?id=123",
-        "application/octet-stream",
-        'attachment; filename="report.pdf"',
-    ) is True
+    assert (
+        _looks_like_document_resource(
+            "https://example.org/download?id=123",
+            "application/octet-stream",
+            'attachment; filename="report.pdf"',
+        )
+        is True
+    )
 
 
 def test_trim_json_value_limits_large_collections():
@@ -97,9 +100,7 @@ def test_trim_json_value_limits_large_collections():
 
 def test_append_internal_links_keeps_icon_only_external_document_links():
     content = "Repository record content"
-    result = _MockCrawlerResult(
-        external=[_MockLink("https://cdn.example.org/laws/kenya-forestry-law.pdf", "")]
-    )
+    result = _MockCrawlerResult(external=[_MockLink("https://cdn.example.org/laws/kenya-forestry-law.pdf", "")])
 
     enriched = _append_internal_links(content, result)
 
@@ -244,10 +245,7 @@ async def test_validate_url_keeps_rich_script_heavy_html_on_fast_path(monkeypatc
     from web_scout import scraping
 
     head = _MockResponse(headers={"content-type": "text/html"})
-    scripts = "\n".join(
-        f"<script>const payload{i} = '{'x' * 4000}';</script>"
-        for i in range(20)
-    )
+    scripts = "\n".join(f"<script>const payload{i} = '{'x' * 4000}';</script>" for i in range(20))
     body_text = "Kenya procurement certification producer rule. " * 100
     html = f"<html><head><title>Rich page</title>{scripts}</head><body>{body_text}</body></html>"
     get = _MockResponse(headers={"content-type": "text/html"}, text=html)
@@ -265,7 +263,9 @@ async def test_validate_url_keeps_rich_script_heavy_html_on_fast_path(monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_validate_url_rich_publication_page_with_download_stays_static(monkeypatch):
+async def test_validate_url_rich_publication_page_with_download_stays_static(
+    monkeypatch,
+):
     from web_scout import scraping
 
     head = _MockResponse(headers={"content-type": "text/html"})
@@ -275,7 +275,8 @@ async def test_validate_url_rich_publication_page_with_download_stays_static(mon
         "It explains how the recent observations compare with longer-term "
         "climatology and seasonal performance across Kenya. "
     ) * 10
-    html = """
+    html = (
+        """
     <html>
       <head><title>State of Climate Publication</title></head>
       <body>
@@ -287,7 +288,9 @@ async def test_validate_url_rich_publication_page_with_download_stays_static(mon
         <p>%s</p>
       </body>
     </html>
-    """ % prose
+    """
+        % prose
+    )
     get = _MockResponse(headers={"content-type": "text/html"}, text=html)
     monkeypatch.setattr(
         scraping.httpx,
@@ -333,7 +336,11 @@ async def test_validate_url_overrides_json_head_with_html_payload(monkeypatch):
 
     head = _MockResponse(headers={"content-type": "application/json"})
     html = "<html><head><title>Report page</title></head><body>" + ("Kenya rainfall analysis " * 100) + "</body></html>"
-    get = _MockResponse(headers={"content-type": "application/json"}, text=html, content=html.encode("utf-8"))
+    get = _MockResponse(
+        headers={"content-type": "application/json"},
+        text=html,
+        content=html.encode("utf-8"),
+    )
     monkeypatch.setattr(
         scraping.httpx,
         "AsyncClient",
@@ -416,37 +423,37 @@ async def test_scrape_url_passes_document_metadata_from_validation(monkeypatch):
 # Blocked-domain policy — open-access publishers must NOT be blocked
 # ---------------------------------------------------------------------------
 
+
 def test_open_access_publishers_not_blocked():
     """Open-access journals must not be in the default block list."""
     from web_scout.scraping import _BLOCKED_DOMAINS
+
     open_access = [
         "frontiersin.org",
         "mdpi.com",
         "journals.plos.org",
     ]
     for domain in open_access:
-        assert domain not in _BLOCKED_DOMAINS, (
-            f"{domain} is open-access and should not be blocked"
-        )
+        assert domain not in _BLOCKED_DOMAINS, f"{domain} is open-access and should not be blocked"
 
 
 def test_abstract_available_publishers_not_blocked():
     """Publishers with accessible abstracts must not be in the default block list."""
     from web_scout.scraping import _BLOCKED_DOMAINS
+
     abstract_available = [
         "researchgate.net",
         "nature.com",
         "academic.oup.com",
     ]
     for domain in abstract_available:
-        assert domain not in _BLOCKED_DOMAINS, (
-            f"{domain} has accessible content and should not be blocked"
-        )
+        assert domain not in _BLOCKED_DOMAINS, f"{domain} has accessible content and should not be blocked"
 
 
 def test_paywalled_publishers_remain_blocked():
     """Consistently paywalled publishers must stay blocked."""
     from web_scout.scraping import _BLOCKED_DOMAINS
+
     paywalled = [
         "sciencedirect.com",
         "springer.com",
@@ -459,6 +466,4 @@ def test_paywalled_publishers_remain_blocked():
         "cambridge.org",
     ]
     for domain in paywalled:
-        assert domain in _BLOCKED_DOMAINS, (
-            f"{domain} is paywalled and should stay blocked"
-        )
+        assert domain in _BLOCKED_DOMAINS, f"{domain} is paywalled and should stay blocked"

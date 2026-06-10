@@ -28,11 +28,17 @@ def test_coverage_prompt_marks_unscraped_candidates_as_non_evidence():
         query="reef threats",
         num_results=1,
         domains=None,
-        results=[type("R", (), {
-            "url": "https://example.com/b",
-            "title": "Candidate B",
-            "snippet": "This snippet mentions other threats.",
-        })()],
+        results=[
+            type(
+                "R",
+                (),
+                {
+                    "url": "https://example.com/b",
+                    "title": "Candidate B",
+                    "snippet": "This snippet mentions other threats.",
+                },
+            )()
+        ],
     )
 
     prompt = _build_coverage_prompt("reef threats", tracker)

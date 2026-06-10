@@ -103,7 +103,12 @@ async def _probe_query(query: str, max_results: int, max_scrapes: int) -> ProbeQ
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Probe search + scraping behaviour for manual queries.")
-    parser.add_argument("--max-results", type=int, default=6, help="Search results to request per query.")
+    parser.add_argument(
+        "--max-results",
+        type=int,
+        default=6,
+        help="Search results to request per query.",
+    )
     parser.add_argument("--max-scrapes", type=int, default=4, help="Top URLs to scrape per query.")
     parser.add_argument(
         "--output-dir",

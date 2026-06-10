@@ -90,9 +90,7 @@ async def _rerank_followup_urls(
     if len(candidates) <= cap or len(shortlist) == 1:
         return shortlist[:cap]
 
-    candidate_norm_map = OrderedDict(
-        (ResearchTracker.normalize_url(url), url) for url in shortlist
-    )
+    candidate_norm_map = OrderedDict((ResearchTracker.normalize_url(url), url) for url in shortlist)
     parent_excerpt = " ".join(parent_content.split())[:1800]
     prompt = (
         f"Research query: {query}\n"
@@ -198,8 +196,7 @@ async def _scrape_urls(
     if urls:
         extracted_contents = await _gather_scrapes([scrape_tool(url) for url in urls])
         outcomes_by_url = {
-            url: _resolve_scrape_outcome(scrape_tool, url, content)
-            for url, content in zip(urls, extracted_contents)
+            url: _resolve_scrape_outcome(scrape_tool, url, content) for url, content in zip(urls, extracted_contents)
         }
         return SearchIterationResult(
             extracted_contents=extracted_contents,
@@ -361,10 +358,7 @@ def _domain_candidate_from_link(
             for domain in include_domains
         )
         and not tracker.has_attempted_url(link)
-        and any(
-            _is_promising_followup_url(link, domain.lower(), query=query)
-            for domain in include_domains
-        )
+        and any(_is_promising_followup_url(link, domain.lower(), query=query) for domain in include_domains)
     )
 
 
@@ -390,18 +384,16 @@ def _append_domain_candidates(
             candidates.append(link)
 
 
-def _collect_hub_results(iteration_result: SearchIterationResult) -> list[tuple[str, ExtractorOutcome]]:
+def _collect_hub_results(
+    iteration_result: SearchIterationResult,
+) -> list[tuple[str, ExtractorOutcome]]:
     if not iteration_result.outcomes_by_url:
         return [
             (url, _resolve_scrape_outcome(None, url, content))
             for url, content in iteration_result.iter_results
             if _is_rendered_list_page(content)
         ]
-    return [
-        (url, outcome)
-        for url, outcome in iteration_result.outcomes_by_url.items()
-        if outcome.page_type == "list"
-    ]
+    return [(url, outcome) for url, outcome in iteration_result.outcomes_by_url.items() if outcome.page_type == "list"]
 
 
 async def _collect_hub_candidates(
@@ -507,10 +499,7 @@ async def _deepen_non_hub_results(
         include_domains=include_domains,
         tracker=tracker,
         outcomes=list(iteration_result.outcomes_by_url.values())
-        or [
-            _resolve_scrape_outcome(scrape_tool, url, content)
-            for url, content in iteration_result.iter_results
-        ],
+        or [_resolve_scrape_outcome(scrape_tool, url, content) for url, content in iteration_result.iter_results],
     )
     if not links_to_deepen:
         return
@@ -528,7 +517,11 @@ async def _deepen_non_hub_results(
         cap=min(3, len(links_to_deepen)),
         model=followup_model,
     )
-    logger.info("[pipeline] domain restricted deepening on %d links: %s", len(deep_links), deep_links)
+    logger.info(
+        "[pipeline] domain restricted deepening on %d links: %s",
+        len(deep_links),
+        deep_links,
+    )
     await _gather_scrapes([scrape_tool(link) for link in deep_links])
 
 
@@ -618,9 +611,7 @@ async def _evaluate_search_coverage(
     state.missing_info = evaluation.gaps
     state.needs_new_searches = evaluation.needs_new_searches
 
-    snippet_norm_map = {
-        tracker.normalize_url(entry.url): entry.url for entry in snippet_only_entries
-    }
+    snippet_norm_map = {tracker.normalize_url(entry.url): entry.url for entry in snippet_only_entries}
     state.promising_urls_from_evaluator = [
         snippet_norm_map[tracker.normalize_url(url)]
         for url in evaluation.promising_unscraped_urls
@@ -637,9 +628,7 @@ async def _evaluate_search_coverage(
     ]
     if include_domains:
         state.promising_urls_from_evaluator = [
-            url
-            for url in state.promising_urls_from_evaluator
-            if _is_domain_mode_candidate(url, include_domains, query)
+            url for url in state.promising_urls_from_evaluator if _is_domain_mode_candidate(url, include_domains, query)
         ]
 
     if not state.needs_new_searches and not state.promising_urls_from_evaluator:
@@ -740,7 +729,11 @@ async def _run_direct_url_mode(
                 cap=hub_cap,
                 model=followup_model,
             )
-            logger.info("[pipeline] hub deepening on %d candidate links (cap=%d)", len(chosen), hub_cap)
+            logger.info(
+                "[pipeline] hub deepening on %d candidate links (cap=%d)",
+                len(chosen),
+                hub_cap,
+            )
             await _gather_scrapes([scrape_tool(link) for link in chosen])
         return
 
@@ -754,11 +747,7 @@ async def _run_direct_url_mode(
         return
 
     direct_domain = _normalize_domain(direct_url)
-    high_value_document_links = [
-        link
-        for link in links_to_deepen
-        if _looks_like_document_followup(link)
-    ]
+    high_value_document_links = [link for link in links_to_deepen if _looks_like_document_followup(link)]
     same_domain_links = [
         link
         for link in links_to_deepen

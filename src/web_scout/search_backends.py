@@ -33,8 +33,8 @@ class SearchResult:
     title: str
     url: str
     snippet: str
-    date: str = ""      # publication date when available (Serper only)
-    position: int = 0   # Google rank position (Serper only)
+    date: str = ""  # publication date when available (Serper only)
+    position: int = 0  # Google rank position (Serper only)
 
 
 @dataclass
@@ -79,8 +79,7 @@ class SearchBackend(abc.ABC):
         query: str,
         max_results: int = 5,
         include_domains: Optional[List[str]] = None,
-    ) -> SearchResponse:
-        ...
+    ) -> SearchResponse: ...
 
 
 class SerperBackend(SearchBackend):
@@ -125,11 +124,14 @@ class SerperBackend(SearchBackend):
                     json={"q": effective_query, "num": max_results},
                 )
                 if resp.status_code in (429, 500, 502, 503, 504) and attempt < self._MAX_RETRIES - 1:
-                    delay = self._BASE_DELAY * (2 ** attempt)
+                    delay = self._BASE_DELAY * (2**attempt)
                     reason = "rate-limited" if resp.status_code == 429 else f"server error {resp.status_code}"
                     logger.warning(
                         "[Serper] %s (attempt %d/%d), retrying in %.1fs",
-                        reason, attempt + 1, self._MAX_RETRIES, delay,
+                        reason,
+                        attempt + 1,
+                        self._MAX_RETRIES,
+                        delay,
                     )
                     await asyncio.sleep(delay)
                     continue
@@ -150,11 +152,7 @@ class SerperBackend(SearchBackend):
         ][:max_results]
 
         # Related searches
-        related = [
-            item.get("query", "")
-            for item in data.get("relatedSearches", [])
-            if item.get("query")
-        ]
+        related = [item.get("query", "") for item in data.get("relatedSearches", []) if item.get("query")]
 
         # People Also Ask
         paa = [
@@ -175,10 +173,7 @@ class SerperBackend(SearchBackend):
                 title=kg_raw.get("title", ""),
                 description=kg_raw.get("description", ""),
                 entity_type=kg_raw.get("type", ""),
-                attributes={
-                    k: str(v)
-                    for k, v in kg_raw.get("attributes", {}).items()
-                },
+                attributes={k: str(v) for k, v in kg_raw.get("attributes", {}).items()},
             )
 
         return SearchResponse(

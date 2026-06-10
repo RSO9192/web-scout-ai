@@ -50,34 +50,43 @@ MAX_CONTENT_CHARS = 30_000
 # Constants
 # ---------------------------------------------------------------------------
 
-_BLOCKED_DOMAINS = frozenset({
-    # Social media and video platforms
-    "youtube.com", "youtu.be",
-    "twitter.com", "x.com",
-    "facebook.com", "instagram.com",
-    "linkedin.com", "tiktok.com",
-    "reddit.com",
-    # Search engines
-    "scholar.google.com",
-    # Consistently paywalled academic publishers (thin HTML without subscription)
-    "sciencedirect.com",
-    "springer.com",
-    "link.springer.com",
-    "wiley.com",
-    "onlinelibrary.wiley.com",
-    "tandfonline.com",
-    "sagepub.com",
-    "cambridge.org",
-    "jstor.org",
-    # NOTE: open-access publishers (frontiersin.org, mdpi.com, journals.plos.org) and
-    # abstract-available publishers (researchgate.net, nature.com, academic.oup.com)
-    # are intentionally NOT blocked — they yield useful content for research queries.
-})
+_BLOCKED_DOMAINS = frozenset(
+    {
+        # Social media and video platforms
+        "youtube.com",
+        "youtu.be",
+        "twitter.com",
+        "x.com",
+        "facebook.com",
+        "instagram.com",
+        "linkedin.com",
+        "tiktok.com",
+        "reddit.com",
+        # Search engines
+        "scholar.google.com",
+        # Consistently paywalled academic publishers (thin HTML without subscription)
+        "sciencedirect.com",
+        "springer.com",
+        "link.springer.com",
+        "wiley.com",
+        "onlinelibrary.wiley.com",
+        "tandfonline.com",
+        "sagepub.com",
+        "cambridge.org",
+        "jstor.org",
+        # NOTE: open-access publishers (frontiersin.org, mdpi.com, journals.plos.org) and
+        # abstract-available publishers (researchgate.net, nature.com, academic.oup.com)
+        # are intentionally NOT blocked — they yield useful content for research queries.
+    }
+)
 
 _BINARY_CONTENT_TYPES = (
-    "video/", "audio/",
-    "application/zip", "application/octet-stream",
-    "application/x-tar", "application/x-rar",
+    "video/",
+    "audio/",
+    "application/zip",
+    "application/octet-stream",
+    "application/x-tar",
+    "application/x-rar",
 )
 
 _IMAGE_CONTENT_TYPES = ("image/",)
@@ -162,6 +171,7 @@ def _get_pdf_docling_converter():
 # URL validation
 # ---------------------------------------------------------------------------
 
+
 def _is_blocked_domain(url: str, allowed_domains: Optional[frozenset] = None) -> bool:
     netloc = urlparse(url).netloc.lower()
     if netloc.startswith("www."):
@@ -188,12 +198,7 @@ def _looks_like_html_body(text: str) -> bool:
     if not stripped:
         return False
     prefix = stripped[:512].lower()
-    return (
-        prefix.startswith("<!doctype html")
-        or prefix.startswith("<html")
-        or "<head" in prefix
-        or "<body" in prefix
-    )
+    return prefix.startswith("<!doctype html") or prefix.startswith("<html") or "<head" in prefix or "<body" in prefix
 
 
 def _sniff_document_payload(
@@ -333,7 +338,13 @@ def _trim_json_value(
     if isinstance(value, dict):
         items = list(value.items())
         trimmed = {
-            str(k): _trim_json_value(v, depth=depth + 1, max_depth=max_depth, max_items=max_items, max_string_chars=max_string_chars)
+            str(k): _trim_json_value(
+                v,
+                depth=depth + 1,
+                max_depth=max_depth,
+                max_items=max_items,
+                max_string_chars=max_string_chars,
+            )
             for k, v in items[:max_items]
         }
         if len(items) > max_items:
@@ -342,7 +353,13 @@ def _trim_json_value(
 
     if isinstance(value, list):
         trimmed = [
-            _trim_json_value(v, depth=depth + 1, max_depth=max_depth, max_items=max_items, max_string_chars=max_string_chars)
+            _trim_json_value(
+                v,
+                depth=depth + 1,
+                max_depth=max_depth,
+                max_items=max_items,
+                max_string_chars=max_string_chars,
+            )
             for v in value[:max_items]
         ]
         if len(value) > max_items:
@@ -396,6 +413,8 @@ class SourceArtifact:
     text_content: str = ""
     binary_bytes: bytes = b""
     mime_type: str = ""
+
+
 _SCRAPE_JSON = ScrapeStrategy.JSON
 _SCRAPE_IMAGE = ScrapeStrategy.IMAGE
 
@@ -424,10 +443,16 @@ def _plan_short_html_page(
     html: str,
 ) -> ScrapePlan:
     """Route a very low-text HTML page using the existing heuristics unchanged."""
-    if size < ROUTING_HEURISTICS.short_html_size_chars and script_tags >= ROUTING_HEURISTICS.short_html_spa_script_count:
+    if (
+        size < ROUTING_HEURISTICS.short_html_size_chars
+        and script_tags >= ROUTING_HEURISTICS.short_html_spa_script_count
+    ):
         return _log_scrape_plan(
             url,
-            ScrapePlan(ScrapeStrategy.HTML_BROWSER, f"SPA shell ({size} chars, {script_tags} scripts)"),
+            ScrapePlan(
+                ScrapeStrategy.HTML_BROWSER,
+                f"SPA shell ({size} chars, {script_tags} scripts)",
+            ),
             size=size,
             text_chars=text_chars,
             script_tags=script_tags,
@@ -455,7 +480,10 @@ def _plan_short_html_page(
         )
     return _log_scrape_plan(
         url,
-        ScrapePlan(ScrapeStrategy.HTML_FAST, f"short static HTML ({text_chars} text chars from {size} chars HTML)"),
+        ScrapePlan(
+            ScrapeStrategy.HTML_FAST,
+            f"short static HTML ({text_chars} text chars from {size} chars HTML)",
+        ),
         size=size,
         text_chars=text_chars,
         script_tags=script_tags,
@@ -464,10 +492,16 @@ def _plan_short_html_page(
 
 def _plan_low_text_html(url: str, *, size: int, text_chars: int, script_tags: int) -> Optional[ScrapePlan]:
     """Route probable SPA shells without changing thresholds or precedence."""
-    if text_chars < ROUTING_HEURISTICS.low_text_spa_chars and script_tags >= ROUTING_HEURISTICS.low_text_spa_script_count:
+    if (
+        text_chars < ROUTING_HEURISTICS.low_text_spa_chars
+        and script_tags >= ROUTING_HEURISTICS.low_text_spa_script_count
+    ):
         return _log_scrape_plan(
             url,
-            ScrapePlan(ScrapeStrategy.HTML_BROWSER, f"likely SPA ({size} chars HTML, {text_chars} text chars)"),
+            ScrapePlan(
+                ScrapeStrategy.HTML_BROWSER,
+                f"likely SPA ({size} chars HTML, {text_chars} text chars)",
+            ),
             size=size,
             text_chars=text_chars,
             script_tags=script_tags,
@@ -478,7 +512,10 @@ def _plan_low_text_html(url: str, *, size: int, text_chars: int, script_tags: in
     if script_tags >= ROUTING_HEURISTICS.heavy_spa_script_count and density < ROUTING_HEURISTICS.heavy_spa_text_density:
         return _log_scrape_plan(
             url,
-            ScrapePlan(ScrapeStrategy.HTML_BROWSER, f"likely SPA (density {density:.1%}, {script_tags} scripts)"),
+            ScrapePlan(
+                ScrapeStrategy.HTML_BROWSER,
+                f"likely SPA (density {density:.1%}, {script_tags} scripts)",
+            ),
             size=size,
             text_chars=text_chars,
             script_tags=script_tags,
@@ -493,9 +530,18 @@ def _plan_soft_404(url: str, *, title_text: str, lower_html: str, text_chars: in
         return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, "soft 404 in title"))
     if text_chars < ROUTING_HEURISTICS.soft_404_text_chars and any(
         pattern in lower_html
-        for pattern in ["page not found", "404 error", "does not exist", "no longer available"]
+        for pattern in [
+            "page not found",
+            "404 error",
+            "does not exist",
+            "no longer available",
+        ]
     ):
-        return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, "soft 404 in content"), text_chars=text_chars)
+        return _log_scrape_plan(
+            url,
+            ScrapePlan(ScrapeStrategy.SKIP, "soft 404 in content"),
+            text_chars=text_chars,
+        )
     return None
 
 
@@ -524,22 +570,38 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
                 status = head.status_code
                 # 405 Method Not Allowed, 501 Not Implemented, 403 Forbidden might just mean HEAD is disabled
                 if status >= 400 and status not in (405, 501, 403):
-                    return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, f"HTTP {status}"), phase="head")
+                    return _log_scrape_plan(
+                        url,
+                        ScrapePlan(ScrapeStrategy.SKIP, f"HTTP {status}"),
+                        phase="head",
+                    )
 
                 ct = _normalize_content_type(head.headers.get("content-type", ""))
                 cd = head.headers.get("content-disposition", "")
 
                 unsupported_reason = _unsupported_legacy_document_reason(url, ct, cd)
                 if unsupported_reason:
-                    return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, unsupported_reason), phase="head")
+                    return _log_scrape_plan(
+                        url,
+                        ScrapePlan(ScrapeStrategy.SKIP, unsupported_reason),
+                        phase="head",
+                    )
                 if _looks_like_document_resource(url, ct, cd):
-                    return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.DOCUMENT, ct, ct, cd), phase="head")
+                    return _log_scrape_plan(
+                        url,
+                        ScrapePlan(ScrapeStrategy.DOCUMENT, ct, ct, cd),
+                        phase="head",
+                    )
                 if any(ct.startswith(t) for t in _JSON_CONTENT_TYPES):
                     head_json_hint = True
                 if any(ct.startswith(t) for t in _IMAGE_CONTENT_TYPES):
                     return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.IMAGE, ct), phase="head")
                 if any(ct.startswith(t) for t in _BINARY_CONTENT_TYPES):
-                    return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, f"binary content-type: {ct}"), phase="head")
+                    return _log_scrape_plan(
+                        url,
+                        ScrapePlan(ScrapeStrategy.SKIP, f"binary content-type: {ct}"),
+                        phase="head",
+                    )
 
             # Step 2: fast GET for HTML content analysis
             try:
@@ -548,11 +610,18 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
                 # Server is slow but reachable — let the browser (longer timeout) try
                 return _log_scrape_plan(
                     url,
-                    ScrapePlan(ScrapeStrategy.HTML_BROWSER, "GET timed out — attempting browser scrape"),
+                    ScrapePlan(
+                        ScrapeStrategy.HTML_BROWSER,
+                        "GET timed out — attempting browser scrape",
+                    ),
                     phase="get",
                 )
             except Exception as e:
-                return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, f"GET failed: {type(e).__name__}"), phase="get")
+                return _log_scrape_plan(
+                    url,
+                    ScrapePlan(ScrapeStrategy.SKIP, f"GET failed: {type(e).__name__}"),
+                    phase="get",
+                )
 
             if resp.status_code >= 400:
                 return _log_scrape_plan(
@@ -623,7 +692,11 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
             if any(final_ct.startswith(t) for t in _IMAGE_CONTENT_TYPES):
                 return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.IMAGE, final_ct), phase="get")
             if any(final_ct.startswith(t) for t in _BINARY_CONTENT_TYPES):
-                return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, f"binary on GET: {final_ct}"), phase="get")
+                return _log_scrape_plan(
+                    url,
+                    ScrapePlan(ScrapeStrategy.SKIP, f"binary on GET: {final_ct}"),
+                    phase="get",
+                )
 
             # Analyse HTML content
             html = resp.text
@@ -682,7 +755,10 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
 
             return _log_scrape_plan(
                 url,
-                ScrapePlan(ScrapeStrategy.HTML_FAST, f"static HTML ({size} chars, {text_chars} text chars)"),
+                ScrapePlan(
+                    ScrapeStrategy.HTML_FAST,
+                    f"static HTML ({size} chars, {text_chars} text chars)",
+                ),
                 size=size,
                 text_chars=text_chars,
                 script_tags=script_tags,
@@ -694,7 +770,10 @@ async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = No
         # If validation itself fails, let the scraper try anyway
         return _log_scrape_plan(
             url,
-            ScrapePlan(ScrapeStrategy.HTML_BROWSER, f"validation error ({e}) — attempting browser scrape"),
+            ScrapePlan(
+                ScrapeStrategy.HTML_BROWSER,
+                f"validation error ({e}) — attempting browser scrape",
+            ),
         )
 
 
@@ -708,7 +787,10 @@ async def _validate_url(url: str, allowed_domains: Optional[frozenset] = None) -
 # HTML scraping — fast HTTP path (no browser)
 # ---------------------------------------------------------------------------
 
-async def _scrape_html_fast(url: str, query: str = "", vision_model: Optional[str] = None) -> Tuple[str, str, Optional[str]]:
+
+async def _scrape_html_fast(
+    url: str, query: str = "", vision_model: Optional[str] = None
+) -> Tuple[str, str, Optional[str]]:
     """Scrape static HTML using crawl4ai's HTTP-only strategy (no browser).
 
     Much faster than the full browser path.  Falls back to browser if the
@@ -816,6 +898,7 @@ async def _scrape_html_fast_query_agnostic(
 # HTML scraping — full browser path (JS rendering)
 # ---------------------------------------------------------------------------
 
+
 def _pick_markdown(md, query: str) -> str:
     """Extract the best markdown content from a crawl4ai result."""
     if query and hasattr(md, "fit_markdown") and md.fit_markdown and len(md.fit_markdown.strip()) > 20:
@@ -866,10 +949,10 @@ def _append_internal_links(content: str, result, limit: int = 50) -> str:
     link_lines = []
 
     # Also extract links directly from markdown via regex
-    for match in re.finditer(r'\[([^\]]+)\]\((https?://[^\)]+)\)', content):
+    for match in re.finditer(r"\[([^\]]+)\]\((https?://[^\)]+)\)", content):
         text, href = match.groups()
         if text.strip() and href.strip() and text.lower() not in ("read more", "click here", "learn more"):
-            clean_text = text.strip().replace('\n', ' ')
+            clean_text = text.strip().replace("\n", " ")
             link_lines.append(f"- [{clean_text}]({href.strip()})")
 
     for item in links:
@@ -986,14 +1069,27 @@ async def _scrape_html_browser(
     content = _pick_markdown(md, query)
 
     # BM25 too aggressive fallback
-    if query and hasattr(md, "fit_markdown") and len((md.fit_markdown or "").strip()) <= 20 and hasattr(md, "raw_markdown"):
+    if (
+        query
+        and hasattr(md, "fit_markdown")
+        and len((md.fit_markdown or "").strip()) <= 20
+        and hasattr(md, "raw_markdown")
+    ):
         content = getattr(md, "markdown_with_citations", None) or md.raw_markdown
 
     content = _append_internal_links(content, result)
 
     lower = content.lower()
     if not content.strip() or (
-        any(p in lower for p in ["page not found", "was not found", "no longer exists", "404 error page"])
+        any(
+            p in lower
+            for p in [
+                "page not found",
+                "was not found",
+                "no longer exists",
+                "404 error page",
+            ]
+        )
         and "404" in lower
     ):
         if vision_model:
@@ -1072,7 +1168,15 @@ async def _scrape_html_browser_query_agnostic(
     content = _append_internal_links(content, result)
     lower = content.lower()
     if not content.strip() or (
-        any(p in lower for p in ["page not found", "was not found", "no longer exists", "404 error page"])
+        any(
+            p in lower
+            for p in [
+                "page not found",
+                "was not found",
+                "no longer exists",
+                "404 error page",
+            ]
+        )
         and "404" in lower
     ):
         if vision_model:
@@ -1141,13 +1245,18 @@ async def _vision_extract_image_bytes(
         prompt = prompt_prefix.format(query_clause=query_clause)
         response = await litellm.acompletion(
             model=vision_model,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{image_b64}"}},
-                ],
-            }],
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:{mime_type};base64,{image_b64}"},
+                        },
+                    ],
+                }
+            ],
         )
         content = (response.choices[0].message.content or "").strip()
         if not content:
@@ -1218,7 +1327,11 @@ async def _scrape_via_vision(url: str, query: str, vision_model: str) -> Tuple[s
     if error:
         return "", "", error
     if len(content) < 400:
-        return "", "", f"Vision extraction returned too little content ({len(content)} chars — page likely blocked)"
+        return (
+            "",
+            "",
+            f"Vision extraction returned too little content ({len(content)} chars — page likely blocked)",
+        )
     return content, "", None
 
 
@@ -1259,7 +1372,9 @@ async def _scrape_json(url: str) -> Tuple[str, str, Optional[str]]:
         return "", "", f"JSON extraction failed: {e}"
 
 
-async def _scrape_image(url: str, query: str = "", vision_model: Optional[str] = None) -> Tuple[str, str, Optional[str]]:
+async def _scrape_image(
+    url: str, query: str = "", vision_model: Optional[str] = None
+) -> Tuple[str, str, Optional[str]]:
     """Fetch an image URL and extract visible information with a vision model."""
     if not vision_model:
         return "", "", "Image URL requires vision_model for extraction"
@@ -1277,7 +1392,9 @@ async def _scrape_image(url: str, query: str = "", vision_model: Optional[str] =
             resp = await client.get(url)
         resp.raise_for_status()
 
-        content_type = _normalize_content_type(resp.headers.get("content-type", "")) or mimetypes.guess_type(url)[0] or "image/png"
+        content_type = (
+            _normalize_content_type(resp.headers.get("content-type", "")) or mimetypes.guess_type(url)[0] or "image/png"
+        )
         image_b64 = base64.b64encode(resp.content).decode()
         query_clause = f" relevant to: {query}" if query else ""
         prompt = (
@@ -1287,13 +1404,18 @@ async def _scrape_image(url: str, query: str = "", vision_model: Optional[str] =
         )
         response = await litellm.acompletion(
             model=vision_model,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:{content_type};base64,{image_b64}"}},
-                ],
-            }],
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:{content_type};base64,{image_b64}"},
+                        },
+                    ],
+                }
+            ],
         )
         content = (response.choices[0].message.content or "").strip()
         if not content:
@@ -1315,9 +1437,7 @@ async def _download_image_bytes(url: str) -> Tuple[Optional[bytes], str, Optiona
             resp = await client.get(url)
         resp.raise_for_status()
         mime_type = (
-            _normalize_content_type(resp.headers.get("content-type", ""))
-            or mimetypes.guess_type(url)[0]
-            or "image/png"
+            _normalize_content_type(resp.headers.get("content-type", "")) or mimetypes.guess_type(url)[0] or "image/png"
         )
         return resp.content, mime_type, None
     except Exception as e:
@@ -1327,6 +1447,7 @@ async def _download_image_bytes(url: str) -> Tuple[Optional[bytes], str, Optiona
 # ---------------------------------------------------------------------------
 # Document scraping via docling
 # ---------------------------------------------------------------------------
+
 
 async def _download_pdf_via_browser(url: str) -> Optional[bytes]:
     """Download a PDF using a real Chromium browser via Playwright.
@@ -1398,7 +1519,9 @@ async def _download_pdf_bytes(url: str) -> Tuple[Optional[bytes], Optional[str]]
 
     try:
         async with httpx.AsyncClient(
-            follow_redirects=True, timeout=_DOCUMENT_DOWNLOAD_TIMEOUT, headers=_FETCH_HEADERS
+            follow_redirects=True,
+            timeout=_DOCUMENT_DOWNLOAD_TIMEOUT,
+            headers=_FETCH_HEADERS,
         ) as client:
             for attempt in range(_PDF_DOWNLOAD_RETRIES):
                 try:
@@ -1406,7 +1529,10 @@ async def _download_pdf_bytes(url: str) -> Tuple[Optional[bytes], Optional[str]]
                     dl_resp.raise_for_status()
                     pdf_bytes = dl_resp.content
                     if pdf_bytes[:4] != b"%PDF":
-                        return None, f"URL did not return a PDF (got {dl_resp.headers.get('content-type','?')})"
+                        return (
+                            None,
+                            f"URL did not return a PDF (got {dl_resp.headers.get('content-type', '?')})",
+                        )
                     return pdf_bytes, None
                 except Exception as e:
                     httpx_error = e
@@ -1435,7 +1561,14 @@ async def _download_pdf_bytes(url: str) -> Tuple[Optional[bytes], Optional[str]]
     return pdf_bytes, None
 
 
-async def _scrape_document(url: str, query: str = "", vision_model: Optional[str] = None, max_pdf_pages: int = _PDF_MAX_PAGES_DEFAULT, known_content_type: str = "", known_content_disposition: str = "") -> Tuple[str, str, Optional[str]]:
+async def _scrape_document(
+    url: str,
+    query: str = "",
+    vision_model: Optional[str] = None,
+    max_pdf_pages: int = _PDF_MAX_PAGES_DEFAULT,
+    known_content_type: str = "",
+    known_content_disposition: str = "",
+) -> Tuple[str, str, Optional[str]]:
     """Extract content from a document (PDF, DOCX, PPTX, XLSX) via docling.
 
     PDFs use a fast text-layer path (no OCR, no table detection) and are
@@ -1452,7 +1585,9 @@ async def _scrape_document(url: str, query: str = "", vision_model: Optional[str
     if not is_pdf and not (known_content_type or known_content_disposition):
         try:
             async with httpx.AsyncClient(
-                follow_redirects=True, timeout=_VALIDATION_TIMEOUT, headers=_FETCH_HEADERS
+                follow_redirects=True,
+                timeout=_VALIDATION_TIMEOUT,
+                headers=_FETCH_HEADERS,
             ) as client:
                 head = await client.head(url)
             is_pdf = _looks_like_pdf_resource(
@@ -1531,13 +1666,19 @@ async def _fetch_document_source_artifact(
     title = url.rsplit("/", 1)[-1] or "Document"
     unsupported_reason = _unsupported_legacy_document_reason(url, known_content_type, known_content_disposition)
     if unsupported_reason:
-        return SourceArtifact(kind="text", title=title), title, f"Skipped: {unsupported_reason}"
+        return (
+            SourceArtifact(kind="text", title=title),
+            title,
+            f"Skipped: {unsupported_reason}",
+        )
     is_pdf = _looks_like_pdf_resource(url, known_content_type, known_content_disposition)
 
     if not is_pdf and not (known_content_type or known_content_disposition):
         try:
             async with httpx.AsyncClient(
-                follow_redirects=True, timeout=_VALIDATION_TIMEOUT, headers=_FETCH_HEADERS
+                follow_redirects=True,
+                timeout=_VALIDATION_TIMEOUT,
+                headers=_FETCH_HEADERS,
             ) as client:
                 head = await client.head(url)
             is_pdf = _looks_like_pdf_resource(
@@ -1551,7 +1692,11 @@ async def _fetch_document_source_artifact(
     if is_pdf:
         pdf_bytes, error = await _download_pdf_bytes(url)
         if error or not pdf_bytes:
-            return SourceArtifact(kind="text", title=title), title, error or "PDF returned empty content"
+            return (
+                SourceArtifact(kind="text", title=title),
+                title,
+                error or "PDF returned empty content",
+            )
 
         from docling_core.types.io import DocumentStream
 
@@ -1572,17 +1717,29 @@ async def _fetch_document_source_artifact(
         content = _append_internal_links(content, None)
         if len(content.strip()) < _MIN_PDF_TEXT_CHARS:
             if vision_model:
-                return SourceArtifact(
-                    kind="binary",
-                    title=title,
-                    binary_bytes=pdf_bytes,
-                    mime_type="application/pdf",
-                ), title, None
-            return SourceArtifact(kind="text", title=title), title, (
-                f"[Image-only or scanned PDF — no extractable text layer. "
-                f"Extracted {len(content.strip())} chars. URL: {url}]"
+                return (
+                    SourceArtifact(
+                        kind="binary",
+                        title=title,
+                        binary_bytes=pdf_bytes,
+                        mime_type="application/pdf",
+                    ),
+                    title,
+                    None,
+                )
+            return (
+                SourceArtifact(kind="text", title=title),
+                title,
+                (
+                    f"[Image-only or scanned PDF — no extractable text layer. "
+                    f"Extracted {len(content.strip())} chars. URL: {url}]"
+                ),
             )
-        return SourceArtifact(kind="text", title=title, text_content=content), title, None
+        return (
+            SourceArtifact(kind="text", title=title, text_content=content),
+            title,
+            None,
+        )
 
     from docling.document_converter import DocumentConverter
 
@@ -1594,7 +1751,11 @@ async def _fetch_document_source_artifact(
     try:
         content = await asyncio.to_thread(_convert)
     except Exception as e:
-        return SourceArtifact(kind="text", title=title), title, f"Document conversion failed: {e}"
+        return (
+            SourceArtifact(kind="text", title=title),
+            title,
+            f"Document conversion failed: {e}",
+        )
     content = _append_internal_links(content, None)
     return SourceArtifact(kind="text", title=title, text_content=content), title, None
 
@@ -1663,7 +1824,11 @@ async def fetch_query_agnostic_source_artifact(
     if artifact.kind == "text" and not artifact.text_content.strip():
         if plan.likely_bot_detected:
             logger.info("[scrape] bot_detected %s", url)
-            return None, "bot_detected: Browser loaded page but returned empty content", plan.strategy
+            return (
+                None,
+                "bot_detected: Browser loaded page but returned empty content",
+                plan.strategy,
+            )
         return None, "Extraction returned empty content", plan.strategy
 
     if artifact.kind == "binary" and not artifact.binary_bytes:
@@ -1695,9 +1860,7 @@ async def materialize_source_artifact(
         )
     else:
         mime_type = (
-            "image/png"
-            if artifact.mime_type == "application/x-page-screenshot"
-            else artifact.mime_type or "image/png"
+            "image/png" if artifact.mime_type == "application/x-page-screenshot" else artifact.mime_type or "image/png"
         )
         content, error = await _vision_extract_image_bytes(
             image_bytes=artifact.binary_bytes,
@@ -1713,13 +1876,18 @@ async def materialize_source_artifact(
     if error:
         return "", title, error
     if artifact.mime_type == "application/x-page-screenshot" and len(content) < 400:
-        return "", title, f"Vision extraction returned too little content ({len(content)} chars — page likely blocked)"
+        return (
+            "",
+            title,
+            f"Vision extraction returned too little content ({len(content)} chars — page likely blocked)",
+        )
     return _truncate_content(content, max_content_chars), title, None
 
 
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
+
 
 async def scrape_url(
     url: str,
@@ -1786,7 +1954,11 @@ async def scrape_url(
     if not content.strip():
         if plan.likely_bot_detected:
             logger.info("[scrape] bot_detected %s", url)
-            return "", title or "", "bot_detected: Browser loaded page but returned empty content"
+            return (
+                "",
+                title or "",
+                "bot_detected: Browser loaded page but returned empty content",
+            )
         return "", title or "", "Extraction returned empty content"
 
     if len(content) > max_content_chars:

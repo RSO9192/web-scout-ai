@@ -27,6 +27,7 @@ def test_has_fragment_false_for_query_string_only():
 def test_has_fragment_detects_spa_anchor():
     assert _has_fragment("https://example.com/app#/dashboard/stats") is True
 
+
 def test_is_form_contaminated_detects_strongly_agree_repetition():
     content = (
         "National Statistical Institutes\n"
@@ -39,12 +40,7 @@ def test_is_form_contaminated_detects_strongly_agree_repetition():
 
 
 def test_is_form_contaminated_detects_kindly_provide_repetition():
-    content = (
-        "Please rate our service.\n"
-        "Kindly provide your feedback.\n"
-        "Kindly provide details.\n"
-        "Thank you.\n"
-    )
+    content = "Please rate our service.\nKindly provide your feedback.\nKindly provide details.\nThank you.\n"
     assert _is_form_contaminated(content) is True
 
 
@@ -81,6 +77,7 @@ def test_is_form_contaminated_false_for_short_survey_content():
     content = "\n".join(lines)
     assert _is_form_contaminated(content) is False
 
+
 def test_render_cached_page_appends_spa_signal_for_fragment_url():
     """Fragment URL → SPA signal appended to output."""
     rich_content = "Fish data content. " * 40
@@ -96,11 +93,7 @@ def test_render_cached_page_appends_spa_signal_for_fragment_url():
 
 def test_render_cached_page_appends_form_signal_for_survey_content():
     """Survey content > 500 chars → form signal appended."""
-    survey_content = (
-        "National Statistical Institutes\n"
-        + "* Strongly Agree\n" * 5
-        + "Some nav content. " * 30
-    )
+    survey_content = "National Statistical Institutes\n" + "* Strongly Agree\n" * 5 + "Some nav content. " * 30
     assert len(survey_content) >= 500
 
     result = _render_cached_page_text("https://fao.org/faostat/en/", "Test Page", survey_content)
@@ -110,11 +103,7 @@ def test_render_cached_page_appends_form_signal_for_survey_content():
 
 def test_render_cached_page_appends_both_signals_for_faostat_like_url():
     """Fragment URL + survey content → both signals appear."""
-    survey_content = (
-        "Crops and livestock products\n"
-        + "* Strongly Agree\n" * 5
-        + "More content. " * 30
-    )
+    survey_content = "Crops and livestock products\n" + "* Strongly Agree\n" * 5 + "More content. " * 30
 
     result = _render_cached_page_text(
         "https://fao.org/faostat/en/#data/QCL",
@@ -129,8 +118,7 @@ def test_render_cached_page_appends_both_signals_for_faostat_like_url():
 def test_render_cached_page_no_signal_for_normal_rich_content():
     """Normal rich content with no fragment → no signals."""
     normal_content = (
-        "Fish production increased by 3% in 2023 according to FAO. "
-        "Aquaculture reached 88 million tonnes globally. "
+        "Fish production increased by 3% in 2023 according to FAO. Aquaculture reached 88 million tonnes globally. "
     ) * 40
 
     result = _render_cached_page_text("https://fao.org/fishery/en", "Test Page", normal_content)
@@ -146,6 +134,7 @@ def test_render_cached_page_no_form_signal_when_content_under_500_chars():
     result = _render_cached_page_text("https://fao.org/fishery/en", "Test Page", thin_survey)
 
     assert "[Form/survey content detected" not in result
+
 
 def test_extractor_instructions_mention_spa_signal():
     """Instructions must tell the LLM to react to the SPA signal string."""

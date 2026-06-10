@@ -25,6 +25,7 @@ from web_scout.scraping import (
 # _is_blocked_domain — no network, but validates the lookup table
 # ---------------------------------------------------------------------------
 
+
 def test_youtube_is_blocked_by_default():
     assert _is_blocked_domain("https://www.youtube.com/watch?v=abc") is True
 
@@ -40,6 +41,7 @@ def test_reddit_unblocked_when_in_allowed_domains():
 # ---------------------------------------------------------------------------
 # _validate_url — live network
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_validate_url_live_static_html():
@@ -74,14 +76,13 @@ async def test_validate_url_live_pdf_by_extension():
 async def test_validate_url_live_json_endpoint():
     """httpbin.org/json returns application/json — should route to SCRAPE_JSON."""
     verdict, detail = await _validate_url("https://httpbin.org/json")
-    assert verdict in (_SCRAPE_JSON, _SCRAPE_HTML, _SCRAPE_JS), (
-        f"Unexpected verdict {verdict!r}: {detail}"
-    )
+    assert verdict in (_SCRAPE_JSON, _SCRAPE_HTML, _SCRAPE_JS), f"Unexpected verdict {verdict!r}: {detail}"
 
 
 # ---------------------------------------------------------------------------
 # scrape_url — live network
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_scrape_url_live_example_com_returns_content():

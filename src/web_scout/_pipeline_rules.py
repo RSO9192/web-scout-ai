@@ -99,9 +99,24 @@ _FOLLOWUP_DETAIL_TOKENS: tuple[str, ...] = (
     "handle",
     "bitstream",
 )
-_DATA_PORTAL_TOKENS: tuple[str, ...] = ("maproom", "dataset", "data", "api", "csv", "thredds")
+_DATA_PORTAL_TOKENS: tuple[str, ...] = (
+    "maproom",
+    "dataset",
+    "data",
+    "api",
+    "csv",
+    "thredds",
+)
 _FOLLOWUP_HUB_PATH_TOKENS: frozenset[str] = frozenset(
-    {"section", "sections", "topic", "topics", "research-topic", "research-topics", "magazine"}
+    {
+        "section",
+        "sections",
+        "topic",
+        "topics",
+        "research-topic",
+        "research-topics",
+        "magazine",
+    }
 )
 _QUERY_DATA_HINTS: tuple[str, ...] = (
     "dataset",
@@ -168,26 +183,17 @@ def _judge_synthesis(synthesis: str, valid_urls: set[str]) -> list[str]:
     """Return a list of issue descriptions, empty if synthesis passes."""
     issues = []
     text_without_md_links = _re.sub(r"\[[^\]]*\]\((https?://[^\s\)]+)\)", "", synthesis)
-    bare_urls = [
-        match.group().rstrip('.,;)"\'')
-        for match in _re.finditer(r"https?://\S+", text_without_md_links)
-    ]
+    bare_urls = [match.group().rstrip(".,;)\"'") for match in _re.finditer(r"https?://\S+", text_without_md_links)]
     bare_urls = [url for url in bare_urls if url]
     if bare_urls:
-        issues.append(
-            "Bare URLs found (must be wrapped as markdown links [Title](URL)): "
-            + ", ".join(bare_urls[:5])
-        )
+        issues.append("Bare URLs found (must be wrapped as markdown links [Title](URL)): " + ", ".join(bare_urls[:5]))
 
     md_link_urls = set(_re.findall(r"\[[^\]]*\]\((https?://[^\s\)]+)\)", synthesis))
     valid_norm = {ResearchTracker.normalize_url(url) for url in valid_urls}
-    hallucinated = [
-        url for url in md_link_urls if ResearchTracker.normalize_url(url) not in valid_norm
-    ]
+    hallucinated = [url for url in md_link_urls if ResearchTracker.normalize_url(url) not in valid_norm]
     if hallucinated:
         issues.append(
-            "URLs cited that are NOT in the available sources (remove or replace): "
-            + ", ".join(hallucinated[:5])
+            "URLs cited that are NOT in the available sources (remove or replace): " + ", ".join(hallucinated[:5])
         )
 
     return issues
@@ -239,11 +245,7 @@ def _query_prefers_forecast_pages(query: str) -> bool:
 
 
 def _extract_query_keywords(query: str) -> set[str]:
-    return {
-        token
-        for token in _re.findall(r"[a-z0-9]{4,}", query.lower())
-        if token not in _QUERY_STOPWORDS
-    }
+    return {token for token in _re.findall(r"[a-z0-9]{4,}", query.lower()) if token not in _QUERY_STOPWORDS}
 
 
 def _looks_like_paginated_index_page(url: str) -> bool:
@@ -262,19 +264,13 @@ def _looks_like_identifier_detail_page(path_segments: list[str]) -> bool:
     return (
         any(token in terminal for token in ("10.", "doi", "handle"))
         or any(char.isdigit() for char in terminal)
-        or any(
-            token in "/".join(path_segments)
-            for token in ("handle", "record", "item", "bitstream")
-        )
+        or any(token in "/".join(path_segments) for token in ("handle", "record", "item", "bitstream"))
     )
 
 
 def _looks_like_operational_forecast_or_warning_url(url: str) -> bool:
     normalized = urlparse(url).path.lower().replace("_", "-")
-    return any(
-        token in normalized
-        for token in ("forecast", "warning", "warnings", "outlook", "advisory")
-    )
+    return any(token in normalized for token in ("forecast", "warning", "warnings", "outlook", "advisory"))
 
 
 def _looks_like_topic_or_section_hub_url(url: str) -> bool:
@@ -296,11 +292,7 @@ def _looks_like_topic_or_section_hub_url(url: str) -> bool:
 def _score_followup_candidate(query: str, url: str) -> int:
     parsed = urlparse(url)
     path = parsed.path.strip("/")
-    path_segments = [
-        seg.lower()
-        for seg in path.split("/")
-        if seg and seg.lower() not in {"index", "index.html"}
-    ]
+    path_segments = [seg.lower() for seg in path.split("/") if seg and seg.lower() not in {"index", "index.html"}]
     joined = "/".join(path_segments)
     normalized_joined = joined.replace("_", "-")
     terminal = joined.rsplit("/", 1)[-1] if joined else ""
@@ -311,10 +303,7 @@ def _score_followup_candidate(query: str, url: str) -> int:
         score += FOLLOWUP_HEURISTICS.paginated_index_penalty
     if _looks_like_document_url(url):
         score += FOLLOWUP_HEURISTICS.document_bonus
-    if any(
-        token in normalized_joined
-        for token in ("report", "bulletin", "assessment", "analysis")
-    ):
+    if any(token in normalized_joined for token in ("report", "bulletin", "assessment", "analysis")):
         score += FOLLOWUP_HEURISTICS.report_bonus
     if any(token in normalized_joined for token in ("publication", "document", "download")):
         score += FOLLOWUP_HEURISTICS.publication_bonus
@@ -466,8 +455,7 @@ def _build_synth_prompt(
     import json as _json
 
     scraped_json = [
-        {"url": entry.url, "title": entry.title or entry.url, "content": entry.content}
-        for entry in scraped
+        {"url": entry.url, "title": entry.title or entry.url, "content": entry.content} for entry in scraped
     ]
     snippet_json = [
         {"url": entry.url, "title": entry.title or entry.url, "snippet": entry.content}
@@ -501,9 +489,7 @@ def _build_synth_prompt(
     if failure_lines:
         prompt += (
             "SOURCES THAT COULD NOT BE ACCESSED"
-            " — do NOT cite these, do not assume what they contain:\n"
-            + "\n".join(failure_lines[:10])
-            + "\n\n"
+            " — do NOT cite these, do not assume what they contain:\n" + "\n".join(failure_lines[:10]) + "\n\n"
         )
 
     if not scraped and not snippet_json:
@@ -512,9 +498,7 @@ def _build_synth_prompt(
         if scraped_json:
             prompt += f"Scraped sources (full extracts):\n{_json.dumps(scraped_json, indent=2)}\n\n"
         if snippet_json:
-            prompt += (
-                f"Additional sources (search snippets only):\n{_json.dumps(snippet_json, indent=2)}\n\n"
-            )
+            prompt += f"Additional sources (search snippets only):\n{_json.dumps(snippet_json, indent=2)}\n\n"
 
     prompt += "Provide the 'synthesis' of the findings directly answering the query.\n"
     return prompt
@@ -536,10 +520,7 @@ def _build_query_generation_prompt(
     else:
         prompt = f"Research Query: {query}\nGenerate exactly {n_queries} distinct search queries.\n"
     if include_domains:
-        prompt += (
-            "Note: We will search exclusively within these domains: "
-            f"{', '.join(include_domains)}\n"
-        )
+        prompt += f"Note: We will search exclusively within these domains: {', '.join(include_domains)}\n"
     return prompt
 
 

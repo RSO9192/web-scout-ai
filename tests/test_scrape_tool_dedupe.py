@@ -3,7 +3,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from web_scout._heuristics import EXTRACTOR_HEURISTICS, FOLLOWUP_HEURISTICS, ROUTING_HEURISTICS
+from web_scout._heuristics import (
+    EXTRACTOR_HEURISTICS,
+    FOLLOWUP_HEURISTICS,
+    ROUTING_HEURISTICS,
+)
 from web_scout.tools import (
     _SESSION_SOURCE_CACHE,
     _SESSION_SOURCE_IN_FLIGHT,
@@ -89,7 +93,9 @@ async def test_scrape_tool_reuses_inflight_request(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_scrape_tool_recovers_prefetched_content_when_extractor_fails(monkeypatch):
+async def test_scrape_tool_recovers_prefetched_content_when_extractor_fails(
+    monkeypatch,
+):
     from web_scout import scraping, tools
 
     tracker = ResearchTracker()
@@ -108,7 +114,13 @@ async def test_scrape_tool_recovers_prefetched_content_when_extractor_fails(monk
     monkeypatch.setattr(
         scraping,
         "scrape_url",
-        AsyncMock(return_value=("Recoverable source facts and figures. " * 100, "Report", None)),
+        AsyncMock(
+            return_value=(
+                "Recoverable source facts and figures. " * 100,
+                "Report",
+                None,
+            )
+        ),
     )
     monkeypatch.setattr(tools.Runner, "run", _failing_run)
 
@@ -121,7 +133,9 @@ async def test_scrape_tool_recovers_prefetched_content_when_extractor_fails(monk
 
 
 @pytest.mark.asyncio
-async def test_scrape_tool_unexpected_internal_error_returns_failure_and_unblocks_waiters(monkeypatch):
+async def test_scrape_tool_unexpected_internal_error_returns_failure_and_unblocks_waiters(
+    monkeypatch,
+):
     from web_scout import scraping, tools
 
     tracker = ResearchTracker()
@@ -143,10 +157,7 @@ async def test_scrape_tool_unexpected_internal_error_returns_failure_and_unblock
     result1, result2 = await asyncio.gather(scrape_tool(url), scrape_tool(url))
 
     assert "internal error: RuntimeError: builder exploded" in result1
-    assert (
-        "internal error: RuntimeError: builder exploded" in result2
-        or "Already attempted this URL" in result2
-    )
+    assert "internal error: RuntimeError: builder exploded" in result2 or "Already attempted this URL" in result2
     assert "Already attempted this URL" in await scrape_tool(url)
 
 
@@ -359,10 +370,7 @@ def test_classify_failure_action_http_error():
 
 
 def test_classify_failure_action_unsupported_legacy_document():
-    assert (
-        _classify_failure_action("Skipped: unsupported legacy Office document format (.doc)")
-        == "scrape_failed"
-    )
+    assert _classify_failure_action("Skipped: unsupported legacy Office document format (.doc)") == "scrape_failed"
 
 
 def test_classify_failure_action_irrelevant_page():

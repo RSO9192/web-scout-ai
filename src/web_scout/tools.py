@@ -174,7 +174,7 @@ def _extract_rendered_followup_links(content: str) -> list[str]:
     """
     seen: set[str] = set()
     links: list[str] = []
-    for match in re.finditer(r'\]\((https?://[^\s)]+)\)|(https?://\S+)', content):
+    for match in re.finditer(r"\]\((https?://[^\s)]+)\)|(https?://\S+)", content):
         url = match.group(1) or match.group(2)
         url = url.rstrip(".,;:)>\"'")
         if url and url not in seen:
@@ -286,13 +286,24 @@ _ACTION_RANK = {
     "scraped": 3,
 }
 
-_TRACKING_PARAMS: frozenset = frozenset({
-    "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
-    "utm_id", "utm_source_platform",
-    "fbclid", "gclid", "msclkid",
-    "mc_cid", "mc_eid",
-    "_ga", "ref",
-})
+_TRACKING_PARAMS: frozenset = frozenset(
+    {
+        "utm_source",
+        "utm_medium",
+        "utm_campaign",
+        "utm_term",
+        "utm_content",
+        "utm_id",
+        "utm_source_platform",
+        "fbclid",
+        "gclid",
+        "msclkid",
+        "mc_cid",
+        "mc_eid",
+        "_ga",
+        "ref",
+    }
+)
 _BOT_BLOCK_THRESHOLD = 2
 
 
@@ -317,15 +328,12 @@ class ResearchTracker:
         scheme = "https" if p.scheme in ("http", "https") else p.scheme
         if p.query:
             filtered = [
-                (k, v) for k, v in parse_qsl(p.query, keep_blank_values=True)
-                if k.lower() not in _TRACKING_PARAMS
+                (k, v) for k, v in parse_qsl(p.query, keep_blank_values=True) if k.lower() not in _TRACKING_PARAMS
             ]
             query = urlencode(filtered)
         else:
             query = ""
-        return urlunparse(
-            (scheme, p.netloc.lower(), p.path.rstrip("/"), p.params, query, "")
-        )
+        return urlunparse((scheme, p.netloc.lower(), p.path.rstrip("/"), p.params, query, ""))
 
     @staticmethod
     def normalize_url(url: str) -> str:
@@ -363,9 +371,7 @@ class ResearchTracker:
         for r in results:
             key = self._normalize_url(r.url)
             if key not in self._urls:
-                self._urls[key] = UrlEntry(
-                    url=r.url, title=r.title, content=r.snippet
-                )
+                self._urls[key] = UrlEntry(url=r.url, title=r.title, content=r.snippet)
             self._upgrade_action(key, "snippet_only")
 
     def record_direct_query(self, query: str) -> None:
@@ -528,6 +534,7 @@ class ResearchTracker:
 # Content extractor sub-agent
 # ---------------------------------------------------------------------------
 
+
 class _ExtractorOutput(BaseModel):
     """Structured output from the content extractor sub-agent."""
 
@@ -549,7 +556,7 @@ class _ExtractorOutput(BaseModel):
         default="content",
         description=(
             'Set to "list" if this page is a database view, search results page, '
-            'index, or any page whose primary purpose is listing many items with links '
+            "index, or any page whose primary purpose is listing many items with links "
             'to detail pages. Set to "content" for articles, reports, and detail pages.'
         ),
     )
@@ -646,11 +653,7 @@ def _render_cached_page_text(url: str, title: str, content: str) -> str:
 
 def _render_cached_document_text(document_url: str, title: str, content: str) -> str:
     """Render cached document content back into the legacy document tool contract."""
-    header = (
-        f"# {title}\nSource: {document_url}\n\n"
-        if title
-        else f"Source: {document_url}\n\n"
-    )
+    header = f"# {title}\nSource: {document_url}\n\n" if title else f"Source: {document_url}\n\n"
     return header + content
 
 
@@ -693,11 +696,7 @@ def _prefetched_allows_interaction(
     if _prefetched_has_signal(content):
         return True
 
-    if (
-        page_shape is not None
-        and page_shape.page_type == "interactive_shell"
-        and page_shape.interactive_score >= 5
-    ):
+    if page_shape is not None and page_shape.page_type == "interactive_shell" and page_shape.interactive_score >= 5:
         return True
 
     if not _prefetched_is_thin(content):
@@ -723,6 +722,8 @@ def _prefetched_is_recoverable(content: str) -> bool:
         or stripped.startswith("[Page returned empty")
         or stripped.startswith("[No relevant content")
     )
+
+
 async def _get_or_fetch_session_source_artifact(
     *,
     url: str,
@@ -757,7 +758,11 @@ async def _get_or_fetch_session_source_artifact(
     future: asyncio.Future[CachedSourceArtifact] = asyncio.get_running_loop().create_future()
     _SESSION_SOURCE_IN_FLIGHT[key] = future
     try:
-        artifact, error, _ = await _scraping_module.fetch_query_agnostic_source_artifact(
+        (
+            artifact,
+            error,
+            _,
+        ) = await _scraping_module.fetch_query_agnostic_source_artifact(
             url,
             wait_for=wait_for,
             vision_model=vision_model,
@@ -961,8 +966,12 @@ def _has_fragment(url: str) -> bool:
 
 
 _FORM_TOKENS = (
-    "strongly agree", "strongly disagree", "please rate",
-    "kindly provide", "please provide", "select an option",
+    "strongly agree",
+    "strongly disagree",
+    "please rate",
+    "kindly provide",
+    "please provide",
+    "select an option",
 )
 
 
@@ -984,7 +993,22 @@ def _is_form_contaminated(content: str) -> bool:
     return False
 
 
-def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[str], vision_model: Optional[str] = None, allowed_domains: Optional[frozenset] = None, max_pdf_pages: int = 50, max_content_chars: int = 30_000, doc_cache: Optional[dict] = None, doc_in_flight: Optional[Dict[str, asyncio.Future[str]]] = None, use_session_cache: bool = False, max_interactive_clicks: int = EXTRACTOR_HEURISTICS.max_interactive_clicks, domain_expertise: Optional[str] = None, pre_fetched_content: str = "") -> tuple:
+def _build_extractor_agent(
+    model: Any,
+    query: str,
+    url: str,
+    wait_for: Optional[str],
+    vision_model: Optional[str] = None,
+    allowed_domains: Optional[frozenset] = None,
+    max_pdf_pages: int = 50,
+    max_content_chars: int = 30_000,
+    doc_cache: Optional[dict] = None,
+    doc_in_flight: Optional[Dict[str, asyncio.Future[str]]] = None,
+    use_session_cache: bool = False,
+    max_interactive_clicks: int = EXTRACTOR_HEURISTICS.max_interactive_clicks,
+    domain_expertise: Optional[str] = None,
+    pre_fetched_content: str = "",
+) -> tuple:
     """Build a content extractor sub-agent with a URL-locked scraping tool.
 
     A second tool ``scrape_linked_document`` lets the extractor fetch one
@@ -997,18 +1021,12 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
 
     legacy_direct_agent = not pre_fetched_content
     page_shape = classify_prefetched_page_shape(pre_fetched_content) if pre_fetched_content else None
-    allow_interaction = (
-        legacy_direct_agent
-        or _prefetched_allows_interaction(pre_fetched_content, page_shape)
-    )
-    allow_linked_document = (
-        legacy_direct_agent
-        or (
-            page_shape is not None
-            and page_shape.page_type == "record_page"
-            and page_shape.record_score >= 5
-            and page_shape.record_score >= page_shape.content_score + 2
-        )
+    allow_interaction = legacy_direct_agent or _prefetched_allows_interaction(pre_fetched_content, page_shape)
+    allow_linked_document = legacy_direct_agent or (
+        page_shape is not None
+        and page_shape.page_type == "record_page"
+        and page_shape.record_score >= 5
+        and page_shape.record_score >= page_shape.content_score + 2
     )
     linked_document_called = False
 
@@ -1029,7 +1047,10 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
             document_url: Absolute URL of the primary source document to fetch.
         """
         nonlocal linked_document_called
-        logger.info("[extract-tool] sub-agent calling scrape_linked_document for %s", document_url)
+        logger.info(
+            "[extract-tool] sub-agent calling scrape_linked_document for %s",
+            document_url,
+        )
         if not allow_linked_document:
             return (
                 "[scrape_linked_document skipped: pre-fetched page content is already "
@@ -1141,10 +1162,10 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         return result
 
     # --- interactive browser session ---
-    _browser_holder: list = [None]   # [playwright Browser | None]
-    _context_holder: list = [None]   # [playwright BrowserContext | None]
-    _pw_holder: list = [None]        # [AsyncPlaywrightContextManager | None]
-    _page_holder: list = [None]      # [playwright Page | None]
+    _browser_holder: list = [None]  # [playwright Browser | None]
+    _context_holder: list = [None]  # [playwright BrowserContext | None]
+    _pw_holder: list = [None]  # [AsyncPlaywrightContextManager | None]
+    _page_holder: list = [None]  # [playwright Page | None]
     _click_count: list = [0]
 
     def _current_page_url() -> str:
@@ -1259,10 +1280,7 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
         """
         logger.info("[extract-tool] sub-agent calling click_element(%d) for %s", index, url)
         if _page_holder[0] is None:
-            return (
-                "[click_element error: no browser session open. "
-                "Call list_interactive_elements() first.]"
-            )
+            return "[click_element error: no browser session open. Call list_interactive_elements() first.]"
 
         if _click_count[0] >= max_interactive_clicks:
             return (
@@ -1312,9 +1330,7 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
                         f"[Clicking element {index} had no visible effect on the page content. "
                         "Try a different element.]"
                     )
-                result += (
-                    f"\n\n[Clicking element {index} had no visible effect on the page content.]"
-                )
+                result += f"\n\n[Clicking element {index} had no visible effect on the page content.]"
 
             if len(result) < EXTRACTOR_HEURISTICS.thin_content_chars:
                 result += (
@@ -1367,7 +1383,12 @@ def _build_extractor_agent(model: Any, query: str, url: str, wait_for: Optional[
 # Web search tool
 # ---------------------------------------------------------------------------
 
-def create_web_search(backend=None, tracker: Optional[ResearchTracker] = None, force_open_web: bool = False):
+
+def create_web_search(
+    backend=None,
+    tracker: Optional[ResearchTracker] = None,
+    force_open_web: bool = False,
+):
     """Create a web search ``@function_tool`` using a pluggable backend."""
     from .search_backends import SearchBackend
 
@@ -1394,7 +1415,10 @@ def create_web_search(backend=None, tracker: Optional[ResearchTracker] = None, f
         """
         # Enforce open-web mode: strip any self-imposed domain restrictions
         if force_open_web and include_domains:
-            logger.info("[search] open-web mode: stripping self-imposed include_domains %s", include_domains)
+            logger.info(
+                "[search] open-web mode: stripping self-imposed include_domains %s",
+                include_domains,
+            )
             include_domains = None
 
         domains_label = f" [domains: {include_domains}]" if include_domains else ""
@@ -1474,9 +1498,7 @@ def create_web_search(backend=None, tracker: Optional[ResearchTracker] = None, f
                 if kg.description:
                     kg_lines.append(kg.description)
                 if kg.attributes:
-                    attrs = ", ".join(
-                        f"{k}: {v}" for k, v in list(kg.attributes.items())[:6]
-                    )
+                    attrs = ", ".join(f"{k}: {v}" for k, v in list(kg.attributes.items())[:6])
                     kg_lines.append(f"Attributes: {attrs}")
                 parts.append("\n".join(kg_lines))
 
@@ -1486,11 +1508,7 @@ def create_web_search(backend=None, tracker: Optional[ResearchTracker] = None, f
                 quality = _snippet_quality(r.snippet)
                 date_tag = f" · {r.date}" if r.date else ""
                 rank_tag = f" · rank #{r.position}" if r.position else ""
-                parts.append(
-                    f"\n[{i}] **{r.title}** {quality}{date_tag}{rank_tag}"
-                    f"\nURL: {r.url}"
-                    f"\n{r.snippet}"
-                )
+                parts.append(f"\n[{i}] **{r.title}** {quality}{date_tag}{rank_tag}\nURL: {r.url}\n{r.snippet}")
 
             # People Also Ask — pre-answered Q&A pairs
             if response.people_also_ask:
@@ -1529,6 +1547,7 @@ def create_web_search(backend=None, tracker: Optional[ResearchTracker] = None, f
 # ---------------------------------------------------------------------------
 # Scrape-and-extract tool (wraps content extractor sub-agent)
 # ---------------------------------------------------------------------------
+
 
 def create_scrape_and_extract_tool(
     extractor_model: Any,
@@ -1610,11 +1629,7 @@ def create_scrape_and_extract_tool(
                 if tracker is not None:
                     tracker.scrape_count += 1
 
-                _wait_for = (
-                    wait_for
-                    if wait_for and wait_for.lower() not in ("null", "none", "")
-                    else None
-                )
+                _wait_for = wait_for if wait_for and wait_for.lower() not in ("null", "none", "") else None
 
                 # Fetch content in Python before involving the agent
                 from . import scraping as _scraping_module
@@ -1628,7 +1643,10 @@ def create_scrape_and_extract_tool(
                         page_rendered = f"[Scrape failed: Skipped: {plan.reason}]"
                         is_failure = True
                     else:
-                        cached_artifact, cache_error = await _get_or_fetch_session_source_artifact(
+                        (
+                            cached_artifact,
+                            cache_error,
+                        ) = await _get_or_fetch_session_source_artifact(
                             url=url,
                             strategy=plan.strategy,
                             wait_for=_wait_for,
@@ -1645,7 +1663,11 @@ def create_scrape_and_extract_tool(
                             page_rendered = f"[Scrape failed: {cache_error}]"
                             is_failure = True
                         else:
-                            content, title, error = await _scraping_module.materialize_source_artifact(
+                            (
+                                content,
+                                title,
+                                error,
+                            ) = await _scraping_module.materialize_source_artifact(
                                 _scraping_module.SourceArtifact(
                                     kind=cached_artifact.artifact_kind,
                                     title=cached_artifact.title,
@@ -1666,7 +1688,15 @@ def create_scrape_and_extract_tool(
                             else:
                                 page_rendered = _render_cached_page_text(url, title, content)
                 else:
-                    content, title, error = await _scraping_module.scrape_url(url, _wait_for, query=query, vision_model=vision_model, allowed_domains=allowed_domains, max_pdf_pages=max_pdf_pages, max_content_chars=max_content_chars)
+                    content, title, error = await _scraping_module.scrape_url(
+                        url,
+                        _wait_for,
+                        query=query,
+                        vision_model=vision_model,
+                        allowed_domains=allowed_domains,
+                        max_pdf_pages=max_pdf_pages,
+                        max_content_chars=max_content_chars,
+                    )
                     if error:
                         page_rendered = f"[Scrape failed: {error}]"
                         is_failure = True
@@ -1716,7 +1746,10 @@ def create_scrape_and_extract_tool(
 
                 # Build a fresh extractor agent per call with url locked in the closure
                 extractor_agent, extractor_cleanup = _build_extractor_agent(
-                    extractor_model, query, url, _wait_for,
+                    extractor_model,
+                    query,
+                    url,
+                    _wait_for,
                     vision_model=vision_model,
                     allowed_domains=allowed_domains,
                     max_pdf_pages=max_pdf_pages,
@@ -1726,7 +1759,7 @@ def create_scrape_and_extract_tool(
                     use_session_cache=use_session_cache,
                     max_interactive_clicks=max_interactive_clicks,
                     domain_expertise=domain_expertise,
-                    pre_fetched_content=page_rendered
+                    pre_fetched_content=page_rendered,
                 )
 
                 input_text = (
@@ -1768,7 +1801,10 @@ def create_scrape_and_extract_tool(
                             links=[],
                             count_scraped=tracker.count_for_action("scraped") if tracker is not None else None,
                         )
-                        logger.info("[extract] extractor_outcome status=success recovery=true url=%s", url)
+                        logger.info(
+                            "[extract] extractor_outcome status=success recovery=true url=%s",
+                            url,
+                        )
                     else:
                         failure_text = (
                             f"[Extractor failed after scrape and pre-fetched content was not recoverable: "
@@ -1782,7 +1818,10 @@ def create_scrape_and_extract_tool(
                             count_scraped=tracker.count_for_action("scraped") if tracker is not None else None,
                             failure_kind="subagent_failed",
                         )
-                        logger.info("[extract] extractor_outcome status=failure failure_kind=subagent_failed url=%s", url)
+                        logger.info(
+                            "[extract] extractor_outcome status=failure failure_kind=subagent_failed url=%s",
+                            url,
+                        )
                     outcome_cache[norm] = outcome
                     future.set_result(outcome.rendered_text)
                     return outcome.rendered_text
@@ -1810,7 +1849,11 @@ def create_scrape_and_extract_tool(
                     or ("not found" in _content_lower and ("404" in content or "http" in _content_lower) and _short)
                     or ("page not found" in _content_lower and _short)
                     or ("access denied" in _content_lower and _short)
-                    or ("403" in content and ("forbidden" in _content_lower or "error" in _content_lower or "skipped" in _content_lower) and _short)
+                    or (
+                        "403" in content
+                        and ("forbidden" in _content_lower or "error" in _content_lower or "skipped" in _content_lower)
+                        and _short
+                    )
                     or ("skipped" in _content_lower and "http" in _content_lower and _short)
                 )
 

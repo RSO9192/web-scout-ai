@@ -25,12 +25,8 @@ class SearchQueryGeneration(BaseModel):
 class CoverageEvaluation(BaseModel):
     """LLM output for evaluating coverage and routing the next pipeline step."""
 
-    fully_answered: bool = Field(
-        description="True if the extracted content fully answers the original research query."
-    )
-    gaps: str = Field(
-        description="If not fully answered, what specific information is still missing?"
-    )
+    fully_answered: bool = Field(description="True if the extracted content fully answers the original research query.")
+    gaps: str = Field(description="If not fully answered, what specific information is still missing?")
     promising_unscraped_urls: list[str] = Field(
         default_factory=list,
         description=(
