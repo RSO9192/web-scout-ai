@@ -1,7 +1,5 @@
 """Private types shared by the web research pipeline."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 
 from pydantic import BaseModel, Field

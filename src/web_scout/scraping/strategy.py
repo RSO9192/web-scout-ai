@@ -1,20 +1,3 @@
-"""Unified web scraping via crawl4ai, docling, and vision fallbacks.
-
-Provides a single ``scrape_url`` function that:
-
-1. **Validates** the URL cheaply (HEAD + fast GET) to skip 404s, SPA
-   shells, paywalls, binary files, and blocked domains before any
-   expensive processing starts.
-2. **Routes** to the appropriate handler based on content type:
-   - Static HTML  → crawl4ai ``AsyncHTTPCrawlerStrategy`` (no browser)
-   - JS/SPA pages → crawl4ai full browser (Playwright)
-   - Documents    → docling (PDF, DOCX, PPTX, XLSX)
-   - JSON         → structured extraction
-   - Images       → vision extraction
-"""
-
-from __future__ import annotations
-
 import asyncio
 import base64
 import json
@@ -23,116 +6,25 @@ import mimetypes
 import os
 import re
 import threading
-from dataclasses import dataclass
-from enum import Enum
-from typing import Any, Literal, Optional, Tuple
+from typing import Any, Optional, Tuple
 from urllib.parse import unquote, urlparse
 from urllib.request import Request, urlopen
 
 import httpx
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
 
-from ._heuristics import ROUTING_HEURISTICS
-from ._page_classifier import classify_html_page_shape
+from web_scout.config import ROUTING_HEURISTICS
+
+from .constants import (
+    DOC_EXTENSIONS,
+    FETCH_HEADERS,
+)
+from .page_classifier import looks_like_pdf_resource
+from .plan import build_scrape_plan
+from .types import ScrapeStrategy, SourceArtifact
+from .utils import normalize_content_type, trim_json_value, unsupported_legacy_document_reason
 
 logger = logging.getLogger(__name__)
-
-# Silence noisy third-party loggers used internally by this module.
-# These produce excessive output at INFO/DEBUG level that is not useful to callers.
-logging.getLogger("docling").setLevel(logging.WARNING)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logging.getLogger("httpcore").setLevel(logging.WARNING)
-logging.getLogger("crawl4ai").setLevel(logging.WARNING)
-
-MAX_CONTENT_CHARS = 30_000
-
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
-_BLOCKED_DOMAINS = frozenset(
-    {
-        # Social media and video platforms
-        "youtube.com",
-        "youtu.be",
-        "twitter.com",
-        "x.com",
-        "facebook.com",
-        "instagram.com",
-        "linkedin.com",
-        "tiktok.com",
-        "reddit.com",
-        # Search engines
-        "scholar.google.com",
-        # Consistently paywalled academic publishers (thin HTML without subscription)
-        "sciencedirect.com",
-        "springer.com",
-        "link.springer.com",
-        "wiley.com",
-        "onlinelibrary.wiley.com",
-        "tandfonline.com",
-        "sagepub.com",
-        "cambridge.org",
-        "jstor.org",
-        # NOTE: open-access publishers (frontiersin.org, mdpi.com, journals.plos.org) and
-        # abstract-available publishers (researchgate.net, nature.com, academic.oup.com)
-        # are intentionally NOT blocked — they yield useful content for research queries.
-    }
-)
-
-_BINARY_CONTENT_TYPES = (
-    "video/",
-    "audio/",
-    "application/zip",
-    "application/octet-stream",
-    "application/x-tar",
-    "application/x-rar",
-)
-
-_IMAGE_CONTENT_TYPES = ("image/",)
-
-_JSON_CONTENT_TYPES = (
-    "application/json",
-    "application/geo+json",
-    "application/ld+json",
-    "application/vnd.api+json",
-    "text/json",
-)
-
-_SUPPORTED_DOC_CONTENT_TYPES = (
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument",
-)
-
-_UNSUPPORTED_LEGACY_DOC_CONTENT_TYPES = (
-    "application/msword",
-    "application/vnd.ms-",
-)
-
-_DOC_CONTENT_TYPES = _SUPPORTED_DOC_CONTENT_TYPES + _UNSUPPORTED_LEGACY_DOC_CONTENT_TYPES
-
-_SUPPORTED_DOC_EXTENSIONS = (".pdf", ".docx", ".pptx", ".xlsx")
-_UNSUPPORTED_LEGACY_DOC_EXTENSIONS = (".doc", ".xls", ".ppt")
-_DOC_EXTENSIONS = _SUPPORTED_DOC_EXTENSIONS + _UNSUPPORTED_LEGACY_DOC_EXTENSIONS
-
-_FETCH_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
-}
-
-_MIN_PDF_TEXT_CHARS = ROUTING_HEURISTICS.min_pdf_text_chars
-_PDF_MAX_PAGES_DEFAULT = ROUTING_HEURISTICS.pdf_max_pages_default
-_VALIDATION_TIMEOUT = ROUTING_HEURISTICS.validation_timeout
-_DOCUMENT_DOWNLOAD_TIMEOUT = ROUTING_HEURISTICS.document_download_timeout
-_URLLIB_DOWNLOAD_TIMEOUT = ROUTING_HEURISTICS.urllib_download_timeout
-_PDF_DOWNLOAD_RETRIES = ROUTING_HEURISTICS.pdf_download_retries
-_PDF_DOCLING_CONVERTER = None
-_PDF_DOCLING_CONVERTER_LOCK = threading.Lock()
 
 
 def _quiet_browser_config(**overrides: Any) -> BrowserConfig:
@@ -140,655 +32,12 @@ def _quiet_browser_config(**overrides: Any) -> BrowserConfig:
     return BrowserConfig(verbose=False, **overrides)
 
 
-def _get_pdf_docling_converter():
-    """Return a shared Docling converter for the fast PDF configuration.
-
-    Reusing the same ``DocumentConverter`` lets Docling reuse its initialized
-    pipeline and heavy layout model across PDF calls.
-    """
-    global _PDF_DOCLING_CONVERTER
-    if _PDF_DOCLING_CONVERTER is not None:
-        return _PDF_DOCLING_CONVERTER
-
-    with _PDF_DOCLING_CONVERTER_LOCK:
-        if _PDF_DOCLING_CONVERTER is None:
-            from docling.datamodel.base_models import InputFormat
-            from docling.datamodel.pipeline_options import PdfPipelineOptions
-            from docling.document_converter import DocumentConverter, PdfFormatOption
-
-            opts = PdfPipelineOptions(
-                do_ocr=False,
-                do_table_structure=False,
-                force_backend_text=True,
-            )
-            _PDF_DOCLING_CONVERTER = DocumentConverter(
-                format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)}
-            )
-    return _PDF_DOCLING_CONVERTER
-
-
-# ---------------------------------------------------------------------------
-# URL validation
-# ---------------------------------------------------------------------------
-
-
-def _is_blocked_domain(url: str, allowed_domains: Optional[frozenset] = None) -> bool:
-    netloc = urlparse(url).netloc.lower()
-    if netloc.startswith("www."):
-        netloc = netloc[4:]
-    effective_blocked = _BLOCKED_DOMAINS
-    if allowed_domains:
-        effective_blocked = _BLOCKED_DOMAINS - allowed_domains
-    return any(netloc == d or netloc.endswith("." + d) for d in effective_blocked)
-
-
-def _is_json(text: str) -> bool:
-    stripped = text.strip()
-    if not stripped or stripped[0] not in ("{", "["):
-        return False
-    try:
-        json.loads(stripped)
-        return True
-    except Exception:
-        return False
-
-
-def _looks_like_html_body(text: str) -> bool:
-    stripped = text.lstrip()
-    if not stripped:
-        return False
-    prefix = stripped[:512].lower()
-    return prefix.startswith("<!doctype html") or prefix.startswith("<html") or "<head" in prefix or "<body" in prefix
-
-
-def _sniff_document_payload(
-    payload: bytes,
-    *,
-    content_type: str = "",
-    content_disposition: str = "",
-) -> bool:
-    if not payload:
-        return False
-    if payload[:4] == b"%PDF":
-        return True
-    if payload[:4] == b"PK\x03\x04":
-        ct = _normalize_content_type(content_type)
-        filename = _filename_from_content_disposition(content_disposition).lower()
-        if any(ct.startswith(t) for t in _SUPPORTED_DOC_CONTENT_TYPES):
-            return True
-        return any(filename.endswith(ext) for ext in _SUPPORTED_DOC_EXTENSIONS)
-    return False
-
-
-def _extract_text_from_html(html: str) -> str:
-    """Strip script/style blocks then all tags; return plain text."""
-    html = re.sub(r"<script[^>]*>.*?</script>", " ", html, flags=re.S | re.I)
-    html = re.sub(r"<style[^>]*>.*?</style>", " ", html, flags=re.S | re.I)
-    html = re.sub(r"<[^>]+>", " ", html)
-    return re.sub(r"\s+", " ", html).strip()
-
-
-def _normalize_content_type(value: str) -> str:
-    return value.split(";", 1)[0].strip().lower()
-
-
-def _filename_from_content_disposition(value: str) -> str:
-    if not value:
-        return ""
-
-    filename_star = re.search(r"filename\*\s*=\s*[^']*'[^']*'([^;]+)", value, flags=re.I)
-    if filename_star:
-        return unquote(filename_star.group(1).strip().strip('"'))
-
-    filename = re.search(r'filename\s*=\s*"([^"]+)"', value, flags=re.I)
-    if filename:
-        return filename.group(1).strip()
-
-    filename = re.search(r"filename\s*=\s*([^;]+)", value, flags=re.I)
-    if filename:
-        return filename.group(1).strip().strip('"')
-
-    return ""
-
-
-def _looks_like_document_resource(url: str, content_type: str = "", content_disposition: str = "") -> bool:
-    ct = _normalize_content_type(content_type)
-    url_path = url.lower().split("?", 1)[0].split("#", 1)[0]
-    if any(url_path.endswith(ext) for ext in _DOC_EXTENSIONS):
-        return True
-    if any(ct.startswith(t) for t in _DOC_CONTENT_TYPES):
-        return True
-    filename = _filename_from_content_disposition(content_disposition).lower()
-    return any(filename.endswith(ext) for ext in _DOC_EXTENSIONS)
-
-
-def _detect_document_extension(url: str, content_disposition: str = "") -> str:
-    url_path = url.lower().split("?", 1)[0].split("#", 1)[0]
-    for ext in _DOC_EXTENSIONS:
-        if url_path.endswith(ext):
-            return ext
-    filename = _filename_from_content_disposition(content_disposition).lower()
-    for ext in _DOC_EXTENSIONS:
-        if filename.endswith(ext):
-            return ext
-    return ""
-
-
-def _unsupported_legacy_document_reason(url: str, content_type: str = "", content_disposition: str = "") -> str:
-    ct = _normalize_content_type(content_type)
-    ext = _detect_document_extension(url, content_disposition)
-    if ext in _SUPPORTED_DOC_EXTENSIONS:
-        return ""
-    if ext in _UNSUPPORTED_LEGACY_DOC_EXTENSIONS:
-        return f"unsupported legacy Office document format ({ext})"
-    if ct == "application/msword":
-        return "unsupported legacy Office document format (.doc)"
-    if ct.startswith("application/vnd.ms-"):
-        suffix = f" ({ext})" if ext in _UNSUPPORTED_LEGACY_DOC_EXTENSIONS else f" ({ct})"
-        return f"unsupported legacy Office document format{suffix}"
-    return ""
-
-
-def _looks_like_pdf_resource(url: str, content_type: str = "", content_disposition: str = "") -> bool:
-    ct = _normalize_content_type(content_type)
-    url_path = url.lower().split("?", 1)[0].split("#", 1)[0]
-    if url_path.endswith(".pdf") or ct == "application/pdf":
-        return True
-    filename = _filename_from_content_disposition(content_disposition).lower()
-    return filename.endswith(".pdf")
-
-
-def _extract_hrefs_from_html(html: str) -> list[str]:
-    return [m.group(1).strip() for m in re.finditer(r'href=["\']([^"\']+)["\']', html, flags=re.I)]
-
-
-def _looks_like_auth_wall(html_lower: str) -> bool:
-    auth_markers = (
-        "sign in",
-        "log in",
-        "login required",
-        "subscribe to continue",
-        "subscription required",
-        "create an account",
-        "members only",
-        "access denied",
-    )
-    return any(marker in html_lower for marker in auth_markers)
-
-
-def _looks_like_metadata_page(html: str) -> bool:
-    return classify_html_page_shape(html).page_type == "record_page"
-
-
-def _trim_json_value(
-    value: Any,
-    *,
-    depth: int = 0,
-    max_depth: int = 4,
-    max_items: int = 20,
-    max_string_chars: int = 500,
-) -> Any:
-    if depth >= max_depth:
-        if isinstance(value, list):
-            return f"[list truncated: {len(value)} items]"
-        if isinstance(value, dict):
-            return f"{{object truncated: {len(value)} keys}}"
-        return value
-
-    if isinstance(value, dict):
-        items = list(value.items())
-        trimmed = {
-            str(k): _trim_json_value(
-                v,
-                depth=depth + 1,
-                max_depth=max_depth,
-                max_items=max_items,
-                max_string_chars=max_string_chars,
-            )
-            for k, v in items[:max_items]
-        }
-        if len(items) > max_items:
-            trimmed["..."] = f"{len(items) - max_items} more keys omitted"
-        return trimmed
-
-    if isinstance(value, list):
-        trimmed = [
-            _trim_json_value(
-                v,
-                depth=depth + 1,
-                max_depth=max_depth,
-                max_items=max_items,
-                max_string_chars=max_string_chars,
-            )
-            for v in value[:max_items]
-        ]
-        if len(value) > max_items:
-            trimmed.append(f"... {len(value) - max_items} more items omitted")
-        return trimmed
-
-    if isinstance(value, str) and len(value) > max_string_chars:
-        return value[:max_string_chars] + f"... [truncated, original length {len(value)}]"
-
-    return value
-
-
-# Verdict constants
-class ScrapeStrategy(str, Enum):
-    """Normalized scrape strategies chosen during URL routing."""
-
-    SKIP = "SKIP"
-    HTML_FAST = "SCRAPE_HTML"
-    HTML_BROWSER = "SCRAPE_JS"
-    DOCUMENT = "SCRAPE_DOC"
-    JSON = "SCRAPE_JSON"
-    IMAGE = "SCRAPE_IMAGE"
-
-
-@dataclass(frozen=True)
-class ScrapePlan:
-    """Routing plan produced by URL validation before executing a scraper."""
-
-    strategy: ScrapeStrategy
-    reason: str
-    content_type: str = ""
-    content_disposition: str = ""
-
-    @property
-    def likely_bot_detected(self) -> bool:
-        return self.strategy == ScrapeStrategy.HTML_BROWSER and "GET timed out" in self.reason
-
-
-_SKIP = ScrapeStrategy.SKIP
-_SCRAPE_HTML = ScrapeStrategy.HTML_FAST
-_SCRAPE_JS = ScrapeStrategy.HTML_BROWSER
-_SCRAPE_DOC = ScrapeStrategy.DOCUMENT
-
-
-@dataclass(frozen=True)
-class SourceArtifact:
-    """Query-agnostic source artifact that can be reused across queries."""
-
-    kind: Literal["text", "binary"]
-    title: str
-    text_content: str = ""
-    binary_bytes: bytes = b""
-    mime_type: str = ""
-
-
-_SCRAPE_JSON = ScrapeStrategy.JSON
-_SCRAPE_IMAGE = ScrapeStrategy.IMAGE
-
-
-def _log_scrape_plan(url: str, plan: ScrapePlan, **details: Any) -> ScrapePlan:
-    """Emit structured routing diagnostics and return the plan unchanged."""
-    detail_bits = " ".join(f"{key}={value}" for key, value in details.items() if value is not None)
-    suffix = f" {detail_bits}" if detail_bits else ""
-    logger.info(
-        "[scrape-plan] route=%s reason=%s url=%s%s",
-        plan.strategy,
-        plan.reason,
-        url,
-        suffix,
-    )
-    return plan
-
-
-def _plan_short_html_page(
-    url: str,
-    *,
-    size: int,
-    text_chars: int,
-    script_tags: int,
-    lower_html: str,
-    html: str,
-) -> ScrapePlan:
-    """Route a very low-text HTML page using the existing heuristics unchanged."""
-    if (
-        size < ROUTING_HEURISTICS.short_html_size_chars
-        and script_tags >= ROUTING_HEURISTICS.short_html_spa_script_count
-    ):
-        return _log_scrape_plan(
-            url,
-            ScrapePlan(
-                ScrapeStrategy.HTML_BROWSER,
-                f"SPA shell ({size} chars, {script_tags} scripts)",
-            ),
-            size=size,
-            text_chars=text_chars,
-            script_tags=script_tags,
-        )
-    if _looks_like_auth_wall(lower_html):
-        return _log_scrape_plan(
-            url,
-            ScrapePlan(
-                ScrapeStrategy.SKIP,
-                f"auth/paywall wall ({text_chars} text chars from {size} chars HTML)",
-            ),
-            size=size,
-            text_chars=text_chars,
-        )
-    if _looks_like_metadata_page(html):
-        return _log_scrape_plan(
-            url,
-            ScrapePlan(
-                ScrapeStrategy.HTML_FAST,
-                f"short metadata page ({text_chars} text chars from {size} chars HTML)",
-            ),
-            size=size,
-            text_chars=text_chars,
-            script_tags=script_tags,
-        )
-    return _log_scrape_plan(
-        url,
-        ScrapePlan(
-            ScrapeStrategy.HTML_FAST,
-            f"short static HTML ({text_chars} text chars from {size} chars HTML)",
-        ),
-        size=size,
-        text_chars=text_chars,
-        script_tags=script_tags,
-    )
-
-
-def _plan_low_text_html(url: str, *, size: int, text_chars: int, script_tags: int) -> Optional[ScrapePlan]:
-    """Route probable SPA shells without changing thresholds or precedence."""
-    if (
-        text_chars < ROUTING_HEURISTICS.low_text_spa_chars
-        and script_tags >= ROUTING_HEURISTICS.low_text_spa_script_count
-    ):
-        return _log_scrape_plan(
-            url,
-            ScrapePlan(
-                ScrapeStrategy.HTML_BROWSER,
-                f"likely SPA ({size} chars HTML, {text_chars} text chars)",
-            ),
-            size=size,
-            text_chars=text_chars,
-            script_tags=script_tags,
-        )
-    if text_chars >= ROUTING_HEURISTICS.rich_html_static_text_chars:
-        return None
-    density = text_chars / size if size else 0.0
-    if script_tags >= ROUTING_HEURISTICS.heavy_spa_script_count and density < ROUTING_HEURISTICS.heavy_spa_text_density:
-        return _log_scrape_plan(
-            url,
-            ScrapePlan(
-                ScrapeStrategy.HTML_BROWSER,
-                f"likely SPA (density {density:.1%}, {script_tags} scripts)",
-            ),
-            size=size,
-            text_chars=text_chars,
-            script_tags=script_tags,
-            density=f"{density:.3f}",
-        )
-    return None
-
-
-def _plan_soft_404(url: str, *, title_text: str, lower_html: str, text_chars: int) -> Optional[ScrapePlan]:
-    """Route soft-404 pages using the existing checks unchanged."""
-    if "404" in title_text and ("not found" in title_text or "error" in title_text):
-        return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, "soft 404 in title"))
-    if text_chars < ROUTING_HEURISTICS.soft_404_text_chars and any(
-        pattern in lower_html
-        for pattern in [
-            "page not found",
-            "404 error",
-            "does not exist",
-            "no longer available",
-        ]
-    ):
-        return _log_scrape_plan(
-            url,
-            ScrapePlan(ScrapeStrategy.SKIP, "soft 404 in content"),
-            text_chars=text_chars,
-        )
-    return None
-
-
-async def _build_scrape_plan(url: str, allowed_domains: Optional[frozenset] = None) -> ScrapePlan:
-    """Build a scrape routing plan for a URL before running any heavy extractor."""
-    if _is_blocked_domain(url, allowed_domains=allowed_domains):
-        return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, "blocked domain"))
-    unsupported_reason = _unsupported_legacy_document_reason(url)
-    if unsupported_reason:
-        return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, unsupported_reason))
-    if _looks_like_document_resource(url):
-        return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.DOCUMENT, "document-by-url"))
-
-    try:
-        async with httpx.AsyncClient(
-            follow_redirects=True, timeout=_VALIDATION_TIMEOUT, headers=_FETCH_HEADERS
-        ) as client:
-            head_json_hint = False
-            # Step 1: HEAD request
-            try:
-                head = await client.head(url)
-            except Exception:
-                head = None
-
-            if head:
-                status = head.status_code
-                # 405 Method Not Allowed, 501 Not Implemented, 403 Forbidden might just mean HEAD is disabled
-                if status >= 400 and status not in (405, 501, 403):
-                    return _log_scrape_plan(
-                        url,
-                        ScrapePlan(ScrapeStrategy.SKIP, f"HTTP {status}"),
-                        phase="head",
-                    )
-
-                ct = _normalize_content_type(head.headers.get("content-type", ""))
-                cd = head.headers.get("content-disposition", "")
-
-                unsupported_reason = _unsupported_legacy_document_reason(url, ct, cd)
-                if unsupported_reason:
-                    return _log_scrape_plan(
-                        url,
-                        ScrapePlan(ScrapeStrategy.SKIP, unsupported_reason),
-                        phase="head",
-                    )
-                if _looks_like_document_resource(url, ct, cd):
-                    return _log_scrape_plan(
-                        url,
-                        ScrapePlan(ScrapeStrategy.DOCUMENT, ct, ct, cd),
-                        phase="head",
-                    )
-                if any(ct.startswith(t) for t in _JSON_CONTENT_TYPES):
-                    head_json_hint = True
-                if any(ct.startswith(t) for t in _IMAGE_CONTENT_TYPES):
-                    return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.IMAGE, ct), phase="head")
-                if any(ct.startswith(t) for t in _BINARY_CONTENT_TYPES):
-                    return _log_scrape_plan(
-                        url,
-                        ScrapePlan(ScrapeStrategy.SKIP, f"binary content-type: {ct}"),
-                        phase="head",
-                    )
-
-            # Step 2: fast GET for HTML content analysis
-            try:
-                resp = await client.get(url)
-            except httpx.TimeoutException:
-                # Server is slow but reachable — let the browser (longer timeout) try
-                return _log_scrape_plan(
-                    url,
-                    ScrapePlan(
-                        ScrapeStrategy.HTML_BROWSER,
-                        "GET timed out — attempting browser scrape",
-                    ),
-                    phase="get",
-                )
-            except Exception as e:
-                return _log_scrape_plan(
-                    url,
-                    ScrapePlan(ScrapeStrategy.SKIP, f"GET failed: {type(e).__name__}"),
-                    phase="get",
-                )
-
-            if resp.status_code >= 400:
-                return _log_scrape_plan(
-                    url,
-                    ScrapePlan(ScrapeStrategy.SKIP, f"HTTP {resp.status_code} on GET"),
-                    phase="get",
-                )
-
-            final_ct = _normalize_content_type(resp.headers.get("content-type", ""))
-            final_cd = resp.headers.get("content-disposition", "")
-
-            unsupported_reason = _unsupported_legacy_document_reason(url, final_ct, final_cd)
-            if unsupported_reason:
-                return _log_scrape_plan(
-                    url,
-                    ScrapePlan(ScrapeStrategy.SKIP, unsupported_reason),
-                    phase="get",
-                )
-            if _looks_like_document_resource(url, final_ct, final_cd):
-                return _log_scrape_plan(
-                    url,
-                    ScrapePlan(ScrapeStrategy.DOCUMENT, final_ct, final_ct, final_cd),
-                    phase="get",
-                )
-            if _sniff_document_payload(
-                resp.content,
-                content_type=final_ct,
-                content_disposition=final_cd,
-            ):
-                return _log_scrape_plan(
-                    url,
-                    ScrapePlan(
-                        ScrapeStrategy.DOCUMENT,
-                        final_ct or "document-by-body-sniff",
-                        final_ct,
-                        final_cd,
-                    ),
-                    phase="get",
-                )
-            if any(final_ct.startswith(t) for t in _JSON_CONTENT_TYPES) or head_json_hint:
-                if _is_json(resp.text):
-                    return _log_scrape_plan(
-                        url,
-                        ScrapePlan(ScrapeStrategy.JSON, final_ct or "json-by-body-sniff"),
-                        phase="get",
-                    )
-                if _looks_like_html_body(resp.text):
-                    logger.info(
-                        "[scrape-plan] json-hint overridden by HTML body url=%s final_ct=%s",
-                        url,
-                        final_ct or "(empty)",
-                    )
-                else:
-                    return _log_scrape_plan(
-                        url,
-                        ScrapePlan(
-                            ScrapeStrategy.SKIP,
-                            f"JSON-like endpoint returned non-JSON payload ({final_ct or 'unknown content-type'})",
-                        ),
-                        phase="get",
-                    )
-            if _is_json(resp.text):
-                return _log_scrape_plan(
-                    url,
-                    ScrapePlan(ScrapeStrategy.JSON, final_ct or "json-by-body-sniff"),
-                    phase="get",
-                )
-            if any(final_ct.startswith(t) for t in _IMAGE_CONTENT_TYPES):
-                return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.IMAGE, final_ct), phase="get")
-            if any(final_ct.startswith(t) for t in _BINARY_CONTENT_TYPES):
-                return _log_scrape_plan(
-                    url,
-                    ScrapePlan(ScrapeStrategy.SKIP, f"binary on GET: {final_ct}"),
-                    phase="get",
-                )
-
-            # Analyse HTML content
-            html = resp.text
-            size = len(html)
-            script_tags = len(re.findall(r"<script", html, re.I))
-            text = _extract_text_from_html(html)
-            text_chars = len(text)
-            lower = html.lower()
-            shape = classify_html_page_shape(html)
-
-            # Thin content: paywall, login wall, or near-empty page
-            if text_chars < ROUTING_HEURISTICS.short_html_text_chars:
-                return _plan_short_html_page(
-                    url,
-                    size=size,
-                    text_chars=text_chars,
-                    script_tags=script_tags,
-                    lower_html=lower,
-                    html=html,
-                )
-
-            if (
-                shape.page_type == "record_page"
-                and shape.record_score >= 5
-                and shape.record_score >= shape.content_score + 2
-                and text_chars < ROUTING_HEURISTICS.rich_html_static_text_chars
-            ):
-                return _log_scrape_plan(
-                    url,
-                    ScrapePlan(
-                        ScrapeStrategy.HTML_FAST,
-                        f"metadata-like HTML ({text_chars} text chars from {size} chars HTML)",
-                    ),
-                    size=size,
-                    text_chars=text_chars,
-                    script_tags=script_tags,
-                    doc_links=shape.document_link_count,
-                    metadata_markers=shape.metadata_marker_count,
-                )
-
-            plan = _plan_low_text_html(
-                url,
-                size=size,
-                text_chars=text_chars,
-                script_tags=script_tags,
-            )
-            if plan:
-                return plan
-
-            # Soft 404 check
-            title_match = re.search(r"<title[^>]*>(.*?)</title>", html, flags=re.IGNORECASE | re.DOTALL)
-            title_text = title_match.group(1).lower() if title_match else ""
-            plan = _plan_soft_404(url, title_text=title_text, lower_html=lower, text_chars=text_chars)
-            if plan:
-                return plan
-
-            return _log_scrape_plan(
-                url,
-                ScrapePlan(
-                    ScrapeStrategy.HTML_FAST,
-                    f"static HTML ({size} chars, {text_chars} text chars)",
-                ),
-                size=size,
-                text_chars=text_chars,
-                script_tags=script_tags,
-            )
-
-    except httpx.TimeoutException:
-        return _log_scrape_plan(url, ScrapePlan(ScrapeStrategy.SKIP, "timeout during validation"))
-    except Exception as e:
-        # If validation itself fails, let the scraper try anyway
-        return _log_scrape_plan(
-            url,
-            ScrapePlan(
-                ScrapeStrategy.HTML_BROWSER,
-                f"validation error ({e}) — attempting browser scrape",
-            ),
-        )
-
-
-async def _validate_url(url: str, allowed_domains: Optional[frozenset] = None) -> Tuple[str, str]:
-    """Compatibility wrapper returning the legacy ``(verdict, detail)`` tuple."""
-    plan = await _build_scrape_plan(url, allowed_domains=allowed_domains)
-    return plan.strategy, plan.reason
-
-
 # ---------------------------------------------------------------------------
 # HTML scraping — fast HTTP path (no browser)
 # ---------------------------------------------------------------------------
 
 
-async def _scrape_html_fast(
+async def scrape_html_fast(
     url: str, query: str = "", vision_model: Optional[str] = None
 ) -> Tuple[str, str, Optional[str]]:
     """Scrape static HTML using crawl4ai's HTTP-only strategy (no browser).
@@ -823,10 +72,10 @@ async def _scrape_html_fast(
         ) as crawler:
             result = await crawler.arun(url=url, config=run_cfg)
     except Exception:
-        return await _scrape_html_browser(url, wait_for=None, query=query, vision_model=vision_model)
+        return await scrape_html_browser(url, wait_for=None, query=query, vision_model=vision_model)
 
     if not result.success:
-        return await _scrape_html_browser(url, wait_for=None, query=query, vision_model=vision_model)
+        return await scrape_html_browser(url, wait_for=None, query=query, vision_model=vision_model)
 
     md = result.markdown
     content = _pick_markdown(md, query)
@@ -834,7 +83,7 @@ async def _scrape_html_fast(
 
     # If HTTP strategy returned thin content, the page likely needs JS
     if len(content.strip()) < ROUTING_HEURISTICS.html_fast_thin_content_chars:
-        return await _scrape_html_browser(url, wait_for=None, query=query, vision_model=vision_model)
+        return await scrape_html_browser(url, wait_for=None, query=query, vision_model=vision_model)
 
     title = (result.metadata or {}).get("title", "")
     return content, title, None
@@ -865,14 +114,14 @@ async def _scrape_html_fast_query_agnostic(
         ) as crawler:
             result = await crawler.arun(url=url, config=run_cfg)
     except Exception:
-        return await _scrape_html_browser_query_agnostic(
+        return await scrape_html_browser_query_agnostic(
             url,
             wait_for=wait_for,
             vision_model=vision_model,
         )
 
     if not result.success:
-        return await _scrape_html_browser_query_agnostic(
+        return await scrape_html_browser_query_agnostic(
             url,
             wait_for=wait_for,
             vision_model=vision_model,
@@ -881,7 +130,7 @@ async def _scrape_html_fast_query_agnostic(
     content = _pick_markdown_query_agnostic(result.markdown)
     content = _append_internal_links(content, result)
     if len(content.strip()) < ROUTING_HEURISTICS.html_fast_thin_content_chars:
-        return await _scrape_html_browser_query_agnostic(
+        return await scrape_html_browser_query_agnostic(
             url,
             wait_for=wait_for,
             vision_model=vision_model,
@@ -911,7 +160,7 @@ def _pick_markdown(md, query: str) -> str:
 def _looks_like_document_link(href: str) -> bool:
     lower = href.lower()
     path = lower.split("?", 1)[0].split("#", 1)[0]
-    if path.endswith(_DOC_EXTENSIONS):
+    if path.endswith(DOC_EXTENSIONS):
         return True
     return any(
         marker in lower
@@ -996,7 +245,7 @@ def _truncate_content(content: str, max_content_chars: int) -> str:
     return content
 
 
-async def _scrape_html_browser(
+async def scrape_html_browser(
     url: str,
     wait_for: Optional[str] = None,
     query: str = "",
@@ -1031,6 +280,7 @@ async def _scrape_html_browser(
         headless=True,
         enable_stealth=True,
         user_agent=(
+            # TODO: Use FETCH_HEADERS from constants.py? Chrome version is different.
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/124.0.0.0 Safari/537.36"
@@ -1041,7 +291,7 @@ async def _scrape_html_browser(
             result = await crawler.arun(url=url, config=run_cfg)
     except Exception as crawl_err:
         if "Download is starting" in str(crawl_err):
-            return await _scrape_document(url, query=query, vision_model=vision_model)
+            return await scrape_document(url, query=query, vision_model=vision_model)
         raise
 
     # If wait_for caused timeout, retry without it
@@ -1100,7 +350,7 @@ async def _scrape_html_browser(
     return content, title, None
 
 
-async def _scrape_html_browser_query_agnostic(
+async def scrape_html_browser_query_agnostic(
     url: str,
     *,
     wait_for: Optional[str] = None,
@@ -1139,7 +389,7 @@ async def _scrape_html_browser_query_agnostic(
             artifact, _, error = await _fetch_document_source_artifact(
                 url,
                 vision_model=vision_model,
-                max_pdf_pages=_PDF_MAX_PAGES_DEFAULT,
+                max_pdf_pages=ROUTING_HEURISTICS.pdf_max_pages_default,
             )
             return artifact, error
         raise
@@ -1208,7 +458,7 @@ async def _capture_page_screenshot(url: str) -> bytes:
         try:
             context = await browser.new_context(
                 viewport={"width": 1280, "height": 900},
-                user_agent=_FETCH_HEADERS["User-Agent"],
+                user_agent=FETCH_HEADERS["User-Agent"],
             )
             try:
                 page = await context.new_page()
@@ -1335,13 +585,13 @@ async def _scrape_via_vision(url: str, query: str, vision_model: str) -> Tuple[s
     return content, "", None
 
 
-async def _scrape_json(url: str) -> Tuple[str, str, Optional[str]]:
+async def scrape_json(url: str) -> Tuple[str, str, Optional[str]]:
     """Fetch a JSON endpoint and return a trimmed markdown representation."""
     try:
         async with httpx.AsyncClient(
             follow_redirects=True,
             timeout=ROUTING_HEURISTICS.image_json_timeout_s,
-            headers=_FETCH_HEADERS,
+            headers=FETCH_HEADERS,
         ) as client:
             resp = await client.get(url)
         resp.raise_for_status()
@@ -1351,7 +601,7 @@ async def _scrape_json(url: str) -> Tuple[str, str, Optional[str]]:
         except Exception:
             data = json.loads(resp.text)
 
-        trimmed = _trim_json_value(data)
+        trimmed = trim_json_value(data)
         if isinstance(data, dict):
             summary = f"Top-level object with {len(data)} keys."
             extra = "Keys: " + ", ".join(map(str, list(data.keys())[:20]))
@@ -1372,9 +622,7 @@ async def _scrape_json(url: str) -> Tuple[str, str, Optional[str]]:
         return "", "", f"JSON extraction failed: {e}"
 
 
-async def _scrape_image(
-    url: str, query: str = "", vision_model: Optional[str] = None
-) -> Tuple[str, str, Optional[str]]:
+async def scrape_image(url: str, query: str = "", vision_model: Optional[str] = None) -> Tuple[str, str, Optional[str]]:
     """Fetch an image URL and extract visible information with a vision model."""
     if not vision_model:
         return "", "", "Image URL requires vision_model for extraction"
@@ -1387,13 +635,13 @@ async def _scrape_image(
         async with httpx.AsyncClient(
             follow_redirects=True,
             timeout=ROUTING_HEURISTICS.image_json_timeout_s,
-            headers=_FETCH_HEADERS,
+            headers=FETCH_HEADERS,
         ) as client:
             resp = await client.get(url)
         resp.raise_for_status()
 
         content_type = (
-            _normalize_content_type(resp.headers.get("content-type", "")) or mimetypes.guess_type(url)[0] or "image/png"
+            normalize_content_type(resp.headers.get("content-type", "")) or mimetypes.guess_type(url)[0] or "image/png"
         )
         image_b64 = base64.b64encode(resp.content).decode()
         query_clause = f" relevant to: {query}" if query else ""
@@ -1432,12 +680,12 @@ async def _download_image_bytes(url: str) -> Tuple[Optional[bytes], str, Optiona
         async with httpx.AsyncClient(
             follow_redirects=True,
             timeout=ROUTING_HEURISTICS.image_json_timeout_s,
-            headers=_FETCH_HEADERS,
+            headers=FETCH_HEADERS,
         ) as client:
             resp = await client.get(url)
         resp.raise_for_status()
         mime_type = (
-            _normalize_content_type(resp.headers.get("content-type", "")) or mimetypes.guess_type(url)[0] or "image/png"
+            normalize_content_type(resp.headers.get("content-type", "")) or mimetypes.guess_type(url)[0] or "image/png"
         )
         return resp.content, mime_type, None
     except Exception as e:
@@ -1465,7 +713,7 @@ async def _download_pdf_via_browser(url: str) -> Optional[bytes]:
             browser = await p.chromium.launch(headless=True)
             try:
                 context = await browser.new_context(
-                    user_agent=_FETCH_HEADERS["User-Agent"],
+                    user_agent=FETCH_HEADERS["User-Agent"],
                     accept_downloads=True,
                 )
                 try:
@@ -1501,8 +749,8 @@ async def _download_pdf_via_browser(url: str) -> Optional[bytes]:
 
 def _download_binary_via_urllib(url: str) -> tuple[bytes, str]:
     """Download raw bytes while tolerating broken content-encoding headers."""
-    req = Request(url, headers=_FETCH_HEADERS)
-    with urlopen(req, timeout=_URLLIB_DOWNLOAD_TIMEOUT) as resp:
+    req = Request(url, headers=FETCH_HEADERS)
+    with urlopen(req, timeout=ROUTING_HEURISTICS.urllib_download_timeout) as resp:
         content_type = resp.headers.get("content-type", "?")
         return resp.read(), content_type
 
@@ -1520,10 +768,10 @@ async def _download_pdf_bytes(url: str) -> Tuple[Optional[bytes], Optional[str]]
     try:
         async with httpx.AsyncClient(
             follow_redirects=True,
-            timeout=_DOCUMENT_DOWNLOAD_TIMEOUT,
-            headers=_FETCH_HEADERS,
+            timeout=ROUTING_HEURISTICS.document_download_timeout,
+            headers=FETCH_HEADERS,
         ) as client:
-            for attempt in range(_PDF_DOWNLOAD_RETRIES):
+            for attempt in range(ROUTING_HEURISTICS.pdf_download_retries):
                 try:
                     dl_resp = await client.get(url)
                     dl_resp.raise_for_status()
@@ -1536,12 +784,12 @@ async def _download_pdf_bytes(url: str) -> Tuple[Optional[bytes], Optional[str]]
                     return pdf_bytes, None
                 except Exception as e:
                     httpx_error = e
-                    if attempt < _PDF_DOWNLOAD_RETRIES - 1:
+                    if attempt < ROUTING_HEURISTICS.pdf_download_retries - 1:
                         await asyncio.sleep(1.0 * (attempt + 1))
     except Exception as e:
         httpx_error = e
 
-    for attempt in range(_PDF_DOWNLOAD_RETRIES):
+    for attempt in range(ROUTING_HEURISTICS.pdf_download_retries):
         try:
             pdf_bytes, content_type = await asyncio.to_thread(_download_binary_via_urllib, url)
             if pdf_bytes[:4] != b"%PDF":
@@ -1549,23 +797,57 @@ async def _download_pdf_bytes(url: str) -> Tuple[Optional[bytes], Optional[str]]
             return pdf_bytes, None
         except Exception as e:
             urllib_error = e
-            if attempt < _PDF_DOWNLOAD_RETRIES - 1:
+            if attempt < ROUTING_HEURISTICS.pdf_download_retries - 1:
                 await asyncio.sleep(1.0 * (attempt + 1))
 
     pdf_bytes = await _download_pdf_via_browser(url)
     if pdf_bytes is None:
         return (
             None,
-            f"PDF inaccessible (httpx: {_format_exception(httpx_error) if httpx_error else '?'}; raw-byte: {_format_exception(urllib_error) if urllib_error else '?'}; browser download also failed)",
+            (
+                f"PDF inaccessible (httpx: {_format_exception(httpx_error) if httpx_error else '?'}; "
+                f"raw-byte: {_format_exception(urllib_error) if urllib_error else '?'}; browser download also failed)"
+            ),
         )
     return pdf_bytes, None
 
 
-async def _scrape_document(
+_PDF_DOCLING_CONVERTER = None
+_PDF_DOCLING_CONVERTER_LOCK = threading.Lock()
+
+
+def _get_pdf_docling_converter():
+    """Return a shared Docling converter for the fast PDF configuration.
+
+    Reusing the same ``DocumentConverter`` lets Docling reuse its initialized
+    pipeline and heavy layout model across PDF calls.
+    """
+    global _PDF_DOCLING_CONVERTER
+    if _PDF_DOCLING_CONVERTER is not None:
+        return _PDF_DOCLING_CONVERTER
+
+    with _PDF_DOCLING_CONVERTER_LOCK:
+        if _PDF_DOCLING_CONVERTER is None:
+            from docling.datamodel.base_models import InputFormat
+            from docling.datamodel.pipeline_options import PdfPipelineOptions
+            from docling.document_converter import DocumentConverter, PdfFormatOption
+
+            opts = PdfPipelineOptions(
+                do_ocr=False,
+                do_table_structure=False,
+                force_backend_text=True,
+            )
+            _PDF_DOCLING_CONVERTER = DocumentConverter(
+                format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)}
+            )
+    return _PDF_DOCLING_CONVERTER
+
+
+async def scrape_document(
     url: str,
     query: str = "",
     vision_model: Optional[str] = None,
-    max_pdf_pages: int = _PDF_MAX_PAGES_DEFAULT,
+    max_pdf_pages: int = ROUTING_HEURISTICS.pdf_max_pages_default,
     known_content_type: str = "",
     known_content_disposition: str = "",
 ) -> Tuple[str, str, Optional[str]]:
@@ -1576,21 +858,21 @@ async def _scrape_document(
     large reports.
     """
     title = url.rsplit("/", 1)[-1] or "Document"
-    unsupported_reason = _unsupported_legacy_document_reason(url, known_content_type, known_content_disposition)
+    unsupported_reason = unsupported_legacy_document_reason(url, known_content_type, known_content_disposition)
     if unsupported_reason:
         return "", title, f"Skipped: {unsupported_reason}"
     url_lower = url.lower().split("?")[0]
-    is_pdf = _looks_like_pdf_resource(url, known_content_type, known_content_disposition)
+    is_pdf = looks_like_pdf_resource(url, known_content_type, known_content_disposition)
 
     if not is_pdf and not (known_content_type or known_content_disposition):
         try:
             async with httpx.AsyncClient(
                 follow_redirects=True,
-                timeout=_VALIDATION_TIMEOUT,
-                headers=_FETCH_HEADERS,
+                timeout=ROUTING_HEURISTICS.validation_timeout,
+                headers=FETCH_HEADERS,
             ) as client:
                 head = await client.head(url)
-            is_pdf = _looks_like_pdf_resource(
+            is_pdf = looks_like_pdf_resource(
                 url,
                 head.headers.get("content-type", ""),
                 head.headers.get("content-disposition", ""),
@@ -1627,7 +909,7 @@ async def _scrape_document(
         content = await asyncio.to_thread(_convert_fast)
         content = _append_internal_links(content, None)
 
-        if len(content.strip()) < _MIN_PDF_TEXT_CHARS:
+        if len(content.strip()) < ROUTING_HEURISTICS.min_pdf_text_chars:
             if vision_model:
                 return await _scrape_via_vision(url, query=query, vision_model=vision_model)
             return (
@@ -1664,24 +946,24 @@ async def _fetch_document_source_artifact(
 ) -> Tuple[SourceArtifact, str, Optional[str]]:
     """Fetch a query-agnostic cacheable artifact for a document URL."""
     title = url.rsplit("/", 1)[-1] or "Document"
-    unsupported_reason = _unsupported_legacy_document_reason(url, known_content_type, known_content_disposition)
+    unsupported_reason = unsupported_legacy_document_reason(url, known_content_type, known_content_disposition)
     if unsupported_reason:
         return (
             SourceArtifact(kind="text", title=title),
             title,
             f"Skipped: {unsupported_reason}",
         )
-    is_pdf = _looks_like_pdf_resource(url, known_content_type, known_content_disposition)
+    is_pdf = looks_like_pdf_resource(url, known_content_type, known_content_disposition)
 
     if not is_pdf and not (known_content_type or known_content_disposition):
         try:
             async with httpx.AsyncClient(
                 follow_redirects=True,
-                timeout=_VALIDATION_TIMEOUT,
-                headers=_FETCH_HEADERS,
+                timeout=ROUTING_HEURISTICS.validation_timeout,
+                headers=FETCH_HEADERS,
             ) as client:
                 head = await client.head(url)
-            is_pdf = _looks_like_pdf_resource(
+            is_pdf = looks_like_pdf_resource(
                 url,
                 head.headers.get("content-type", ""),
                 head.headers.get("content-disposition", ""),
@@ -1715,7 +997,7 @@ async def _fetch_document_source_artifact(
 
         content = await asyncio.to_thread(_convert_fast)
         content = _append_internal_links(content, None)
-        if len(content.strip()) < _MIN_PDF_TEXT_CHARS:
+        if len(content.strip()) < ROUTING_HEURISTICS.min_pdf_text_chars:
             if vision_model:
                 return (
                     SourceArtifact(
@@ -1766,10 +1048,10 @@ async def fetch_query_agnostic_source_artifact(
     wait_for: Optional[str] = None,
     vision_model: Optional[str] = None,
     allowed_domains: Optional[frozenset] = None,
-    max_pdf_pages: int = _PDF_MAX_PAGES_DEFAULT,
+    max_pdf_pages: int = ROUTING_HEURISTICS.pdf_max_pages_default,
 ) -> Tuple[Optional[SourceArtifact], Optional[str], ScrapeStrategy]:
     """Fetch a query-agnostic source artifact suitable for session caching."""
-    plan = await _build_scrape_plan(url, allowed_domains=allowed_domains)
+    plan = await build_scrape_plan(url, allowed_domains=allowed_domains)
     if plan.strategy == ScrapeStrategy.SKIP:
         return None, f"Skipped: {plan.reason}", plan.strategy
 
@@ -1783,7 +1065,7 @@ async def fetch_query_agnostic_source_artifact(
                 known_content_disposition=plan.content_disposition,
             )
         elif plan.strategy == ScrapeStrategy.JSON:
-            content, title, error = await _scrape_json(url)
+            content, title, error = await scrape_json(url)
             artifact = SourceArtifact(kind="text", title=title or "", text_content=content)
         elif plan.strategy == ScrapeStrategy.IMAGE:
             image_bytes, mime_type, error = await _download_image_bytes(url)
@@ -1802,7 +1084,7 @@ async def fetch_query_agnostic_source_artifact(
             )
             title = artifact.title
         else:
-            artifact, error = await _scrape_html_browser_query_agnostic(
+            artifact, error = await scrape_html_browser_query_agnostic(
                 url,
                 wait_for=wait_for,
                 vision_model=vision_model,
@@ -1869,8 +1151,8 @@ async def materialize_source_artifact(
             vision_model=vision_model,
             prompt_prefix=(
                 "Extract all useful information{query_clause} from this image. "
-                "If it contains text, tables, charts, maps, labels, legends, or numeric values, capture them precisely. "
-                "Return clean plain text or markdown."
+                "If it contains text, tables, charts, maps, labels, legends, or numeric values, capture them precisely."
+                " Return clean plain text or markdown."
             ),
         )
     if error:
@@ -1882,86 +1164,3 @@ async def materialize_source_artifact(
             f"Vision extraction returned too little content ({len(content)} chars — page likely blocked)",
         )
     return _truncate_content(content, max_content_chars), title, None
-
-
-# ---------------------------------------------------------------------------
-# Public entry point
-# ---------------------------------------------------------------------------
-
-
-async def scrape_url(
-    url: str,
-    wait_for: Optional[str] = None,
-    query: str = "",
-    vision_model: Optional[str] = None,
-    allowed_domains: Optional[frozenset] = None,
-    max_pdf_pages: int = _PDF_MAX_PAGES_DEFAULT,
-    max_content_chars: int = MAX_CONTENT_CHARS,
-) -> Tuple[str, str, Optional[str]]:
-    """Scrape a URL and return clean markdown content.
-
-    The routing flow is:
-
-    1. Build a ``ScrapePlan`` from cheap validation (HEAD + fast GET).
-    2. Execute the handler chosen by the plan's strategy.
-    3. Normalize bot-detection, empty-content, and truncation behavior.
-
-    Args:
-        url: The URL to scrape.
-        wait_for: Optional CSS selector for JS-rendered pages.
-        query: Optional search query for BM25 content filtering.
-        allowed_domains: Frozenset of domain strings (e.g. ``frozenset({"reddit.com"})``)
-            to remove from the default blocked-domain list. ``None`` uses the full block list.
-        max_pdf_pages: Maximum number of pages to extract from PDFs. Defaults to 50.
-        max_content_chars: Maximum characters to return per page. Defaults to 30,000.
-
-    Returns:
-        Tuple of ``(markdown_content, page_title, error_or_none)``.
-    """
-    plan = await _build_scrape_plan(url, allowed_domains=allowed_domains)
-
-    if plan.strategy == ScrapeStrategy.SKIP:
-        return "", "", f"Skipped: {plan.reason}"
-
-    try:
-        if plan.strategy == ScrapeStrategy.DOCUMENT:
-            content, title, error = await _scrape_document(
-                url,
-                query=query,
-                vision_model=vision_model,
-                max_pdf_pages=max_pdf_pages,
-                known_content_type=plan.content_type,
-                known_content_disposition=plan.content_disposition,
-            )
-        elif plan.strategy == ScrapeStrategy.JSON:
-            content, title, error = await _scrape_json(url)
-        elif plan.strategy == ScrapeStrategy.IMAGE:
-            content, title, error = await _scrape_image(url, query=query, vision_model=vision_model)
-        elif plan.strategy == ScrapeStrategy.HTML_FAST:
-            content, title, error = await _scrape_html_fast(url, query=query, vision_model=vision_model)
-        else:
-            content, title, error = await _scrape_html_browser(url, wait_for, query=query, vision_model=vision_model)
-    except Exception as e:
-        logger.error("[scrape] failed %s: %s", url, e)
-        return "", "", str(e)
-
-    if error:
-        if plan.likely_bot_detected:
-            logger.info("[scrape] bot_detected %s", url)
-            return "", title or "", f"bot_detected: {error}"
-        return "", title or "", error
-
-    if not content.strip():
-        if plan.likely_bot_detected:
-            logger.info("[scrape] bot_detected %s", url)
-            return (
-                "",
-                title or "",
-                "bot_detected: Browser loaded page but returned empty content",
-            )
-        return "", title or "", "Extraction returned empty content"
-
-    if len(content) > max_content_chars:
-        content = content[:max_content_chars] + f"\n\n[Truncated at {max_content_chars:,} chars]"
-
-    return content, title or "", None

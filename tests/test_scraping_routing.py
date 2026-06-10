@@ -2,20 +2,16 @@
 
 import pytest
 
-from web_scout.scraping import (
-    _SCRAPE_DOC,
-    _SCRAPE_HTML,
-    _SCRAPE_IMAGE,
-    _SCRAPE_JS,
-    _SCRAPE_JSON,
-    _SKIP,
+from web_scout.scraping import scrape_url
+from web_scout.scraping.constants import BLOCKED_DOMAINS
+from web_scout.scraping.page_classifier import looks_like_document_resource
+from web_scout.scraping.plan import _validate_url
+from web_scout.scraping.strategy import (
     _append_internal_links,
     _download_pdf_bytes,
-    _looks_like_document_resource,
-    _trim_json_value,
-    _validate_url,
-    scrape_url,
 )
+from web_scout.scraping.types import ScrapePlan, ScrapeStrategy
+from web_scout.scraping.utils import trim_json_value
 
 
 class _MockResponse:
@@ -78,7 +74,7 @@ def _mock_async_client_factory(head_response=None, get_response=None):
 
 def test_looks_like_document_resource_uses_content_disposition():
     assert (
-        _looks_like_document_resource(
+        looks_like_document_resource(
             "https://example.org/download?id=123",
             "application/octet-stream",
             'attachment; filename="report.pdf"',
@@ -92,7 +88,7 @@ def test_trim_json_value_limits_large_collections():
         "items": list(range(30)),
         "nested": {"a": {"b": {"c": {"d": {"e": 1}}}}},
     }
-    trimmed = _trim_json_value(data, max_items=5, max_depth=3)
+    trimmed = trim_json_value(data, max_items=5, max_depth=3)
     assert len(trimmed["items"]) == 6
     assert trimmed["items"][-1] == "... 25 more items omitted"
     assert "truncated" in trimmed["nested"]["a"]["b"]
@@ -110,7 +106,7 @@ def test_append_internal_links_keeps_icon_only_external_document_links():
 
 @pytest.mark.asyncio
 async def test_validate_url_routes_extensionless_pdf_from_headers(monkeypatch):
-    from web_scout import scraping
+    from web_scout.scraping import plan as scraping_plan
 
     head = _MockResponse(
         headers={
@@ -118,58 +114,58 @@ async def test_validate_url_routes_extensionless_pdf_from_headers(monkeypatch):
             "content-disposition": 'attachment; filename="report.pdf"',
         }
     )
-    monkeypatch.setattr(scraping.httpx, "AsyncClient", _mock_async_client_factory(head_response=head))
+    monkeypatch.setattr(scraping_plan.httpx, "AsyncClient", _mock_async_client_factory(head_response=head))
 
     verdict, detail = await _validate_url("https://example.org/download?id=123")
-    assert verdict == _SCRAPE_DOC
+    assert verdict == ScrapeStrategy.DOCUMENT
     assert "application/octet-stream" in detail
 
 
 @pytest.mark.asyncio
 async def test_validate_url_routes_direct_pdf_without_network(monkeypatch):
-    from web_scout import scraping
+    from web_scout.scraping import plan as scraping_plan
 
     class _UnexpectedAsyncClient:
         def __init__(self, *args, **kwargs):
             raise AssertionError("network probe should not run for direct PDF URLs")
 
-    monkeypatch.setattr(scraping.httpx, "AsyncClient", _UnexpectedAsyncClient)
+    monkeypatch.setattr(scraping_plan.httpx, "AsyncClient", _UnexpectedAsyncClient)
 
     verdict, detail = await _validate_url("https://example.org/report.pdf")
-    assert verdict == _SCRAPE_DOC
+    assert verdict == ScrapeStrategy.DOCUMENT
     assert detail == "document-by-url"
 
 
 @pytest.mark.asyncio
 async def test_validate_url_skips_direct_legacy_doc_without_network(monkeypatch):
-    from web_scout import scraping
+    from web_scout.scraping import plan as scraping_plan
 
     class _UnexpectedAsyncClient:
         def __init__(self, *args, **kwargs):
             raise AssertionError("network probe should not run for direct legacy document URLs")
 
-    monkeypatch.setattr(scraping.httpx, "AsyncClient", _UnexpectedAsyncClient)
+    monkeypatch.setattr(scraping_plan.httpx, "AsyncClient", _UnexpectedAsyncClient)
 
     verdict, detail = await _validate_url("https://example.org/report.doc")
-    assert verdict == _SKIP
+    assert verdict == ScrapeStrategy.SKIP
     assert detail == "unsupported legacy Office document format (.doc)"
 
 
 @pytest.mark.asyncio
 async def test_validate_url_skips_extensionless_legacy_doc_from_headers(monkeypatch):
-    from web_scout import scraping
+    from web_scout.scraping import plan as scraping_plan
 
     head = _MockResponse(headers={"content-type": "application/msword"})
-    monkeypatch.setattr(scraping.httpx, "AsyncClient", _mock_async_client_factory(head_response=head))
+    monkeypatch.setattr(scraping_plan.httpx, "AsyncClient", _mock_async_client_factory(head_response=head))
 
     verdict, detail = await _validate_url("https://example.org/download?id=123")
-    assert verdict == _SKIP
+    assert verdict == ScrapeStrategy.SKIP
     assert detail == "unsupported legacy Office document format (.doc)"
 
 
 @pytest.mark.asyncio
 async def test_validate_url_prefers_supported_filename_over_legacy_mime(monkeypatch):
-    from web_scout import scraping
+    from web_scout.scraping import plan as scraping_plan
 
     head = _MockResponse(
         headers={
@@ -177,45 +173,45 @@ async def test_validate_url_prefers_supported_filename_over_legacy_mime(monkeypa
             "content-disposition": 'attachment; filename="report.docx"',
         }
     )
-    monkeypatch.setattr(scraping.httpx, "AsyncClient", _mock_async_client_factory(head_response=head))
+    monkeypatch.setattr(scraping_plan.httpx, "AsyncClient", _mock_async_client_factory(head_response=head))
 
     verdict, detail = await _validate_url("https://example.org/download?id=123")
-    assert verdict == _SCRAPE_DOC
+    assert verdict == ScrapeStrategy.DOCUMENT
     assert detail == "application/msword"
 
 
 @pytest.mark.asyncio
 async def test_validate_url_routes_json_response(monkeypatch):
-    from web_scout import scraping
+    from web_scout.scraping import plan as scraping_plan
 
     head = _MockResponse(headers={"content-type": "application/json; charset=utf-8"})
     get = _MockResponse(headers={"content-type": "application/json; charset=utf-8"}, text='{"ok": true}')
     monkeypatch.setattr(
-        scraping.httpx,
+        scraping_plan.httpx,
         "AsyncClient",
         _mock_async_client_factory(head_response=head, get_response=get),
     )
 
     verdict, detail = await _validate_url("https://example.org/api/data")
-    assert verdict == _SCRAPE_JSON
+    assert verdict == ScrapeStrategy.JSON
     assert detail == "application/json"
 
 
 @pytest.mark.asyncio
 async def test_validate_url_routes_image_response(monkeypatch):
-    from web_scout import scraping
+    from web_scout.scraping import plan as scraping_plan
 
     head = _MockResponse(headers={"content-type": "image/png"})
-    monkeypatch.setattr(scraping.httpx, "AsyncClient", _mock_async_client_factory(head_response=head))
+    monkeypatch.setattr(scraping_plan.httpx, "AsyncClient", _mock_async_client_factory(head_response=head))
 
     verdict, detail = await _validate_url("https://example.org/chart.png")
-    assert verdict == _SCRAPE_IMAGE
+    assert verdict == ScrapeStrategy.IMAGE
     assert detail == "image/png"
 
 
 @pytest.mark.asyncio
 async def test_validate_url_keeps_short_metadata_pages(monkeypatch):
-    from web_scout import scraping
+    from web_scout.scraping import plan as scraping_plan
 
     head = _MockResponse(headers={"content-type": "text/html"})
     html = """
@@ -229,20 +225,20 @@ async def test_validate_url_keeps_short_metadata_pages(monkeypatch):
     """
     get = _MockResponse(headers={"content-type": "text/html"}, text=html)
     monkeypatch.setattr(
-        scraping.httpx,
+        scraping_plan.httpx,
         "AsyncClient",
         _mock_async_client_factory(head_response=head, get_response=get),
     )
 
     verdict, detail = await _validate_url("https://example.org/record/10")
-    assert verdict == _SCRAPE_HTML
+    assert verdict == ScrapeStrategy.HTML_FAST
     assert "metadata" in detail
 
 
 @pytest.mark.asyncio
 async def test_validate_url_keeps_rich_script_heavy_html_on_fast_path(monkeypatch):
     """Script-heavy pages with enough static text should not be routed to Playwright."""
-    from web_scout import scraping
+    from web_scout.scraping import plan as scraping_plan
 
     head = _MockResponse(headers={"content-type": "text/html"})
     scripts = "\n".join(f"<script>const payload{i} = '{'x' * 4000}';</script>" for i in range(20))
@@ -250,15 +246,15 @@ async def test_validate_url_keeps_rich_script_heavy_html_on_fast_path(monkeypatc
     html = f"<html><head><title>Rich page</title>{scripts}</head><body>{body_text}</body></html>"
     get = _MockResponse(headers={"content-type": "text/html"}, text=html)
     monkeypatch.setattr(
-        scraping.httpx,
+        scraping_plan.httpx,
         "AsyncClient",
         _mock_async_client_factory(head_response=head, get_response=get),
     )
 
     verdict, detail = await _validate_url("https://example.org/rich-script-page")
 
-    assert verdict == _SCRAPE_HTML
-    assert verdict != _SCRAPE_JS
+    assert verdict == ScrapeStrategy.HTML_FAST
+    assert verdict != ScrapeStrategy.HTML_BROWSER
     assert "static HTML" in detail
 
 
@@ -266,7 +262,7 @@ async def test_validate_url_keeps_rich_script_heavy_html_on_fast_path(monkeypatc
 async def test_validate_url_rich_publication_page_with_download_stays_static(
     monkeypatch,
 ):
-    from web_scout import scraping
+    from web_scout.scraping import plan as scraping_plan
 
     head = _MockResponse(headers={"content-type": "text/html"})
     prose = (
@@ -293,21 +289,21 @@ async def test_validate_url_rich_publication_page_with_download_stays_static(
     )
     get = _MockResponse(headers={"content-type": "text/html"}, text=html)
     monkeypatch.setattr(
-        scraping.httpx,
+        scraping_plan.httpx,
         "AsyncClient",
         _mock_async_client_factory(head_response=head, get_response=get),
     )
 
     verdict, detail = await _validate_url("https://example.org/publication/state-of-climate")
 
-    assert verdict == _SCRAPE_HTML
+    assert verdict == ScrapeStrategy.HTML_FAST
     assert "metadata-like HTML" not in detail
     assert "static HTML" in detail
 
 
 @pytest.mark.asyncio
 async def test_validate_url_overrides_json_head_with_pdf_payload(monkeypatch):
-    from web_scout import scraping
+    from web_scout.scraping import plan as scraping_plan
 
     head = _MockResponse(headers={"content-type": "application/json"})
     get = _MockResponse(
@@ -319,20 +315,20 @@ async def test_validate_url_overrides_json_head_with_pdf_payload(monkeypatch):
         content=b"%PDF-1.7 mock data",
     )
     monkeypatch.setattr(
-        scraping.httpx,
+        scraping_plan.httpx,
         "AsyncClient",
         _mock_async_client_factory(head_response=head, get_response=get),
     )
 
     verdict, detail = await _validate_url("https://example.org/download?id=123")
 
-    assert verdict == _SCRAPE_DOC
+    assert verdict == ScrapeStrategy.DOCUMENT
     assert detail == "application/json"
 
 
 @pytest.mark.asyncio
 async def test_validate_url_overrides_json_head_with_html_payload(monkeypatch):
-    from web_scout import scraping
+    from web_scout.scraping import plan as scraping_plan
 
     head = _MockResponse(headers={"content-type": "application/json"})
     html = "<html><head><title>Report page</title></head><body>" + ("Kenya rainfall analysis " * 100) + "</body></html>"
@@ -342,20 +338,20 @@ async def test_validate_url_overrides_json_head_with_html_payload(monkeypatch):
         content=html.encode("utf-8"),
     )
     monkeypatch.setattr(
-        scraping.httpx,
+        scraping_plan.httpx,
         "AsyncClient",
         _mock_async_client_factory(head_response=head, get_response=get),
     )
 
     verdict, detail = await _validate_url("https://example.org/download?id=123")
 
-    assert verdict == _SCRAPE_HTML
+    assert verdict == ScrapeStrategy.HTML_FAST
     assert "static HTML" in detail
 
 
 @pytest.mark.asyncio
 async def test_download_pdf_bytes_falls_back_to_raw_download(monkeypatch):
-    from web_scout import scraping
+    from web_scout.scraping import strategy as scraping_strategy
 
     class _FailingAsyncClient:
         def __init__(self, *args, **kwargs):
@@ -370,9 +366,9 @@ async def test_download_pdf_bytes_falls_back_to_raw_download(monkeypatch):
         async def get(self, url):
             raise RuntimeError("Unsupported content-encoding: None")
 
-    monkeypatch.setattr(scraping.httpx, "AsyncClient", _FailingAsyncClient)
+    monkeypatch.setattr(scraping_strategy.httpx, "AsyncClient", _FailingAsyncClient)
     monkeypatch.setattr(
-        scraping,
+        scraping_strategy,
         "_download_binary_via_urllib",
         lambda url: (b"%PDF-1.7 mock data", "application/pdf"),
     )
@@ -380,7 +376,7 @@ async def test_download_pdf_bytes_falls_back_to_raw_download(monkeypatch):
     async def _unexpected_browser_download(url):
         raise AssertionError("browser fallback should not be needed")
 
-    monkeypatch.setattr(scraping, "_download_pdf_via_browser", _unexpected_browser_download)
+    monkeypatch.setattr(scraping_strategy, "_download_pdf_via_browser", _unexpected_browser_download)
 
     pdf_bytes, error = await _download_pdf_bytes("https://example.org/report.pdf")
 
@@ -391,13 +387,13 @@ async def test_download_pdf_bytes_falls_back_to_raw_download(monkeypatch):
 @pytest.mark.asyncio
 async def test_scrape_url_passes_document_metadata_from_validation(monkeypatch):
     """scrape_url should not discard content metadata discovered during validation."""
-    from web_scout import scraping
+    import web_scout.scraping as scraping
 
     captured_kwargs = {}
 
     async def _fake_build_scrape_plan(url, allowed_domains=None):
-        return scraping.ScrapePlan(
-            scraping.ScrapeStrategy.DOCUMENT,
+        return ScrapePlan(
+            ScrapeStrategy.DOCUMENT,
             "application/octet-stream",
             "application/octet-stream",
             'attachment; filename="report.pdf"',
@@ -407,8 +403,8 @@ async def test_scrape_url_passes_document_metadata_from_validation(monkeypatch):
         captured_kwargs.update(kwargs)
         return "PDF content", "report.pdf", None
 
-    monkeypatch.setattr(scraping, "_build_scrape_plan", _fake_build_scrape_plan)
-    monkeypatch.setattr(scraping, "_scrape_document", _fake_scrape_document)
+    monkeypatch.setattr(scraping, "build_scrape_plan", _fake_build_scrape_plan)
+    monkeypatch.setattr(scraping, "scrape_document", _fake_scrape_document)
 
     content, title, error = await scrape_url("https://example.org/download?id=123")
 
@@ -426,34 +422,28 @@ async def test_scrape_url_passes_document_metadata_from_validation(monkeypatch):
 
 def test_open_access_publishers_not_blocked():
     """Open-access journals must not be in the default block list."""
-    from web_scout.scraping import _BLOCKED_DOMAINS
-
     open_access = [
         "frontiersin.org",
         "mdpi.com",
         "journals.plos.org",
     ]
     for domain in open_access:
-        assert domain not in _BLOCKED_DOMAINS, f"{domain} is open-access and should not be blocked"
+        assert domain not in BLOCKED_DOMAINS, f"{domain} is open-access and should not be blocked"
 
 
 def test_abstract_available_publishers_not_blocked():
     """Publishers with accessible abstracts must not be in the default block list."""
-    from web_scout.scraping import _BLOCKED_DOMAINS
-
     abstract_available = [
         "researchgate.net",
         "nature.com",
         "academic.oup.com",
     ]
     for domain in abstract_available:
-        assert domain not in _BLOCKED_DOMAINS, f"{domain} has accessible content and should not be blocked"
+        assert domain not in BLOCKED_DOMAINS, f"{domain} has accessible content and should not be blocked"
 
 
 def test_paywalled_publishers_remain_blocked():
     """Consistently paywalled publishers must stay blocked."""
-    from web_scout.scraping import _BLOCKED_DOMAINS
-
     paywalled = [
         "sciencedirect.com",
         "springer.com",
@@ -466,4 +456,4 @@ def test_paywalled_publishers_remain_blocked():
         "cambridge.org",
     ]
     for domain in paywalled:
-        assert domain in _BLOCKED_DOMAINS, f"{domain} is paywalled and should stay blocked"
+        assert domain in BLOCKED_DOMAINS, f"{domain} is paywalled and should stay blocked"

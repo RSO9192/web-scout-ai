@@ -4,38 +4,32 @@ These tests make real HTTP requests — no mocks. They verify that
 _validate_url routes correctly and scrape_url returns meaningful content
 for representative URL types: static HTML, JSON, blocked domains, and 404s.
 
-Uses stable, low-traffic URLs (example.com, httpbin.org) to avoid
-hitting production systems unnecessarily.
+Uses stable, low-traffic URLs (example.com, iana.org, jsonplaceholder.typicode.com,
+httpbin.org) to avoid hitting production systems unnecessarily.
 """
 
 import pytest
 
-from web_scout.scraping import (
-    _SCRAPE_DOC,
-    _SCRAPE_HTML,
-    _SCRAPE_JS,
-    _SCRAPE_JSON,
-    _SKIP,
-    _is_blocked_domain,
-    _validate_url,
-    scrape_url,
-)
+from web_scout.scraping import scrape_url
+from web_scout.scraping.plan import _validate_url
+from web_scout.scraping.types import ScrapeStrategy
+from web_scout.scraping.utils import is_blocked_domain
 
 # ---------------------------------------------------------------------------
-# _is_blocked_domain — no network, but validates the lookup table
+# is_blocked_domain — no network, but validates the lookup table
 # ---------------------------------------------------------------------------
 
 
 def test_youtube_is_blocked_by_default():
-    assert _is_blocked_domain("https://www.youtube.com/watch?v=abc") is True
+    assert is_blocked_domain("https://www.youtube.com/watch?v=abc") is True
 
 
 def test_fao_org_is_not_blocked():
-    assert _is_blocked_domain("https://www.fao.org/fishery/data") is False
+    assert is_blocked_domain("https://www.fao.org/fishery/data") is False
 
 
 def test_reddit_unblocked_when_in_allowed_domains():
-    assert _is_blocked_domain("https://reddit.com/r/science", allowed_domains=frozenset({"reddit.com"})) is False
+    assert is_blocked_domain("https://reddit.com/r/science", allowed_domains=frozenset({"reddit.com"})) is False
 
 
 # ---------------------------------------------------------------------------
@@ -47,21 +41,23 @@ def test_reddit_unblocked_when_in_allowed_domains():
 async def test_validate_url_live_static_html():
     """example.com is a plain static HTML page — should route to SCRAPE_HTML or SCRAPE_JS."""
     verdict, detail = await _validate_url("https://example.com")
-    assert verdict in (_SCRAPE_HTML, _SCRAPE_JS), f"Unexpected verdict {verdict!r}: {detail}"
+    assert verdict in (ScrapeStrategy.HTML_FAST, ScrapeStrategy.HTML_BROWSER), (
+        f"Unexpected verdict {verdict!r}: {detail}"
+    )
 
 
 @pytest.mark.asyncio
 async def test_validate_url_live_404_is_skipped():
     """A 404 response must be skipped — no point scraping dead links."""
     verdict, detail = await _validate_url("https://httpbin.org/status/404")
-    assert verdict == _SKIP, f"Expected SKIP for 404, got {verdict!r}: {detail}"
+    assert verdict == ScrapeStrategy.SKIP, f"Expected SKIP for 404, got {verdict!r}: {detail}"
 
 
 @pytest.mark.asyncio
 async def test_validate_url_live_blocked_domain_is_skipped():
     """youtube.com is in the block list — validate should return SKIP immediately."""
     verdict, detail = await _validate_url("https://www.youtube.com/watch?v=abc123")
-    assert verdict == _SKIP
+    assert verdict == ScrapeStrategy.SKIP
     assert "blocked" in detail.lower()
 
 
@@ -69,14 +65,15 @@ async def test_validate_url_live_blocked_domain_is_skipped():
 async def test_validate_url_live_pdf_by_extension():
     """A URL ending in .pdf is routed to SCRAPE_DOC without a network call."""
     verdict, detail = await _validate_url("https://fao.org/3/ca9229en/CA9229EN.pdf")
-    assert verdict == _SCRAPE_DOC
+    assert verdict == ScrapeStrategy.DOCUMENT
 
 
 @pytest.mark.asyncio
 async def test_validate_url_live_json_endpoint():
-    """httpbin.org/json returns application/json — should route to SCRAPE_JSON."""
-    verdict, detail = await _validate_url("https://httpbin.org/json")
-    assert verdict in (_SCRAPE_JSON, _SCRAPE_HTML, _SCRAPE_JS), f"Unexpected verdict {verdict!r}: {detail}"
+    """A public JSON API should route to SCRAPE_JSON."""
+    verdict, detail = await _validate_url("https://jsonplaceholder.typicode.com/todos/1")
+    assert verdict == ScrapeStrategy.JSON, f"Unexpected verdict {verdict!r}: {detail}"
+    assert "json" in detail.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -86,12 +83,14 @@ async def test_validate_url_live_json_endpoint():
 
 @pytest.mark.asyncio
 async def test_scrape_url_live_example_com_returns_content():
-    """Scraping example.com returns non-empty HTML content with no error."""
-    content, title, error = await scrape_url("https://example.com", query="example domain")
+    """Scraping a static HTML page returns non-empty content without Playwright."""
+    # example.com is too short for the HTTP-fast path and falls back to a browser;
+    # IANA's example-domain page has enough static text for the fast path.
+    url = "https://www.iana.org/domains/example"
+    content, title, error = await scrape_url(url, query="example domain")
 
     assert error is None, f"Unexpected error: {error}"
     assert len(content) > 100, f"Content too short: {content!r}"
-    # example.com always has "Example Domain" in its title/body
     assert "example" in content.lower() or "example" in (title or "").lower()
 
 
@@ -117,7 +116,7 @@ async def test_scrape_url_live_content_under_max_chars():
     """Returned content does not exceed max_content_chars."""
     max_chars = 500
     content, title, error = await scrape_url(
-        "https://example.com",
+        "https://www.iana.org/domains/example",
         query="example",
         max_content_chars=max_chars,
     )
@@ -131,11 +130,12 @@ async def test_scrape_url_live_content_under_max_chars():
 @pytest.mark.asyncio
 async def test_scrape_url_live_returns_string_types():
     """scrape_url always returns (str, str, str|None) — never None for content or title."""
-    content, title, error = await scrape_url("https://example.com")
+    content, title, error = await scrape_url("https://jsonplaceholder.typicode.com/todos/1")
 
     assert isinstance(content, str)
     assert isinstance(title, str)
-    assert error is None or isinstance(error, str)
+    assert error is None, f"Unexpected error: {error}"
+    assert len(content) > 0
 
 
 @pytest.mark.asyncio

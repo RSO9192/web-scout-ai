@@ -3,11 +3,12 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from web_scout._heuristics import (
+from web_scout.config import (
     EXTRACTOR_HEURISTICS,
     FOLLOWUP_HEURISTICS,
     ROUTING_HEURISTICS,
 )
+from web_scout.scraping.types import ScrapeStrategy, SourceArtifact
 from web_scout.tools import (
     _SESSION_SOURCE_CACHE,
     _SESSION_SOURCE_IN_FLIGHT,
@@ -191,7 +192,7 @@ async def test_scrape_tool_does_not_retry_bot_detected(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_session_source_cache_reuses_successful_fetches(monkeypatch):
-    from web_scout import scraping, tools
+    from web_scout import tools
 
     call_count = 0
 
@@ -199,20 +200,20 @@ async def test_session_source_cache_reuses_successful_fetches(monkeypatch):
         nonlocal call_count
         call_count += 1
         return (
-            scraping.SourceArtifact(
+            SourceArtifact(
                 kind="text",
                 title="Report",
                 text_content="Broad source content",
             ),
             None,
-            scraping.ScrapeStrategy.HTML_FAST,
+            ScrapeStrategy.HTML_FAST,
         )
 
     monkeypatch.setattr(tools, "_SESSION_SOURCE_CACHE", {})
     monkeypatch.setattr(tools, "_SESSION_SOURCE_IN_FLIGHT", {})
-    monkeypatch.setattr(scraping, "fetch_query_agnostic_source_artifact", _fake_fetch)
+    monkeypatch.setattr("web_scout.scraping.strategy.fetch_query_agnostic_source_artifact", _fake_fetch)
 
-    key_strategy = scraping.ScrapeStrategy.HTML_FAST
+    key_strategy = ScrapeStrategy.HTML_FAST
     first, first_error = await _get_or_fetch_session_source_artifact(
         url="https://example.org/report",
         strategy=key_strategy,
@@ -244,7 +245,7 @@ async def test_session_source_cache_reuses_successful_fetches(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_session_source_cache_dedupes_concurrent_misses(monkeypatch):
-    from web_scout import scraping, tools
+    from web_scout import tools
 
     call_count = 0
 
@@ -253,23 +254,23 @@ async def test_session_source_cache_dedupes_concurrent_misses(monkeypatch):
         call_count += 1
         await asyncio.sleep(0.05)
         return (
-            scraping.SourceArtifact(
+            SourceArtifact(
                 kind="text",
                 title="Report",
                 text_content="Broad source content",
             ),
             None,
-            scraping.ScrapeStrategy.HTML_FAST,
+            ScrapeStrategy.HTML_FAST,
         )
 
     monkeypatch.setattr(tools, "_SESSION_SOURCE_CACHE", {})
     monkeypatch.setattr(tools, "_SESSION_SOURCE_IN_FLIGHT", {})
-    monkeypatch.setattr(scraping, "fetch_query_agnostic_source_artifact", _fake_fetch)
+    monkeypatch.setattr("web_scout.scraping.strategy.fetch_query_agnostic_source_artifact", _fake_fetch)
 
     first, second = await asyncio.gather(
         _get_or_fetch_session_source_artifact(
             url="https://example.org/report",
-            strategy=scraping.ScrapeStrategy.HTML_FAST,
+            strategy=ScrapeStrategy.HTML_FAST,
             wait_for=None,
             vision_model=None,
             allowed_domains=None,
@@ -277,7 +278,7 @@ async def test_session_source_cache_dedupes_concurrent_misses(monkeypatch):
         ),
         _get_or_fetch_session_source_artifact(
             url="https://example.org/report",
-            strategy=scraping.ScrapeStrategy.HTML_FAST,
+            strategy=ScrapeStrategy.HTML_FAST,
             wait_for=None,
             vision_model=None,
             allowed_domains=None,
@@ -292,22 +293,22 @@ async def test_session_source_cache_dedupes_concurrent_misses(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_session_source_cache_does_not_store_failures(monkeypatch):
-    from web_scout import scraping, tools
+    from web_scout import tools
 
     call_count = 0
 
     async def _fake_fetch(url, **kwargs):
         nonlocal call_count
         call_count += 1
-        return None, "HTTP 503", scraping.ScrapeStrategy.HTML_FAST
+        return None, "HTTP 503", ScrapeStrategy.HTML_FAST
 
     monkeypatch.setattr(tools, "_SESSION_SOURCE_CACHE", {})
     monkeypatch.setattr(tools, "_SESSION_SOURCE_IN_FLIGHT", {})
-    monkeypatch.setattr(scraping, "fetch_query_agnostic_source_artifact", _fake_fetch)
+    monkeypatch.setattr("web_scout.scraping.strategy.fetch_query_agnostic_source_artifact", _fake_fetch)
 
     first, first_error = await _get_or_fetch_session_source_artifact(
         url="https://example.org/report",
-        strategy=scraping.ScrapeStrategy.HTML_FAST,
+        strategy=ScrapeStrategy.HTML_FAST,
         wait_for=None,
         vision_model=None,
         allowed_domains=None,
@@ -315,7 +316,7 @@ async def test_session_source_cache_does_not_store_failures(monkeypatch):
     )
     second, second_error = await _get_or_fetch_session_source_artifact(
         url="https://example.org/report",
-        strategy=scraping.ScrapeStrategy.HTML_FAST,
+        strategy=ScrapeStrategy.HTML_FAST,
         wait_for=None,
         vision_model=None,
         allowed_domains=None,
@@ -329,25 +330,23 @@ async def test_session_source_cache_does_not_store_failures(monkeypatch):
 
 
 def test_source_cache_key_distinguishes_pdf_page_limits():
-    from web_scout import scraping
-
     key_50 = _make_source_cache_key(
         url="https://example.org/report.pdf",
-        strategy=scraping.ScrapeStrategy.DOCUMENT,
+        strategy=ScrapeStrategy.DOCUMENT,
         wait_for=None,
         max_pdf_pages=50,
         cache_pdf_pages=True,
     )
     key_10 = _make_source_cache_key(
         url="https://example.org/report.pdf",
-        strategy=scraping.ScrapeStrategy.DOCUMENT,
+        strategy=ScrapeStrategy.DOCUMENT,
         wait_for=None,
         max_pdf_pages=10,
         cache_pdf_pages=True,
     )
     html_key = _make_source_cache_key(
         url="https://example.org/report",
-        strategy=scraping.ScrapeStrategy.HTML_FAST,
+        strategy=ScrapeStrategy.HTML_FAST,
         wait_for="#chart",
         max_pdf_pages=50,
     )

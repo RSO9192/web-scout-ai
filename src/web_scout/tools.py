@@ -12,8 +12,6 @@ that accumulates URL/query records from tool calls.
                                       sees this detailed extraction (~5000 chars)
 """
 
-from __future__ import annotations
-
 import asyncio
 import logging
 import re
@@ -26,13 +24,14 @@ from agents import Agent, ModelSettings, Runner, function_tool
 from playwright.async_api import async_playwright
 from pydantic import BaseModel, Field
 
+from web_scout.config import EXTRACTOR_HEURISTICS
+
 from ._extractor_contract import ExtractorOutcome
-from ._heuristics import EXTRACTOR_HEURISTICS
-from ._page_classifier import PageShapeAssessment, classify_prefetched_page_shape
+from .scraping.page_classifier import PageShapeAssessment, classify_prefetched_page_shape
 
 if TYPE_CHECKING:
     from .models import SearchQuery, UrlEntry
-    from .scraping import SourceArtifact
+    from .scraping.types import SourceArtifact
 
 logger = logging.getLogger(__name__)
 
@@ -735,7 +734,7 @@ async def _get_or_fetch_session_source_artifact(
     cache_pdf_pages: bool = False,
 ) -> tuple[Optional[CachedSourceArtifact], Optional[str]]:
     """Load or fetch a query-agnostic source artifact for this Python process."""
-    from . import scraping as _scraping_module
+    from .scraping import strategy as scraping_strategy
 
     key = _make_source_cache_key(
         url=url,
@@ -762,7 +761,7 @@ async def _get_or_fetch_session_source_artifact(
             artifact,
             error,
             _,
-        ) = await _scraping_module.fetch_query_agnostic_source_artifact(
+        ) = await scraping_strategy.fetch_query_agnostic_source_artifact(
             url,
             wait_for=wait_for,
             vision_model=vision_model,
@@ -1016,8 +1015,11 @@ def _build_extractor_agent(
     essential for metadata/catalogue pages (e.g. FAOLEX law records) where
     the page itself only contains a summary and the full text is in a document.
     """
-    from . import scraping as _scraping_module
-    from .scraping import _SCRAPE_DOC, _is_blocked_domain
+    from .scraping import plan as scraping_plan
+    from .scraping import strategy as scraping_strategy
+    from .scraping.page_classifier import looks_like_pdf_resource
+    from .scraping.types import ScrapeStrategy, SourceArtifact
+    from .scraping.utils import is_blocked_domain
 
     legacy_direct_agent = not pre_fetched_content
     page_shape = classify_prefetched_page_shape(pre_fetched_content) if pre_fetched_content else None
@@ -1063,8 +1065,8 @@ def _build_extractor_agent(
                 "attempted for this page. Return the structured extraction now.]"
             )
         linked_document_called = True
-        plan = await _scraping_module._build_scrape_plan(document_url, allowed_domains=allowed_domains)
-        if plan.strategy != _SCRAPE_DOC:
+        plan = await scraping_plan.build_scrape_plan(document_url, allowed_domains=allowed_domains)
+        if plan.strategy != ScrapeStrategy.DOCUMENT:
             return (
                 "[scrape_linked_document rejected: URL does not look like a primary "
                 f"document ({plan.reason}): {document_url}]"
@@ -1078,7 +1080,7 @@ def _build_extractor_agent(
                 vision_model=vision_model,
                 allowed_domains=allowed_domains,
                 max_pdf_pages=max_pdf_pages,
-                cache_pdf_pages=_scraping_module._looks_like_pdf_resource(
+                cache_pdf_pages=looks_like_pdf_resource(
                     document_url,
                     plan.content_type,
                     plan.content_disposition,
@@ -1086,8 +1088,8 @@ def _build_extractor_agent(
             )
             if cache_error or cached_artifact is None:
                 return f"[Document scrape failed: {cache_error}]"
-            content, title, error = await _scraping_module.materialize_source_artifact(
-                _scraping_module.SourceArtifact(
+            content, title, error = await scraping_strategy.materialize_source_artifact(
+                SourceArtifact(
                     kind=cached_artifact.artifact_kind,
                     title=cached_artifact.title,
                     text_content=cached_artifact.text_content,
@@ -1144,7 +1146,7 @@ def _build_extractor_agent(
         known_content_type: str,
         known_content_disposition: str,
     ) -> str:
-        content, title, error = await _scraping_module._scrape_document(
+        content, title, error = await scraping_strategy.scrape_document(
             document_url,
             query=query,
             vision_model=vision_model,
@@ -1312,7 +1314,7 @@ def _build_extractor_agent(
                 pass  # timeout is acceptable — page may not trigger a network event
 
             post_click_url = _current_page_url()
-            if _is_blocked_domain(post_click_url, allowed_domains=allowed_domains):
+            if is_blocked_domain(post_click_url, allowed_domains=allowed_domains):
                 await page.go_back()
                 return (
                     f"[click_element blocked: navigation to {post_click_url} "
@@ -1632,14 +1634,18 @@ def create_scrape_and_extract_tool(
                 _wait_for = wait_for if wait_for and wait_for.lower() not in ("null", "none", "") else None
 
                 # Fetch content in Python before involving the agent
-                from . import scraping as _scraping_module
+                from .scraping import plan as scraping_plan
+                from .scraping import scrape_url
+                from .scraping import strategy as scraping_strategy
+                from .scraping.page_classifier import looks_like_pdf_resource
+                from .scraping.types import ScrapeStrategy, SourceArtifact
 
                 page_rendered = ""
                 is_failure = False
 
                 if use_session_cache:
-                    plan = await _scraping_module._build_scrape_plan(url, allowed_domains=allowed_domains)
-                    if plan.strategy == _scraping_module.ScrapeStrategy.SKIP:
+                    plan = await scraping_plan.build_scrape_plan(url, allowed_domains=allowed_domains)
+                    if plan.strategy == ScrapeStrategy.SKIP:
                         page_rendered = f"[Scrape failed: Skipped: {plan.reason}]"
                         is_failure = True
                     else:
@@ -1653,7 +1659,7 @@ def create_scrape_and_extract_tool(
                             vision_model=vision_model,
                             allowed_domains=allowed_domains,
                             max_pdf_pages=max_pdf_pages,
-                            cache_pdf_pages=_scraping_module._looks_like_pdf_resource(
+                            cache_pdf_pages=looks_like_pdf_resource(
                                 url,
                                 plan.content_type,
                                 plan.content_disposition,
@@ -1667,8 +1673,8 @@ def create_scrape_and_extract_tool(
                                 content,
                                 title,
                                 error,
-                            ) = await _scraping_module.materialize_source_artifact(
-                                _scraping_module.SourceArtifact(
+                            ) = await scraping_strategy.materialize_source_artifact(
+                                SourceArtifact(
                                     kind=cached_artifact.artifact_kind,
                                     title=cached_artifact.title,
                                     text_content=cached_artifact.text_content,
@@ -1688,7 +1694,7 @@ def create_scrape_and_extract_tool(
                             else:
                                 page_rendered = _render_cached_page_text(url, title, content)
                 else:
-                    content, title, error = await _scraping_module.scrape_url(
+                    content, title, error = await scrape_url(
                         url,
                         _wait_for,
                         query=query,

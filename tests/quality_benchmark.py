@@ -10,8 +10,6 @@ Usage:
 Saves results to tests/benchmark_results/quality_benchmark_YYYYMMDD_HHMMSS.{json,md}
 """
 
-from __future__ import annotations
-
 import argparse
 import asyncio
 import json

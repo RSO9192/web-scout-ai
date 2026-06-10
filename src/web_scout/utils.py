@@ -1,7 +1,5 @@
 """Shared utilities for the web-scout-ai package."""
 
-from __future__ import annotations
-
 import os
 from typing import Union
 

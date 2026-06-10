@@ -5,13 +5,14 @@ features so they can run inside routing and extractor gating without adding
 new dependencies or noticeable latency.
 """
 
-from __future__ import annotations
-
 import re
 from dataclasses import dataclass
 from typing import Literal
 
-from ._heuristics import EXTRACTOR_HEURISTICS, ROUTING_HEURISTICS
+from web_scout.config import EXTRACTOR_HEURISTICS, ROUTING_HEURISTICS
+
+from .constants import DOC_CONTENT_TYPES, DOC_EXTENSIONS
+from .utils import filename_from_content_disposition, normalize_content_type
 
 PageType = Literal["content_page", "record_page", "interactive_shell", "uncertain"]
 
@@ -276,6 +277,52 @@ def classify_prefetched_page_shape(content: str) -> PageShapeAssessment:
         list_line_ratio=list_line_ratio,
         explicit_interactive="[SPA:" in content or "[Form/survey" in content,
     )
+
+
+def looks_like_metadata_page(html: str) -> bool:
+    return classify_html_page_shape(html).page_type == "record_page"
+
+
+def looks_like_document_resource(url: str, content_type: str = "", content_disposition: str = "") -> bool:
+    ct = normalize_content_type(content_type)
+    url_path = url.lower().split("?", 1)[0].split("#", 1)[0]
+    if any(url_path.endswith(ext) for ext in DOC_EXTENSIONS):
+        return True
+    if any(ct.startswith(t) for t in DOC_CONTENT_TYPES):
+        return True
+    filename = filename_from_content_disposition(content_disposition).lower()
+    return any(filename.endswith(ext) for ext in DOC_EXTENSIONS)
+
+
+def looks_like_pdf_resource(url: str, content_type: str = "", content_disposition: str = "") -> bool:
+    ct = normalize_content_type(content_type)
+    url_path = url.lower().split("?", 1)[0].split("#", 1)[0]
+    if url_path.endswith(".pdf") or ct == "application/pdf":
+        return True
+    filename = filename_from_content_disposition(content_disposition).lower()
+    return filename.endswith(".pdf")
+
+
+def looks_like_auth_wall(html_lower: str) -> bool:
+    auth_markers = (
+        "sign in",
+        "log in",
+        "login required",
+        "subscribe to continue",
+        "subscription required",
+        "create an account",
+        "members only",
+        "access denied",
+    )
+    return any(marker in html_lower for marker in auth_markers)
+
+
+def looks_like_html_body(text: str) -> bool:
+    stripped = text.lstrip()
+    if not stripped:
+        return False
+    prefix = stripped[:512].lower()
+    return prefix.startswith("<!doctype html") or prefix.startswith("<html") or "<head" in prefix or "<body" in prefix
 
 
 _RENDERED_LINKS_HEADING = "**Relevant follow-up links:**"

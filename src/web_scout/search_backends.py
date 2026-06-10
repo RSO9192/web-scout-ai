@@ -15,8 +15,6 @@ Adding a new backend
 4. Open a pull request — contributions welcome!
 """
 
-from __future__ import annotations
-
 import abc
 import asyncio
 import logging

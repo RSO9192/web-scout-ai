@@ -7,10 +7,12 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from agents.tool import ToolContext
 
+import web_scout.scraping.strategy as _scraping_strategy_module
 from web_scout import _configure_third_party_runtime
 from web_scout import agent as _agent_module
-from web_scout import scraping as _scraping_module
 from web_scout.agent import SearchIterationResult, _run_search_mode
+from web_scout.scraping.strategy import _get_pdf_docling_converter
+from web_scout.scraping.types import ScrapePlan, ScrapeStrategy
 from web_scout.tools import ResearchTracker, _build_extractor_agent
 
 
@@ -31,8 +33,8 @@ def _find_tool(agent, name):
 
 
 def _doc_plan(content_type="application/pdf", content_disposition=""):
-    return _scraping_module.ScrapePlan(
-        _scraping_module.ScrapeStrategy.DOCUMENT,
+    return ScrapePlan(
+        ScrapeStrategy.DOCUMENT,
         content_type or "document-by-url",
         content_type,
         content_disposition,
@@ -67,8 +69,8 @@ async def test_scrape_linked_document_uses_cache_on_second_call():
         return doc_content, "Fish Report 2024", None
 
     with (
-        patch("web_scout.scraping._build_scrape_plan", AsyncMock(return_value=_doc_plan())),
-        patch("web_scout.scraping._scrape_document", _fake_scrape_doc),
+        patch("web_scout.scraping.plan.build_scrape_plan", AsyncMock(return_value=_doc_plan())),
+        patch("web_scout.scraping.strategy.scrape_document", _fake_scrape_doc),
     ):
         result1 = await tool.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/report.pdf"}')
         result2 = await tool.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/report.pdf"}')
@@ -112,8 +114,8 @@ async def test_scrape_linked_document_cache_shared_across_agents():
         return doc_content, "SOFIA 2024", None
 
     with (
-        patch("web_scout.scraping._build_scrape_plan", AsyncMock(return_value=_doc_plan())),
-        patch("web_scout.scraping._scrape_document", _fake_scrape_doc),
+        patch("web_scout.scraping.plan.build_scrape_plan", AsyncMock(return_value=_doc_plan())),
+        patch("web_scout.scraping.strategy.scrape_document", _fake_scrape_doc),
     ):
         result1 = await tool1.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/sofia.pdf"}')
         result2 = await tool2.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/sofia.pdf"}')
@@ -161,8 +163,8 @@ async def test_scrape_linked_document_shares_inflight_fetch_across_agents():
         return doc_content, "SOFIA 2024", None
 
     with (
-        patch("web_scout.scraping._build_scrape_plan", AsyncMock(return_value=_doc_plan())),
-        patch("web_scout.scraping._scrape_document", _fake_scrape_doc),
+        patch("web_scout.scraping.plan.build_scrape_plan", AsyncMock(return_value=_doc_plan())),
+        patch("web_scout.scraping.strategy.scrape_document", _fake_scrape_doc),
     ):
         result1, result2 = await asyncio.gather(
             tool1.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/sofia.pdf"}'),
@@ -191,8 +193,8 @@ async def test_scrape_linked_document_no_cache_by_default():
         return "content " * 40, "Doc", None
 
     with (
-        patch("web_scout.scraping._build_scrape_plan", AsyncMock(return_value=_doc_plan())),
-        patch("web_scout.scraping._scrape_document", _fake_scrape_doc),
+        patch("web_scout.scraping.plan.build_scrape_plan", AsyncMock(return_value=_doc_plan())),
+        patch("web_scout.scraping.strategy.scrape_document", _fake_scrape_doc),
     ):
         result = await tool.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/doc.pdf"}')
 
@@ -219,10 +221,10 @@ async def test_scrape_linked_document_passes_validation_document_metadata():
 
     with (
         patch(
-            "web_scout.scraping._build_scrape_plan",
+            "web_scout.scraping.plan.build_scrape_plan",
             AsyncMock(return_value=_doc_plan("application/octet-stream", 'attachment; filename="report.pdf"')),
         ),
-        patch("web_scout.scraping._scrape_document", _fake_scrape_doc),
+        patch("web_scout.scraping.strategy.scrape_document", _fake_scrape_doc),
     ):
         result = await tool.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/download?id=123"}')
 
@@ -350,10 +352,10 @@ def test_pdf_docling_converter_is_reused(monkeypatch):
     monkeypatch.setattr("docling.document_converter.DocumentConverter", FakeConverter)
     monkeypatch.setattr("docling.document_converter.PdfFormatOption", FakePdfFormatOption)
     monkeypatch.setattr("docling.datamodel.pipeline_options.PdfPipelineOptions", FakePdfPipelineOptions)
-    monkeypatch.setattr(_scraping_module, "_PDF_DOCLING_CONVERTER", None)
+    monkeypatch.setattr(_scraping_strategy_module, "_PDF_DOCLING_CONVERTER", None)
 
-    converter1 = _scraping_module._get_pdf_docling_converter()
-    converter2 = _scraping_module._get_pdf_docling_converter()
+    converter1 = _get_pdf_docling_converter()
+    converter2 = _get_pdf_docling_converter()
 
     assert converter1 is converter2
     assert len(created) == 1

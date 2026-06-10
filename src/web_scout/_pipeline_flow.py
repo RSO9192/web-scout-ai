@@ -1,7 +1,5 @@
 """Pipeline orchestration helpers for deterministic web research."""
 
-from __future__ import annotations
-
 import asyncio
 import logging
 import os
@@ -11,8 +9,9 @@ from urllib.parse import urlparse
 
 from agents import Agent, ModelSettings, Runner
 
+from web_scout.config import FOLLOWUP_HEURISTICS
+
 from ._extractor_contract import ExtractorOutcome
-from ._heuristics import FOLLOWUP_HEURISTICS
 from ._pipeline_rules import (
     _build_coverage_prompt,
     _build_query_generation_prompt,
@@ -39,7 +38,9 @@ from ._prompts import (
     SYNTHESISER_INSTRUCTIONS,
 )
 from .models import WebResearchResult, WebResearchResultRaw
-from .scraping import ScrapeStrategy, _build_scrape_plan, _is_blocked_domain
+from .scraping.plan import build_scrape_plan
+from .scraping.types import ScrapeStrategy
+from .scraping.utils import is_blocked_domain
 from .tools import (
     ResearchTracker,
     _extract_explicit_rendered_followup_links,
@@ -624,7 +625,7 @@ async def _evaluate_search_coverage(
     state.promising_urls_from_evaluator = [
         url
         for url in state.promising_urls_from_evaluator
-        if not _is_blocked_domain(url, allowed_domains=allowed_domains)
+        if not is_blocked_domain(url, allowed_domains=allowed_domains)
     ]
     if include_domains:
         state.promising_urls_from_evaluator = [
@@ -737,7 +738,7 @@ async def _run_direct_url_mode(
             await _gather_scrapes([scrape_tool(link) for link in chosen])
         return
 
-    direct_plan = await _build_scrape_plan(direct_url, allowed_domains=allowed_domains)
+    direct_plan = await build_scrape_plan(direct_url, allowed_domains=allowed_domains)
     if direct_plan.strategy == ScrapeStrategy.DOCUMENT:
         links_to_deepen: list[str] = []
     else:

@@ -9,8 +9,6 @@ requiring LLM API keys. It is meant for diagnosing URL discovery, routing,
 timeouts, and extraction failures across a family of related queries.
 """
 
-from __future__ import annotations
-
 import argparse
 import asyncio
 import json
@@ -23,7 +21,8 @@ from pathlib import Path
 from typing import Optional
 
 from web_scout import configure_logging
-from web_scout.scraping import _validate_url, scrape_url
+from web_scout.scraping import scrape_url
+from web_scout.scraping.plan import _validate_url
 from web_scout.search_backends import SerperBackend
 
 DEFAULT_QUERIES = [

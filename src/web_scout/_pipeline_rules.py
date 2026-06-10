@@ -1,12 +1,11 @@
 """Pure helpers and prompt builders for the web research pipeline."""
 
-from __future__ import annotations
-
 import re as _re
 from typing import Optional
 from urllib.parse import parse_qsl, urljoin, urlparse
 
-from ._heuristics import FOLLOWUP_HEURISTICS
+from web_scout.config import FOLLOWUP_HEURISTICS
+
 from .tools import ResearchTracker
 
 _NEXT_PAGE_TOKENS: frozenset[str] = frozenset({"next", "next page", "›", "»"})

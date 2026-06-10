@@ -1,7 +1,5 @@
 """Private heuristics and thresholds for low-level pipeline behavior."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 
 import httpx

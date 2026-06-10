@@ -159,7 +159,7 @@ async def test_direct_url_mode_scrapes_url_and_synthesizes(monkeypatch):
     )
     monkeypatch.setattr(
         _pipeline_flow_module,
-        "_build_scrape_plan",
+        "build_scrape_plan",
         AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.DOCUMENT})()),
     )
     _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Fish rose 5% in 2023."))
@@ -184,7 +184,7 @@ async def test_direct_url_mode_document_url_skips_follow_up_scraping(monkeypatch
     )
     monkeypatch.setattr(
         _pipeline_flow_module,
-        "_build_scrape_plan",
+        "build_scrape_plan",
         AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.DOCUMENT})()),
     )
     _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Done."))
@@ -210,7 +210,7 @@ async def test_direct_url_mode_extensionless_document_url_skips_follow_up_scrapi
     )
     monkeypatch.setattr(
         _pipeline_flow_module,
-        "_build_scrape_plan",
+        "build_scrape_plan",
         AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.DOCUMENT})()),
     )
     _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Done."))
@@ -236,7 +236,7 @@ async def test_direct_url_mode_failed_page_does_not_mine_self_link_from_failure_
     )
     monkeypatch.setattr(
         _pipeline_flow_module,
-        "_build_scrape_plan",
+        "build_scrape_plan",
         AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.HTML_FAST})()),
     )
     _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Done."))
@@ -276,7 +276,7 @@ async def test_direct_url_mode_failed_page_can_deepen_explicit_followup_links(
     )
     monkeypatch.setattr(
         _pipeline_flow_module,
-        "_build_scrape_plan",
+        "build_scrape_plan",
         AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.HTML_FAST})()),
     )
     _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Done."))
@@ -314,7 +314,7 @@ async def test_direct_url_mode_can_deepen_cross_domain_document_followup(monkeyp
     )
     monkeypatch.setattr(
         _pipeline_flow_module,
-        "_build_scrape_plan",
+        "build_scrape_plan",
         AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.HTML_FAST})()),
     )
 
@@ -366,7 +366,7 @@ async def test_direct_url_hub_page_triggers_deepening(monkeypatch):
     )
     monkeypatch.setattr(
         _pipeline_flow_module,
-        "_build_scrape_plan",
+        "build_scrape_plan",
         AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.HTML_FAST})()),
     )
 

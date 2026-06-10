@@ -5,8 +5,6 @@ Usage:
     PYTHONPATH=src python tests/validation_matrix_probe.py --env-file /path/to/.env
 """
 
-from __future__ import annotations
-
 import argparse
 import asyncio
 import json

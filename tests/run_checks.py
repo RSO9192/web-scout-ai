@@ -13,8 +13,6 @@ Artifacts are written under tests/run_results/<timestamp>/ and include:
     - summary.md human-readable report
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 import os

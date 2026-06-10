@@ -1,6 +1,6 @@
 """Unit tests for structural page-shape classification."""
 
-from web_scout._page_classifier import (
+from web_scout.scraping.page_classifier import (
     classify_html_page_shape,
     classify_prefetched_page_shape,
 )

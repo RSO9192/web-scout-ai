@@ -5,8 +5,6 @@ Usage:
     PYTHONPATH=src python tests/gmo_probe.py --env-file /path/to/.env
 """
 
-from __future__ import annotations
-
 import argparse
 import asyncio
 import json

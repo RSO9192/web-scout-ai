@@ -9,8 +9,6 @@ Usage:
 Requires: SERPER_API_KEY and GEMINI_API_KEY in environment.
 """
 
-from __future__ import annotations
-
 import asyncio
 import re
 import time

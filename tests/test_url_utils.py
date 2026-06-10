@@ -9,7 +9,7 @@ from web_scout.agent import (
     _normalize_domain,
     _rank_followup_candidates,
 )
-from web_scout.scraping import _is_blocked_domain
+from web_scout.scraping.utils import is_blocked_domain
 from web_scout.tools import ResearchTracker
 
 
@@ -292,33 +292,33 @@ def test_normalize_url_trailing_slash_stripped():
     assert ResearchTracker.normalize_url("https://example.com/page/") == "https://example.com/page"
 
 
-def test_is_blocked_domain_reddit_blocked_by_default():
-    assert _is_blocked_domain("https://reddit.com/r/MachineLearning") is True
+def testis_blocked_domain_reddit_blocked_by_default():
+    assert is_blocked_domain("https://reddit.com/r/MachineLearning") is True
 
 
-def test_is_blocked_domain_reddit_allowed_when_in_allowed_set():
+def testis_blocked_domain_reddit_allowed_when_in_allowed_set():
     allowed = frozenset({"reddit.com"})
-    assert _is_blocked_domain("https://reddit.com/r/MachineLearning", allowed_domains=allowed) is False
+    assert is_blocked_domain("https://reddit.com/r/MachineLearning", allowed_domains=allowed) is False
 
 
-def test_is_blocked_domain_unrelated_domain_not_blocked():
-    assert _is_blocked_domain("https://wocat.net/en/database/") is False
+def testis_blocked_domain_unrelated_domain_not_blocked():
+    assert is_blocked_domain("https://wocat.net/en/database/") is False
 
 
-def test_is_blocked_domain_arxiv_not_blocked():
-    assert _is_blocked_domain("https://arxiv.org/abs/1706.03762") is False
+def testis_blocked_domain_arxiv_not_blocked():
+    assert is_blocked_domain("https://arxiv.org/abs/1706.03762") is False
 
 
-def test_is_blocked_domain_subdomain_blocked():
-    assert _is_blocked_domain("https://m.youtube.com/watch?v=abc") is True
+def testis_blocked_domain_subdomain_blocked():
+    assert is_blocked_domain("https://m.youtube.com/watch?v=abc") is True
 
 
-def test_is_blocked_domain_www_reddit_blocked_by_default():
-    assert _is_blocked_domain("https://www.reddit.com/r/science") is True
+def testis_blocked_domain_www_reddit_blocked_by_default():
+    assert is_blocked_domain("https://www.reddit.com/r/science") is True
 
 
-def test_is_blocked_domain_allowed_set_empty_uses_full_blocklist():
-    assert _is_blocked_domain("https://twitter.com/user", allowed_domains=frozenset()) is True
+def testis_blocked_domain_allowed_set_empty_uses_full_blocklist():
+    assert is_blocked_domain("https://twitter.com/user", allowed_domains=frozenset()) is True
 
 
 # --- Additional _normalize_url coverage ---
@@ -342,26 +342,26 @@ def test_normalize_url_fragment_stripped():
     assert "#" not in ResearchTracker.normalize_url(url)
 
 
-# --- Additional _is_blocked_domain coverage ---
+# --- Additional is_blocked_domain coverage ---
 
 
-def test_is_blocked_domain_linkedin_blocked():
-    assert _is_blocked_domain("https://linkedin.com/in/someone") is True
+def testis_blocked_domain_linkedin_blocked():
+    assert is_blocked_domain("https://linkedin.com/in/someone") is True
 
 
-def test_is_blocked_domain_sciencedirect_blocked():
-    assert _is_blocked_domain("https://www.sciencedirect.com/science/article/pii/S2214581825005567") is True
+def testis_blocked_domain_sciencedirect_blocked():
+    assert is_blocked_domain("https://www.sciencedirect.com/science/article/pii/S2214581825005567") is True
 
 
-def test_is_blocked_domain_nature_not_blocked():
+def testis_blocked_domain_nature_not_blocked():
     # nature.com is abstract-available and intentionally NOT blocked
-    assert _is_blocked_domain("https://www.nature.com/articles/s41598-024-63786-2") is False
+    assert is_blocked_domain("https://www.nature.com/articles/s41598-024-63786-2") is False
 
 
-def test_is_blocked_domain_publisher_allowed_when_in_allowed_set():
+def testis_blocked_domain_publisher_allowed_when_in_allowed_set():
     allowed = frozenset({"sciencedirect.com"})
     assert (
-        _is_blocked_domain(
+        is_blocked_domain(
             "https://www.sciencedirect.com/science/article/pii/S2214581825005567",
             allowed_domains=allowed,
         )
@@ -369,11 +369,11 @@ def test_is_blocked_domain_publisher_allowed_when_in_allowed_set():
     )
 
 
-def test_is_blocked_domain_allowed_set_only_removes_specified():
+def testis_blocked_domain_allowed_set_only_removes_specified():
     allowed = frozenset({"reddit.com"})
     # twitter.com is still blocked even when reddit is allowed
-    assert _is_blocked_domain("https://twitter.com/user", allowed_domains=allowed) is True
-    assert _is_blocked_domain("https://reddit.com/r/foo", allowed_domains=allowed) is False
+    assert is_blocked_domain("https://twitter.com/user", allowed_domains=allowed) is True
+    assert is_blocked_domain("https://reddit.com/r/foo", allowed_domains=allowed) is False
 
 
 # --- Additional _find_next_page_url realistic content ---

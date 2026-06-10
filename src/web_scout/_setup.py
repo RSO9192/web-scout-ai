@@ -8,8 +8,6 @@ This is a thin wrapper around ``crawl4ai-setup`` which installs a
 Chromium browser via Playwright.
 """
 
-from __future__ import annotations
-
 import subprocess
 import sys
 

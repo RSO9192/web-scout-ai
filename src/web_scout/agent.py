@@ -21,8 +21,6 @@ Public API
 - ``run_web_research(query, models, ...)`` — full pipeline
 """
 
-from __future__ import annotations
-
 import logging
 from typing import Any, Dict, List, Optional
 
