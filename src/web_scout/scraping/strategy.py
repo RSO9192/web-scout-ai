@@ -15,14 +15,16 @@ from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
 
 from web_scout.config import ROUTING_HEURISTICS
 
-from .constants import (
-    DOC_EXTENSIONS,
-    FETCH_HEADERS,
-)
+from .constants import FETCH_HEADERS
 from .page_classifier import looks_like_pdf_resource
 from .plan import build_scrape_plan
 from .types import ScrapeStrategy, SourceArtifact
-from .utils import normalize_content_type, trim_json_value, unsupported_legacy_document_reason
+from .utils import (
+    looks_like_document_link,
+    normalize_content_type,
+    trim_json_value,
+    unsupported_legacy_document_reason,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +32,16 @@ logger = logging.getLogger(__name__)
 def _quiet_browser_config(**overrides: Any) -> BrowserConfig:
     """Build a crawl4ai BrowserConfig that suppresses its own startup banners."""
     return BrowserConfig(verbose=False, **overrides)
+
+
+def _minimal_browser_run_config(**overrides: Any) -> CrawlerRunConfig:
+    """Build a lightweight crawl4ai run config for browser-only side effects."""
+    return CrawlerRunConfig(
+        cache_mode=CacheMode.BYPASS,
+        exclude_all_images=True,
+        verbose=False,
+        **overrides,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -157,23 +169,6 @@ def _pick_markdown(md, query: str) -> str:
     return str(md) if md else ""
 
 
-def _looks_like_document_link(href: str) -> bool:
-    lower = href.lower()
-    path = lower.split("?", 1)[0].split("#", 1)[0]
-    if path.endswith(DOC_EXTENSIONS):
-        return True
-    return any(
-        marker in lower
-        for marker in (
-            "/download",
-            "/bitstream/",
-            "/bitstreams/",
-            "download?",
-            "file-download",
-        )
-    )
-
-
 def _link_text_fallback(href: str) -> str:
     parsed = urlparse(href)
     tail = unquote(parsed.path.rstrip("/").rsplit("/", 1)[-1]) if parsed.path else ""
@@ -212,7 +207,7 @@ def _append_internal_links(content: str, result, limit: int = 50) -> str:
         if text and text.lower() not in ("read more", "click here", "learn more"):
             link_lines.append(f"- [{text}]({href})")
             continue
-        if _looks_like_document_link(href):
+        if looks_like_document_link(href):
             link_lines.append(f"- [{_link_text_fallback(href)}]({href})")
 
     if not link_lines:
@@ -451,31 +446,24 @@ async def scrape_html_browser_query_agnostic(
 
 async def _capture_page_screenshot(url: str) -> bytes:
     """Capture a viewport screenshot of a URL without performing any extraction."""
-    from playwright.async_api import async_playwright
+    browser_cfg = _quiet_browser_config(
+        headless=True,
+        viewport={"width": 1280, "height": 900},
+        user_agent=FETCH_HEADERS["User-Agent"],
+    )
+    run_cfg = _minimal_browser_run_config(
+        screenshot=True,
+        force_viewport_screenshot=True,
+        screenshot_wait_for=ROUTING_HEURISTICS.vision_settle_wait_ms / 1000.0,
+        wait_until="networkidle",
+        page_timeout=ROUTING_HEURISTICS.vision_goto_timeout_ms,
+    )
+    async with AsyncWebCrawler(config=browser_cfg) as crawler:
+        result = await crawler.arun(url=url, config=run_cfg)
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        try:
-            context = await browser.new_context(
-                viewport={"width": 1280, "height": 900},
-                user_agent=FETCH_HEADERS["User-Agent"],
-            )
-            try:
-                page = await context.new_page()
-                try:
-                    await page.goto(
-                        url,
-                        timeout=ROUTING_HEURISTICS.vision_goto_timeout_ms,
-                        wait_until="networkidle",
-                    )
-                    await page.wait_for_timeout(ROUTING_HEURISTICS.vision_settle_wait_ms)
-                except Exception:
-                    pass
-                return await page.screenshot(type="png")
-            finally:
-                await context.close()
-        finally:
-            await browser.close()
+    if not result.screenshot:
+        raise RuntimeError("Screenshot capture failed")
+    return base64.b64decode(result.screenshot)
 
 
 async def _vision_extract_image_bytes(
@@ -698,51 +686,32 @@ async def _download_image_bytes(url: str) -> Tuple[Optional[bytes], str, Optiona
 
 
 async def _download_pdf_via_browser(url: str) -> Optional[bytes]:
-    """Download a PDF using a real Chromium browser via Playwright.
+    """Download a PDF using crawl4ai's browser download handling.
 
     Used as a fallback when the plain httpx download is blocked (e.g. Akamai
     bot-protection returns 403 to plain HTTP clients but serves the file to
     real browsers).  Returns raw PDF bytes, or ``None`` on failure.
     """
-    import tempfile
-
-    from playwright.async_api import async_playwright
-
+    browser_cfg = _quiet_browser_config(
+        headless=True,
+        accept_downloads=True,
+        user_agent=FETCH_HEADERS["User-Agent"],
+    )
+    run_cfg = _minimal_browser_run_config(
+        page_timeout=ROUTING_HEURISTICS.browser_download_timeout_ms,
+    )
     try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            try:
-                context = await browser.new_context(
-                    user_agent=FETCH_HEADERS["User-Agent"],
-                    accept_downloads=True,
-                )
-                try:
-                    page = await context.new_page()
-                    tmp: Optional[str] = None
-                    try:
-                        async with page.expect_download(
-                            timeout=ROUTING_HEURISTICS.browser_download_timeout_ms
-                        ) as dl_info:
-                            try:
-                                await page.goto(
-                                    url,
-                                    timeout=ROUTING_HEURISTICS.browser_download_timeout_ms,
-                                )
-                            except Exception:
-                                pass  # "Download is starting" error is expected
-                        download = await dl_info.value
-                        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
-                            tmp = f.name
-                        await download.save_as(tmp)
-                        with open(tmp, "rb") as f:
-                            return f.read()
-                    finally:
-                        if tmp and os.path.exists(tmp):
-                            os.unlink(tmp)
-                finally:
-                    await context.close()
-            finally:
-                await browser.close()
+        async with AsyncWebCrawler(config=browser_cfg) as crawler:
+            result = await crawler.arun(url=url, config=run_cfg)
+        if not result.downloaded_files:
+            return None
+        filepath = result.downloaded_files[0]
+        try:
+            with open(filepath, "rb") as f:
+                return f.read()
+        finally:
+            if os.path.exists(filepath):
+                os.unlink(filepath)
     except Exception:
         return None
 

@@ -12,7 +12,7 @@ from typing import Literal
 from web_scout.config import EXTRACTOR_HEURISTICS, ROUTING_HEURISTICS
 
 from .constants import DOC_CONTENT_TYPES, DOC_EXTENSIONS
-from .utils import filename_from_content_disposition, normalize_content_type
+from .utils import filename_from_content_disposition, looks_like_document_link, normalize_content_type
 
 PageType = Literal["content_page", "record_page", "interactive_shell", "uncertain"]
 
@@ -54,22 +54,6 @@ class PageShapeAssessment:
     record_score: int = 0
     interactive_score: int = 0
     confidence: int = 0
-
-
-def _looks_like_document_url(url: str) -> bool:
-    lower = url.lower()
-    path = lower.split("?", 1)[0].split("#", 1)[0]
-    if path.endswith((".pdf", ".docx", ".pptx", ".xlsx")):
-        return True
-    return any(
-        marker in lower
-        for marker in (
-            "/download",
-            "/bitstreams/",
-            "download?",
-            "file-download",
-        )
-    )
 
 
 def _strip_html(html: str) -> str:
@@ -246,7 +230,7 @@ def classify_html_page_shape(html: str) -> PageShapeAssessment:
     text_blocks = _text_blocks_from_html(html)
     text = re.sub(r"\s+", " ", _strip_html(html)).strip()
     hrefs = [m.group(1).strip() for m in _HTML_HREF_RE.finditer(html)]
-    document_link_count = sum(1 for href in hrefs if _looks_like_document_url(href))
+    document_link_count = sum(1 for href in hrefs if looks_like_document_link(href))
     return _classify_page_shape(
         text=text,
         paragraph_blocks=sum(1 for block in text_blocks if len(block) >= 80),
@@ -272,7 +256,7 @@ def classify_prefetched_page_shape(content: str) -> PageShapeAssessment:
         paragraph_blocks=len(long_lines),
         sentence_count=_count_sentence_endings(text),
         href_count=len(urls),
-        document_link_count=sum(1 for url in urls if _looks_like_document_url(url)),
+        document_link_count=sum(1 for url in urls if looks_like_document_link(url)),
         metadata_marker_count=_count_metadata_markers(text),
         list_line_ratio=list_line_ratio,
         explicit_interactive="[SPA:" in content or "[Form/survey" in content,

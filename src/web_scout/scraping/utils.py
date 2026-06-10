@@ -1,7 +1,8 @@
 import json
 import re
+from email.message import Message
 from typing import Any, Optional
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
 
 from .constants import (
     BLOCKED_DOMAINS,
@@ -67,20 +68,27 @@ def normalize_content_type(value: str) -> str:
 def filename_from_content_disposition(value: str) -> str:
     if not value:
         return ""
+    msg = Message()
+    msg["content-disposition"] = value
+    return msg.get_filename() or ""
 
-    filename_star = re.search(r"filename\*\s*=\s*[^']*'[^']*'([^;]+)", value, flags=re.I)
-    if filename_star:
-        return unquote(filename_star.group(1).strip().strip('"'))
 
-    filename = re.search(r'filename\s*=\s*"([^"]+)"', value, flags=re.I)
-    if filename:
-        return filename.group(1).strip()
+_DOCUMENT_LINK_MARKERS = (
+    "/download",
+    "/bitstream/",
+    "/bitstreams/",
+    "download?",
+    "file-download",
+)
 
-    filename = re.search(r"filename\s*=\s*([^;]+)", value, flags=re.I)
-    if filename:
-        return filename.group(1).strip().strip('"')
 
-    return ""
+def looks_like_document_link(url: str) -> bool:
+    """Return True when a URL likely points at a downloadable document."""
+    lower = url.lower()
+    path = lower.split("?", 1)[0].split("#", 1)[0]
+    if path.endswith(DOC_EXTENSIONS):
+        return True
+    return any(marker in lower for marker in _DOCUMENT_LINK_MARKERS)
 
 
 def detect_document_extension(url: str, content_disposition: str = "") -> str:
@@ -108,10 +116,6 @@ def unsupported_legacy_document_reason(url: str, content_type: str = "", content
         suffix = f" ({ext})" if ext in UNSUPPORTED_LEGACY_DOC_EXTENSIONS else f" ({ct})"
         return f"unsupported legacy Office document format{suffix}"
     return ""
-
-
-def extract_hrefs_from_html(html: str) -> list[str]:
-    return [m.group(1).strip() for m in re.finditer(r'href=["\']([^"\']+)["\']', html, flags=re.I)]
 
 
 def trim_json_value(
