@@ -13,7 +13,8 @@ from web_scout import agent as _agent_module
 from web_scout.agent import SearchIterationResult, _run_search_mode
 from web_scout.scraping._document import _get_pdf_converter
 from web_scout.scraping.types import ScrapePlan, ScrapeStrategy
-from web_scout.tools import ResearchTracker, _build_extractor_agent
+from web_scout.tools import ResearchTracker
+from web_scout.tools.extractor import build_extractor_agent as _build_extractor_agent
 
 
 def _make_ctx(tool_name="scrape_linked_document"):

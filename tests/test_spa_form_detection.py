@@ -1,11 +1,7 @@
 """Tests for SPA fragment and form-contamination detection in fetched content."""
 
-from web_scout.tools import (
-    _EXTRACTOR_INSTRUCTIONS,
-    _has_fragment,
-    _is_form_contaminated,
-    _render_cached_page_text,
-)
+from web_scout.tools.extractor import _EXTRACTOR_INSTRUCTIONS
+from web_scout.tools.page_analysis import _has_fragment, _is_form_contaminated, render_cached_page_text as _render_cached_page_text
 
 
 def test_has_fragment_detects_hash_fragment():

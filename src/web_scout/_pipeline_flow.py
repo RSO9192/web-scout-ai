@@ -43,10 +43,10 @@ from .scraping.types import ScrapeStrategy
 from .scraping.utils import is_blocked_domain
 from .tools import (
     ResearchTracker,
-    _extract_explicit_rendered_followup_links,
-    _extract_rendered_followup_links,
-    _is_rendered_list_page,
-    _resolve_scrape_outcome,
+    extract_explicit_rendered_followup_links,
+    extract_rendered_followup_links,
+    is_rendered_list_page,
+    resolve_scrape_outcome,
 )
 
 logger = logging.getLogger("web_scout.agent")
@@ -197,7 +197,7 @@ async def _scrape_urls(
     if urls:
         extracted_contents = await _gather_scrapes([scrape_tool(url) for url in urls])
         outcomes_by_url = {
-            url: _resolve_scrape_outcome(scrape_tool, url, content) for url, content in zip(urls, extracted_contents)
+            url: resolve_scrape_outcome(scrape_tool, url, content) for url, content in zip(urls, extracted_contents)
         }
         return SearchIterationResult(
             extracted_contents=extracted_contents,
@@ -390,9 +390,9 @@ def _collect_hub_results(
 ) -> list[tuple[str, ExtractorOutcome]]:
     if not iteration_result.outcomes_by_url:
         return [
-            (url, _resolve_scrape_outcome(None, url, content))
+            (url, resolve_scrape_outcome(None, url, content))
             for url, content in iteration_result.iter_results
-            if _is_rendered_list_page(content)
+            if is_rendered_list_page(content)
         ]
     return [(url, outcome) for url, outcome in iteration_result.outcomes_by_url.items() if outcome.page_type == "list"]
 
@@ -419,7 +419,7 @@ async def _collect_hub_candidates(
         if next_page and not tracker.has_attempted_url(next_page):
             logger.info("[pipeline] hub pagination (domain mode): %s", next_page)
             next_content = await scrape_tool(next_page)
-            next_outcome = _resolve_scrape_outcome(scrape_tool, next_page, next_content)
+            next_outcome = resolve_scrape_outcome(scrape_tool, next_page, next_content)
             _append_domain_candidates(
                 candidates=candidates,
                 links=next_outcome.relevant_links,
@@ -478,7 +478,7 @@ def _collect_non_hub_links_to_deepen(
     for outcome in outcomes:
         _append_domain_candidates(
             candidates=links_to_deepen,
-            links=outcome.relevant_links or _extract_rendered_followup_links(outcome.rendered_text),
+            links=outcome.relevant_links or extract_rendered_followup_links(outcome.rendered_text),
             include_domains=include_domains,
             query=query,
             tracker=tracker,
@@ -500,7 +500,7 @@ async def _deepen_non_hub_results(
         include_domains=include_domains,
         tracker=tracker,
         outcomes=list(iteration_result.outcomes_by_url.values())
-        or [_resolve_scrape_outcome(scrape_tool, url, content) for url, content in iteration_result.iter_results],
+        or [resolve_scrape_outcome(scrape_tool, url, content) for url, content in iteration_result.iter_results],
     )
     if not links_to_deepen:
         return
@@ -642,7 +642,7 @@ async def _evaluate_search_coverage(
 
 def _extract_rendered_followup_candidates(content: str) -> list[str]:
     """Read follow-up candidates from the rendered scrape output."""
-    return _extract_rendered_followup_links(content)
+    return extract_rendered_followup_links(content)
 
 
 def _sanitize_followup_candidates(
@@ -676,7 +676,7 @@ def _outcome_followup_candidates(
     if outcome.relevant_links:
         links = outcome.relevant_links
     elif outcome.status == "failure":
-        links = _extract_explicit_rendered_followup_links(outcome.rendered_text)
+        links = extract_explicit_rendered_followup_links(outcome.rendered_text)
     else:
         links = _extract_rendered_followup_candidates(outcome.rendered_text)
     return _sanitize_followup_candidates(links, parent_url=parent_url)
@@ -697,7 +697,7 @@ async def _run_direct_url_mode(
     tracker.record_direct_query(query)
 
     content = await scrape_tool(direct_url)
-    outcome = _resolve_scrape_outcome(scrape_tool, direct_url, content)
+    outcome = resolve_scrape_outcome(scrape_tool, direct_url, content)
     logger.info(
         "[pipeline] direct_url_mode status=%s page_type=%s links=%d url=%s",
         outcome.status,
@@ -715,7 +715,7 @@ async def _run_direct_url_mode(
         if next_page:
             logger.info("[pipeline] hub pagination: scraping next page %s", next_page)
             next_content = await scrape_tool(next_page)
-            next_outcome = _resolve_scrape_outcome(scrape_tool, next_page, next_content)
+            next_outcome = resolve_scrape_outcome(scrape_tool, next_page, next_content)
             for link in _outcome_followup_candidates(next_outcome, parent_url=next_page):
                 if link and link not in candidates:
                     candidates.append(link)
