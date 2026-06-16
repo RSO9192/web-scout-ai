@@ -33,7 +33,10 @@ class ScrapePlan:
     reason: str
     content_type: str = ""
     content_disposition: str = ""
+    needs_browser: bool = False
+    """True when the browser had to be used during planning (e.g. CloudFlare bypass).
+    The executor should skip the fast HTTP path and go straight to the browser."""
 
     @property
     def likely_bot_detected(self) -> bool:
-        return self.strategy == ScrapeStrategy.HTML_BROWSER and "GET timed out" in self.reason
+        return self.needs_browser or (self.strategy == ScrapeStrategy.HTML_BROWSER and "GET timed out" in self.reason)

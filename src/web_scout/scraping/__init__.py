@@ -1,4 +1,4 @@
-"""Unified web scraping via crawl4ai, docling, and vision fallbacks.
+"""Unified web scraping via Scrapling, docling, and vision fallbacks.
 
 Public API summary
 ------------------
@@ -6,13 +6,13 @@ Public API summary
     One-shot scrape: validates → routes → extracts → truncates.
 
 ``build_scrape_plan``
-    Cheap HEAD+GET routing without running any extractor.
+    Cheap GET routing (via Scrapling AsyncFetcher) without running any extractor.
 
 ``execute_strategy``
     Execute a pre-built ``ScrapePlan`` and return a ``SourceArtifact``.
 
 ``fetch_query_agnostic_source_artifact`` / ``materialize_source_artifact``
-    Two-phase cache API: fetch once (no BM25), reuse across queries.
+    Two-phase cache API: fetch once, reuse across queries.
 
 Types: ``ScrapePlan``, ``ScrapeStrategy``, ``SourceArtifact``
 

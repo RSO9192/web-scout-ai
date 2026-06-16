@@ -43,21 +43,23 @@ async def execute_strategy(
             max_pdf_pages=max_pdf_pages,
             known_content_type=plan.content_type,
             known_content_disposition=plan.content_disposition,
+            needs_browser=plan.needs_browser,
         )
 
     elif plan.strategy == ScrapeStrategy.JSON:
-        artifact, error = await _json.scrape_json(url)
+        artifact, error = await _json.scrape_json(url, needs_browser=plan.needs_browser)
 
     elif plan.strategy == ScrapeStrategy.IMAGE:
-        artifact, error = await _image.scrape_image(url)
+        artifact, error = await _image.scrape_image(url, needs_browser=plan.needs_browser)
 
     elif plan.strategy == ScrapeStrategy.HTML_FAST:
-        # CoR step 1: HTTP-only (fast path)
-        artifact, error = await _html.scrape_html_fast(url, query=query)
+        if not plan.needs_browser:
+            # CoR step 1: HTTP-only (fast path)
+            artifact, error = await _html.scrape_html(url, needs_browser=False, query=query)
 
-        # CoR step 2: full browser fallback when HTTP returned thin content
-        if artifact is None:
-            artifact, error = await _html.scrape_html_browser(url, wait_for=wait_for, query=query)
+        if plan.needs_browser or artifact is None:
+            # CoR step 2: browser — either because planning required it, or HTTP returned thin content
+            artifact, error = await _html.scrape_html(url, needs_browser=True, wait_for=wait_for, query=query)
 
         # CoR step 3: document redirect (browser triggered a file download)
         if error == _html._DOWNLOAD_SIGNAL:
@@ -68,7 +70,7 @@ async def execute_strategy(
             artifact, error = await _vision.scrape_url_via_vision(url, query=query, vision_model=vision_model)
 
     else:  # HTML_BROWSER — skip HTTP-only step
-        artifact, error = await _html.scrape_html_browser(url, wait_for=wait_for, query=query)
+        artifact, error = await _html.scrape_html(url, needs_browser=True, wait_for=wait_for, query=query)
 
         if error == _html._DOWNLOAD_SIGNAL:
             artifact, error = await _document.scrape_document(url, max_pdf_pages=max_pdf_pages)

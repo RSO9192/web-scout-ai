@@ -35,7 +35,8 @@ python = ">=3.10,<3.14"
 pydantic = ">=2.0"
 httpx = ">=0.24"
 openai-agents = ">=0.0.7"
-crawl4ai = ">=0.5"
+scrapling = {version = ">=0.4.9", extras = ["fetchers"]}
+markdownify = ">=0.11"
 docling = ">=2.0"
 docling-core = ">=2.0"
 litellm = ">=1.30"
@@ -44,6 +45,7 @@ litellm = ">=1.30"
 pytest = ">=8.0"
 pytest-asyncio = ">=0.23"
 ruff = ">=0.4"
+ipykernel = "^7.3.0"
 
 [build-system]
 requires = ["poetry-core"]

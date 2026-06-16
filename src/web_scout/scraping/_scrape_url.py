@@ -21,6 +21,9 @@ logging.getLogger("docling").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("crawl4ai").setLevel(logging.WARNING)
+logging.getLogger("scrapling").setLevel(logging.WARNING)
+logging.getLogger("patchright").setLevel(logging.WARNING)
+logging.getLogger("playwright").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 

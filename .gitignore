@@ -33,3 +33,5 @@ htmlcov/
 # Ruff
 .ruff_cache/
 .superpowers/
+
+vendor/
