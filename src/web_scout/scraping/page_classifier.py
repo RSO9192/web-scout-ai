@@ -5,13 +5,14 @@ features so they can run inside routing and extractor gating without adding
 new dependencies or noticeable latency.
 """
 
-from __future__ import annotations
-
 import re
 from dataclasses import dataclass
 from typing import Literal
 
-from ._heuristics import EXTRACTOR_HEURISTICS, ROUTING_HEURISTICS
+from web_scout.config import EXTRACTOR_HEURISTICS, ROUTING_HEURISTICS
+
+from .constants import DOC_CONTENT_TYPES, DOC_EXTENSIONS
+from .utils import filename_from_content_disposition, looks_like_document_link, normalize_content_type
 
 PageType = Literal["content_page", "record_page", "interactive_shell", "uncertain"]
 
@@ -53,22 +54,6 @@ class PageShapeAssessment:
     record_score: int = 0
     interactive_score: int = 0
     confidence: int = 0
-
-
-def _looks_like_document_url(url: str) -> bool:
-    lower = url.lower()
-    path = lower.split("?", 1)[0].split("#", 1)[0]
-    if path.endswith((".pdf", ".docx", ".pptx", ".xlsx")):
-        return True
-    return any(
-        marker in lower
-        for marker in (
-            "/download",
-            "/bitstreams/",
-            "download?",
-            "file-download",
-        )
-    )
 
 
 def _strip_html(html: str) -> str:
@@ -129,23 +114,14 @@ def _classify_page_shape(
 ) -> PageShapeAssessment:
     text_chars = len(text)
     sparse_prose = paragraph_blocks <= 2 and sentence_count <= 4
-    content_rich = (
-        text_chars >= EXTRACTOR_HEURISTICS.rich_content_chars
-        or (text_chars >= 1200 and paragraph_blocks >= 4 and sentence_count >= 6)
+    content_rich = text_chars >= EXTRACTOR_HEURISTICS.rich_content_chars or (
+        text_chars >= 1200 and paragraph_blocks >= 4 and sentence_count >= 6
     )
     link_heavy = href_count >= 8 and text_chars / max(href_count, 1) < 250
     dominant_document_target = (
         document_link_count >= 1
-        and (
-            href_count <= 3
-            or document_link_count == href_count
-            or document_link_count / max(href_count, 1) >= 0.5
-        )
-        and (
-            sparse_prose
-            or not content_rich
-            or (metadata_marker_count >= 4 and sentence_count <= 6)
-        )
+        and (href_count <= 3 or document_link_count == href_count or document_link_count / max(href_count, 1) >= 0.5)
+        and (sparse_prose or not content_rich or (metadata_marker_count >= 4 and sentence_count <= 6))
     )
     document_hub = document_link_count >= 2 and href_count >= 3
     avg_paragraph_chars = text_chars / max(paragraph_blocks, 1)
@@ -220,11 +196,7 @@ def _classify_page_shape(
         and text_chars < ROUTING_HEURISTICS.rich_html_static_text_chars
     ):
         page_type = "interactive_shell"
-    elif (
-        record_score >= 5
-        and record_score >= content_score + 2
-        and record_score >= interactive_score + 1
-    ):
+    elif record_score >= 5 and record_score >= content_score + 2 and record_score >= interactive_score + 1:
         page_type = "record_page"
     elif content_score >= 4 and content_score >= max(record_score, interactive_score):
         page_type = "content_page"
@@ -258,7 +230,7 @@ def classify_html_page_shape(html: str) -> PageShapeAssessment:
     text_blocks = _text_blocks_from_html(html)
     text = re.sub(r"\s+", " ", _strip_html(html)).strip()
     hrefs = [m.group(1).strip() for m in _HTML_HREF_RE.finditer(html)]
-    document_link_count = sum(1 for href in hrefs if _looks_like_document_url(href))
+    document_link_count = sum(1 for href in hrefs if looks_like_document_link(href))
     return _classify_page_shape(
         text=text,
         paragraph_blocks=sum(1 for block in text_blocks if len(block) >= 80),
@@ -284,11 +256,58 @@ def classify_prefetched_page_shape(content: str) -> PageShapeAssessment:
         paragraph_blocks=len(long_lines),
         sentence_count=_count_sentence_endings(text),
         href_count=len(urls),
-        document_link_count=sum(1 for url in urls if _looks_like_document_url(url)),
+        document_link_count=sum(1 for url in urls if looks_like_document_link(url)),
         metadata_marker_count=_count_metadata_markers(text),
         list_line_ratio=list_line_ratio,
         explicit_interactive="[SPA:" in content or "[Form/survey" in content,
     )
+
+
+def looks_like_metadata_page(html: str) -> bool:
+    return classify_html_page_shape(html).page_type == "record_page"
+
+
+def looks_like_document_resource(url: str, content_type: str = "", content_disposition: str = "") -> bool:
+    ct = normalize_content_type(content_type)
+    url_path = url.lower().split("?", 1)[0].split("#", 1)[0]
+    if any(url_path.endswith(ext) for ext in DOC_EXTENSIONS):
+        return True
+    if any(ct.startswith(t) for t in DOC_CONTENT_TYPES):
+        return True
+    filename = filename_from_content_disposition(content_disposition).lower()
+    return any(filename.endswith(ext) for ext in DOC_EXTENSIONS)
+
+
+def looks_like_pdf_resource(url: str, content_type: str = "", content_disposition: str = "") -> bool:
+    ct = normalize_content_type(content_type)
+    url_path = url.lower().split("?", 1)[0].split("#", 1)[0]
+    if url_path.endswith(".pdf") or ct == "application/pdf":
+        return True
+    filename = filename_from_content_disposition(content_disposition).lower()
+    return filename.endswith(".pdf")
+
+
+def looks_like_auth_wall(html_lower: str) -> bool:
+    # TODO: It may produce false-positives on pages with both the content and the signin form.
+    auth_markers = (
+        "sign in",
+        "log in",
+        "login required",
+        "subscribe to continue",
+        "subscription required",
+        "create an account",
+        "members only",
+        "access denied",
+    )
+    return any(marker in html_lower for marker in auth_markers)
+
+
+def looks_like_html_body(text: str) -> bool:
+    stripped = text.lstrip()
+    if not stripped:
+        return False
+    prefix = stripped[:512].lower()
+    return prefix.startswith("<!doctype html") or prefix.startswith("<html") or "<head" in prefix or "<body" in prefix
 
 
 _RENDERED_LINKS_HEADING = "**Relevant follow-up links:**"
@@ -296,6 +315,12 @@ _RENDERED_LINKS_HEADING = "**Relevant follow-up links:**"
 
 __all__ = [
     "PageShapeAssessment",
+    "PageType",
     "classify_html_page_shape",
     "classify_prefetched_page_shape",
+    "looks_like_metadata_page",
+    "looks_like_document_resource",
+    "looks_like_pdf_resource",
+    "looks_like_auth_wall",
+    "looks_like_html_body",
 ]

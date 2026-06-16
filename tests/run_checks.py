@@ -13,8 +13,6 @@ Artifacts are written under tests/run_results/<timestamp>/ and include:
     - summary.md human-readable report
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 import os
@@ -67,7 +65,8 @@ def _step_catalog(run_dir: Path, env_file: str | None) -> dict[str, StepSpec]:
         "unit-fast": StepSpec(
             name="unit-fast",
             description="Targeted unit slice for pipeline, URL normalization, and dedupe behavior.",
-            command=python_cmd + [
+            command=python_cmd
+            + [
                 "-m",
                 "pytest",
                 "tests/test_pipeline.py",

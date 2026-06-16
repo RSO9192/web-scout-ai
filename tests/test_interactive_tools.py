@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from agents.tool import ToolContext
 
-from web_scout.tools import _build_extractor_agent
+from web_scout.tools.extractor import build_extractor_agent as _build_extractor_agent
 
 
 def _make_ctx(tool_name: str = "tool") -> ToolContext:
@@ -81,8 +81,7 @@ def test_signaled_prefetched_agent_exposes_interactive_tools_regardless_of_query
         url="https://example.org/app#/data",
         wait_for=None,
         pre_fetched_content=(
-            "Navigation shell\n\n"
-            "[SPA: URL fragment detected — current content may be the wrong tab/view.]"
+            "Navigation shell\n\n[SPA: URL fragment detected — current content may be the wrong tab/view.]"
         ),
     )
 
@@ -105,7 +104,8 @@ def test_signal_does_not_override_strong_content_page():
                 "The report documents global hunger and food insecurity trends, gives "
                 "regional prevalence figures, compares 2022, 2023, and 2024, and "
                 "details the drivers of deterioration in Africa and Western Asia. "
-            ) * 40
+            )
+            * 40
         ),
     )
 
@@ -121,7 +121,9 @@ def test_signal_does_not_override_strong_content_page():
         "government procurement certification recognized producers Kenya",
     ],
 )
-def test_metadata_prefetched_agent_exposes_linked_document_only_regardless_of_query(query):
+def test_metadata_prefetched_agent_exposes_linked_document_only_regardless_of_query(
+    query,
+):
     agent, cleanup = _build_extractor_agent(
         model="dummy",
         query=query,
@@ -156,7 +158,8 @@ def test_rich_direct_document_content_does_not_expose_linked_document_tool():
         pre_fetched_content=(
             "# Annual Report\n"
             "Source: https://example.org/report.pdf\n\n"
-            + "Specific report content with findings, statistics, and policy rules. " * 80
+            + "Specific report content with findings, statistics, and policy rules. "
+            * 80
         ),
     )
 
@@ -175,7 +178,8 @@ def test_rich_content_with_reference_pdf_does_not_expose_linked_document_tool():
         pre_fetched_content=(
             "This article explains procurement policy and cites a background PDF "
             "https://example.org/background.pdf. "
-            + "Specific content with rules, certification references, and factual context. " * 80
+            + "Specific content with rules, certification references, and factual context. "
+            * 80
         ),
     )
 
@@ -203,7 +207,8 @@ def test_publication_landing_page_with_download_and_abstract_stays_tool_free():
                 "The report explains multi-year precipitation patterns, regional contrasts, "
                 "flood and drought episodes, and the interpretation of recent rainfall data. "
                 "It includes detailed narrative findings that are already directly usable. "
-            ) * 18
+            )
+            * 18
         ),
     )
 
@@ -216,6 +221,7 @@ def test_publication_landing_page_with_download_and_abstract_stays_tool_free():
 # ---------------------------------------------------------------------------
 # list_interactive_elements
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_list_interactive_elements_returns_numbered_list():
@@ -246,11 +252,11 @@ async def test_list_interactive_elements_returns_numbered_list():
     mock_pw_cm.__aenter__ = AsyncMock(return_value=mock_pw)
     mock_pw_cm.__aexit__ = AsyncMock(return_value=False)
 
-    with patch("web_scout.tools.async_playwright", return_value=mock_pw_cm):
+    with patch("web_scout.tools.extractor.async_playwright", return_value=mock_pw_cm):
         result = await tool.on_invoke_tool(_make_ctx(), "{}")
 
-    assert "[1] tab: \"Data by Year\"" in result
-    assert "[2] button: \"Load more results\"" in result
+    assert '[1] tab: "Data by Year"' in result
+    assert '[2] button: "Load more results"' in result
     assert "Interactive elements on page:" in result
 
     await cleanup()
@@ -280,7 +286,7 @@ async def test_list_interactive_elements_no_elements():
     mock_pw_cm.__aenter__ = AsyncMock(return_value=mock_pw)
     mock_pw_cm.__aexit__ = AsyncMock(return_value=False)
 
-    with patch("web_scout.tools.async_playwright", return_value=mock_pw_cm):
+    with patch("web_scout.tools.extractor.async_playwright", return_value=mock_pw_cm):
         result = await tool.on_invoke_tool(_make_ctx(), "{}")
 
     assert "No interactive elements found" in result
@@ -298,7 +304,7 @@ async def test_list_interactive_elements_playwright_error():
     mock_pw_cm.__aenter__ = AsyncMock(side_effect=RuntimeError("browser crashed"))
     mock_pw_cm.__aexit__ = AsyncMock(return_value=False)
 
-    with patch("web_scout.tools.async_playwright", return_value=mock_pw_cm):
+    with patch("web_scout.tools.extractor.async_playwright", return_value=mock_pw_cm):
         result = await tool.on_invoke_tool(_make_ctx(), "{}")
 
     assert "list_interactive_elements failed" in result
@@ -310,6 +316,7 @@ async def test_list_interactive_elements_playwright_error():
 # ---------------------------------------------------------------------------
 # click_element
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_click_element_returns_page_content():
@@ -342,7 +349,7 @@ async def test_click_element_returns_page_content():
     list_tool = _find_tool(agent, "list_interactive_elements")
     click_tool = _find_tool(agent, "click_element")
 
-    with patch("web_scout.tools.async_playwright", return_value=mock_pw_cm):
+    with patch("web_scout.tools.extractor.async_playwright", return_value=mock_pw_cm):
         await list_tool.on_invoke_tool(_make_ctx(), "{}")
         result = await click_tool.on_invoke_tool(_make_ctx(), '{"index": 1}')
 
@@ -383,7 +390,7 @@ async def test_click_element_enforces_limit():
     list_tool = _find_tool(agent, "list_interactive_elements")
     click_tool = _find_tool(agent, "click_element")
 
-    with patch("web_scout.tools.async_playwright", return_value=mock_pw_cm):
+    with patch("web_scout.tools.extractor.async_playwright", return_value=mock_pw_cm):
         await list_tool.on_invoke_tool(_make_ctx(), "{}")
         for _ in range(5):
             await click_tool.on_invoke_tool(_make_ctx(), '{"index": 1}')
@@ -424,7 +431,7 @@ async def test_click_element_stale_index():
     list_tool = _find_tool(agent, "list_interactive_elements")
     click_tool = _find_tool(agent, "click_element")
 
-    with patch("web_scout.tools.async_playwright", return_value=mock_pw_cm):
+    with patch("web_scout.tools.extractor.async_playwright", return_value=mock_pw_cm):
         await list_tool.on_invoke_tool(_make_ctx(), "{}")
         result = await click_tool.on_invoke_tool(_make_ctx(), '{"index": 99}')
 
@@ -464,7 +471,7 @@ async def test_click_element_thin_content_warning():
     list_tool = _find_tool(agent, "list_interactive_elements")
     click_tool = _find_tool(agent, "click_element")
 
-    with patch("web_scout.tools.async_playwright", return_value=mock_pw_cm):
+    with patch("web_scout.tools.extractor.async_playwright", return_value=mock_pw_cm):
         await list_tool.on_invoke_tool(_make_ctx(), "{}")
         result = await click_tool.on_invoke_tool(_make_ctx(), '{"index": 1}')
 
@@ -511,7 +518,7 @@ async def test_cleanup_closes_browser():
 
     list_tool = _find_tool(agent, "list_interactive_elements")
 
-    with patch("web_scout.tools.async_playwright", return_value=mock_pw_cm):
+    with patch("web_scout.tools.extractor.async_playwright", return_value=mock_pw_cm):
         await list_tool.on_invoke_tool(_make_ctx(), "{}")
         await cleanup()
 
@@ -550,7 +557,7 @@ async def test_click_element_load_state_timeout_still_returns_content():
     list_tool = _find_tool(agent, "list_interactive_elements")
     click_tool = _find_tool(agent, "click_element")
 
-    with patch("web_scout.tools.async_playwright", return_value=mock_pw_cm):
+    with patch("web_scout.tools.extractor.async_playwright", return_value=mock_pw_cm):
         await list_tool.on_invoke_tool(_make_ctx(), "{}")
         result = await click_tool.on_invoke_tool(_make_ctx(), '{"index": 1}')
 
@@ -563,6 +570,7 @@ async def test_click_element_load_state_timeout_still_returns_content():
 # ---------------------------------------------------------------------------
 # Domain-restricted applications
 # ---------------------------------------------------------------------------
+
 
 def _make_extractor_agent_with_domains(
     url="https://example.org/portal",
@@ -617,7 +625,7 @@ async def test_click_element_blocks_navigation_to_blocked_domain():
     list_tool = _find_tool(agent, "list_interactive_elements")
     click_tool = _find_tool(agent, "click_element")
 
-    with patch("web_scout.tools.async_playwright", return_value=mock_pw_cm):
+    with patch("web_scout.tools.extractor.async_playwright", return_value=mock_pw_cm):
         await list_tool.on_invoke_tool(_make_ctx(), "{}")
         result = await click_tool.on_invoke_tool(_make_ctx(), '{"index": 1}')
 
@@ -651,7 +659,7 @@ async def test_click_element_allows_navigation_within_allowed_domain():
     list_tool = _find_tool(agent, "list_interactive_elements")
     click_tool = _find_tool(agent, "click_element")
 
-    with patch("web_scout.tools.async_playwright", return_value=mock_pw_cm):
+    with patch("web_scout.tools.extractor.async_playwright", return_value=mock_pw_cm):
         await list_tool.on_invoke_tool(_make_ctx(), "{}")
         result = await click_tool.on_invoke_tool(_make_ctx(), '{"index": 1}')
 
@@ -685,7 +693,7 @@ async def test_click_element_unblocked_domain_allowed_via_allowed_domains():
     list_tool = _find_tool(agent, "list_interactive_elements")
     click_tool = _find_tool(agent, "click_element")
 
-    with patch("web_scout.tools.async_playwright", return_value=mock_pw_cm):
+    with patch("web_scout.tools.extractor.async_playwright", return_value=mock_pw_cm):
         await list_tool.on_invoke_tool(_make_ctx(), "{}")
         result = await click_tool.on_invoke_tool(_make_ctx(), '{"index": 1}')
 
@@ -716,7 +724,7 @@ async def test_click_element_no_domain_restriction_allows_any_navigation():
     list_tool = _find_tool(agent, "list_interactive_elements")
     click_tool = _find_tool(agent, "click_element")
 
-    with patch("web_scout.tools.async_playwright", return_value=mock_pw_cm):
+    with patch("web_scout.tools.extractor.async_playwright", return_value=mock_pw_cm):
         await list_tool.on_invoke_tool(_make_ctx(), "{}")
         result = await click_tool.on_invoke_tool(_make_ctx(), '{"index": 1}')
 

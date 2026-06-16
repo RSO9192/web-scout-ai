@@ -5,8 +5,6 @@ Usage:
     PYTHONPATH=src python tests/validation_matrix_probe.py --env-file /path/to/.env
 """
 
-from __future__ import annotations
-
 import argparse
 import asyncio
 import json
@@ -320,8 +318,7 @@ DIVERSE_OPEN_CASES = [
         name="open_venice_coastal_risk",
         mode="open",
         query=(
-            "Venice sea level rise flood frequency coastal risk projections "
-            "and MOSE effectiveness under IPCC scenarios"
+            "Venice sea level rise flood frequency coastal risk projections and MOSE effectiveness under IPCC scenarios"
         ),
         max_pdf_pages=30,
     ),
@@ -516,8 +513,7 @@ INTERACTION_AUDIT_CASES = [
         name="open_venice_coastal_risk_audit",
         mode="open",
         query=(
-            "Venice sea level rise flood frequency coastal risk projections "
-            "and MOSE effectiveness under IPCC scenarios"
+            "Venice sea level rise flood frequency coastal risk projections and MOSE effectiveness under IPCC scenarios"
         ),
         max_pdf_pages=30,
     ),
@@ -639,13 +635,9 @@ async def _run_case(case: ProbeCase, search_backend: str, research_depth: str) -
             search_queries=[item.query for item in result.queries],
             scraped=scraped,
             scrape_failed=[
-                Failure(url=item.url, title=item.title, error=item.content)
-                for item in result.scrape_failed
+                Failure(url=item.url, title=item.title, error=item.content) for item in result.scrape_failed
             ],
-            bot_detected=[
-                Failure(url=item.url, title=item.title, error=item.content)
-                for item in result.bot_detected
-            ],
+            bot_detected=[Failure(url=item.url, title=item.title, error=item.content) for item in result.bot_detected],
         )
     except Exception as exc:
         return CaseResult(
@@ -716,10 +708,14 @@ def _mode_summary(results: list[CaseResult], mode: str) -> str:
     bot = sum(item.num_bot_detected for item in subset)
     snippets = sum(item.num_snippet_only for item in subset)
     low_value = sum(item.num_low_value_scraped for item in subset)
-    avg_chars = round(
-        sum(item.total_scraped_chars for item in subset) / max(scraped, 1),
-        1,
-    ) if scraped else 0.0
+    avg_chars = (
+        round(
+            sum(item.total_scraped_chars for item in subset) / max(scraped, 1),
+            1,
+        )
+        if scraped
+        else 0.0
+    )
     return (
         f"{mode}: cases={cases} errored={errored} "
         f"scraped={scraped} failed={failed} bot={bot} "

@@ -60,9 +60,14 @@ select = ["E", "F", "I", "W"]
 # LLM prompt strings and Pydantic field descriptions in agent.py cannot be wrapped
 # without changing the content sent to models.
 "src/web_scout/agent.py" = ["E501"]
-# Long function signatures in tools.py and scraping.py are unavoidable given parameter counts.
-"src/web_scout/tools.py" = ["E501"]
-"src/web_scout/scraping.py" = ["E501"]
+# Long function signatures in extractor/scraper are unavoidable given parameter counts.
+"src/web_scout/tools/extractor.py" = ["E501"]
+"src/web_scout/tools/scraper.py" = ["E501"]
+# Long Pydantic field descriptions must not be wrapped.
+"src/web_scout/tools/types.py" = ["E501"]
+# Strategy and download modules have long log-format strings.
+"src/web_scout/scraping/_download.py" = ["E501"]
+"src/web_scout/scraping/executor.py" = ["E501"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

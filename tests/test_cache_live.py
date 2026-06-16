@@ -13,11 +13,8 @@ Expected behaviour:
 import asyncio
 import time
 
-from web_scout.tools import (
-    _SESSION_SOURCE_CACHE,
-    ResearchTracker,
-    create_scrape_and_extract_tool,
-)
+from web_scout.tools import ResearchTracker, create_scrape_and_extract_tool
+from web_scout.tools.session_cache import _SESSION_SOURCE_CACHE
 from web_scout.utils import get_model
 
 # A small, static, public page — fast to scrape, no JS needed.

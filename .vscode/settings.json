@@ -1,0 +1,14 @@
+{
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.tabSize": 4,
+        "editor.defaultFormatter": "charliermarsh.ruff"
+    },
+    "editor.tabSize": 4,
+    "[json]": {
+        "editor.quickSuggestions": {
+            "strings": true
+        },
+        "editor.tabSize": 2
+    }
+}

@@ -1,7 +1,5 @@
 """Private heuristics and thresholds for low-level pipeline behavior."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 
 import httpx
@@ -11,12 +9,8 @@ import httpx
 class RoutingHeuristics:
     min_pdf_text_chars: int = 300
     pdf_max_pages_default: int = 50
-    validation_timeout: httpx.Timeout = field(
-        default_factory=lambda: httpx.Timeout(20.0, connect=15.0)
-    )
-    document_download_timeout: httpx.Timeout = field(
-        default_factory=lambda: httpx.Timeout(45.0, connect=20.0)
-    )
+    validation_timeout: httpx.Timeout = field(default_factory=lambda: httpx.Timeout(20.0, connect=15.0))
+    document_download_timeout: httpx.Timeout = field(default_factory=lambda: httpx.Timeout(45.0, connect=20.0))
     urllib_download_timeout: int = 45
     pdf_download_retries: int = 2
     short_html_text_chars: int = 150

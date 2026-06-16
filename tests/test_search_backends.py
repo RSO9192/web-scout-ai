@@ -30,6 +30,7 @@ def _make_client_mock(response):
 # Query construction
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_include_domains_builds_site_clause():
     """include_domains prepends site: operators joined with OR before the query."""
@@ -65,6 +66,7 @@ async def test_no_include_domains_sends_query_unchanged():
 # ---------------------------------------------------------------------------
 # Organic result parsing
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_parses_organic_results():
@@ -103,7 +105,11 @@ async def test_skips_organic_results_without_link():
     payload = {
         "organic": [
             {"title": "No Link Result", "snippet": "some text"},
-            {"title": "Good Result", "link": "https://fao.org/report", "snippet": "data"},
+            {
+                "title": "Good Result",
+                "link": "https://fao.org/report",
+                "snippet": "data",
+            },
         ],
         "relatedSearches": [],
     }
@@ -122,7 +128,11 @@ async def test_respects_max_results_cap():
     backend = SerperBackend(api_key="test-key")
     payload = {
         "organic": [
-            {"title": f"Result {i}", "link": f"https://example.com/{i}", "snippet": "data"}
+            {
+                "title": f"Result {i}",
+                "link": f"https://example.com/{i}",
+                "snippet": "data",
+            }
             for i in range(10)
         ],
         "relatedSearches": [],
@@ -138,6 +148,7 @@ async def test_respects_max_results_cap():
 # ---------------------------------------------------------------------------
 # Related searches
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_parses_related_searches():
@@ -178,6 +189,7 @@ async def test_skips_related_searches_without_query_field():
 # ---------------------------------------------------------------------------
 # Knowledge Graph
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_parses_knowledge_graph():
@@ -223,6 +235,7 @@ async def test_knowledge_graph_absent_when_not_in_response():
 # People Also Ask
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_parses_people_also_ask():
     """peopleAlsoAsk entries are mapped to PeopleAlsoAsk dataclasses."""
@@ -231,7 +244,11 @@ async def test_parses_people_also_ask():
         "organic": [],
         "relatedSearches": [],
         "peopleAlsoAsk": [
-            {"question": "How much fish is caught globally?", "snippet": "About 90Mt/yr", "link": "https://fao.org"},
+            {
+                "question": "How much fish is caught globally?",
+                "snippet": "About 90Mt/yr",
+                "link": "https://fao.org",
+            },
         ],
     }
     cm, _ = _make_client_mock(_mock_http_response(payload))
@@ -271,6 +288,7 @@ async def test_skips_people_also_ask_without_question():
 # Retry behaviour
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_retries_on_429_then_succeeds():
     """A 429 response triggers one retry and ultimately returns results."""
@@ -279,7 +297,10 @@ async def test_retries_on_429_then_succeeds():
     rate_limited = _mock_http_response({}, status_code=429)
     rate_limited.raise_for_status = MagicMock()  # don't raise on 429
 
-    success_payload = {"organic": [{"title": "OK", "link": "https://fao.org", "snippet": ""}], "relatedSearches": []}
+    success_payload = {
+        "organic": [{"title": "OK", "link": "https://fao.org", "snippet": ""}],
+        "relatedSearches": [],
+    }
     ok_resp = _mock_http_response(success_payload)
 
     client = AsyncMock()
@@ -288,7 +309,10 @@ async def test_retries_on_429_then_succeeds():
     cm.__aenter__ = AsyncMock(return_value=client)
     cm.__aexit__ = AsyncMock(return_value=False)
 
-    with patch("httpx.AsyncClient", return_value=cm), patch("asyncio.sleep", new_callable=AsyncMock):
+    with (
+        patch("httpx.AsyncClient", return_value=cm),
+        patch("asyncio.sleep", new_callable=AsyncMock),
+    ):
         result = await backend.search("fish")
 
     assert client.post.call_count == 2
@@ -303,7 +327,10 @@ async def test_retries_on_5xx_then_succeeds():
     server_error = _mock_http_response({}, status_code=503)
     server_error.raise_for_status = MagicMock()
 
-    success_payload = {"organic": [{"title": "OK", "link": "https://fao.org", "snippet": ""}], "relatedSearches": []}
+    success_payload = {
+        "organic": [{"title": "OK", "link": "https://fao.org", "snippet": ""}],
+        "relatedSearches": [],
+    }
     ok_resp = _mock_http_response(success_payload)
 
     client = AsyncMock()
@@ -312,7 +339,10 @@ async def test_retries_on_5xx_then_succeeds():
     cm.__aenter__ = AsyncMock(return_value=client)
     cm.__aexit__ = AsyncMock(return_value=False)
 
-    with patch("httpx.AsyncClient", return_value=cm), patch("asyncio.sleep", new_callable=AsyncMock):
+    with (
+        patch("httpx.AsyncClient", return_value=cm),
+        patch("asyncio.sleep", new_callable=AsyncMock),
+    ):
         result = await backend.search("fish")
 
     assert client.post.call_count == 2

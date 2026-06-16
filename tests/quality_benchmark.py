@@ -10,8 +10,6 @@ Usage:
 Saves results to tests/benchmark_results/quality_benchmark_YYYYMMDD_HHMMSS.{json,md}
 """
 
-from __future__ import annotations
-
 import argparse
 import asyncio
 import json
@@ -78,6 +76,7 @@ WEB_SCOUT_MODELS = {
 # Data models
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class FailureEntry:
     url: str
@@ -98,12 +97,7 @@ class Evaluation:
 
     @property
     def overall(self) -> float:
-        total = (
-            self.url_relevance
-            + self.tailored_comprehensiveness
-            + self.synthesis_quality
-            + self.extraction_coverage
-        )
+        total = self.url_relevance + self.tailored_comprehensiveness + self.synthesis_quality + self.extraction_coverage
         return round(total / 4, 1)
 
 
@@ -120,9 +114,11 @@ class ToolResult:
     evaluation: Optional[Evaluation] = None
     search_queries: list = field(default_factory=list)  # list[str]
 
+
 # ---------------------------------------------------------------------------
 # Report helpers (pure functions — no API calls)
 # ---------------------------------------------------------------------------
+
 
 def build_failure_table(failures: list) -> str:
     """Return a Markdown table of failed URLs, or empty string if none."""
@@ -166,9 +162,7 @@ def build_summary_row(result: "ToolResult") -> str:
     """Return a single Markdown table row for the summary table."""
     q_short = result.query[:55] + "…" if len(result.query) > 55 else result.query
     if result.error:
-        return (
-            f"| {q_short} | {result.tool} | - | - | - | - | {result.elapsed_seconds} | ERROR | - | - | - | - |"
-        )
+        return f"| {q_short} | {result.tool} | - | - | - | - | {result.elapsed_seconds} | ERROR | - | - | - | - |"
     ev = result.evaluation or Evaluation()
     num_failed = len([f for f in result.failures if f.category in ("scrape_failed", "source_http_error")])
     num_bot = len([f for f in result.failures if f.category == "bot_detected"])
@@ -182,9 +176,11 @@ def build_summary_row(result: "ToolResult") -> str:
         f"| {ev.synthesis_quality}/5 | {ev.extraction_coverage}/5 | {ev.overall}/5 |"
     )
 
+
 # ---------------------------------------------------------------------------
 # Runner: web-scout-ai
 # ---------------------------------------------------------------------------
+
 
 async def run_web_scout(query: str) -> ToolResult:
     from web_scout import run_web_research
@@ -198,10 +194,7 @@ async def run_web_scout(query: str) -> ToolResult:
         )
         elapsed = time.perf_counter() - t0
 
-        sources = [
-            {"url": s.url, "title": s.title, "content": s.content}
-            for s in result.scraped
-        ]
+        sources = [{"url": s.url, "title": s.title, "content": s.content} for s in result.scraped]
 
         failures: list[FailureEntry] = []
         for category, entries in [
@@ -237,6 +230,7 @@ async def run_web_scout(query: str) -> ToolResult:
             elapsed_seconds=round(time.perf_counter() - t0, 1),
             error=str(e),
         )
+
 
 # ---------------------------------------------------------------------------
 # Runner: OpenAI web search
@@ -299,10 +293,7 @@ async def run_openai_websearch(query: str) -> ToolResult:
         result = await Runner.run(agent, query)
         elapsed = time.perf_counter() - t0
         output = result.final_output_as(_OpenAIWebSearchOutput)
-        sources = [
-            {"url": s.url, "title": s.title, "content": s.relevant_content}
-            for s in output.sources
-        ]
+        sources = [{"url": s.url, "title": s.title, "content": s.relevant_content} for s in output.sources]
         return ToolResult(
             tool=f"openai-websearch ({OPENAI_MODEL})",
             query=query,
@@ -318,6 +309,7 @@ async def run_openai_websearch(query: str) -> ToolResult:
             elapsed_seconds=round(time.perf_counter() - t0, 1),
             error=str(e),
         )
+
 
 # ---------------------------------------------------------------------------
 # LLM judge
@@ -401,9 +393,12 @@ async def evaluate_result(result: ToolResult) -> Evaluation:
     """Score a single tool result with the LLM judge."""
     if result.error:
         return Evaluation(
-            url_relevance=0, url_relevance_rationale="Tool errored.",
-            tailored_comprehensiveness=0, tailored_comprehensiveness_rationale="Tool errored.",
-            synthesis_quality=0, synthesis_quality_rationale="Tool errored.",
+            url_relevance=0,
+            url_relevance_rationale="Tool errored.",
+            tailored_comprehensiveness=0,
+            tailored_comprehensiveness_rationale="Tool errored.",
+            synthesis_quality=0,
+            synthesis_quality_rationale="Tool errored.",
         )
 
     source_parts = []
@@ -438,7 +433,12 @@ async def evaluate_result(result: ToolResult) -> Evaluation:
             scores = json.loads(raw)
         except json.JSONDecodeError:
             scores = {}
-            for key in ("url_relevance", "tailored_comprehensiveness", "synthesis_quality", "extraction_coverage"):
+            for key in (
+                "url_relevance",
+                "tailored_comprehensiveness",
+                "synthesis_quality",
+                "extraction_coverage",
+            ):
                 m = re.search(rf'"{key}"\s*:\s*([1-5])', raw)
                 if m:
                     scores[key] = int(m.group(1))
@@ -465,9 +465,11 @@ async def evaluate_result(result: ToolResult) -> Evaluation:
         print(f"  [judge] evaluation failed for {result.tool}: {e}")
         return Evaluation()
 
+
 # ---------------------------------------------------------------------------
 # Report builder
 # ---------------------------------------------------------------------------
+
 
 def build_report(results: list, queries: list) -> str:
     lines = [
@@ -485,7 +487,9 @@ def build_report(results: list, queries: list) -> str:
         "| Query | Tool | Scraped | Failed | Bot | Avg Depth | Time (s) "
         "| URL Rel | Compreh | Synthesis | Coverage | Overall |"
     )
-    lines.append("|-------|------|---------|--------|-----|-----------|----------|---------|---------|-----------|----------|---------|")
+    lines.append(
+        "|-------|------|---------|--------|-----|-----------|----------|---------|---------|-----------|----------|---------|"
+    )
 
     by_query: dict = {}
     for r in results:
@@ -565,9 +569,11 @@ def build_report(results: list, queries: list) -> str:
 
     return "\n".join(lines)
 
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Quality benchmark: web-scout-ai vs OpenAI web search.")

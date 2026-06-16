@@ -2,27 +2,39 @@ import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
+from agents import Runner
 
-from web_scout._heuristics import EXTRACTOR_HEURISTICS, FOLLOWUP_HEURISTICS, ROUTING_HEURISTICS
+from web_scout.config import (
+    EXTRACTOR_HEURISTICS,
+    FOLLOWUP_HEURISTICS,
+    ROUTING_HEURISTICS,
+)
+from web_scout.scraping.types import ScrapeStrategy, SourceArtifact
 from web_scout.tools import (
+    ResearchTracker,
+    create_scrape_and_extract_tool,
+    extract_rendered_followup_links,
+    is_rendered_list_page,
+    resolve_scrape_outcome,
+)
+from web_scout.tools.outcomes import (
+    build_failure_outcome,
+    build_success_outcome,
+    classify_failure_action,
+    render_failed_extractor_output,
+    render_successful_extractor_output,
+)
+from web_scout.tools.session_cache import (
     _SESSION_SOURCE_CACHE,
     _SESSION_SOURCE_IN_FLIGHT,
-    CachedSourceArtifact,
-    ResearchTracker,
-    SourceCacheKey,
-    _build_failure_outcome,
-    _build_success_outcome,
-    _classify_failure_action,
-    _extract_rendered_followup_links,
-    _ExtractorOutput,
-    _get_or_fetch_session_source_artifact,
-    _is_rendered_list_page,
-    _make_source_cache_key,
-    _render_failed_extractor_output,
-    _render_successful_extractor_output,
-    _resolve_scrape_outcome,
-    create_scrape_and_extract_tool,
+    get_or_fetch_session_source_artifact,
+    make_source_cache_key,
 )
+from web_scout.tools.types import CachedSourceArtifact, ExtractorOutput, SourceCacheKey
+
+import web_scout.scraping as _scraping_module
+import web_scout.tools.scraper as _tools_scraper
+import web_scout.tools.session_cache as _tools_session_cache
 
 
 class _FakeRunResult:
@@ -44,8 +56,6 @@ def _clear_session_source_cache():
 
 @pytest.mark.asyncio
 async def test_scrape_tool_reuses_inflight_request(monkeypatch):
-    from web_scout import scraping, tools
-
     tracker = ResearchTracker()
     call_count = 0
 
@@ -54,7 +64,7 @@ async def test_scrape_tool_reuses_inflight_request(monkeypatch):
         call_count += 1
         await asyncio.sleep(0.05)
         return _FakeRunResult(
-            _ExtractorOutput(
+            ExtractorOutput(
                 title="Example",
                 relevant_content="Useful extracted content",
                 page_type="content",
@@ -65,17 +75,9 @@ async def test_scrape_tool_reuses_inflight_request(monkeypatch):
     async def _no_cleanup():
         pass
 
-    monkeypatch.setattr(
-        tools,
-        "_build_extractor_agent",
-        lambda *args, **kwargs: (object(), _no_cleanup),
-    )
-    monkeypatch.setattr(
-        scraping,
-        "scrape_url",
-        AsyncMock(return_value=("Pre-fetched page content " * 80, "Example", None)),
-    )
-    monkeypatch.setattr(tools.Runner, "run", _fake_run)
+    monkeypatch.setattr(_tools_scraper, "build_extractor_agent", lambda *args, **kwargs: (object(), _no_cleanup))
+    monkeypatch.setattr(_scraping_module, "scrape_url", AsyncMock(return_value=("Pre-fetched page content " * 80, "Example", None)))
+    monkeypatch.setattr(Runner, "run", _fake_run)
 
     scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
     url = "https://example.org/report"
@@ -90,8 +92,6 @@ async def test_scrape_tool_reuses_inflight_request(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_scrape_tool_recovers_prefetched_content_when_extractor_fails(monkeypatch):
-    from web_scout import scraping, tools
-
     tracker = ResearchTracker()
 
     async def _failing_run(agent, input_text, max_turns=15):
@@ -100,17 +100,13 @@ async def test_scrape_tool_recovers_prefetched_content_when_extractor_fails(monk
     async def _no_cleanup():
         pass
 
+    monkeypatch.setattr(_tools_scraper, "build_extractor_agent", lambda *args, **kwargs: (object(), _no_cleanup))
     monkeypatch.setattr(
-        tools,
-        "_build_extractor_agent",
-        lambda *args, **kwargs: (object(), _no_cleanup),
-    )
-    monkeypatch.setattr(
-        scraping,
+        _scraping_module,
         "scrape_url",
         AsyncMock(return_value=("Recoverable source facts and figures. " * 100, "Report", None)),
     )
-    monkeypatch.setattr(tools.Runner, "run", _failing_run)
+    monkeypatch.setattr(Runner, "run", _failing_run)
 
     scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
     result = await scrape_tool("https://example.org/report")
@@ -122,12 +118,10 @@ async def test_scrape_tool_recovers_prefetched_content_when_extractor_fails(monk
 
 @pytest.mark.asyncio
 async def test_scrape_tool_unexpected_internal_error_returns_failure_and_unblocks_waiters(monkeypatch):
-    from web_scout import scraping, tools
-
     tracker = ResearchTracker()
 
     monkeypatch.setattr(
-        scraping,
+        _scraping_module,
         "scrape_url",
         AsyncMock(return_value=("Recoverable source facts and figures. " * 30, "Report", None)),
     )
@@ -135,7 +129,7 @@ async def test_scrape_tool_unexpected_internal_error_returns_failure_and_unblock
     def _boom(*args, **kwargs):
         raise RuntimeError("builder exploded")
 
-    monkeypatch.setattr(tools, "_build_extractor_agent", _boom)
+    monkeypatch.setattr(_tools_scraper, "build_extractor_agent", _boom)
 
     scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
     url = "https://example.org/report"
@@ -143,17 +137,12 @@ async def test_scrape_tool_unexpected_internal_error_returns_failure_and_unblock
     result1, result2 = await asyncio.gather(scrape_tool(url), scrape_tool(url))
 
     assert "internal error: RuntimeError: builder exploded" in result1
-    assert (
-        "internal error: RuntimeError: builder exploded" in result2
-        or "Already attempted this URL" in result2
-    )
+    assert "internal error: RuntimeError: builder exploded" in result2 or "Already attempted this URL" in result2
     assert "Already attempted this URL" in await scrape_tool(url)
 
 
 @pytest.mark.asyncio
 async def test_scrape_tool_does_not_retry_bot_detected(monkeypatch):
-    from web_scout import tools
-
     tracker = ResearchTracker()
     url = "https://example.org/protected"
     tracker.record_bot_detection(url, "bot_detected: challenge page")
@@ -164,12 +153,8 @@ async def test_scrape_tool_does_not_retry_bot_detected(monkeypatch):
     async def _no_cleanup():
         pass
 
-    monkeypatch.setattr(
-        tools,
-        "_build_extractor_agent",
-        lambda *args, **kwargs: (object(), _no_cleanup),
-    )
-    monkeypatch.setattr(tools.Runner, "run", _unexpected_run)
+    monkeypatch.setattr(_tools_scraper, "build_extractor_agent", lambda *args, **kwargs: (object(), _no_cleanup))
+    monkeypatch.setattr(Runner, "run", _unexpected_run)
 
     scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
     result = await scrape_tool(url)
@@ -180,29 +165,23 @@ async def test_scrape_tool_does_not_retry_bot_detected(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_session_source_cache_reuses_successful_fetches(monkeypatch):
-    from web_scout import scraping, tools
-
     call_count = 0
 
     async def _fake_fetch(url, **kwargs):
         nonlocal call_count
         call_count += 1
         return (
-            scraping.SourceArtifact(
-                kind="text",
-                title="Report",
-                text_content="Broad source content",
-            ),
+            SourceArtifact(kind="text", title="Report", text_content="Broad source content"),
             None,
-            scraping.ScrapeStrategy.HTML_FAST,
+            ScrapeStrategy.HTML_FAST,
         )
 
-    monkeypatch.setattr(tools, "_SESSION_SOURCE_CACHE", {})
-    monkeypatch.setattr(tools, "_SESSION_SOURCE_IN_FLIGHT", {})
-    monkeypatch.setattr(scraping, "fetch_query_agnostic_source_artifact", _fake_fetch)
+    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_CACHE", {})
+    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_IN_FLIGHT", {})
+    monkeypatch.setattr("web_scout.scraping.executor.fetch_query_agnostic_source_artifact", _fake_fetch)
 
-    key_strategy = scraping.ScrapeStrategy.HTML_FAST
-    first, first_error = await _get_or_fetch_session_source_artifact(
+    key_strategy = ScrapeStrategy.HTML_FAST
+    first, first_error = await get_or_fetch_session_source_artifact(
         url="https://example.org/report",
         strategy=key_strategy,
         wait_for=None,
@@ -210,7 +189,7 @@ async def test_session_source_cache_reuses_successful_fetches(monkeypatch):
         allowed_domains=None,
         max_pdf_pages=50,
     )
-    second, second_error = await _get_or_fetch_session_source_artifact(
+    second, second_error = await get_or_fetch_session_source_artifact(
         url="https://example.org/report",
         strategy=key_strategy,
         wait_for=None,
@@ -233,8 +212,6 @@ async def test_session_source_cache_reuses_successful_fetches(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_session_source_cache_dedupes_concurrent_misses(monkeypatch):
-    from web_scout import scraping, tools
-
     call_count = 0
 
     async def _fake_fetch(url, **kwargs):
@@ -242,31 +219,27 @@ async def test_session_source_cache_dedupes_concurrent_misses(monkeypatch):
         call_count += 1
         await asyncio.sleep(0.05)
         return (
-            scraping.SourceArtifact(
-                kind="text",
-                title="Report",
-                text_content="Broad source content",
-            ),
+            SourceArtifact(kind="text", title="Report", text_content="Broad source content"),
             None,
-            scraping.ScrapeStrategy.HTML_FAST,
+            ScrapeStrategy.HTML_FAST,
         )
 
-    monkeypatch.setattr(tools, "_SESSION_SOURCE_CACHE", {})
-    monkeypatch.setattr(tools, "_SESSION_SOURCE_IN_FLIGHT", {})
-    monkeypatch.setattr(scraping, "fetch_query_agnostic_source_artifact", _fake_fetch)
+    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_CACHE", {})
+    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_IN_FLIGHT", {})
+    monkeypatch.setattr("web_scout.scraping.executor.fetch_query_agnostic_source_artifact", _fake_fetch)
 
     first, second = await asyncio.gather(
-        _get_or_fetch_session_source_artifact(
+        get_or_fetch_session_source_artifact(
             url="https://example.org/report",
-            strategy=scraping.ScrapeStrategy.HTML_FAST,
+            strategy=ScrapeStrategy.HTML_FAST,
             wait_for=None,
             vision_model=None,
             allowed_domains=None,
             max_pdf_pages=50,
         ),
-        _get_or_fetch_session_source_artifact(
+        get_or_fetch_session_source_artifact(
             url="https://example.org/report",
-            strategy=scraping.ScrapeStrategy.HTML_FAST,
+            strategy=ScrapeStrategy.HTML_FAST,
             wait_for=None,
             vision_model=None,
             allowed_domains=None,
@@ -281,30 +254,28 @@ async def test_session_source_cache_dedupes_concurrent_misses(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_session_source_cache_does_not_store_failures(monkeypatch):
-    from web_scout import scraping, tools
-
     call_count = 0
 
     async def _fake_fetch(url, **kwargs):
         nonlocal call_count
         call_count += 1
-        return None, "HTTP 503", scraping.ScrapeStrategy.HTML_FAST
+        return None, "HTTP 503", ScrapeStrategy.HTML_FAST
 
-    monkeypatch.setattr(tools, "_SESSION_SOURCE_CACHE", {})
-    monkeypatch.setattr(tools, "_SESSION_SOURCE_IN_FLIGHT", {})
-    monkeypatch.setattr(scraping, "fetch_query_agnostic_source_artifact", _fake_fetch)
+    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_CACHE", {})
+    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_IN_FLIGHT", {})
+    monkeypatch.setattr("web_scout.scraping.executor.fetch_query_agnostic_source_artifact", _fake_fetch)
 
-    first, first_error = await _get_or_fetch_session_source_artifact(
+    first, first_error = await get_or_fetch_session_source_artifact(
         url="https://example.org/report",
-        strategy=scraping.ScrapeStrategy.HTML_FAST,
+        strategy=ScrapeStrategy.HTML_FAST,
         wait_for=None,
         vision_model=None,
         allowed_domains=None,
         max_pdf_pages=50,
     )
-    second, second_error = await _get_or_fetch_session_source_artifact(
+    second, second_error = await get_or_fetch_session_source_artifact(
         url="https://example.org/report",
-        strategy=scraping.ScrapeStrategy.HTML_FAST,
+        strategy=ScrapeStrategy.HTML_FAST,
         wait_for=None,
         vision_model=None,
         allowed_domains=None,
@@ -318,25 +289,23 @@ async def test_session_source_cache_does_not_store_failures(monkeypatch):
 
 
 def test_source_cache_key_distinguishes_pdf_page_limits():
-    from web_scout import scraping
-
-    key_50 = _make_source_cache_key(
+    key_50 = make_source_cache_key(
         url="https://example.org/report.pdf",
-        strategy=scraping.ScrapeStrategy.DOCUMENT,
+        strategy=ScrapeStrategy.DOCUMENT,
         wait_for=None,
         max_pdf_pages=50,
         cache_pdf_pages=True,
     )
-    key_10 = _make_source_cache_key(
+    key_10 = make_source_cache_key(
         url="https://example.org/report.pdf",
-        strategy=scraping.ScrapeStrategy.DOCUMENT,
+        strategy=ScrapeStrategy.DOCUMENT,
         wait_for=None,
         max_pdf_pages=10,
         cache_pdf_pages=True,
     )
-    html_key = _make_source_cache_key(
+    html_key = make_source_cache_key(
         url="https://example.org/report",
-        strategy=scraping.ScrapeStrategy.HTML_FAST,
+        strategy=ScrapeStrategy.HTML_FAST,
         wait_for="#chart",
         max_pdf_pages=50,
     )
@@ -351,22 +320,19 @@ def test_source_cache_key_distinguishes_pdf_page_limits():
 
 
 def test_classify_failure_action_blocked_domain():
-    assert _classify_failure_action("Skipped: blocked domain") == "blocked_by_policy"
+    assert classify_failure_action("Skipped: blocked domain") == "blocked_by_policy"
 
 
 def test_classify_failure_action_http_error():
-    assert _classify_failure_action("Skipped: HTTP 503") == "source_http_error"
+    assert classify_failure_action("Skipped: HTTP 503") == "source_http_error"
 
 
 def test_classify_failure_action_unsupported_legacy_document():
-    assert (
-        _classify_failure_action("Skipped: unsupported legacy Office document format (.doc)")
-        == "scrape_failed"
-    )
+    assert classify_failure_action("Skipped: unsupported legacy Office document format (.doc)") == "scrape_failed"
 
 
 def test_classify_failure_action_irrelevant_page():
-    assert _classify_failure_action("[No relevant content found for this query]") == "scraped_irrelevant"
+    assert classify_failure_action("[No relevant content found for this query]") == "scraped_irrelevant"
 
 
 def test_research_tracker_builds_new_failure_groups():
@@ -404,7 +370,7 @@ def test_research_tracker_records_direct_queries():
 
 
 def test_render_successful_extractor_output_keeps_existing_string_contract():
-    rendered = _render_successful_extractor_output(
+    rendered = render_successful_extractor_output(
         url="https://example.org/report",
         title="Example Report",
         content="Useful extracted content",
@@ -423,11 +389,11 @@ def test_render_successful_extractor_output_keeps_existing_string_contract():
         "⚠ REMINDER: You MUST successfully scrape AT LEAST 2 high-quality sources "
         "before synthesising and finishing. You currently have 1 successful scrape(s)."
     )
-    assert _is_rendered_list_page(rendered) is True
+    assert is_rendered_list_page(rendered) is True
 
 
 def test_build_success_outcome_preserves_typed_and_rendered_views():
-    outcome = _build_success_outcome(
+    outcome = build_success_outcome(
         url="https://example.org/report",
         title="Example Report",
         content="Useful extracted content",
@@ -439,7 +405,7 @@ def test_build_success_outcome_preserves_typed_and_rendered_views():
     assert outcome.status == "success"
     assert outcome.page_type == "list"
     assert outcome.relevant_links == ["https://example.org/detail"]
-    assert outcome.rendered_text == _render_successful_extractor_output(
+    assert outcome.rendered_text == render_successful_extractor_output(
         url="https://example.org/report",
         title="Example Report",
         content="Useful extracted content",
@@ -459,13 +425,13 @@ def test_build_success_outcome_preserves_typed_and_rendered_views():
     ],
 )
 def test_render_failed_extractor_output_keeps_existing_string_contract(content, expected_action):
-    rendered = _render_failed_extractor_output(
+    rendered = render_failed_extractor_output(
         url="https://example.org/report",
         content=content,
         count_scraped=1,
     )
 
-    assert _classify_failure_action(content) == expected_action
+    assert classify_failure_action(content) == expected_action
     assert rendered == (
         "No relevant content found at https://example.org/report: "
         f"{content}\n\n"
@@ -476,7 +442,7 @@ def test_render_failed_extractor_output_keeps_existing_string_contract(content, 
 
 
 def test_build_failure_outcome_preserves_typed_and_rendered_views():
-    outcome = _build_failure_outcome(
+    outcome = build_failure_outcome(
         url="https://example.org/report",
         content="Skipped: HTTP 503",
         count_scraped=1,
@@ -485,7 +451,7 @@ def test_build_failure_outcome_preserves_typed_and_rendered_views():
 
     assert outcome.status == "failure"
     assert outcome.failure_kind == "source_http_error"
-    assert outcome.rendered_text == _render_failed_extractor_output(
+    assert outcome.rendered_text == render_failed_extractor_output(
         url="https://example.org/report",
         content="Skipped: HTTP 503",
         count_scraped=1,
@@ -493,7 +459,7 @@ def test_build_failure_outcome_preserves_typed_and_rendered_views():
 
 
 def test_resolve_scrape_outcome_reconstructs_typed_outcome_from_legacy_string():
-    rendered = _render_successful_extractor_output(
+    rendered = render_successful_extractor_output(
         url="https://example.org/report",
         title="Example Report",
         content="Useful extracted content",
@@ -502,7 +468,7 @@ def test_resolve_scrape_outcome_reconstructs_typed_outcome_from_legacy_string():
         count_scraped=None,
     )
 
-    outcome = _resolve_scrape_outcome(None, "https://example.org/report", rendered)
+    outcome = resolve_scrape_outcome(None, "https://example.org/report", rendered)
 
     assert outcome.status == "success"
     assert outcome.page_type == "list"
@@ -514,7 +480,7 @@ def test_resolve_scrape_outcome_reconstructs_typed_outcome_from_legacy_string():
 def test_extract_rendered_followup_links_strips_trailing_colon_from_bare_urls():
     rendered = "See https://example.org/report: for the original source."
 
-    links = _extract_rendered_followup_links(rendered)
+    links = extract_rendered_followup_links(rendered)
 
     assert links == ["https://example.org/report"]
 
@@ -532,8 +498,6 @@ def test_low_level_heuristics_are_frozen_in_private_config_module():
 
 @pytest.mark.asyncio
 async def test_scrape_tool_skips_new_urls_from_bot_blocked_domain(monkeypatch):
-    from web_scout import tools
-
     tracker = ResearchTracker()
     tracker.record_bot_detection("https://example.org/protected-a", "bot_detected: challenge page")
     tracker.record_bot_detection("https://example.org/protected-b", "bot_detected: challenge page")
@@ -544,12 +508,8 @@ async def test_scrape_tool_skips_new_urls_from_bot_blocked_domain(monkeypatch):
     async def _no_cleanup():
         pass
 
-    monkeypatch.setattr(
-        tools,
-        "_build_extractor_agent",
-        lambda *args, **kwargs: (object(), _no_cleanup),
-    )
-    monkeypatch.setattr(tools.Runner, "run", _unexpected_run)
+    monkeypatch.setattr(_tools_scraper, "build_extractor_agent", lambda *args, **kwargs: (object(), _no_cleanup))
+    monkeypatch.setattr(Runner, "run", _unexpected_run)
 
     scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
     result = await scrape_tool("https://example.org/new-page")

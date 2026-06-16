@@ -1,22 +1,24 @@
 """Unit tests for hub-page detection helpers."""
+
 from web_scout.agent import _find_next_page_url
-from web_scout.tools import _ExtractorOutput
+from web_scout.tools.types import ExtractorOutput
 
 
 def test_page_type_default_is_content():
-    out = _ExtractorOutput(relevant_content="Some article text.")
+    out = ExtractorOutput(relevant_content="Some article text.")
     assert out.page_type == "content"
 
 
 def test_page_type_list_accepted():
-    out = _ExtractorOutput(relevant_content="List page.", page_type="list")
+    out = ExtractorOutput(relevant_content="List page.", page_type="list")
     assert out.page_type == "list"
 
 
 def test_relevant_links_accepts_up_to_15():
     links = [f"https://example.com/{i}" for i in range(15)]
-    out = _ExtractorOutput(relevant_content="x", relevant_links=links)
+    out = ExtractorOutput(relevant_content="x", relevant_links=links)
     assert len(out.relevant_links) == 15
+
 
 def test_find_next_page_url_next_token():
     content = "Some content [Next](https://wocat.net/page/2) more content"

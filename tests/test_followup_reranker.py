@@ -47,7 +47,9 @@ async def test_rerank_followup_urls_uses_model_selection(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_rerank_followup_urls_falls_back_when_model_returns_invalid_urls(monkeypatch):
+async def test_rerank_followup_urls_falls_back_when_model_returns_invalid_urls(
+    monkeypatch,
+):
     from web_scout import agent
 
     async def _fake_run(selector, prompt, max_turns=1):
