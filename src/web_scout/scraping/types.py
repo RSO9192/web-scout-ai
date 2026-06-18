@@ -1,17 +1,7 @@
 from dataclasses import dataclass
-from enum import Enum
-from typing import Literal
+from typing import Any, Literal
 
-
-class ScrapeStrategy(str, Enum):
-    """Normalized scrape strategies chosen during URL routing."""
-
-    SKIP = "SKIP"
-    HTML_FAST = "SCRAPE_HTML"
-    HTML_BROWSER = "SCRAPE_JS"
-    DOCUMENT = "SCRAPE_DOC"
-    JSON = "SCRAPE_JSON"
-    IMAGE = "SCRAPE_IMAGE"
+from pydantic import BaseModel, ConfigDict
 
 
 @dataclass(frozen=True)
@@ -25,18 +15,32 @@ class SourceArtifact:
     mime_type: str = ""
 
 
-@dataclass(frozen=True)
-class ScrapePlan:
-    """Routing plan produced by URL validation before executing a scraper."""
+class FetchResult(BaseModel):
+    """Raw result from the Fetcher — a single network round-trip."""
 
-    strategy: ScrapeStrategy
-    reason: str
-    content_type: str = ""
-    content_disposition: str = ""
-    needs_browser: bool = False
-    """True when the browser had to be used during planning (e.g. CloudFlare bypass).
-    The executor should skip the fast HTTP path and go straight to the browser."""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    @property
-    def likely_bot_detected(self) -> bool:
-        return self.needs_browser or (self.strategy == ScrapeStrategy.HTML_BROWSER and "GET timed out" in self.reason)
+    url: str
+    status: int
+    content_type: str           # normalised (no params, lowercase)
+    content_disposition: str
+    html_content: str | None    # None for binary responses (PDFs, images)
+    body: bytes | None          # None for text responses; raw bytes for PDFs, images
+    headers: dict[str, str]
+    used_browser: bool
+    page: Any = None            # Scrapling page object (for CSS selector access in Parser)
+    error: str | None = None    # set when fetch failed or URL was blocked before network call
+
+
+class ParseResult(BaseModel):
+    """Result of parsing a FetchResult into structured text content."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    url: str
+    title: str
+    text_content: str
+    links: list[str]            # absolute URLs extracted from the page
+    artifact: SourceArtifact    # full artifact for vision/binary use downstream
+    raw_html: str | None = None # original HTML from Fetcher (for Crawler; avoids re-fetch)
+    error: str | None = None

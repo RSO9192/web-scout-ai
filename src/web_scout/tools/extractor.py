@@ -18,6 +18,7 @@ from agents import Agent, ModelSettings, Runner, function_tool
 from playwright.async_api import async_playwright
 
 from web_scout.config import EXTRACTOR_HEURISTICS
+
 from .page_analysis import prefetched_allows_interaction, render_cached_document_text
 from .session_cache import get_or_fetch_session_source_artifact
 from .types import ExtractorOutput
@@ -206,10 +207,13 @@ def build_extractor_agent(
     essential for metadata/catalogue pages (e.g. FAOLEX law records) where
     the page itself only contains a summary and the full text is in a document.
     """
-    from web_scout.scraping import executor as scraping_executor
-    from web_scout.scraping import plan as scraping_plan
-    from web_scout.scraping.page_classifier import classify_prefetched_page_shape, looks_like_pdf_resource
-    from web_scout.scraping.types import ScrapeStrategy, SourceArtifact
+    from web_scout.scraping import fetch_and_parse_url
+    from web_scout.scraping._parser import materialize_parse_result
+    from web_scout.scraping.page_classifier import (
+        classify_prefetched_page_shape,
+        looks_like_document_resource,
+        looks_like_pdf_resource,
+    )
     from web_scout.scraping.utils import is_blocked_domain
 
     legacy_direct_agent = not pre_fetched_content
@@ -253,33 +257,41 @@ def build_extractor_agent(
                 "attempted for this page. Return the structured extraction now.]"
             )
         linked_document_called = True
-        plan = await scraping_plan.build_scrape_plan(document_url, allowed_domains=allowed_domains)
-        if plan.strategy != ScrapeStrategy.DOCUMENT:
+
+        if not looks_like_document_resource(document_url):
             return (
                 "[scrape_linked_document rejected: URL does not look like a primary "
-                f"document ({plan.reason}): {document_url}]"
+                f"document: {document_url}]"
             )
 
         if use_session_cache:
             cached_artifact, cache_error = await get_or_fetch_session_source_artifact(
                 url=document_url,
-                strategy=plan.strategy,
                 wait_for=None,
                 vision_model=vision_model,
                 allowed_domains=allowed_domains,
                 max_pdf_pages=max_pdf_pages,
-                cache_pdf_pages=looks_like_pdf_resource(document_url, plan.content_type, plan.content_disposition),
+                cache_pdf_pages=looks_like_pdf_resource(document_url),
             )
             if cache_error or cached_artifact is None:
                 return f"[Document scrape failed: {cache_error}]"
-            content, title, error = await scraping_executor.materialize_source_artifact(
-                SourceArtifact(
-                    kind=cached_artifact.artifact_kind,
-                    title=cached_artifact.title,
-                    text_content=cached_artifact.text_content,
-                    binary_bytes=cached_artifact.binary_bytes,
-                    mime_type=cached_artifact.mime_type,
-                ),
+            from web_scout.scraping.types import ParseResult, SourceArtifact
+            artifact = SourceArtifact(
+                kind=cached_artifact.artifact_kind,
+                title=cached_artifact.title,
+                text_content=cached_artifact.text_content,
+                binary_bytes=cached_artifact.binary_bytes,
+                mime_type=cached_artifact.mime_type,
+            )
+            tmp_result = ParseResult(
+                url=document_url,
+                title=cached_artifact.title,
+                text_content=cached_artifact.text_content,
+                links=[],
+                artifact=artifact,
+            )
+            content, error = await materialize_parse_result(
+                tmp_result,
                 query=query,
                 vision_model=vision_model,
                 max_content_chars=max_content_chars,
@@ -288,7 +300,7 @@ def build_extractor_agent(
                 return f"[Document scrape failed: {error}]"
             if not content.strip():
                 return "[Document returned empty content]"
-            return render_cached_document_text(document_url, title, content)
+            return render_cached_document_text(document_url, cached_artifact.title, content)
 
         from .tracker import ResearchTracker
 
@@ -306,12 +318,7 @@ def build_extractor_agent(
             doc_in_flight[norm] = future
 
         try:
-            result = await _scrape_linked_document_uncached(
-                document_url,
-                norm,
-                known_content_type=plan.content_type,
-                known_content_disposition=plan.content_disposition,
-            )
+            result = await _scrape_linked_document_uncached(document_url, norm)
         except Exception as exc:
             if future is not None and not future.done():
                 future.set_exception(exc)
@@ -325,20 +332,21 @@ def build_extractor_agent(
             if doc_in_flight is not None:
                 doc_in_flight.pop(norm, None)
 
-    async def _scrape_linked_document_uncached(
-        document_url: str,
-        norm: str,
-        *,
-        known_content_type: str,
-        known_content_disposition: str,
-    ) -> str:
-        content, title, error = await scraping_executor.scrape_document(
+    async def _scrape_linked_document_uncached(document_url: str, norm: str) -> str:
+        _, parse_result = await fetch_and_parse_url(
             document_url,
-            query=query,
+            allowed_domains=allowed_domains,
             vision_model=vision_model,
             max_pdf_pages=max_pdf_pages,
-            known_content_type=known_content_type,
-            known_content_disposition=known_content_disposition,
+        )
+        title = parse_result.title
+        if parse_result.error:
+            return f"[Document scrape failed: {parse_result.error}]"
+        content, error = await materialize_parse_result(
+            parse_result,
+            query=query,
+            vision_model=vision_model,
+            max_content_chars=max_content_chars,
         )
         if error:
             return f"[Document scrape failed: {error}]"

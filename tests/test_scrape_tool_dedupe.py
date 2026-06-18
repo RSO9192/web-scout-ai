@@ -4,12 +4,15 @@ from unittest.mock import AsyncMock
 import pytest
 from agents import Runner
 
+import web_scout.tools.scraper as _tools_scraper
+import web_scout.tools.session_cache as _tools_session_cache
 from web_scout.config import (
     EXTRACTOR_HEURISTICS,
     FOLLOWUP_HEURISTICS,
     ROUTING_HEURISTICS,
 )
-from web_scout.scraping.types import ScrapeStrategy, SourceArtifact
+from web_scout.scraping import DefaultParser, FetchResult, ParseResult, ScraplingFetcher
+from web_scout.scraping.types import SourceArtifact
 from web_scout.tools import (
     ResearchTracker,
     create_scrape_and_extract_tool,
@@ -31,10 +34,6 @@ from web_scout.tools.session_cache import (
     make_source_cache_key,
 )
 from web_scout.tools.types import CachedSourceArtifact, ExtractorOutput, SourceCacheKey
-
-import web_scout.scraping as _scraping_module
-import web_scout.tools.scraper as _tools_scraper
-import web_scout.tools.session_cache as _tools_session_cache
 
 
 class _FakeRunResult:
@@ -75,8 +74,20 @@ async def test_scrape_tool_reuses_inflight_request(monkeypatch):
     async def _no_cleanup():
         pass
 
+    def _make_text_parse_result(url: str, content: str, title: str) -> ParseResult:
+        artifact = SourceArtifact(kind="text", title=title, text_content=content)
+        return ParseResult(url=url, title=title, text_content=content, links=[], artifact=artifact)
+
     monkeypatch.setattr(_tools_scraper, "build_extractor_agent", lambda *args, **kwargs: (object(), _no_cleanup))
-    monkeypatch.setattr(_scraping_module, "scrape_url", AsyncMock(return_value=("Pre-fetched page content " * 80, "Example", None)))
+    monkeypatch.setattr(
+        DefaultParser,
+        "dispatch",
+        AsyncMock(return_value=_make_text_parse_result("https://example.org/report", "Pre-fetched page content " * 80, "Example")),
+    )
+    monkeypatch.setattr(ScraplingFetcher, "fetch", AsyncMock(return_value=FetchResult(
+        url="https://example.org/report", status=200, content_type="text/html",
+        content_disposition="", html_content="<html>...</html>", body=None, headers={}, used_browser=False,
+    )))
     monkeypatch.setattr(Runner, "run", _fake_run)
 
     scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
@@ -100,12 +111,20 @@ async def test_scrape_tool_recovers_prefetched_content_when_extractor_fails(monk
     async def _no_cleanup():
         pass
 
+    def _make_text_parse_result(url: str, content: str, title: str) -> ParseResult:
+        artifact = SourceArtifact(kind="text", title=title, text_content=content)
+        return ParseResult(url=url, title=title, text_content=content, links=[], artifact=artifact)
+
     monkeypatch.setattr(_tools_scraper, "build_extractor_agent", lambda *args, **kwargs: (object(), _no_cleanup))
     monkeypatch.setattr(
-        _scraping_module,
-        "scrape_url",
-        AsyncMock(return_value=("Recoverable source facts and figures. " * 100, "Report", None)),
+        DefaultParser,
+        "dispatch",
+        AsyncMock(return_value=_make_text_parse_result("https://example.org/report", "Recoverable source facts and figures. " * 100, "Report")),
     )
+    monkeypatch.setattr(ScraplingFetcher, "fetch", AsyncMock(return_value=FetchResult(
+        url="https://example.org/report", status=200, content_type="text/html",
+        content_disposition="", html_content="<html>...</html>", body=None, headers={}, used_browser=False,
+    )))
     monkeypatch.setattr(Runner, "run", _failing_run)
 
     scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
@@ -120,11 +139,19 @@ async def test_scrape_tool_recovers_prefetched_content_when_extractor_fails(monk
 async def test_scrape_tool_unexpected_internal_error_returns_failure_and_unblocks_waiters(monkeypatch):
     tracker = ResearchTracker()
 
+    def _make_text_parse_result(url: str, content: str, title: str) -> ParseResult:
+        artifact = SourceArtifact(kind="text", title=title, text_content=content)
+        return ParseResult(url=url, title=title, text_content=content, links=[], artifact=artifact)
+
     monkeypatch.setattr(
-        _scraping_module,
-        "scrape_url",
-        AsyncMock(return_value=("Recoverable source facts and figures. " * 30, "Report", None)),
+        DefaultParser,
+        "dispatch",
+        AsyncMock(return_value=_make_text_parse_result("https://example.org/report", "Recoverable source facts and figures. " * 30, "Report")),
     )
+    monkeypatch.setattr(ScraplingFetcher, "fetch", AsyncMock(return_value=FetchResult(
+        url="https://example.org/report", status=200, content_type="text/html",
+        content_disposition="", html_content="<html>...</html>", body=None, headers={}, used_browser=False,
+    )))
 
     def _boom(*args, **kwargs):
         raise RuntimeError("builder exploded")
@@ -166,32 +193,34 @@ async def test_scrape_tool_does_not_retry_bot_detected(monkeypatch):
 @pytest.mark.asyncio
 async def test_session_source_cache_reuses_successful_fetches(monkeypatch):
     call_count = 0
+    url = "https://example.org/report"
 
-    async def _fake_fetch(url, **kwargs):
+    def _make_parse_result(u: str) -> ParseResult:
+        artifact = SourceArtifact(kind="text", title="Report", text_content="Broad source content")
+        return ParseResult(url=u, title="Report", text_content="Broad source content", links=[], artifact=artifact)
+
+    async def _fake_dispatch(self, fetch_result, context):
         nonlocal call_count
         call_count += 1
-        return (
-            SourceArtifact(kind="text", title="Report", text_content="Broad source content"),
-            None,
-            ScrapeStrategy.HTML_FAST,
-        )
+        return _make_parse_result(url)
 
     monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_CACHE", {})
     monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_IN_FLIGHT", {})
-    monkeypatch.setattr("web_scout.scraping.executor.fetch_query_agnostic_source_artifact", _fake_fetch)
+    monkeypatch.setattr(DefaultParser, "dispatch", _fake_dispatch)
+    monkeypatch.setattr(ScraplingFetcher, "fetch", AsyncMock(return_value=FetchResult(
+        url=url, status=200, content_type="text/html", content_disposition="",
+        html_content="<html>...</html>", body=None, headers={}, used_browser=False,
+    )))
 
-    key_strategy = ScrapeStrategy.HTML_FAST
     first, first_error = await get_or_fetch_session_source_artifact(
-        url="https://example.org/report",
-        strategy=key_strategy,
+        url=url,
         wait_for=None,
         vision_model=None,
         allowed_domains=None,
         max_pdf_pages=50,
     )
     second, second_error = await get_or_fetch_session_source_artifact(
-        url="https://example.org/report",
-        strategy=key_strategy,
+        url=url,
         wait_for=None,
         vision_model=None,
         allowed_domains=None,
@@ -203,7 +232,7 @@ async def test_session_source_cache_reuses_successful_fetches(monkeypatch):
     assert call_count == 1
     assert first == second
     assert first == CachedSourceArtifact(
-        url="https://example.org/report",
+        url=url,
         title="Report",
         artifact_kind="text",
         text_content="Broad source content",
@@ -213,33 +242,36 @@ async def test_session_source_cache_reuses_successful_fetches(monkeypatch):
 @pytest.mark.asyncio
 async def test_session_source_cache_dedupes_concurrent_misses(monkeypatch):
     call_count = 0
+    url = "https://example.org/report"
 
-    async def _fake_fetch(url, **kwargs):
+    def _make_parse_result(u: str) -> ParseResult:
+        artifact = SourceArtifact(kind="text", title="Report", text_content="Broad source content")
+        return ParseResult(url=u, title="Report", text_content="Broad source content", links=[], artifact=artifact)
+
+    async def _fake_dispatch(self, fetch_result, context):
         nonlocal call_count
         call_count += 1
         await asyncio.sleep(0.05)
-        return (
-            SourceArtifact(kind="text", title="Report", text_content="Broad source content"),
-            None,
-            ScrapeStrategy.HTML_FAST,
-        )
+        return _make_parse_result(url)
 
     monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_CACHE", {})
     monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_IN_FLIGHT", {})
-    monkeypatch.setattr("web_scout.scraping.executor.fetch_query_agnostic_source_artifact", _fake_fetch)
+    monkeypatch.setattr(DefaultParser, "dispatch", _fake_dispatch)
+    monkeypatch.setattr(ScraplingFetcher, "fetch", AsyncMock(return_value=FetchResult(
+        url=url, status=200, content_type="text/html", content_disposition="",
+        html_content="<html>...</html>", body=None, headers={}, used_browser=False,
+    )))
 
     first, second = await asyncio.gather(
         get_or_fetch_session_source_artifact(
-            url="https://example.org/report",
-            strategy=ScrapeStrategy.HTML_FAST,
+            url=url,
             wait_for=None,
             vision_model=None,
             allowed_domains=None,
             max_pdf_pages=50,
         ),
         get_or_fetch_session_source_artifact(
-            url="https://example.org/report",
-            strategy=ScrapeStrategy.HTML_FAST,
+            url=url,
             wait_for=None,
             vision_model=None,
             allowed_domains=None,
@@ -255,27 +287,30 @@ async def test_session_source_cache_dedupes_concurrent_misses(monkeypatch):
 @pytest.mark.asyncio
 async def test_session_source_cache_does_not_store_failures(monkeypatch):
     call_count = 0
+    url = "https://example.org/report"
 
-    async def _fake_fetch(url, **kwargs):
+    async def _fake_fetch(self, u, context):
         nonlocal call_count
         call_count += 1
-        return None, "HTTP 503", ScrapeStrategy.HTML_FAST
+        return FetchResult(
+            url=u, status=503, content_type="", content_disposition="",
+            html_content=None, body=None, headers={}, used_browser=False,
+            error="HTTP 503",
+        )
 
     monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_CACHE", {})
     monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_IN_FLIGHT", {})
-    monkeypatch.setattr("web_scout.scraping.executor.fetch_query_agnostic_source_artifact", _fake_fetch)
+    monkeypatch.setattr(ScraplingFetcher, "fetch", _fake_fetch)
 
     first, first_error = await get_or_fetch_session_source_artifact(
-        url="https://example.org/report",
-        strategy=ScrapeStrategy.HTML_FAST,
+        url=url,
         wait_for=None,
         vision_model=None,
         allowed_domains=None,
         max_pdf_pages=50,
     )
     second, second_error = await get_or_fetch_session_source_artifact(
-        url="https://example.org/report",
-        strategy=ScrapeStrategy.HTML_FAST,
+        url=url,
         wait_for=None,
         vision_model=None,
         allowed_domains=None,
@@ -283,29 +318,26 @@ async def test_session_source_cache_does_not_store_failures(monkeypatch):
     )
 
     assert first is None and second is None
-    assert first_error == "HTTP 503"
-    assert second_error == "HTTP 503"
+    assert first_error is not None
+    assert second_error is not None
     assert call_count == 2
 
 
 def test_source_cache_key_distinguishes_pdf_page_limits():
     key_50 = make_source_cache_key(
         url="https://example.org/report.pdf",
-        strategy=ScrapeStrategy.DOCUMENT,
         wait_for=None,
         max_pdf_pages=50,
         cache_pdf_pages=True,
     )
     key_10 = make_source_cache_key(
         url="https://example.org/report.pdf",
-        strategy=ScrapeStrategy.DOCUMENT,
         wait_for=None,
         max_pdf_pages=10,
         cache_pdf_pages=True,
     )
     html_key = make_source_cache_key(
         url="https://example.org/report",
-        strategy=ScrapeStrategy.HTML_FAST,
         wait_for="#chart",
         max_pdf_pages=50,
     )

@@ -38,9 +38,8 @@ from ._prompts import (
     SYNTHESISER_INSTRUCTIONS,
 )
 from .models import WebResearchResult, WebResearchResultRaw
-from .scraping.plan import build_scrape_plan
-from .scraping.types import ScrapeStrategy
-from .scraping.utils import is_blocked_domain
+from .scraping.page_classifier import looks_like_document_resource
+from .scraping.utils import is_blocked_domain, looks_like_document_link
 from .tools import (
     ResearchTracker,
     extract_explicit_rendered_followup_links,
@@ -738,8 +737,7 @@ async def _run_direct_url_mode(
             await _gather_scrapes([scrape_tool(link) for link in chosen])
         return
 
-    direct_plan = await build_scrape_plan(direct_url, allowed_domains=allowed_domains)
-    if direct_plan.strategy == ScrapeStrategy.DOCUMENT:
+    if looks_like_document_resource(direct_url) or looks_like_document_link(direct_url):
         links_to_deepen: list[str] = []
     else:
         links_to_deepen = _outcome_followup_candidates(outcome, parent_url=direct_url)

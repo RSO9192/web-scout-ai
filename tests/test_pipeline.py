@@ -5,11 +5,9 @@ synthesis judge retry, and _rerank_followup_urls edge cases.
 All LLM and network calls are replaced with synchronous fakes via monkeypatch.
 """
 
-from unittest.mock import AsyncMock
 
 import pytest
 
-from web_scout import _pipeline_flow as _pipeline_flow_module
 from web_scout import agent as _agent_module
 from web_scout.agent import (
     CoverageEvaluation,
@@ -23,7 +21,6 @@ from web_scout.agent import (
     run_web_research,
 )
 from web_scout.models import UrlEntry, WebResearchResultRaw
-from web_scout.scraping import ScrapeStrategy
 from web_scout.tools import ResearchTracker
 
 # ---------------------------------------------------------------------------
@@ -157,11 +154,6 @@ async def test_direct_url_mode_scrapes_url_and_synthesizes(monkeypatch):
         monkeypatch,
         return_value="Fish production report content " * 20,
     )
-    monkeypatch.setattr(
-        _pipeline_flow_module,
-        "build_scrape_plan",
-        AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.DOCUMENT})()),
-    )
     _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Fish rose 5% in 2023."))
 
     result = await run_web_research(
@@ -181,11 +173,6 @@ async def test_direct_url_mode_document_url_skips_follow_up_scraping(monkeypatch
         monkeypatch,
         # Even if content contains links, they must be ignored for document URLs
         return_value=("Report content. [Related report](https://fao.org/fishery/other-report.pdf) ") * 20,
-    )
-    monkeypatch.setattr(
-        _pipeline_flow_module,
-        "build_scrape_plan",
-        AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.DOCUMENT})()),
     )
     _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Done."))
 
@@ -208,11 +195,6 @@ async def test_direct_url_mode_extensionless_document_url_skips_follow_up_scrapi
         monkeypatch,
         return_value=("Report content. [Related report](https://fao.org/fishery/other-report.pdf) ") * 20,
     )
-    monkeypatch.setattr(
-        _pipeline_flow_module,
-        "build_scrape_plan",
-        AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.DOCUMENT})()),
-    )
     _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Done."))
 
     await run_web_research(
@@ -233,11 +215,6 @@ async def test_direct_url_mode_failed_page_does_not_mine_self_link_from_failure_
     scrape_calls = _patch_scrape_tool(
         monkeypatch,
         return_value=(f"No relevant content found at {direct_url}: Skipped: HTTP 403 on GET"),
-    )
-    monkeypatch.setattr(
-        _pipeline_flow_module,
-        "build_scrape_plan",
-        AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.HTML_FAST})()),
     )
     _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Done."))
 
@@ -274,11 +251,6 @@ async def test_direct_url_mode_failed_page_can_deepen_explicit_followup_links(
         "create_scrape_and_extract_tool",
         lambda **kwargs: _fake_scrape,
     )
-    monkeypatch.setattr(
-        _pipeline_flow_module,
-        "build_scrape_plan",
-        AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.HTML_FAST})()),
-    )
     _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Done."))
 
     await run_web_research(
@@ -311,11 +283,6 @@ async def test_direct_url_mode_can_deepen_cross_domain_document_followup(monkeyp
         _agent_module,
         "create_scrape_and_extract_tool",
         lambda **kwargs: _fake_scrape,
-    )
-    monkeypatch.setattr(
-        _pipeline_flow_module,
-        "build_scrape_plan",
-        AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.HTML_FAST})()),
     )
 
     async def _fake_run(agent_obj, prompt, **kwargs):
@@ -363,11 +330,6 @@ async def test_direct_url_hub_page_triggers_deepening(monkeypatch):
         _agent_module,
         "create_scrape_and_extract_tool",
         lambda **kwargs: _fake_scrape,
-    )
-    monkeypatch.setattr(
-        _pipeline_flow_module,
-        "build_scrape_plan",
-        AsyncMock(return_value=type("Plan", (), {"strategy": ScrapeStrategy.HTML_FAST})()),
     )
 
     # Reranker returns the same candidates (first URL)

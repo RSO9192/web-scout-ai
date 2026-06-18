@@ -1,18 +1,15 @@
 """Session-level source artifact cache.
 
-Stores and deduplicate query-agnostic page fetches within a single Python
+Stores and deduplicates query-agnostic page fetches within a single Python
 process so that multiple concurrent scrape calls to the same URL share one
 network round-trip.
 """
 
 import asyncio
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from .tracker import ResearchTracker
 from .types import CachedSourceArtifact, SourceCacheKey
-
-if TYPE_CHECKING:
-    from web_scout.scraping.types import SourceArtifact
 
 _SESSION_SOURCE_CACHE: dict[SourceCacheKey, CachedSourceArtifact] = {}
 _SESSION_SOURCE_IN_FLIGHT: dict[SourceCacheKey, asyncio.Future[CachedSourceArtifact]] = {}
@@ -21,25 +18,27 @@ _SESSION_SOURCE_IN_FLIGHT: dict[SourceCacheKey, asyncio.Future[CachedSourceArtif
 def make_source_cache_key(
     *,
     url: str,
-    strategy: object,
     wait_for: Optional[str],
     max_pdf_pages: int,
     cache_pdf_pages: bool = False,
 ) -> SourceCacheKey:
     """Build a cache key that only includes source-shaping parameters."""
-    strategy_name = getattr(strategy, "value", str(strategy))
     return SourceCacheKey(
         url=ResearchTracker.normalize_url(url),
-        wait_for=(wait_for or "") if strategy_name in {"SCRAPE_HTML", "SCRAPE_JS"} else "",
+        wait_for=wait_for or "",
         max_pdf_pages=max_pdf_pages if cache_pdf_pages else 0,
     )
 
 
-def cacheable_from_source_artifact(url: str, artifact: "SourceArtifact") -> CachedSourceArtifact:
-    """Convert a scraping-layer artifact into the session-cache representation."""
+def cacheable_from_parse_result(url: str, parse_result: object) -> CachedSourceArtifact:
+    """Convert a ``ParseResult`` into the session-cache representation."""
+    artifact = getattr(parse_result, "artifact", None)
+    title = getattr(parse_result, "title", "") or ""
+    if artifact is None:
+        return CachedSourceArtifact(url=url, title=title, artifact_kind="text")
     return CachedSourceArtifact(
         url=url,
-        title=artifact.title,
+        title=title,
         artifact_kind=artifact.kind,
         text_content=artifact.text_content,
         binary_bytes=artifact.binary_bytes,
@@ -50,7 +49,6 @@ def cacheable_from_source_artifact(url: str, artifact: "SourceArtifact") -> Cach
 async def get_or_fetch_session_source_artifact(
     *,
     url: str,
-    strategy: object,
     wait_for: Optional[str],
     vision_model: Optional[str],
     allowed_domains: Optional[frozenset],
@@ -58,11 +56,10 @@ async def get_or_fetch_session_source_artifact(
     cache_pdf_pages: bool = False,
 ) -> tuple[Optional[CachedSourceArtifact], Optional[str]]:
     """Load or fetch a query-agnostic source artifact for this Python process."""
-    from web_scout.scraping import executor as scraping_executor
+    from web_scout.scraping import fetch_and_parse_url
 
     key = make_source_cache_key(
         url=url,
-        strategy=strategy,
         wait_for=wait_for,
         max_pdf_pages=max_pdf_pages,
         cache_pdf_pages=cache_pdf_pages,
@@ -81,20 +78,32 @@ async def get_or_fetch_session_source_artifact(
     future: asyncio.Future[CachedSourceArtifact] = asyncio.get_running_loop().create_future()
     _SESSION_SOURCE_IN_FLIGHT[key] = future
     try:
-        artifact, error, _ = await scraping_executor.fetch_query_agnostic_source_artifact(
+        fetch_result, parse_result = await fetch_and_parse_url(
             url,
             wait_for=wait_for,
-            vision_model=vision_model,
             allowed_domains=allowed_domains,
+            vision_model=vision_model,
             max_pdf_pages=max_pdf_pages,
         )
-        if error or artifact is None:
-            if error is None:
-                error = "Extraction returned empty content"
+        if fetch_result.error and fetch_result.error != "__DOWNLOAD_REDIRECT__":
+            error = fetch_result.error
             future.set_exception(RuntimeError(error))
             future.exception()
             return None, error
-        cached = cacheable_from_source_artifact(url, artifact)
+
+        if parse_result.error:
+            error = parse_result.error
+            future.set_exception(RuntimeError(error))
+            future.exception()
+            return None, error
+
+        if not parse_result.text_content.strip() and parse_result.artifact.kind == "text":
+            error = "Extraction returned empty content"
+            future.set_exception(RuntimeError(error))
+            future.exception()
+            return None, error
+
+        cached = cacheable_from_parse_result(url, parse_result)
         _SESSION_SOURCE_CACHE[key] = cached
         future.set_result(cached)
         return cached, None

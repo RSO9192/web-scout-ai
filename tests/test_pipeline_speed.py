@@ -11,8 +11,8 @@ import web_scout.scraping._document as _scraping_document_module
 from web_scout import _configure_third_party_runtime
 from web_scout import agent as _agent_module
 from web_scout.agent import SearchIterationResult, _run_search_mode
+from web_scout.scraping import DefaultParser, FetchResult, ParseResult, ScraplingFetcher, SourceArtifact
 from web_scout.scraping._document import _get_pdf_converter
-from web_scout.scraping.types import ScrapePlan, ScrapeStrategy
 from web_scout.tools import ResearchTracker
 from web_scout.tools.extractor import build_extractor_agent as _build_extractor_agent
 
@@ -33,13 +33,22 @@ def _find_tool(agent, name):
     raise AssertionError(f"Tool '{name}' not found")
 
 
-def _doc_plan(content_type="application/pdf", content_disposition=""):
-    return ScrapePlan(
-        ScrapeStrategy.DOCUMENT,
-        content_type or "document-by-url",
-        content_type,
-        content_disposition,
+def _make_fetch_result(url: str, content_type: str = "application/pdf", content_disposition: str = "") -> FetchResult:
+    return FetchResult(
+        url=url,
+        status=200,
+        content_type=content_type,
+        content_disposition=content_disposition,
+        html_content=None,
+        body=b"%PDF-1.4 fake",
+        headers={},
+        used_browser=False,
     )
+
+
+def _make_parse_result(url: str, content: str = "content", title: str = "Doc") -> ParseResult:
+    artifact = SourceArtifact(kind="text", title=title, text_content=content)
+    return ParseResult(url=url, title=title, text_content=content, links=[], artifact=artifact)
 
 
 # ---------------------------------------------------------------------------
@@ -61,17 +70,17 @@ async def test_scrape_linked_document_uses_cache_on_second_call():
     tool = _find_tool(agent, "scrape_linked_document")
 
     doc_content = "Full report content about fish production. " * 30
-
+    doc_url = "https://fao.org/report.pdf"
     call_count = 0
 
-    async def _fake_scrape_doc(url, **kwargs):
+    async def _fake_parse_document(self, fetch_result, context):
         nonlocal call_count
         call_count += 1
-        return doc_content, "Fish Report 2024", None
+        return _make_parse_result(doc_url, doc_content, "Fish Report 2024")
 
     with (
-        patch("web_scout.scraping.plan.build_scrape_plan", AsyncMock(return_value=_doc_plan())),
-        patch("web_scout.scraping.executor.scrape_document", _fake_scrape_doc),
+        patch.object(ScraplingFetcher, "fetch", AsyncMock(return_value=_make_fetch_result(doc_url))),
+        patch.object(DefaultParser, "parse_document", _fake_parse_document),
     ):
         result1 = await tool.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/report.pdf"}')
         result2 = await tool.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/report.pdf"}')
@@ -107,16 +116,17 @@ async def test_scrape_linked_document_cache_shared_across_agents():
     tool2 = _find_tool(agent2, "scrape_linked_document")
 
     doc_content = "SOFIA 2024 report content. " * 30
+    doc_url = "https://fao.org/sofia.pdf"
     call_count = 0
 
-    async def _fake_scrape_doc(url, **kwargs):
+    async def _fake_parse_document(self, fetch_result, context):
         nonlocal call_count
         call_count += 1
-        return doc_content, "SOFIA 2024", None
+        return _make_parse_result(doc_url, doc_content, "SOFIA 2024")
 
     with (
-        patch("web_scout.scraping.plan.build_scrape_plan", AsyncMock(return_value=_doc_plan())),
-        patch("web_scout.scraping.executor.scrape_document", _fake_scrape_doc),
+        patch.object(ScraplingFetcher, "fetch", AsyncMock(return_value=_make_fetch_result(doc_url))),
+        patch.object(DefaultParser, "parse_document", _fake_parse_document),
     ):
         result1 = await tool1.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/sofia.pdf"}')
         result2 = await tool2.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/sofia.pdf"}')
@@ -155,17 +165,18 @@ async def test_scrape_linked_document_shares_inflight_fetch_across_agents():
     tool2 = _find_tool(agent2, "scrape_linked_document")
 
     doc_content = "SOFIA 2024 report content. " * 30
+    doc_url = "https://fao.org/sofia.pdf"
     call_count = 0
 
-    async def _fake_scrape_doc(url, **kwargs):
+    async def _fake_parse_document(self, fetch_result, context):
         nonlocal call_count
         call_count += 1
         await asyncio.sleep(0.05)
-        return doc_content, "SOFIA 2024", None
+        return _make_parse_result(doc_url, doc_content, "SOFIA 2024")
 
     with (
-        patch("web_scout.scraping.plan.build_scrape_plan", AsyncMock(return_value=_doc_plan())),
-        patch("web_scout.scraping.executor.scrape_document", _fake_scrape_doc),
+        patch.object(ScraplingFetcher, "fetch", AsyncMock(return_value=_make_fetch_result(doc_url))),
+        patch.object(DefaultParser, "parse_document", _fake_parse_document),
     ):
         result1, result2 = await asyncio.gather(
             tool1.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/sofia.pdf"}'),
@@ -190,12 +201,14 @@ async def test_scrape_linked_document_no_cache_by_default():
     )
     tool = _find_tool(agent, "scrape_linked_document")
 
-    async def _fake_scrape_doc(url, **kwargs):
-        return "content " * 40, "Doc", None
+    doc_url = "https://fao.org/doc.pdf"
+
+    async def _fake_parse_document(self, fetch_result, context):
+        return _make_parse_result(doc_url, "content " * 40, "Doc")
 
     with (
-        patch("web_scout.scraping.plan.build_scrape_plan", AsyncMock(return_value=_doc_plan())),
-        patch("web_scout.scraping.executor.scrape_document", _fake_scrape_doc),
+        patch.object(ScraplingFetcher, "fetch", AsyncMock(return_value=_make_fetch_result(doc_url))),
+        patch.object(DefaultParser, "parse_document", _fake_parse_document),
     ):
         result = await tool.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/doc.pdf"}')
 
@@ -204,8 +217,8 @@ async def test_scrape_linked_document_no_cache_by_default():
 
 
 @pytest.mark.asyncio
-async def test_scrape_linked_document_passes_validation_document_metadata():
-    """Linked-document scraping reuses content metadata already found by validation."""
+async def test_scrape_linked_document_fetch_result_flows_to_parse_document():
+    """FetchResult metadata (content_type, content_disposition) flows correctly into parse_document."""
     agent, cleanup = _build_extractor_agent(
         model="dummy",
         query="fish",
@@ -214,24 +227,30 @@ async def test_scrape_linked_document_passes_validation_document_metadata():
     )
     tool = _find_tool(agent, "scrape_linked_document")
 
-    captured_kwargs = {}
+    doc_url = "https://fao.org/report.pdf"
+    captured_fetch_results = []
 
-    async def _fake_scrape_doc(url, **kwargs):
-        captured_kwargs.update(kwargs)
-        return "content " * 40, "Doc", None
+    fake_fetch = _make_fetch_result(
+        doc_url,
+        content_type="application/octet-stream",
+        content_disposition='attachment; filename="report.pdf"',
+    )
+
+    async def _fake_parse_document(self, fetch_result, context):
+        captured_fetch_results.append(fetch_result)
+        return _make_parse_result(doc_url, "content " * 40, "Doc")
 
     with (
-        patch(
-            "web_scout.scraping.plan.build_scrape_plan",
-            AsyncMock(return_value=_doc_plan("application/octet-stream", 'attachment; filename="report.pdf"')),
-        ),
-        patch("web_scout.scraping.executor.scrape_document", _fake_scrape_doc),
+        patch.object(ScraplingFetcher, "fetch", AsyncMock(return_value=fake_fetch)),
+        patch.object(DefaultParser, "parse_document", _fake_parse_document),
     ):
-        result = await tool.on_invoke_tool(_make_ctx(), '{"document_url": "https://fao.org/download?id=123"}')
+        result = await tool.on_invoke_tool(_make_ctx(), f'{{"document_url": "{doc_url}"}}')
 
     assert "content" in result
-    assert captured_kwargs["known_content_type"] == "application/octet-stream"
-    assert captured_kwargs["known_content_disposition"] == 'attachment; filename="report.pdf"'
+    assert len(captured_fetch_results) == 1
+    fr = captured_fetch_results[0]
+    assert fr.content_type == "application/octet-stream"
+    assert fr.content_disposition == 'attachment; filename="report.pdf"'
     await cleanup()
 
 
