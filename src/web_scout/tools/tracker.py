@@ -32,7 +32,7 @@ _TRACKING_PARAMS: frozenset = frozenset(
     }
 )
 
-_BOT_BLOCK_THRESHOLD = 2
+_BOT_BLOCK_THRESHOLD = 5
 
 
 class ResearchTracker:

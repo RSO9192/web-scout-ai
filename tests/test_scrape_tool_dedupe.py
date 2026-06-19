@@ -528,11 +528,24 @@ def test_low_level_heuristics_are_frozen_in_private_config_module():
     assert FOLLOWUP_HEURISTICS.shortlist_multiplier == 3
 
 
+def test_bot_blocked_domain_requires_five_detections():
+    tracker = ResearchTracker()
+
+    for idx in range(4):
+        tracker.record_bot_detection(f"https://example.org/protected-{idx}", "bot_detected: challenge page")
+
+    assert not tracker.is_domain_bot_blocked("https://example.org/new-page")
+
+    tracker.record_bot_detection("https://example.org/protected-4", "bot_detected: challenge page")
+
+    assert tracker.is_domain_bot_blocked("https://example.org/new-page")
+
+
 @pytest.mark.asyncio
 async def test_scrape_tool_skips_new_urls_from_bot_blocked_domain(monkeypatch):
     tracker = ResearchTracker()
-    tracker.record_bot_detection("https://example.org/protected-a", "bot_detected: challenge page")
-    tracker.record_bot_detection("https://example.org/protected-b", "bot_detected: challenge page")
+    for idx in range(5):
+        tracker.record_bot_detection(f"https://example.org/protected-{idx}", "bot_detected: challenge page")
 
     async def _unexpected_run(agent, input_text, max_turns=15):
         raise AssertionError("Runner.run should not be called for blocked domains")

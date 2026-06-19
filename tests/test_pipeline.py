@@ -462,8 +462,8 @@ def test_agent_module_keeps_compatibility_exports_after_split():
 
 def test_select_search_urls_skips_bot_blocked_domains():
     tracker = ResearchTracker()
-    tracker.record_bot_detection("https://blocked.org/a", "bot_detected: challenge page")
-    tracker.record_bot_detection("https://blocked.org/b", "bot_detected: challenge page")
+    for idx in range(5):
+        tracker.record_bot_detection(f"https://blocked.org/{idx}", "bot_detected: challenge page")
 
     search_results = [
         _FakeSearchResponse(
@@ -530,8 +530,8 @@ async def test_evaluate_search_coverage_filters_bot_blocked_backlog_domains(
             )(),
         ],
     )
-    tracker.record_bot_detection("https://blocked.org/a", "bot_detected: challenge page")
-    tracker.record_bot_detection("https://blocked.org/b", "bot_detected: challenge page")
+    for idx in range(5):
+        tracker.record_bot_detection(f"https://blocked.org/{idx}", "bot_detected: challenge page")
 
     async def _fake_run(agent_obj, prompt, **kwargs):
         return _FakeRunResult(
