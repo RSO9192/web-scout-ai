@@ -21,8 +21,6 @@ Public API
 - ``run_web_research(query, models, ...)`` — full pipeline
 """
 
-from __future__ import annotations
-
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -235,14 +233,13 @@ async def run_web_research(
 ) -> WebResearchResult:
     """Run deterministic web research pipeline."""
     from .utils import get_model
+
     if models is None:
         models = DEFAULT_WEB_RESEARCH_MODELS
 
     if isinstance(research_depth, str):
         if research_depth not in _DEPTH_PRESETS:
-            raise ValueError(
-                f"Unknown research_depth={research_depth!r}. Use 'standard' or 'deep' or a custom dict."
-            )
+            raise ValueError(f"Unknown research_depth={research_depth!r}. Use 'standard' or 'deep' or a custom dict.")
         depth_config = dict(_DEPTH_PRESETS[research_depth])
     elif isinstance(research_depth, dict):
         depth_config = dict(research_depth)

@@ -1,6 +1,5 @@
 """Tests for pure helper functions in agent.py."""
 
-
 from web_scout.agent import (
     _extract_links_from_markdown,
     _extract_query_keywords,
@@ -17,6 +16,7 @@ from web_scout.agent import (
 # ---------------------------------------------------------------------------
 # _judge_synthesis
 # ---------------------------------------------------------------------------
+
 
 def test_judge_synthesis_passes_clean_synthesis():
     """No issues returned when all citations point to valid scraped URLs."""
@@ -54,10 +54,7 @@ def test_judge_synthesis_allows_valid_scraped_citation():
 def test_judge_synthesis_flags_both_bare_and_hallucinated():
     """Both bare URL and hallucinated citation issues can appear together."""
     valid = {"https://fao.org/report"}
-    synthesis = (
-        "See https://fao.org/report raw. "
-        "Also [Fake](https://made-up.org/page)."
-    )
+    synthesis = "See https://fao.org/report raw. Also [Fake](https://made-up.org/page)."
     issues = _judge_synthesis(synthesis, valid)
     assert len(issues) == 2
 
@@ -74,6 +71,7 @@ def test_judge_synthesis_url_normalization_strips_tracking_params():
 # ---------------------------------------------------------------------------
 # _is_same_domain
 # ---------------------------------------------------------------------------
+
 
 def test_is_same_domain_exact_match():
     assert _is_same_domain("https://fao.org/path", "fao.org") is True
@@ -98,6 +96,7 @@ def test_is_same_domain_empty_host_rejected():
 # ---------------------------------------------------------------------------
 # _looks_like_document_url
 # ---------------------------------------------------------------------------
+
 
 def test_looks_like_document_url_pdf():
     assert _looks_like_document_url("https://fao.org/files/report.pdf") is True
@@ -127,6 +126,7 @@ def test_looks_like_document_url_no_extension():
 # _looks_like_paginated_index_page
 # ---------------------------------------------------------------------------
 
+
 def test_paginated_index_page_detected_with_list_segment_and_page_param():
     url = "https://fao.org/publications?page=2"
     assert _looks_like_paginated_index_page(url) is True
@@ -150,6 +150,7 @@ def test_paginated_index_page_false_for_list_segment_without_pagination_param():
 # ---------------------------------------------------------------------------
 # _query_prefers_data_pages / _query_prefers_report_pages
 # ---------------------------------------------------------------------------
+
 
 def test_query_prefers_data_pages_on_dataset_keyword():
     assert _query_prefers_data_pages("download the dataset for fish catch") is True
@@ -179,6 +180,7 @@ def test_query_prefers_report_pages_false_for_data_query():
 # _extract_query_keywords
 # ---------------------------------------------------------------------------
 
+
 def test_extract_query_keywords_removes_stopwords():
     keywords = _extract_query_keywords("the current trend of fish production")
     assert "the" not in keywords
@@ -206,6 +208,7 @@ def test_extract_query_keywords_lowercases():
 # ---------------------------------------------------------------------------
 # _score_followup_candidate
 # ---------------------------------------------------------------------------
+
 
 def test_score_followup_candidate_pdf_report_scores_high():
     score = _score_followup_candidate(
@@ -249,6 +252,7 @@ def test_score_followup_candidate_dataset_url_for_data_query():
 # _extract_links_from_markdown
 # ---------------------------------------------------------------------------
 
+
 def test_extract_links_from_markdown_finds_markdown_links():
     content = "See [FAO](https://fao.org/report) and [WB](https://worldbank.org/data)."
     links = _extract_links_from_markdown(content)
@@ -272,6 +276,7 @@ def test_extract_links_from_markdown_strips_trailing_punctuation_from_bare_urls(
 # ---------------------------------------------------------------------------
 # _is_promising_followup_url
 # ---------------------------------------------------------------------------
+
 
 def test_is_promising_followup_url_rejects_off_domain():
     assert _is_promising_followup_url("https://other.org/report.pdf", "fao.org") is False

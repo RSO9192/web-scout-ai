@@ -20,6 +20,7 @@ from quality_benchmark import (
 # avg_content_depth
 # ---------------------------------------------------------------------------
 
+
 def test_avg_content_depth_empty():
     assert avg_content_depth([]) == 0
 
@@ -45,6 +46,7 @@ def test_avg_content_depth_missing_content_key():
 # ---------------------------------------------------------------------------
 # build_failure_table
 # ---------------------------------------------------------------------------
+
 
 def test_build_failure_table_empty():
     assert build_failure_table([]) == ""
@@ -82,7 +84,13 @@ def test_build_source_previews_truncates():
 
 
 def test_build_source_previews_includes_title_and_url():
-    sources = [{"url": "https://x.com/page", "title": "My Title", "content": "Some content here"}]
+    sources = [
+        {
+            "url": "https://x.com/page",
+            "title": "My Title",
+            "content": "Some content here",
+        }
+    ]
     out = build_source_previews(sources, preview_chars=250)
     assert "My Title" in out
     assert "https://x.com/page" in out

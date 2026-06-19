@@ -1,7 +1,5 @@
 """Pydantic output models for the web researcher agent (new)."""
 
-from __future__ import annotations
-
 from typing import List
 
 from pydantic import BaseModel, Field

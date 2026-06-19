@@ -77,18 +77,22 @@ OUTPUT_DIR = Path(__file__).parent / "benchmark_results"
 # Result container
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Evaluation:
-    url_relevance: int = 0                       # 1-5: how appropriate the URLs are for the query
+    url_relevance: int = 0  # 1-5: how appropriate the URLs are for the query
     url_relevance_rationale: str = ""
-    tailored_comprehensiveness: int = 0          # 1-5: how well each URL's content answers the query specifically
+    tailored_comprehensiveness: int = 0  # 1-5: how well each URL's content answers the query specifically
     tailored_comprehensiveness_rationale: str = ""
-    synthesis_quality: int = 0                   # 1-5: how well the synthesis answers the query in detail
+    synthesis_quality: int = 0  # 1-5: how well the synthesis answers the query in detail
     synthesis_quality_rationale: str = ""
 
     @property
     def overall(self) -> float:
-        return round((self.url_relevance + self.tailored_comprehensiveness + self.synthesis_quality) / 3, 1)
+        return round(
+            (self.url_relevance + self.tailored_comprehensiveness + self.synthesis_quality) / 3,
+            1,
+        )
 
 
 @dataclass
@@ -107,6 +111,7 @@ class ToolResult:
 # Runner: web-scout-ai
 # ---------------------------------------------------------------------------
 
+
 async def run_web_scout(query: str) -> ToolResult:
     from web_scout import run_web_research
 
@@ -118,10 +123,7 @@ async def run_web_scout(query: str) -> ToolResult:
             search_backend=WEB_SCOUT_BACKEND,
         )
         elapsed = time.perf_counter() - t0
-        sources = [
-            {"url": s.url, "title": s.title, "content": s.content}
-            for s in result.scraped
-        ]
+        sources = [{"url": s.url, "title": s.title, "content": s.content} for s in result.scraped]
         return ToolResult(
             tool="web-scout-ai",
             query=query,
@@ -178,6 +180,7 @@ class WebSearchSource(BaseModel):
 
 class OpenAIWebSearchOutput(BaseModel):
     """Structured output for the OpenAI web search agent."""
+
     synthesis: str = Field(description="Coherent synthesis answering the query with inline [Source](URL) citations.")
     sources: list[WebSearchSource] = Field(
         default_factory=list,
@@ -288,16 +291,19 @@ async def evaluate_result(result: ToolResult) -> Evaluation:
     """Use an LLM judge to score a single tool result."""
     if result.error:
         return Evaluation(
-            url_relevance=0, url_relevance_rationale="Tool errored.",
-            tailored_comprehensiveness=0, tailored_comprehensiveness_rationale="Tool errored.",
-            synthesis_quality=0, synthesis_quality_rationale="Tool errored.",
+            url_relevance=0,
+            url_relevance_rationale="Tool errored.",
+            tailored_comprehensiveness=0,
+            tailored_comprehensiveness_rationale="Tool errored.",
+            synthesis_quality=0,
+            synthesis_quality_rationale="Tool errored.",
         )
 
     source_parts = []
     for i, s in enumerate(result.sources, 1):
-        title = s.get('title', 'Untitled')
-        url = s['url']
-        content = s.get('content', '')
+        title = s.get("title", "Untitled")
+        url = s["url"]
+        content = s.get("content", "")
         source_parts.append(f"--- Source {i}: {title} ({url}) ---\n{content}")
     source_block = "\n\n".join(source_parts) if source_parts else "(no sources)"
 
@@ -328,8 +334,13 @@ async def evaluate_result(result: ToolResult) -> Evaluation:
             # Rationale strings sometimes contain unescaped characters that break JSON.
             # Fall back to regex to extract the integer scores (they appear before the strings).
             import re
+
             scores = {}
-            for key in ("url_relevance", "tailored_comprehensiveness", "synthesis_quality"):
+            for key in (
+                "url_relevance",
+                "tailored_comprehensiveness",
+                "synthesis_quality",
+            ):
                 m = re.search(rf'"{key}"\s*:\s*([1-5])', raw)
                 if m:
                     scores[key] = int(m.group(1))
@@ -357,6 +368,7 @@ async def evaluate_result(result: ToolResult) -> Evaluation:
 # Comparison report
 # ---------------------------------------------------------------------------
 
+
 def build_markdown_report(results: list[ToolResult], queries: list[str]) -> str:
     lines = [
         "# Benchmark: web-scout-ai vs OpenAI web search",
@@ -370,12 +382,10 @@ def build_markdown_report(results: list[ToolResult], queries: list[str]) -> str:
     # Summary table
     lines.append("## Summary\n")
     lines.append(
-        "| Query | Tool | Sources | Time (s) | Ans. Len | URL Relevance "
-        "| Tailored Compreh. | Synthesis | Overall |"
+        "| Query | Tool | Sources | Time (s) | Ans. Len | URL Relevance | Tailored Compreh. | Synthesis | Overall |"
     )
     lines.append(
-        "|-------|------|---------|----------|----------|---------------"
-        "|-------------------|-----------|---------|"
+        "|-------|------|---------|----------|----------|---------------|-------------------|-----------|---------|"
     )
 
     by_query = {}
@@ -432,6 +442,7 @@ def build_markdown_report(results: list[ToolResult], queries: list[str]) -> str:
 # Main
 # ---------------------------------------------------------------------------
 
+
 async def main():
     print(f"Running benchmark with {len(BENCHMARK_QUERIES)} queries...")
     print(f"  web-scout-ai backend: {WEB_SCOUT_BACKEND}")
@@ -449,10 +460,14 @@ async def main():
 
         ws_result, oai_result = await asyncio.gather(ws_task, oai_task)
 
-        print(f"  web-scout-ai:     {ws_result.elapsed_seconds}s, {ws_result.num_sources} sources"
-              + (f" ERROR: {ws_result.error}" if ws_result.error else ""))
-        print(f"  openai-websearch: {oai_result.elapsed_seconds}s, {oai_result.num_sources} sources"
-              + (f" ERROR: {oai_result.error}" if oai_result.error else ""))
+        print(
+            f"  web-scout-ai:     {ws_result.elapsed_seconds}s, {ws_result.num_sources} sources"
+            + (f" ERROR: {ws_result.error}" if ws_result.error else "")
+        )
+        print(
+            f"  openai-websearch: {oai_result.elapsed_seconds}s, {oai_result.num_sources} sources"
+            + (f" ERROR: {oai_result.error}" if oai_result.error else "")
+        )
 
         # Evaluate both results with LLM judge
         print(f"  Evaluating with {JUDGE_MODEL}...")

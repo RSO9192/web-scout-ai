@@ -1,38 +1,37 @@
-"""Unit tests for URL routing and content-type detection."""
+"""Unit tests for URL routing and content-type detection.
+
+Tests have been updated to target ``_classify_fetch_result`` (the new routing
+function in ``_parser.py``) and ``FetchResult`` instead of the removed
+``plan._validate_url`` / ``ScrapeStrategy`` API.
+"""
 
 import pytest
 
-from web_scout.scraping import (
-    _SCRAPE_DOC,
-    _SCRAPE_HTML,
-    _SCRAPE_IMAGE,
-    _SCRAPE_JS,
-    _SCRAPE_JSON,
-    _SKIP,
-    _append_internal_links,
-    _download_pdf_bytes,
-    _looks_like_document_resource,
-    _trim_json_value,
-    _validate_url,
-    scrape_url,
-)
+from web_scout.scraping import DefaultParser, FetchResult, ScraplingFetcher, SourceArtifact, URLContext
+from web_scout.scraping._download import download_pdf
+from web_scout.scraping._markdown import append_links
+from web_scout.scraping._parser import _classify_fetch_result
+from web_scout.scraping.constants import BLOCKED_DOMAINS
+from web_scout.scraping.page_classifier import looks_like_document_resource
+from web_scout.scraping.utils import trim_json_value
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 
-class _MockResponse:
-    def __init__(self, status_code=200, headers=None, text="", content=b""):
-        self.status_code = status_code
-        self.headers = headers or {}
-        self.text = text
-        self.content = content
-
-    def raise_for_status(self):
-        if self.status_code >= 400:
-            raise RuntimeError(f"HTTP {self.status_code}")
-
-    def json(self):
-        import json
-
-        return json.loads(self.text)
+def _make_result(url: str, **kwargs) -> FetchResult:
+    defaults = dict(
+        status=200,
+        content_type="text/html",
+        content_disposition="",
+        html_content="<html><body>hello</body></html>",
+        body=None,
+        headers={},
+        used_browser=False,
+    )
+    defaults.update(kwargs)
+    return FetchResult(url=url, **defaults)
 
 
 class _MockLink:
@@ -52,36 +51,108 @@ class _MockCrawlerResult:
         self.links = _MockResultLinks(internal=internal, external=external)
 
 
-def _mock_async_client_factory(head_response=None, get_response=None):
-    class _MockAsyncClient:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def head(self, url):
-            if isinstance(head_response, Exception):
-                raise head_response
-            return head_response
-
-        async def get(self, url):
-            if isinstance(get_response, Exception):
-                raise get_response
-            return get_response
-
-    return _MockAsyncClient
+# ---------------------------------------------------------------------------
+# looks_like_document_resource
+# ---------------------------------------------------------------------------
 
 
 def test_looks_like_document_resource_uses_content_disposition():
-    assert _looks_like_document_resource(
+    assert (
+        looks_like_document_resource(
+            "https://example.org/download?id=123",
+            "application/octet-stream",
+            'attachment; filename="report.pdf"',
+        )
+        is True
+    )
+
+
+# ---------------------------------------------------------------------------
+# _classify_fetch_result — routing heuristics
+# ---------------------------------------------------------------------------
+
+
+def test_classify_html():
+    assert _classify_fetch_result(_make_result("https://example.org/page")) == "html"
+
+
+def test_classify_json_by_content_type():
+    r = _make_result(
+        "https://api.example.org/data",
+        content_type="application/json",
+        html_content='{"key": "value"}',
+    )
+    assert _classify_fetch_result(r) == "json"
+
+
+def test_classify_pdf_by_url_extension():
+    r = _make_result("https://example.org/report.pdf", html_content=None, body=None)
+    assert _classify_fetch_result(r) == "document"
+
+
+def test_classify_pdf_by_content_disposition():
+    r = _make_result(
         "https://example.org/download?id=123",
-        "application/octet-stream",
-        'attachment; filename="report.pdf"',
-    ) is True
+        content_type="application/octet-stream",
+        content_disposition='attachment; filename="report.pdf"',
+        html_content=None,
+        body=None,
+    )
+    assert _classify_fetch_result(r) == "document"
+
+
+def test_classify_http_404_is_skip():
+    r = _make_result("https://example.org/gone", status=404, html_content=None, body=None)
+    assert _classify_fetch_result(r) == "skip"
+
+
+def test_classify_http_410_is_skip():
+    r = _make_result("https://example.org/removed", status=410, html_content=None, body=None)
+    assert _classify_fetch_result(r) == "skip"
+
+
+def test_classify_image_by_content_type():
+    r = _make_result("https://example.org/chart.png", content_type="image/png", html_content=None)
+    assert _classify_fetch_result(r) == "image"
+
+
+def test_classify_blocked_domain_error_is_skip():
+    r = _make_result("https://www.youtube.com/watch?v=abc", status=403, error="blocked domain")
+    assert _classify_fetch_result(r) == "skip"
+
+
+def test_classify_legacy_doc_extension_is_skip():
+    """Unsupported legacy formats (.doc, .xls) must be skipped."""
+    r = _make_result("https://example.org/report.doc", html_content=None, body=None)
+    assert _classify_fetch_result(r) == "skip"
+
+
+def test_classify_json_content_type_with_html_payload_returns_html():
+    """application/json served with HTML body should route to html."""
+    html = "<html><head><title>Report</title></head><body>" + ("prose " * 100) + "</body></html>"
+    r = _make_result(
+        "https://example.org/download?id=123",
+        content_type="application/json",
+        html_content=html,
+    )
+    assert _classify_fetch_result(r) == "html"
+
+
+def test_classify_json_content_type_with_pdf_magic_bytes():
+    """application/json served with PDF magic bytes should route to document."""
+    r = _make_result(
+        "https://example.org/download?id=123",
+        content_type="application/json",
+        content_disposition='attachment; filename="report.pdf"',
+        html_content=None,
+        body=b"%PDF-1.7 mock data",
+    )
+    assert _classify_fetch_result(r) == "document"
+
+
+# ---------------------------------------------------------------------------
+# trim_json_value utility
+# ---------------------------------------------------------------------------
 
 
 def test_trim_json_value_limits_large_collections():
@@ -89,364 +160,131 @@ def test_trim_json_value_limits_large_collections():
         "items": list(range(30)),
         "nested": {"a": {"b": {"c": {"d": {"e": 1}}}}},
     }
-    trimmed = _trim_json_value(data, max_items=5, max_depth=3)
+    trimmed = trim_json_value(data, max_items=5, max_depth=3)
     assert len(trimmed["items"]) == 6
     assert trimmed["items"][-1] == "... 25 more items omitted"
     assert "truncated" in trimmed["nested"]["a"]["b"]
 
 
-def test_append_internal_links_keeps_icon_only_external_document_links():
-    content = "Repository record content"
-    result = _MockCrawlerResult(
-        external=[_MockLink("https://cdn.example.org/laws/kenya-forestry-law.pdf", "")]
-    )
+# ---------------------------------------------------------------------------
+# append_links
+# ---------------------------------------------------------------------------
 
-    enriched = _append_internal_links(content, result)
+
+def test_append_links_keeps_icon_only_external_document_links():
+    content = "Repository record content"
+    result = _MockCrawlerResult(external=[_MockLink("https://cdn.example.org/laws/kenya-forestry-law.pdf", "")])
+
+    enriched = append_links(content, result)
 
     assert "### Links on Page:" in enriched
     assert "https://cdn.example.org/laws/kenya-forestry-law.pdf" in enriched
 
 
-@pytest.mark.asyncio
-async def test_validate_url_routes_extensionless_pdf_from_headers(monkeypatch):
-    from web_scout import scraping
-
-    head = _MockResponse(
-        headers={
-            "content-type": "application/octet-stream",
-            "content-disposition": 'attachment; filename="report.pdf"',
-        }
-    )
-    monkeypatch.setattr(scraping.httpx, "AsyncClient", _mock_async_client_factory(head_response=head))
-
-    verdict, detail = await _validate_url("https://example.org/download?id=123")
-    assert verdict == _SCRAPE_DOC
-    assert "application/octet-stream" in detail
+# ---------------------------------------------------------------------------
+# download_pdf fallback chain
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_validate_url_routes_direct_pdf_without_network(monkeypatch):
-    from web_scout import scraping
+async def test_download_pdf_falls_back_to_urllib(monkeypatch):
+    """When Scrapling fetch fails, the Chain-of-Responsibility falls through to urllib."""
+    from web_scout.scraping import _download as dl
 
-    class _UnexpectedAsyncClient:
-        def __init__(self, *args, **kwargs):
-            raise AssertionError("network probe should not run for direct PDF URLs")
+    async def _scrapling_fails(self, url):
+        return None  # simulate Scrapling returning nothing
 
-    monkeypatch.setattr(scraping.httpx, "AsyncClient", _UnexpectedAsyncClient)
+    async def _urllib_succeeds(self, url):
+        return b"%PDF-1.7 mock data"
 
-    verdict, detail = await _validate_url("https://example.org/report.pdf")
-    assert verdict == _SCRAPE_DOC
-    assert detail == "document-by-url"
-
-
-@pytest.mark.asyncio
-async def test_validate_url_skips_direct_legacy_doc_without_network(monkeypatch):
-    from web_scout import scraping
-
-    class _UnexpectedAsyncClient:
-        def __init__(self, *args, **kwargs):
-            raise AssertionError("network probe should not run for direct legacy document URLs")
-
-    monkeypatch.setattr(scraping.httpx, "AsyncClient", _UnexpectedAsyncClient)
-
-    verdict, detail = await _validate_url("https://example.org/report.doc")
-    assert verdict == _SKIP
-    assert detail == "unsupported legacy Office document format (.doc)"
-
-
-@pytest.mark.asyncio
-async def test_validate_url_skips_extensionless_legacy_doc_from_headers(monkeypatch):
-    from web_scout import scraping
-
-    head = _MockResponse(headers={"content-type": "application/msword"})
-    monkeypatch.setattr(scraping.httpx, "AsyncClient", _mock_async_client_factory(head_response=head))
-
-    verdict, detail = await _validate_url("https://example.org/download?id=123")
-    assert verdict == _SKIP
-    assert detail == "unsupported legacy Office document format (.doc)"
-
-
-@pytest.mark.asyncio
-async def test_validate_url_prefers_supported_filename_over_legacy_mime(monkeypatch):
-    from web_scout import scraping
-
-    head = _MockResponse(
-        headers={
-            "content-type": "application/msword",
-            "content-disposition": 'attachment; filename="report.docx"',
-        }
-    )
-    monkeypatch.setattr(scraping.httpx, "AsyncClient", _mock_async_client_factory(head_response=head))
-
-    verdict, detail = await _validate_url("https://example.org/download?id=123")
-    assert verdict == _SCRAPE_DOC
-    assert detail == "application/msword"
-
-
-@pytest.mark.asyncio
-async def test_validate_url_routes_json_response(monkeypatch):
-    from web_scout import scraping
-
-    head = _MockResponse(headers={"content-type": "application/json; charset=utf-8"})
-    get = _MockResponse(headers={"content-type": "application/json; charset=utf-8"}, text='{"ok": true}')
-    monkeypatch.setattr(
-        scraping.httpx,
-        "AsyncClient",
-        _mock_async_client_factory(head_response=head, get_response=get),
-    )
-
-    verdict, detail = await _validate_url("https://example.org/api/data")
-    assert verdict == _SCRAPE_JSON
-    assert detail == "application/json"
-
-
-@pytest.mark.asyncio
-async def test_validate_url_routes_image_response(monkeypatch):
-    from web_scout import scraping
-
-    head = _MockResponse(headers={"content-type": "image/png"})
-    monkeypatch.setattr(scraping.httpx, "AsyncClient", _mock_async_client_factory(head_response=head))
-
-    verdict, detail = await _validate_url("https://example.org/chart.png")
-    assert verdict == _SCRAPE_IMAGE
-    assert detail == "image/png"
-
-
-@pytest.mark.asyncio
-async def test_validate_url_keeps_short_metadata_pages(monkeypatch):
-    from web_scout import scraping
-
-    head = _MockResponse(headers={"content-type": "text/html"})
-    html = """
-    <html>
-      <head><title>Repository record</title></head>
-      <body>
-        <p>Metadata</p>
-        <a href="/download?id=10">Full text PDF</a>
-      </body>
-    </html>
-    """
-    get = _MockResponse(headers={"content-type": "text/html"}, text=html)
-    monkeypatch.setattr(
-        scraping.httpx,
-        "AsyncClient",
-        _mock_async_client_factory(head_response=head, get_response=get),
-    )
-
-    verdict, detail = await _validate_url("https://example.org/record/10")
-    assert verdict == _SCRAPE_HTML
-    assert "metadata" in detail
-
-
-@pytest.mark.asyncio
-async def test_validate_url_keeps_rich_script_heavy_html_on_fast_path(monkeypatch):
-    """Script-heavy pages with enough static text should not be routed to Playwright."""
-    from web_scout import scraping
-
-    head = _MockResponse(headers={"content-type": "text/html"})
-    scripts = "\n".join(
-        f"<script>const payload{i} = '{'x' * 4000}';</script>"
-        for i in range(20)
-    )
-    body_text = "Kenya procurement certification producer rule. " * 100
-    html = f"<html><head><title>Rich page</title>{scripts}</head><body>{body_text}</body></html>"
-    get = _MockResponse(headers={"content-type": "text/html"}, text=html)
-    monkeypatch.setattr(
-        scraping.httpx,
-        "AsyncClient",
-        _mock_async_client_factory(head_response=head, get_response=get),
-    )
-
-    verdict, detail = await _validate_url("https://example.org/rich-script-page")
-
-    assert verdict == _SCRAPE_HTML
-    assert verdict != _SCRAPE_JS
-    assert "static HTML" in detail
-
-
-@pytest.mark.asyncio
-async def test_validate_url_rich_publication_page_with_download_stays_static(monkeypatch):
-    from web_scout import scraping
-
-    head = _MockResponse(headers={"content-type": "text/html"})
-    prose = (
-        "The page already contains substantial narrative findings on rainfall "
-        "trends, regional contrasts, recent anomalies, and climate impacts. "
-        "It explains how the recent observations compare with longer-term "
-        "climatology and seasonal performance across Kenya. "
-    ) * 10
-    html = """
-    <html>
-      <head><title>State of Climate Publication</title></head>
-      <body>
-        <h1>State of Climate Publication</h1>
-        <p>Abstract: This publication summarises Kenya precipitation variability,
-        observed trends, recent anomalies, and seasonal outlooks.</p>
-        <p>Authors: Kenya Meteorological Department. Published: 2025.</p>
-        <p><a href="/files/state-of-climate.pdf">Download PDF</a></p>
-        <p>%s</p>
-      </body>
-    </html>
-    """ % prose
-    get = _MockResponse(headers={"content-type": "text/html"}, text=html)
-    monkeypatch.setattr(
-        scraping.httpx,
-        "AsyncClient",
-        _mock_async_client_factory(head_response=head, get_response=get),
-    )
-
-    verdict, detail = await _validate_url("https://example.org/publication/state-of-climate")
-
-    assert verdict == _SCRAPE_HTML
-    assert "metadata-like HTML" not in detail
-    assert "static HTML" in detail
-
-
-@pytest.mark.asyncio
-async def test_validate_url_overrides_json_head_with_pdf_payload(monkeypatch):
-    from web_scout import scraping
-
-    head = _MockResponse(headers={"content-type": "application/json"})
-    get = _MockResponse(
-        headers={
-            "content-type": "application/json",
-            "content-disposition": 'attachment; filename="report.pdf"',
-        },
-        text="%PDF-1.7 mock data",
-        content=b"%PDF-1.7 mock data",
-    )
-    monkeypatch.setattr(
-        scraping.httpx,
-        "AsyncClient",
-        _mock_async_client_factory(head_response=head, get_response=get),
-    )
-
-    verdict, detail = await _validate_url("https://example.org/download?id=123")
-
-    assert verdict == _SCRAPE_DOC
-    assert detail == "application/json"
-
-
-@pytest.mark.asyncio
-async def test_validate_url_overrides_json_head_with_html_payload(monkeypatch):
-    from web_scout import scraping
-
-    head = _MockResponse(headers={"content-type": "application/json"})
-    html = "<html><head><title>Report page</title></head><body>" + ("Kenya rainfall analysis " * 100) + "</body></html>"
-    get = _MockResponse(headers={"content-type": "application/json"}, text=html, content=html.encode("utf-8"))
-    monkeypatch.setattr(
-        scraping.httpx,
-        "AsyncClient",
-        _mock_async_client_factory(head_response=head, get_response=get),
-    )
-
-    verdict, detail = await _validate_url("https://example.org/download?id=123")
-
-    assert verdict == _SCRAPE_HTML
-    assert "static HTML" in detail
-
-
-@pytest.mark.asyncio
-async def test_download_pdf_bytes_falls_back_to_raw_download(monkeypatch):
-    from web_scout import scraping
-
-    class _FailingAsyncClient:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def get(self, url):
-            raise RuntimeError("Unsupported content-encoding: None")
-
-    monkeypatch.setattr(scraping.httpx, "AsyncClient", _FailingAsyncClient)
-    monkeypatch.setattr(
-        scraping,
-        "_download_binary_via_urllib",
-        lambda url: (b"%PDF-1.7 mock data", "application/pdf"),
-    )
-
-    async def _unexpected_browser_download(url):
+    async def _browser_unexpected(self, url):
         raise AssertionError("browser fallback should not be needed")
 
-    monkeypatch.setattr(scraping, "_download_pdf_via_browser", _unexpected_browser_download)
+    monkeypatch.setattr(dl._ScraplingFetcher, "_attempt", _scrapling_fails)
+    monkeypatch.setattr(dl._UrllibDownloader, "_attempt", _urllib_succeeds)
+    monkeypatch.setattr(dl._StealthyBrowser, "_attempt", _browser_unexpected)
 
-    pdf_bytes, error = await _download_pdf_bytes("https://example.org/report.pdf")
+    pdf_bytes, error = await download_pdf("https://example.org/report.pdf")
 
     assert error is None
     assert pdf_bytes == b"%PDF-1.7 mock data"
 
 
+# ---------------------------------------------------------------------------
+# ScraplingFetcher + DefaultParser: document metadata flows to parse_document
+# ---------------------------------------------------------------------------
+
+
 @pytest.mark.asyncio
-async def test_scrape_url_passes_document_metadata_from_validation(monkeypatch):
-    """scrape_url should not discard content metadata discovered during validation."""
-    from web_scout import scraping
+async def test_scrape_pipeline_passes_document_metadata_from_fetch_result(monkeypatch):
+    """Metadata (content_type, content_disposition) from FetchResult flows into parse_document."""
+    from web_scout.scraping import _document as doc_module
 
-    captured_kwargs = {}
-
-    async def _fake_build_scrape_plan(url, allowed_domains=None):
-        return scraping.ScrapePlan(
-            scraping.ScrapeStrategy.DOCUMENT,
-            "application/octet-stream",
-            "application/octet-stream",
-            'attachment; filename="report.pdf"',
-        )
+    captured_kwargs: dict = {}
 
     async def _fake_scrape_document(url, **kwargs):
         captured_kwargs.update(kwargs)
-        return "PDF content", "report.pdf", None
+        return SourceArtifact(kind="text", title="report.pdf", text_content="PDF content"), None
 
-    monkeypatch.setattr(scraping, "_build_scrape_plan", _fake_build_scrape_plan)
-    monkeypatch.setattr(scraping, "_scrape_document", _fake_scrape_document)
+    monkeypatch.setattr(doc_module, "scrape_document", _fake_scrape_document)
 
-    content, title, error = await scrape_url("https://example.org/download?id=123")
+    fake_fetch = FetchResult(
+        url="https://example.org/download?id=123",
+        status=200,
+        content_type="application/octet-stream",
+        content_disposition='attachment; filename="report.pdf"',
+        html_content=None,
+        body=None,
+        headers={},
+        used_browser=False,
+    )
+    monkeypatch.setattr(ScraplingFetcher, "fetch", lambda self, url, context: _async_return(fake_fetch))
 
-    assert error is None
-    assert content == "PDF content"
-    assert title == "report.pdf"
+    fetcher = ScraplingFetcher()
+    parser = DefaultParser()
+    context = URLContext(url="https://example.org/download?id=123", depth=0)
+    fetch_result = await fetcher.fetch("https://example.org/download?id=123", context)
+    parse_result = await parser.dispatch(fetch_result, context)
+
+    assert parse_result.error is None
+    assert parse_result.text_content == "PDF content"
     assert captured_kwargs["known_content_type"] == "application/octet-stream"
     assert captured_kwargs["known_content_disposition"] == 'attachment; filename="report.pdf"'
 
 
+async def _async_return(value):
+    return value
+
+
 # ---------------------------------------------------------------------------
-# Blocked-domain policy — open-access publishers must NOT be blocked
+# Blocked-domain policy
 # ---------------------------------------------------------------------------
+
 
 def test_open_access_publishers_not_blocked():
     """Open-access journals must not be in the default block list."""
-    from web_scout.scraping import _BLOCKED_DOMAINS
     open_access = [
         "frontiersin.org",
         "mdpi.com",
         "journals.plos.org",
     ]
     for domain in open_access:
-        assert domain not in _BLOCKED_DOMAINS, (
-            f"{domain} is open-access and should not be blocked"
-        )
+        assert domain not in BLOCKED_DOMAINS, f"{domain} is open-access and should not be blocked"
 
 
 def test_abstract_available_publishers_not_blocked():
     """Publishers with accessible abstracts must not be in the default block list."""
-    from web_scout.scraping import _BLOCKED_DOMAINS
     abstract_available = [
         "researchgate.net",
         "nature.com",
         "academic.oup.com",
     ]
     for domain in abstract_available:
-        assert domain not in _BLOCKED_DOMAINS, (
-            f"{domain} has accessible content and should not be blocked"
-        )
+        assert domain not in BLOCKED_DOMAINS, f"{domain} has accessible content and should not be blocked"
 
 
 def test_paywalled_publishers_remain_blocked():
     """Consistently paywalled publishers must stay blocked."""
-    from web_scout.scraping import _BLOCKED_DOMAINS
     paywalled = [
         "sciencedirect.com",
         "springer.com",
@@ -459,6 +297,4 @@ def test_paywalled_publishers_remain_blocked():
         "cambridge.org",
     ]
     for domain in paywalled:
-        assert domain in _BLOCKED_DOMAINS, (
-            f"{domain} is paywalled and should stay blocked"
-        )
+        assert domain in BLOCKED_DOMAINS, f"{domain} is paywalled and should stay blocked"
