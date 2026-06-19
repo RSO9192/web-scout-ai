@@ -124,7 +124,11 @@ class ScraplingFetcher(Fetcher):
                 )
                 if context.wait_for:
                     kwargs["wait_selector"] = context.wait_for
-                resp = await stealthy_fetch(url, **kwargs)
+                try:
+                    resp = await stealthy_fetch(url, **kwargs)
+                except Exception as e:
+                    logger.debug("[fetcher] StealthyFetcher failed (%s), trying AsyncFetcher: %s", type(e).__name__, url)
+                    raise
             except Exception as e:
                 exc_str = str(e)
                 # Check for download signal (browser navigating to a file download)
