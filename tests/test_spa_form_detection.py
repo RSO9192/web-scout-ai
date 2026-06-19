@@ -1,7 +1,13 @@
 """Tests for SPA fragment and form-contamination detection in fetched content."""
 
-from web_scout.tools.extractor import _EXTRACTOR_INSTRUCTIONS
-from web_scout.tools.page_analysis import _has_fragment, _is_form_contaminated, render_cached_page_text as _render_cached_page_text
+from web_scout.tools.extractor import _EXTRACTOR_INSTRUCTIONS, _build_extractor_instructions
+from web_scout.tools.page_analysis import (
+    _has_fragment,
+    _is_form_contaminated,
+)
+from web_scout.tools.page_analysis import (
+    render_cached_page_text as _render_cached_page_text,
+)
 
 
 def test_has_fragment_detects_hash_fragment():
@@ -140,3 +146,39 @@ def test_extractor_instructions_mention_spa_signal():
 def test_extractor_instructions_mention_form_signal():
     """Instructions must tell the LLM to react to the form signal string."""
     assert "[Form/survey content detected" in _EXTRACTOR_INSTRUCTIONS
+
+
+def test_runtime_instructions_omit_tool_guidance_when_no_tools_available():
+    instructions = _build_extractor_instructions(
+        include_linked_document=False,
+        include_interaction=False,
+    )
+
+    assert "list_interactive_elements" not in instructions
+    assert "click_element" not in instructions
+    assert "scrape_linked_document" not in instructions
+    assert "[No relevant content found for this query]" in instructions
+
+
+def test_runtime_instructions_include_only_interaction_block_when_interaction_available():
+    instructions = _build_extractor_instructions(
+        include_linked_document=False,
+        include_interaction=True,
+    )
+
+    assert "list_interactive_elements" in instructions
+    assert "click_element" in instructions
+    assert "[SPA: URL fragment detected" in instructions
+    assert "[Form/survey content detected" in instructions
+    assert "scrape_linked_document" not in instructions
+
+
+def test_runtime_instructions_include_only_document_block_when_document_tool_available():
+    instructions = _build_extractor_instructions(
+        include_linked_document=True,
+        include_interaction=False,
+    )
+
+    assert "scrape_linked_document" in instructions
+    assert "list_interactive_elements" not in instructions
+    assert "click_element" not in instructions

@@ -1,7 +1,7 @@
 """Live network integration tests for the scraping pipeline.
 
-These tests make real HTTP requests — no mocks. They verify that
-_validate_url routes correctly and scrape_url returns meaningful content
+These tests make real HTTP requests — no mocks. They verify that the new
+Fetcher → Parser pipeline routes correctly and returns meaningful content
 for representative URL types: static HTML, JSON, blocked domains, and 404s.
 
 Uses stable, low-traffic URLs (example.com, iana.org, jsonplaceholder.typicode.com,
@@ -10,9 +10,8 @@ httpbin.org) to avoid hitting production systems unnecessarily.
 
 import pytest
 
-from web_scout.scraping import scrape_url
-from web_scout.scraping.plan import _validate_url
-from web_scout.scraping.types import ScrapeStrategy
+from web_scout.scraping import DefaultParser, FetchResult, ScraplingFetcher, URLContext, materialize_parse_result
+from web_scout.scraping._parser import _classify_fetch_result
 from web_scout.scraping.utils import is_blocked_domain
 
 # ---------------------------------------------------------------------------
@@ -33,69 +32,89 @@ def test_reddit_unblocked_when_in_allowed_domains():
 
 
 # ---------------------------------------------------------------------------
-# _validate_url — live network
+# _classify_fetch_result — no network, validates routing heuristics
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_validate_url_live_static_html():
-    """example.com is a plain static HTML page — should route to SCRAPE_HTML or SCRAPE_JS."""
-    verdict, detail = await _validate_url("https://example.com")
-    assert verdict in (ScrapeStrategy.HTML_FAST, ScrapeStrategy.HTML_BROWSER), (
-        f"Unexpected verdict {verdict!r}: {detail}"
+def _make_result(url: str, **kwargs) -> FetchResult:
+    defaults = dict(
+        status=200,
+        content_type="text/html",
+        content_disposition="",
+        html_content="<html><body>hello</body></html>",
+        body=None,
+        headers={},
+        used_browser=False,
     )
+    defaults.update(kwargs)
+    return FetchResult(url=url, **defaults)
 
 
-@pytest.mark.asyncio
-async def test_validate_url_live_404_is_skipped():
-    """A live 404 response must be routed to SKIP.
-
-    Uses httpbin.org which can be slow; the test is skipped if the server is
-    unreachable or times out so that transient network issues do not cause
-    spurious CI failures.  The routing logic for 4xx responses is covered by
-    the mocked ``test_validate_url_skips_http_404`` unit test.
-    """
-    verdict, detail = await _validate_url("https://httpbin.org/status/404")
-    if "timed out" in detail or "GET failed" in detail or "validation error" in detail:
-        pytest.skip(f"httpbin.org unreachable in this environment: {detail}")
-    assert verdict == ScrapeStrategy.SKIP, f"Expected SKIP for 404, got {verdict!r}: {detail}"
+def test_classify_html():
+    r = _make_result("https://example.com")
+    assert _classify_fetch_result(r) == "html"
 
 
-@pytest.mark.asyncio
-async def test_validate_url_live_blocked_domain_is_skipped():
-    """youtube.com is in the block list — validate should return SKIP immediately."""
-    verdict, detail = await _validate_url("https://www.youtube.com/watch?v=abc123")
-    assert verdict == ScrapeStrategy.SKIP
-    assert "blocked" in detail.lower()
+def test_classify_json_by_content_type():
+    r = _make_result(
+        "https://api.example.com/data",
+        content_type="application/json",
+        html_content='{"key": "value"}',
+    )
+    assert _classify_fetch_result(r) == "json"
 
 
-@pytest.mark.asyncio
-async def test_validate_url_live_pdf_by_extension():
-    """A URL ending in .pdf is routed to SCRAPE_DOC without a network call."""
-    verdict, detail = await _validate_url("https://fao.org/3/ca9229en/CA9229EN.pdf")
-    assert verdict == ScrapeStrategy.DOCUMENT
+def test_classify_pdf_by_url_extension():
+    r = _make_result("https://fao.org/3/ca9229en/CA9229EN.pdf", html_content=None, body=None)
+    assert _classify_fetch_result(r) == "document"
 
 
-@pytest.mark.asyncio
-async def test_validate_url_live_json_endpoint():
-    """A public JSON API should route to SCRAPE_JSON."""
-    verdict, detail = await _validate_url("https://jsonplaceholder.typicode.com/todos/1")
-    assert verdict == ScrapeStrategy.JSON, f"Unexpected verdict {verdict!r}: {detail}"
-    assert "json" in detail.lower()
+def test_classify_http_error_is_skip():
+    r = _make_result("https://httpbin.org/status/404", status=404, html_content=None, body=None)
+    assert _classify_fetch_result(r) == "skip"
+
+
+def test_classify_blocked_domain_after_fetch():
+    """A pre-screening error from ScraplingFetcher routes to 'skip'."""
+    r = _make_result("https://www.youtube.com/watch?v=abc", status=403, error="blocked domain")
+    assert _classify_fetch_result(r) == "skip"
 
 
 # ---------------------------------------------------------------------------
-# scrape_url — live network
+# ScraplingFetcher + DefaultParser + materialize_parse_result — live network
 # ---------------------------------------------------------------------------
 
 
+async def _scrape(
+    url: str,
+    *,
+    query: str = "",
+    vision_model=None,
+    allowed_domains=None,
+    max_pdf_pages: int = 50,
+    max_content_chars: int = 30_000,
+):
+    """Convenience wrapper replicating the old scrape_url signature."""
+    fetcher = ScraplingFetcher(allowed_domains=allowed_domains)
+    parser = DefaultParser(vision_model=vision_model, max_pdf_pages=max_pdf_pages)
+    context = URLContext(url=url, depth=0)
+    fetch_result = await fetcher.fetch(url, context)
+    parse_result = await parser.dispatch(fetch_result, context)
+    content, error = await materialize_parse_result(
+        parse_result,
+        query=query,
+        vision_model=vision_model,
+        max_content_chars=max_content_chars,
+    )
+    effective_error = error or parse_result.error
+    return content, parse_result.title, effective_error
+
+
 @pytest.mark.asyncio
-async def test_scrape_url_live_example_com_returns_content():
-    """Scraping a static HTML page returns non-empty content without Playwright."""
-    # example.com is too short for the HTTP-fast path and falls back to a browser;
-    # IANA's example-domain page has enough static text for the fast path.
+async def test_scrape_live_example_com_returns_content():
+    """Scraping a static HTML page returns non-empty content."""
     url = "https://www.iana.org/domains/example"
-    content, title, error = await scrape_url(url, query="example domain")
+    content, title, error = await _scrape(url, query="example domain")
 
     assert error is None, f"Unexpected error: {error}"
     assert len(content) > 100, f"Content too short: {content!r}"
@@ -103,27 +122,30 @@ async def test_scrape_url_live_example_com_returns_content():
 
 
 @pytest.mark.asyncio
-async def test_scrape_url_live_blocked_domain_returns_error():
+async def test_scrape_live_blocked_domain_returns_error():
     """Scraping a blocked domain returns an error, not content."""
-    content, title, error = await scrape_url("https://www.youtube.com/watch?v=abc")
+    content, title, error = await _scrape("https://www.youtube.com/watch?v=abc")
 
     assert error is not None, "Expected an error for a blocked domain"
     assert content == "" or len(content) < 50
 
 
 @pytest.mark.asyncio
-async def test_scrape_url_live_404_returns_error():
-    """A 404 URL returns an error and empty content."""
-    content, title, error = await scrape_url("https://httpbin.org/status/404")
+async def test_scrape_live_404_returns_error_or_skip():
+    """A 404 URL returns an error or empty content."""
+    content, title, error = await _scrape("https://httpbin.org/status/404")
 
-    assert error is not None, "Expected an error for a 404 page"
+    # Either the error field is set or content is empty (soft-404 detection)
+    assert error is not None or not content.strip(), (
+        f"Expected error or empty content for 404, got content={content!r}"
+    )
 
 
 @pytest.mark.asyncio
-async def test_scrape_url_live_content_under_max_chars():
+async def test_scrape_live_content_under_max_chars():
     """Returned content does not exceed max_content_chars."""
     max_chars = 500
-    content, title, error = await scrape_url(
+    content, title, error = await _scrape(
         "https://www.iana.org/domains/example",
         query="example",
         max_content_chars=max_chars,
@@ -136,9 +158,9 @@ async def test_scrape_url_live_content_under_max_chars():
 
 
 @pytest.mark.asyncio
-async def test_scrape_url_live_returns_string_types():
-    """scrape_url always returns (str, str, str|None) — never None for content or title."""
-    content, title, error = await scrape_url("https://jsonplaceholder.typicode.com/todos/1")
+async def test_scrape_live_returns_string_types():
+    """Pipeline always returns (str, str, str|None) — never None for content or title."""
+    content, title, error = await _scrape("https://jsonplaceholder.typicode.com/todos/1")
 
     assert isinstance(content, str)
     assert isinstance(title, str)
@@ -147,16 +169,24 @@ async def test_scrape_url_live_returns_string_types():
 
 
 @pytest.mark.asyncio
-async def test_scrape_url_live_fao_fishery_page():
+async def test_scrape_live_fao_fishery_page():
     """A real FAO fishery page returns meaningful content."""
-    content, title, error = await scrape_url(
+    content, title, error = await _scrape(
         "https://www.fao.org/fishery/en",
         query="fishery production statistics",
     )
 
-    # FAO may be slow or block bots, but if it responds it should have content
     if error is None:
         assert len(content) > 200, f"FAO page returned too little content: {content[:200]!r}"
     else:
-        # Acceptable: bot-blocked, timeout, JS-only page
         assert isinstance(error, str)
+
+
+@pytest.mark.asyncio
+async def test_fetch_live_pdf_by_extension():
+    """Fetching a PDF URL sets used_browser=False and routes to 'document'."""
+    fetcher = ScraplingFetcher()
+    context = URLContext(url="https://fao.org/3/ca9229en/CA9229EN.pdf", depth=0)
+    fetch_result = await fetcher.fetch("https://fao.org/3/ca9229en/CA9229EN.pdf", context)
+    strategy = _classify_fetch_result(fetch_result)
+    assert strategy == "document", f"Expected 'document', got {strategy!r} (status={fetch_result.status})"

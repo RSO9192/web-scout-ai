@@ -10,32 +10,43 @@ import json
 import logging
 from typing import Optional, Tuple
 
-import httpx
-
 from web_scout.config import ROUTING_HEURISTICS
 
-from .constants import FETCH_HEADERS
+from ._scrapling import stealthy_fetch
 from .types import SourceArtifact
 from .utils import trim_json_value
 
 logger = logging.getLogger(__name__)
 
 
-async def scrape_json(url: str) -> Tuple[SourceArtifact, Optional[str]]:
+async def scrape_json(url: str, *, needs_browser: bool = False) -> Tuple[SourceArtifact, Optional[str]]:
     """Fetch a JSON endpoint and return a trimmed, annotated markdown representation."""
     try:
-        async with httpx.AsyncClient(
-            follow_redirects=True,
-            timeout=ROUTING_HEURISTICS.image_json_timeout_s,
-            headers=FETCH_HEADERS,
-        ) as client:
-            resp = await client.get(url)
-        resp.raise_for_status()
+        if needs_browser:
+            resp = await stealthy_fetch(
+                url,
+                headless=True,
+                network_idle=True,
+                solve_cloudflare=True,
+                timeout=ROUTING_HEURISTICS.browser_page_timeout_ms,
+            )
+        else:
+            from scrapling.fetchers import AsyncFetcher
+
+            resp = await AsyncFetcher.get(
+                url,
+                stealthy_headers=True,
+                follow_redirects=True,
+                timeout=ROUTING_HEURISTICS.image_json_timeout_s,
+            )
+
+        if resp.status >= 400:
+            raise ValueError(f"HTTP {resp.status}")
 
         try:
             data = resp.json()
         except Exception:
-            data = json.loads(resp.text)
+            data = json.loads(resp.html_content)
 
         trimmed = trim_json_value(data)
         if isinstance(data, dict):

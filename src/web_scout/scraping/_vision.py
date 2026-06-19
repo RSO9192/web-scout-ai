@@ -16,7 +16,7 @@ from typing import Optional, Tuple
 
 from web_scout.config import ROUTING_HEURISTICS
 
-from .constants import FETCH_HEADERS
+from ._scrapling import stealthy_fetch
 from .types import SourceArtifact
 
 logger = logging.getLogger(__name__)
@@ -25,30 +25,30 @@ _MIN_SCREENSHOT_CHARS = 400
 
 
 async def _capture_screenshot(url: str) -> bytes:
-    """Capture a viewport screenshot of a live URL using a headless browser."""
-    from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
+    """Capture a viewport screenshot of a live URL using Scrapling's StealthyFetcher.
 
-    browser_cfg = BrowserConfig(
-        verbose=False,
+    A ``page_action`` callback is used to wait for the page to settle and then
+    capture a PNG screenshot via Playwright's page.screenshot() API.
+    """
+    screenshot_holder: dict = {}
+
+    async def _take_screenshot(page) -> None:
+        await page.wait_for_timeout(ROUTING_HEURISTICS.vision_settle_wait_ms)
+        screenshot_holder["data"] = await page.screenshot(type="png", full_page=False)
+
+    await stealthy_fetch(
+        url,
         headless=True,
-        viewport={"width": 1280, "height": 900},
-        user_agent=FETCH_HEADERS["User-Agent"],
+        network_idle=True,
+        solve_cloudflare=True,
+        timeout=ROUTING_HEURISTICS.vision_goto_timeout_ms,
+        page_action=_take_screenshot,
     )
-    run_cfg = CrawlerRunConfig(
-        cache_mode=CacheMode.BYPASS,
-        exclude_all_images=True,
-        verbose=False,
-        screenshot=True,
-        force_viewport_screenshot=True,
-        screenshot_wait_for=ROUTING_HEURISTICS.vision_settle_wait_ms / 1000.0,
-        wait_until="networkidle",
-        page_timeout=ROUTING_HEURISTICS.vision_goto_timeout_ms,
-    )
-    async with AsyncWebCrawler(config=browser_cfg) as crawler:
-        result = await crawler.arun(url=url, config=run_cfg)
-    if not result.screenshot:
+
+    data = screenshot_holder.get("data")
+    if not data:
         raise RuntimeError("Headless browser returned no screenshot data")
-    return base64.b64decode(result.screenshot)
+    return data
 
 
 async def _call_vision_model(

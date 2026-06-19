@@ -14,11 +14,13 @@ _NOISE_LABELS = frozenset({"read more", "click here", "learn more"})
 
 
 def pick_markdown(md, query: str) -> str:
-    """Return the best markdown variant from a crawl4ai result object.
+    """Return markdown content as a plain string.
 
-    Prefers BM25-filtered ``fit_markdown`` when a query was provided and the
-    filtered output is non-trivial; otherwise falls back to raw markdown.
+    Accepts either a plain string (from markdownify) or a legacy crawl4ai
+    markdown object (kept for backward compatibility).
     """
+    if isinstance(md, str):
+        return md
     if query and hasattr(md, "fit_markdown") and md.fit_markdown and len(md.fit_markdown.strip()) > 20:
         return md.fit_markdown
     if hasattr(md, "raw_markdown"):
@@ -33,18 +35,51 @@ def _link_label(href: str) -> str:
     return tail or parsed.netloc or href
 
 
+def _extract_links_from_page(result) -> dict:
+    """Extract links from a Scrapling Response object into the expected format.
+
+    Returns a dict with 'internal' and 'external' link lists.
+    """
+    if result is None:
+        return {}
+    # Scrapling Response objects expose a .css() method
+    if not hasattr(result, "css"):
+        return {}
+    try:
+        internal: list = []
+        external: list = []
+        for a in result.css("a"):
+            href = str(a.attrib.get("href", "") or "").strip()
+            text = str(a.get_all_text()).strip() if hasattr(a, "get_all_text") else ""
+            if not href:
+                continue
+            entry = {"href": href, "text": text}
+            if href.startswith("http"):
+                external.append(entry)
+            elif href:
+                internal.append(entry)
+        return {"internal": internal, "external": external}
+    except Exception:
+        return {}
+
+
 def append_links(content: str, result, *, limit: int = 50) -> str:
     """Append a deduplicated section of useful page links to the markdown.
 
     Collects links from two sources:
     - Markdown hyperlinks already embedded in ``content``.
-    - The ``result.links`` dict returned by crawl4ai.
+    - The ``result.links`` dict (crawl4ai) or ``result.css('a')`` (Scrapling).
 
     Icon-only document links (no anchor text) are kept because repository
     pages often expose their primary documents only via file-icon anchors.
     Generic noise labels ("read more", "click here", …) are dropped.
     """
-    links_data = getattr(result, "links", {})
+    # Determine link source: Scrapling page, crawl4ai result dict, or None
+    if result is not None and hasattr(result, "css"):
+        links_data = _extract_links_from_page(result)
+    else:
+        links_data = getattr(result, "links", {})
+
     if isinstance(links_data, dict):
         raw_links = list(links_data.get("internal", [])) + list(links_data.get("external", []))
     else:

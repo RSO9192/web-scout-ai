@@ -18,6 +18,7 @@ from agents import Agent, ModelSettings, Runner, function_tool
 from playwright.async_api import async_playwright
 
 from web_scout.config import EXTRACTOR_HEURISTICS
+
 from .page_analysis import prefetched_allows_interaction, render_cached_document_text
 from .session_cache import get_or_fetch_session_source_artifact
 from .types import ExtractorOutput
@@ -87,86 +88,103 @@ _CLICK_ELEMENT_JS = """
 }
 """
 
-_EXTRACTOR_INSTRUCTIONS = """\
-You are a precise and comprehensive content extractor for web research.
+_BASE_EXTRACTOR_INSTRUCTIONS = """\
+You are a query-focused content extractor for web research.
 
-You receive a URL, a research query, and the pre-fetched page content. Your job:
+Inputs:
+- A research query.
+- A URL.
+- Page content that has already been fetched for you.
 
-## Step 1 — Review the provided page content
-Read the page content provided in the prompt. Do NOT ask to fetch the page again.
+Core rules:
+- Use only the supplied content and any tool results you obtain in this run.
+- Do NOT re-fetch the same URL.
+- Extract facts, figures, dates, exact names, rules, findings, statistics, quotes, and context that directly answer the research query.
+- Do NOT describe the page structure. Extract the actual data.
+- Exclude navigation, ads, boilerplate, tables of contents, and completely off-topic sections.
+- Do not over-summarize. Prefer a detailed, evidence-rich extraction when the source contains useful material.
+- Always write `title` and `relevant_content` in English, regardless of the source language.
 
-## Step 1b — Handle thin content or low-quality content with interaction
-If the provided content has fewer than 500 characters of meaningful text
-AND the page is not a document (PDF/DOCX/PPTX/XLSX):
+List-page rule:
+If the page is a list, database view, catalogue, index, or search-results page:
+- Set `page_type` to "list".
+- Your primary job is to identify and rank item/detail/document links, not to extract prose from the list page.
+- Return up to 15 absolute URLs in `relevant_links`, ordered by likely relevance to the research query.
+- Keep `relevant_content` brief unless the list page itself contains direct evidence.
 
-1. Call list_interactive_elements() to see what is clickable on the page.
-2. If the list contains tabs, buttons, or controls likely to reveal data
-   relevant to the research query, call click_element(n) for the most
-   promising element.
-3. Use the updated content. You may call click_element up to 5 times total.
-4. If content remains thin after clicking all promising elements, proceed
-   with what you have.
-
-Also call list_interactive_elements() if the content has a message containing:
-- "[SPA: URL fragment detected" — the page uses client-side routing; the visible
-  content may be the wrong tab or view. Look for tabs, dropdowns, or section
-  selectors that navigate to the target data.
-- "[Form/survey content detected" — the page loaded a feedback widget instead of
-  data. Look for data tabs, dropdowns, or navigation controls that reveal the
-  actual content.
-In both cases, click the most promising element and use the updated content.
-
-Do NOT call list_interactive_elements() if the content is already
-rich with no signals — interaction is a fallback, not a default.
-
-## Step 2 — Check for a primary source document
-After reading the page, ask yourself: **is this a metadata or catalogue page that links to a primary source document?**
-
-Signs of a metadata/catalogue page:
-- A legal database record with a link to the law or regulation PDF.
-- A library repository entry with a link to the full report or paper PDF.
-- An open data catalog or publication index page with a link to the main document.
-
-**If yes: call ``scrape_linked_document`` with the URL of the primary document (PDF, DOCX, etc.).**
-- Use the single most important document link — the one that IS the primary source, not supplementary annexes.
-- Call it at most once.
-- Do NOT call it for navigation links, related documents, or secondary references.
-
-**If no:** skip this step and go straight to Step 3.
-
-Examples of when to call ``scrape_linked_document``:
-- A database record for a specific document → call it on the `.pdf` link that is the document text itself.
-- A repository page → call it on the main file PDF.
-- A report catalogue entry → call it on the full report PDF.
-
-Examples of when NOT to call it:
-- A regular article or blog post (the page IS the content).
-- A search results or list page.
-- A page where the PDF link is a supplementary annex, not the main document.
-
-## Step 3 — Extract relevant content
-From all the content you have gathered (page + document if fetched), extract everything that directly answers the research query:
-- Include specific facts, numbers, dates, exact names, statistics, quotas, quotes, and full context.
-- VERY IMPORTANT: Do NOT describe the page structure. Extract the actual data.
-- Do NOT over-summarize. We need a detailed account of the relevant information.
-- Exclude navigation, ads, boilerplate, and completely off-topic sections.
+Content-page rule:
+If the page is an article, report, document, detail page, or other direct evidence source:
+- Set `page_type` to "content".
+- Return a highly informative `relevant_content` of up to 5,000 characters.
 - If the content is very long, scan for the most relevant sections and extract them comprehensively.
+- Include `relevant_links` only for deeper sources that are clearly likely to contain additional query-relevant evidence.
 
-## Step 4 — Identify follow-up links
-If you see links likely to contain deeper details needed to answer the query, include up to 15 in ``relevant_links`` (absolute URLs only).
-
-## Step 5 — Return output
-Return a highly informative ``relevant_content`` of up to 5,000 characters.
-
-If the page is a list/database/search-results view (page_type = "list"), your primary job
-is to identify and rank the item links, not to extract prose. Return up to 15 item URLs in
-``relevant_links``, ordered by likely relevance to the research query.
-
-If the page contains no relevant information, set ``relevant_content`` to:
+No-evidence rule:
+If the page contains no relevant information, set `relevant_content` exactly to:
 "[No relevant content found for this query]"
-
-Always write ``relevant_content`` and ``title`` in English, regardless of the source language.
 """
+
+_INTERACTION_INSTRUCTIONS = """\
+
+Interaction tools:
+Interaction tools are available because the pre-fetched page looked thin, interactive, or off-target.
+Use interaction only as a fallback.
+
+Call `list_interactive_elements()` when:
+- The supplied content is thin or mostly navigation/form noise.
+- The content contains "[SPA: URL fragment detected" and may show the wrong client-side tab or view.
+- The content contains "[Form/survey content detected" and data is likely hidden behind tabs, dropdowns, or navigation controls.
+
+After listing elements:
+- Click only tabs, buttons, dropdowns, or load-more controls likely to reveal data relevant to the research query.
+- Call `click_element(n)` for the most promising element, then use the updated content.
+- You may call `click_element` up to 5 times total.
+- Stop clicking once useful content is available or no promising controls remain.
+- If content remains thin after all promising clicks, proceed with what you have.
+"""
+
+_LINKED_DOCUMENT_INSTRUCTIONS = """\
+
+Primary document tool:
+`scrape_linked_document` is available because the page may be a metadata/catalogue record.
+
+Call `scrape_linked_document(document_url)` only when the page is a metadata or catalogue record whose main evidence is in one primary source document.
+
+Good cases:
+- A legal database record linking to the law or regulation PDF.
+- A library/repository record linking to the full report or paper.
+- A publication catalogue entry linking to the main report document.
+
+Rules:
+- Use the single most important primary document link.
+- Call it at most once.
+- Do NOT call it for navigation links, related documents, references, or supplementary annexes.
+- Do NOT call it for a regular article/blog page where the page itself is the evidence.
+- Do NOT call it for list/search-results pages; set `page_type` to "list" and return ranked item links instead.
+"""
+
+
+def _build_extractor_instructions(
+    *,
+    include_linked_document: bool,
+    include_interaction: bool,
+    domain_expertise: Optional[str] = None,
+) -> str:
+    """Build runtime instructions that mention only tools exposed to the agent."""
+    instructions = _BASE_EXTRACTOR_INSTRUCTIONS
+    if include_interaction:
+        instructions += _INTERACTION_INSTRUCTIONS
+    if include_linked_document:
+        instructions += _LINKED_DOCUMENT_INSTRUCTIONS
+    if domain_expertise:
+        instructions += f"\n\nDomain Expertise: {domain_expertise}\n"
+    return instructions
+
+
+_EXTRACTOR_INSTRUCTIONS = _build_extractor_instructions(
+    include_linked_document=True,
+    include_interaction=True,
+)
 
 
 async def run_with_retry(agent: Agent, input_text: str, max_turns: int = 30) -> Any:
@@ -206,10 +224,13 @@ def build_extractor_agent(
     essential for metadata/catalogue pages (e.g. FAOLEX law records) where
     the page itself only contains a summary and the full text is in a document.
     """
-    from web_scout.scraping import executor as scraping_executor
-    from web_scout.scraping import plan as scraping_plan
-    from web_scout.scraping.page_classifier import classify_prefetched_page_shape, looks_like_pdf_resource
-    from web_scout.scraping.types import ScrapeStrategy, SourceArtifact
+    from web_scout.scraping import fetch_and_parse_url
+    from web_scout.scraping._parser import materialize_parse_result
+    from web_scout.scraping.page_classifier import (
+        classify_prefetched_page_shape,
+        looks_like_document_resource,
+        looks_like_pdf_resource,
+    )
     from web_scout.scraping.utils import is_blocked_domain
 
     legacy_direct_agent = not pre_fetched_content
@@ -253,33 +274,41 @@ def build_extractor_agent(
                 "attempted for this page. Return the structured extraction now.]"
             )
         linked_document_called = True
-        plan = await scraping_plan.build_scrape_plan(document_url, allowed_domains=allowed_domains)
-        if plan.strategy != ScrapeStrategy.DOCUMENT:
+
+        if not looks_like_document_resource(document_url):
             return (
                 "[scrape_linked_document rejected: URL does not look like a primary "
-                f"document ({plan.reason}): {document_url}]"
+                f"document: {document_url}]"
             )
 
         if use_session_cache:
             cached_artifact, cache_error = await get_or_fetch_session_source_artifact(
                 url=document_url,
-                strategy=plan.strategy,
                 wait_for=None,
                 vision_model=vision_model,
                 allowed_domains=allowed_domains,
                 max_pdf_pages=max_pdf_pages,
-                cache_pdf_pages=looks_like_pdf_resource(document_url, plan.content_type, plan.content_disposition),
+                cache_pdf_pages=looks_like_pdf_resource(document_url),
             )
             if cache_error or cached_artifact is None:
                 return f"[Document scrape failed: {cache_error}]"
-            content, title, error = await scraping_executor.materialize_source_artifact(
-                SourceArtifact(
-                    kind=cached_artifact.artifact_kind,
-                    title=cached_artifact.title,
-                    text_content=cached_artifact.text_content,
-                    binary_bytes=cached_artifact.binary_bytes,
-                    mime_type=cached_artifact.mime_type,
-                ),
+            from web_scout.scraping.types import ParseResult, SourceArtifact
+            artifact = SourceArtifact(
+                kind=cached_artifact.artifact_kind,
+                title=cached_artifact.title,
+                text_content=cached_artifact.text_content,
+                binary_bytes=cached_artifact.binary_bytes,
+                mime_type=cached_artifact.mime_type,
+            )
+            tmp_result = ParseResult(
+                url=document_url,
+                title=cached_artifact.title,
+                text_content=cached_artifact.text_content,
+                links=[],
+                artifact=artifact,
+            )
+            content, error = await materialize_parse_result(
+                tmp_result,
                 query=query,
                 vision_model=vision_model,
                 max_content_chars=max_content_chars,
@@ -288,7 +317,7 @@ def build_extractor_agent(
                 return f"[Document scrape failed: {error}]"
             if not content.strip():
                 return "[Document returned empty content]"
-            return render_cached_document_text(document_url, title, content)
+            return render_cached_document_text(document_url, cached_artifact.title, content)
 
         from .tracker import ResearchTracker
 
@@ -306,12 +335,7 @@ def build_extractor_agent(
             doc_in_flight[norm] = future
 
         try:
-            result = await _scrape_linked_document_uncached(
-                document_url,
-                norm,
-                known_content_type=plan.content_type,
-                known_content_disposition=plan.content_disposition,
-            )
+            result = await _scrape_linked_document_uncached(document_url, norm)
         except Exception as exc:
             if future is not None and not future.done():
                 future.set_exception(exc)
@@ -325,20 +349,21 @@ def build_extractor_agent(
             if doc_in_flight is not None:
                 doc_in_flight.pop(norm, None)
 
-    async def _scrape_linked_document_uncached(
-        document_url: str,
-        norm: str,
-        *,
-        known_content_type: str,
-        known_content_disposition: str,
-    ) -> str:
-        content, title, error = await scraping_executor.scrape_document(
+    async def _scrape_linked_document_uncached(document_url: str, norm: str) -> str:
+        _, parse_result = await fetch_and_parse_url(
             document_url,
-            query=query,
+            allowed_domains=allowed_domains,
             vision_model=vision_model,
             max_pdf_pages=max_pdf_pages,
-            known_content_type=known_content_type,
-            known_content_disposition=known_content_disposition,
+        )
+        title = parse_result.title
+        if parse_result.error:
+            return f"[Document scrape failed: {parse_result.error}]"
+        content, error = await materialize_parse_result(
+            parse_result,
+            query=query,
+            vision_model=vision_model,
+            max_content_chars=max_content_chars,
         )
         if error:
             return f"[Document scrape failed: {error}]"
@@ -516,15 +541,16 @@ def build_extractor_agent(
         except Exception as e:
             return f"[click_element failed: {e}]"
 
-    instructions = _EXTRACTOR_INSTRUCTIONS
-    if domain_expertise:
-        instructions += f"\n\nDomain Expertise: {domain_expertise}\n"
-
     agent_tools = []
     if allow_linked_document:
         agent_tools.append(scrape_linked_document)
     if allow_interaction:
         agent_tools.extend([list_interactive_elements, click_element])
+    instructions = _build_extractor_instructions(
+        include_linked_document=allow_linked_document,
+        include_interaction=allow_interaction,
+        domain_expertise=domain_expertise,
+    )
     logger.info(
         "[extract] extractor_agent tools=%s chars=%d linked_doc=%s interaction=%s shape=%s doc_links=%s metadata_markers=%s url=%s",
         [getattr(tool, "name", str(tool)) for tool in agent_tools],

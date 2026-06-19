@@ -1,48 +1,66 @@
-"""Unified web scraping via crawl4ai, docling, and vision fallbacks.
+"""Scraping package — Fetcher → Parser → Crawler pipeline.
 
-Public API summary
-------------------
-``scrape_url``
-    One-shot scrape: validates → routes → extracts → truncates.
+Public API
+----------
+Orchestrator / config::
 
-``build_scrape_plan``
-    Cheap HEAD+GET routing without running any extractor.
+    Orchestrator, OrchestratorConfig
 
-``execute_strategy``
-    Execute a pre-built ``ScrapePlan`` and return a ``SourceArtifact``.
+Components (ABCs + default implementations)::
 
-``fetch_query_agnostic_source_artifact`` / ``materialize_source_artifact``
-    Two-phase cache API: fetch once (no BM25), reuse across queries.
+    Fetcher, ScraplingFetcher
+    Parser, DefaultParser
+    Crawler, Crawl4AICrawler
 
-Types: ``ScrapePlan``, ``ScrapeStrategy``, ``SourceArtifact``
+Per-URL context::
 
-Classifiers: ``PageShapeAssessment``, ``classify_html_page_shape``,
-             ``classify_prefetched_page_shape``
+    URLContext
+
+Data types::
+
+    FetchResult, ParseResult, SourceArtifact
+
+Page-shape classifiers (used by tools and tests)::
+
+    PageShapeAssessment, classify_html_page_shape, classify_prefetched_page_shape
+
+Utilities::
+
+    fetch_and_parse_url      — fetch + parse a single URL (ScraplingFetcher + DefaultParser)
+    materialize_parse_result — convert ParseResult → (text, error)
 """
 
-from ._scrape_url import MAX_CONTENT_CHARS, scrape_url
-from .executor import (
-    execute_strategy,
-    fetch_query_agnostic_source_artifact,
-    materialize_source_artifact,
-    scrape_document,
-)
+from ._crawler import Crawl4AICrawler, Crawler
+from ._fetch_parse import fetch_and_parse_url
+from ._fetcher import Fetcher, ScraplingFetcher
+from ._parser import DefaultParser, Parser, materialize_parse_result
+from .context import URLContext
+from .orchestrator import Orchestrator, OrchestratorConfig
 from .page_classifier import PageShapeAssessment, classify_html_page_shape, classify_prefetched_page_shape
-from .plan import build_scrape_plan
-from .types import ScrapePlan, ScrapeStrategy, SourceArtifact
+from .types import FetchResult, ParseResult, SourceArtifact
 
 __all__ = [
-    "MAX_CONTENT_CHARS",
-    "scrape_url",
-    "build_scrape_plan",
-    "execute_strategy",
-    "scrape_document",
-    "fetch_query_agnostic_source_artifact",
-    "materialize_source_artifact",
-    "ScrapePlan",
-    "ScrapeStrategy",
+    # Orchestrator
+    "Orchestrator",
+    "OrchestratorConfig",
+    # Components
+    "Fetcher",
+    "ScraplingFetcher",
+    "Parser",
+    "DefaultParser",
+    "Crawler",
+    "Crawl4AICrawler",
+    # Context
+    "URLContext",
+    # Data types
+    "FetchResult",
+    "ParseResult",
     "SourceArtifact",
+    # Classifiers
     "PageShapeAssessment",
     "classify_html_page_shape",
     "classify_prefetched_page_shape",
+    # Utilities
+    "fetch_and_parse_url",
+    "materialize_parse_result",
 ]

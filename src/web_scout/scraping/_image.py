@@ -10,33 +10,44 @@ import logging
 import mimetypes
 from typing import Optional, Tuple
 
-import httpx
-
 from web_scout.config import ROUTING_HEURISTICS
 
-from .constants import FETCH_HEADERS
+from ._scrapling import stealthy_fetch
 from .types import SourceArtifact
 from .utils import normalize_content_type
 
 logger = logging.getLogger(__name__)
 
 
-async def scrape_image(url: str) -> Tuple[SourceArtifact, Optional[str]]:
+async def scrape_image(url: str, *, needs_browser: bool = False) -> Tuple[SourceArtifact, Optional[str]]:
     """Download raw image bytes for session caching and later vision extraction."""
     try:
-        async with httpx.AsyncClient(
-            follow_redirects=True,
-            timeout=ROUTING_HEURISTICS.image_json_timeout_s,
-            headers=FETCH_HEADERS,
-        ) as client:
-            resp = await client.get(url)
-        resp.raise_for_status()
+        if needs_browser:
+            resp = await stealthy_fetch(
+                url,
+                headless=True,
+                network_idle=True,
+                solve_cloudflare=True,
+                timeout=ROUTING_HEURISTICS.browser_page_timeout_ms,
+            )
+        else:
+            from scrapling.fetchers import AsyncFetcher
+
+            resp = await AsyncFetcher.get(
+                url,
+                stealthy_headers=True,
+                follow_redirects=True,
+                timeout=ROUTING_HEURISTICS.image_json_timeout_s,
+            )
+
+        if resp.status >= 400:
+            raise ValueError(f"HTTP {resp.status}")
 
         mime_type = (
             normalize_content_type(resp.headers.get("content-type", "")) or mimetypes.guess_type(url)[0] or "image/png"
         )
         title = url.rsplit("/", 1)[-1] or "Image"
-        return SourceArtifact(kind="binary", title=title, binary_bytes=resp.content, mime_type=mime_type), None
+        return SourceArtifact(kind="binary", title=title, binary_bytes=resp.body, mime_type=mime_type), None
 
     except Exception as exc:
         return SourceArtifact(kind="text", title=""), f"Image download failed: {exc}"

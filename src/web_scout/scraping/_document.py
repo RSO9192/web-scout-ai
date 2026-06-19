@@ -16,13 +16,10 @@ import logging
 import threading
 from typing import Optional, Tuple
 
-import httpx
-
 from web_scout.config import ROUTING_HEURISTICS
 
 from ._download import download_pdf
 from ._markdown import append_links
-from .constants import FETCH_HEADERS
 from .page_classifier import looks_like_pdf_resource
 from .types import SourceArtifact
 from .utils import unsupported_legacy_document_reason
@@ -53,27 +50,42 @@ def _get_pdf_converter():
     return _PDF_CONVERTER
 
 
-async def _resolve_is_pdf(url: str, content_type: str, content_disposition: str) -> bool:
+async def _resolve_is_pdf(url: str, content_type: str, content_disposition: str, *, needs_browser: bool = False) -> bool:
     """Return True when the URL is confirmed to serve a PDF.
 
     Uses known content-type / content-disposition metadata when available;
-    falls back to a HEAD request, then to extension sniffing.
+    falls back to a GET request, then to extension sniffing.  When
+    ``needs_browser`` is True the fallback GET uses ``StealthyFetcher`` to
+    bypass bot-walls instead of ``AsyncFetcher``.
     """
     if looks_like_pdf_resource(url, content_type, content_disposition):
         return True
     if content_type or content_disposition:
         return False  # already resolved from headers — not a PDF
     try:
-        async with httpx.AsyncClient(
-            follow_redirects=True,
-            timeout=ROUTING_HEURISTICS.validation_timeout,
-            headers=FETCH_HEADERS,
-        ) as client:
-            head = await client.head(url)
+        if needs_browser:
+            from ._scrapling import stealthy_fetch
+
+            resp = await stealthy_fetch(
+                url,
+                headless=True,
+                network_idle=True,
+                solve_cloudflare=True,
+                timeout=ROUTING_HEURISTICS.browser_page_timeout_ms,
+            )
+        else:
+            from scrapling.fetchers import AsyncFetcher
+
+            resp = await AsyncFetcher.get(
+                url,
+                stealthy_headers=True,
+                follow_redirects=True,
+                timeout=ROUTING_HEURISTICS.validation_timeout,
+            )
         return looks_like_pdf_resource(
             url,
-            head.headers.get("content-type", ""),
-            head.headers.get("content-disposition", ""),
+            resp.headers.get("content-type", ""),
+            resp.headers.get("content-disposition", ""),
         )
     except Exception:
         return url.lower().split("?")[0].endswith(".pdf")
@@ -107,6 +119,7 @@ async def scrape_document(
     max_pdf_pages: int = ROUTING_HEURISTICS.pdf_max_pages_default,
     known_content_type: str = "",
     known_content_disposition: str = "",
+    needs_browser: bool = False,
 ) -> Tuple[SourceArtifact, Optional[str]]:
     """Extract content from a document URL.
 
@@ -120,10 +133,10 @@ async def scrape_document(
     if unsupported:
         return SourceArtifact(kind="text", title=title), f"Skipped: {unsupported}"
 
-    is_pdf = await _resolve_is_pdf(url, known_content_type, known_content_disposition)
+    is_pdf = await _resolve_is_pdf(url, known_content_type, known_content_disposition, needs_browser=needs_browser)
 
     if is_pdf:
-        pdf_bytes, error = await download_pdf(url)
+        pdf_bytes, error = await download_pdf(url, needs_browser=needs_browser)
         if error or not pdf_bytes:
             return SourceArtifact(kind="text", title=title), error or "PDF download returned empty bytes"
 

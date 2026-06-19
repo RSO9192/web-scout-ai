@@ -35,15 +35,18 @@ python = ">=3.10,<3.14"
 pydantic = ">=2.0"
 httpx = ">=0.24"
 openai-agents = ">=0.0.7"
-crawl4ai = ">=0.5"
+scrapling = {version = ">=0.4.9", extras = ["fetchers"]}
+markdownify = ">=0.11"
 docling = ">=2.0"
 docling-core = ">=2.0"
 litellm = ">=1.30"
+pydantic-settings = ">=2.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.0"
 pytest-asyncio = ">=0.23"
 ruff = ">=0.4"
+ipykernel = "^7.3.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -63,11 +66,13 @@ select = ["E", "F", "I", "W"]
 # Long function signatures in extractor/scraper are unavoidable given parameter counts.
 "src/web_scout/tools/extractor.py" = ["E501"]
 "src/web_scout/tools/scraper.py" = ["E501"]
+# Test helpers build complex objects inline; line-length is not enforced here.
+"tests/test_scrape_tool_dedupe.py" = ["E501"]
 # Long Pydantic field descriptions must not be wrapped.
 "src/web_scout/tools/types.py" = ["E501"]
-# Strategy and download modules have long log-format strings.
+# Strategy and download modules have long log-format strings and function signatures.
 "src/web_scout/scraping/_download.py" = ["E501"]
-"src/web_scout/scraping/executor.py" = ["E501"]
+"src/web_scout/scraping/_document.py" = ["E501"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -16,6 +16,7 @@ from typing import Any, Dict, Optional
 
 from web_scout._extractor_contract import ExtractorOutcome
 from web_scout.config import EXTRACTOR_HEURISTICS
+
 from .extractor import ExtractorOutput, build_extractor_agent, run_with_retry
 from .outcomes import build_failure_outcome, build_success_outcome, classify_failure_action
 from .page_analysis import prefetched_is_recoverable, render_cached_page_text
@@ -100,70 +101,73 @@ def create_scrape_and_extract_tool(
 
                 _wait_for = wait_for if wait_for and wait_for.lower() not in ("null", "none", "") else None
 
-                from web_scout.scraping import executor as scraping_executor
-                from web_scout.scraping import plan as scraping_plan
-                from web_scout.scraping import scrape_url
+                from web_scout.scraping import fetch_and_parse_url
+                from web_scout.scraping._parser import materialize_parse_result
                 from web_scout.scraping.page_classifier import looks_like_pdf_resource
-                from web_scout.scraping.types import ScrapeStrategy, SourceArtifact
+                from web_scout.scraping.types import ParseResult, SourceArtifact
 
                 page_rendered = ""
                 is_failure = False
 
                 if use_session_cache:
-                    plan = await scraping_plan.build_scrape_plan(url, allowed_domains=allowed_domains)
-                    if plan.strategy == ScrapeStrategy.SKIP:
-                        page_rendered = f"[Scrape failed: Skipped: {plan.reason}]"
-                        is_failure = True
-                    else:
-                        cached_artifact, cache_error = await get_or_fetch_session_source_artifact(
-                            url=url,
-                            strategy=plan.strategy,
-                            wait_for=_wait_for,
-                            vision_model=vision_model,
-                            allowed_domains=allowed_domains,
-                            max_pdf_pages=max_pdf_pages,
-                            cache_pdf_pages=looks_like_pdf_resource(
-                                url,
-                                plan.content_type,
-                                plan.content_disposition,
-                            ),
-                        )
-                        if cache_error or cached_artifact is None:
-                            page_rendered = f"[Scrape failed: {cache_error}]"
-                            is_failure = True
-                        else:
-                            content, title, error = await scraping_executor.materialize_source_artifact(
-                                SourceArtifact(
-                                    kind=cached_artifact.artifact_kind,
-                                    title=cached_artifact.title,
-                                    text_content=cached_artifact.text_content,
-                                    binary_bytes=cached_artifact.binary_bytes,
-                                    mime_type=cached_artifact.mime_type,
-                                ),
-                                query=query,
-                                vision_model=vision_model,
-                                max_content_chars=max_content_chars,
-                            )
-                            if error:
-                                page_rendered = f"[Scrape failed: {error}]"
-                                is_failure = True
-                            elif not content.strip():
-                                page_rendered = "[Page returned empty content]"
-                                is_failure = True
-                            else:
-                                page_rendered = render_cached_page_text(url, title, content)
-                else:
-                    content, title, error = await scrape_url(
-                        url,
-                        _wait_for,
-                        query=query,
+                    cached_artifact, cache_error = await get_or_fetch_session_source_artifact(
+                        url=url,
+                        wait_for=_wait_for,
                         vision_model=vision_model,
                         allowed_domains=allowed_domains,
                         max_pdf_pages=max_pdf_pages,
+                        cache_pdf_pages=looks_like_pdf_resource(url),
+                    )
+                    if cache_error or cached_artifact is None:
+                        page_rendered = f"[Scrape failed: {cache_error}]"
+                        is_failure = True
+                    else:
+                        artifact = SourceArtifact(
+                            kind=cached_artifact.artifact_kind,
+                            title=cached_artifact.title,
+                            text_content=cached_artifact.text_content,
+                            binary_bytes=cached_artifact.binary_bytes,
+                            mime_type=cached_artifact.mime_type,
+                        )
+                        tmp_result = ParseResult(
+                            url=url,
+                            title=cached_artifact.title,
+                            text_content=cached_artifact.text_content,
+                            links=[],
+                            artifact=artifact,
+                        )
+                        content, error = await materialize_parse_result(
+                            tmp_result,
+                            query=query,
+                            vision_model=vision_model,
+                            max_content_chars=max_content_chars,
+                        )
+                        title = cached_artifact.title
+                        if error:
+                            page_rendered = f"[Scrape failed: {error}]"
+                            is_failure = True
+                        elif not content.strip():
+                            page_rendered = "[Page returned empty content]"
+                            is_failure = True
+                        else:
+                            page_rendered = render_cached_page_text(url, title, content)
+                else:
+                    _, parse_result = await fetch_and_parse_url(
+                        url,
+                        wait_for=_wait_for,
+                        allowed_domains=allowed_domains,
+                        vision_model=vision_model,
+                        max_pdf_pages=max_pdf_pages,
+                    )
+                    content, error = await materialize_parse_result(
+                        parse_result,
+                        query=query,
+                        vision_model=vision_model,
                         max_content_chars=max_content_chars,
                     )
-                    if error:
-                        page_rendered = f"[Scrape failed: {error}]"
+                    title = parse_result.title
+                    if error or parse_result.error:
+                        page_rendered = f"[Scrape failed: {error or parse_result.error}]"
                         is_failure = True
                     elif not content.strip():
                         page_rendered = "[Page returned empty content]"
