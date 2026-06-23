@@ -7,11 +7,13 @@
 [![Python Versions](https://img.shields.io/pypi/pyversions/web-scout-ai)](https://pypi.org/project/web-scout-ai/)
 [![License](https://img.shields.io/github/license/RSO9192/web-scout-ai)](LICENSE)
 
-**AI-powered web research in one async call.**
+**Web research, scraping, and synthesis in one async call.**
 
 ```bash
 pip install web-scout-ai
 web-scout-setup
+export GEMINI_API_KEY="your-gemini-api-key"
+export SERPER_API_KEY="your-serper-api-key"
 ```
 
 ```python
@@ -29,7 +31,8 @@ Built-in web search tools in frameworks like the OpenAI Agents SDK return snippe
 
 `web-scout-ai` goes deeper: it scrapes, converts, and extracts relevant content from real pages — static HTML, JS-rendered sites, PDFs, DOCX/PPTX/XLSX, and JSON endpoints. Legacy Office binaries such as `.doc`, `.xls`, and `.ppt` are detected and skipped explicitly. You also control exactly which sources get scraped, how deep the pipeline goes, and what counts as good enough coverage before synthesis.
 
-No Tavily + crawl4ai + custom glue code. No open-ended agent you cannot control in production.
+It gives you a controlled pipeline for source-grounded research without stitching together search,
+scraping, document parsing, and synthesis yourself.
 
 ---
 
@@ -67,6 +70,10 @@ result = await run_web_research(
 ```bash
 pip install web-scout-ai
 web-scout-setup   # installs Chromium for JS-rendered pages
+
+# Required by the default Gemini models and the default Serper search backend.
+export GEMINI_API_KEY="your-gemini-api-key"
+export SERPER_API_KEY="your-serper-api-key"
 ```
 
 ### First run
@@ -78,7 +85,6 @@ from web_scout import run_web_research
 async def main():
     result = await run_web_research(
         query="What are the main threats to coral reefs worldwide?",
-        models={"web_researcher": "openai/gpt-4o-mini", "content_extractor": "openai/gpt-4o-mini"},
         search_backend="serper",
         cache=True,
     )
