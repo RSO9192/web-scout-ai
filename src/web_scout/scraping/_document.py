@@ -28,6 +28,8 @@ logger = logging.getLogger(__name__)
 
 _PDF_CONVERTER = None
 _PDF_CONVERTER_LOCK = threading.Lock()
+# Docling's native PDF pipeline can segfault when conversions overlap in threads.
+_PDF_CONVERSION_LOCK = threading.Lock()
 
 
 def _get_pdf_converter():
@@ -99,16 +101,17 @@ async def _convert_pdf_to_markdown(pdf_bytes: bytes, url: str, max_pages: int) -
         import gc
         import io
 
-        converter = _get_pdf_converter()
-        filename = url.rsplit("/", 1)[-1].split("?")[0] or "document.pdf"
-        source = DocumentStream(name=filename, stream=io.BytesIO(pdf_bytes))
-        result = converter.convert(source, page_range=(1, max_pages))
-        # Explicit del + gc.collect ensures pypdfium2 child objects (pages) are
-        # garbage-collected before their parent PdfDocument.
-        markdown = result.document.export_to_markdown()
-        del result
-        gc.collect()
-        return markdown
+        with _PDF_CONVERSION_LOCK:
+            converter = _get_pdf_converter()
+            filename = url.rsplit("/", 1)[-1].split("?")[0] or "document.pdf"
+            source = DocumentStream(name=filename, stream=io.BytesIO(pdf_bytes))
+            result = converter.convert(source, page_range=(1, max_pages))
+            # Explicit del + gc.collect ensures pypdfium2 child objects (pages) are
+            # garbage-collected before their parent PdfDocument.
+            markdown = result.document.export_to_markdown()
+            del result
+            gc.collect()
+            return markdown
 
     return await asyncio.to_thread(_sync)
 

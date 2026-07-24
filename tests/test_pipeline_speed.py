@@ -2,6 +2,8 @@
 
 import asyncio
 import os
+import threading
+import time
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -12,7 +14,7 @@ from web_scout import _configure_third_party_runtime
 from web_scout import agent as _agent_module
 from web_scout.agent import SearchIterationResult, _run_search_mode
 from web_scout.scraping import DefaultParser, FetchResult, ParseResult, ScraplingFetcher, SourceArtifact
-from web_scout.scraping._document import _get_pdf_converter
+from web_scout.scraping._document import _convert_pdf_to_markdown, _get_pdf_converter
 from web_scout.tools import ResearchTracker
 from web_scout.tools.extractor import build_extractor_agent as _build_extractor_agent
 
@@ -379,6 +381,46 @@ def test_pdf_docling_converter_is_reused(monkeypatch):
 
     assert converter1 is converter2
     assert len(created) == 1
+
+
+async def test_pdf_docling_conversions_do_not_overlap(monkeypatch):
+    """Concurrent callers must serialize use of Docling's native PDF pipeline."""
+    state_lock = threading.Lock()
+    active_calls = 0
+    max_active_calls = 0
+
+    class FakeDocument:
+        @staticmethod
+        def export_to_markdown():
+            return "converted"
+
+    class FakeResult:
+        document = FakeDocument()
+
+    class FakeConverter:
+        def convert(self, source, page_range):
+            nonlocal active_calls, max_active_calls
+            with state_lock:
+                active_calls += 1
+                max_active_calls = max(max_active_calls, active_calls)
+            try:
+                time.sleep(0.02)
+                return FakeResult()
+            finally:
+                with state_lock:
+                    active_calls -= 1
+
+    monkeypatch.setattr(_scraping_document_module, "_PDF_CONVERTER", FakeConverter())
+
+    results = await asyncio.gather(
+        *[
+            _convert_pdf_to_markdown(b"%PDF-1.4 fake", f"https://example.org/{index}.pdf", 1)
+            for index in range(5)
+        ]
+    )
+
+    assert results == ["converted"] * 5
+    assert max_active_calls == 1
 
 
 def test_configure_third_party_runtime_disables_hf_progress(monkeypatch):

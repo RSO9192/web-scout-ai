@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.3.2] - 2026-07-24
+
+### Fixed
+
+- **Native crashes during concurrent PDF processing**: Docling PDF conversion, Markdown export, and cleanup are now protected by a process-wide lock. Downloads and content extraction remain concurrent, while the native document pipeline is serialized across simultaneous `run_web_research()` calls to prevent segmentation faults in direct-PDF workloads.
+- **Concurrent PDF regression coverage**: a focused test now launches multiple PDF conversions concurrently and verifies that use of the shared Docling converter never overlaps.
+
+
 ## [1.3.0] - 2026-05-19
 
 ### Changed
