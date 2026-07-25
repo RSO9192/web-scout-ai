@@ -185,8 +185,11 @@ async def test_scrape_live_fao_fishery_page():
 @pytest.mark.asyncio
 async def test_fetch_live_pdf_by_extension():
     """Fetching a PDF URL sets used_browser=False and routes to 'document'."""
+    # Stable public PDF (FAO document endpoints are frequently gateway-flaky).
+    url = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
     fetcher = ScraplingFetcher()
-    context = URLContext(url="https://fao.org/3/ca9229en/CA9229EN.pdf", depth=0)
-    fetch_result = await fetcher.fetch("https://fao.org/3/ca9229en/CA9229EN.pdf", context)
+    context = URLContext(url=url, depth=0)
+    fetch_result = await fetcher.fetch(url, context)
     strategy = _classify_fetch_result(fetch_result)
+    assert fetch_result.used_browser is False
     assert strategy == "document", f"Expected 'document', got {strategy!r} (status={fetch_result.status})"

@@ -21,6 +21,7 @@ from web_scout.agent import (
     run_web_research,
 )
 from web_scout.models import UrlEntry, WebResearchResultRaw
+from web_scout.scraping import _document as _document_module
 from web_scout.tools import ResearchTracker
 
 # ---------------------------------------------------------------------------
@@ -70,6 +71,69 @@ def _patch_runner(monkeypatch, output):
         return _FakeRunResult(output)
 
     monkeypatch.setattr(_agent_module.Runner, "run", _fake_run)
+
+
+# ---------------------------------------------------------------------------
+# PDF converter locking
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_pdf_converter_creation_and_use_share_one_lock(monkeypatch):
+    """Converter initialization and use happen within one lock acquisition."""
+
+    class TrackingLock:
+        def __init__(self):
+            self.acquisitions = 0
+            self.held = False
+
+        def __enter__(self):
+            assert not self.held, "PDF lock must not be acquired recursively"
+            self.acquisitions += 1
+            self.held = True
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            self.held = False
+
+    lock = TrackingLock()
+
+    class FakeDocument:
+        @staticmethod
+        def export_to_markdown():
+            return "converted"
+
+    class FakeConverter:
+        def __init__(self, **kwargs):
+            assert lock.held
+
+        def convert(self, source, page_range):
+            assert lock.held
+            return type("FakeResult", (), {"document": FakeDocument()})()
+
+    class FakePdfFormatOption:
+        def __init__(self, pipeline_options):
+            self.pipeline_options = pipeline_options
+
+    class FakePdfPipelineOptions:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    monkeypatch.setattr(_document_module, "_PDF_LOCK", lock)
+    monkeypatch.setattr(_document_module, "_PDF_CONVERTER", None)
+    monkeypatch.setattr("docling.document_converter.DocumentConverter", FakeConverter)
+    monkeypatch.setattr("docling.document_converter.PdfFormatOption", FakePdfFormatOption)
+    monkeypatch.setattr("docling.datamodel.pipeline_options.PdfPipelineOptions", FakePdfPipelineOptions)
+
+    result = await _document_module._convert_pdf_to_markdown(
+        b"%PDF-1.4 fake",
+        "https://example.org/report.pdf",
+        1,
+    )
+
+    assert result == "converted"
+    assert lock.acquisitions == 1
+    assert not lock.held
 
 
 # ---------------------------------------------------------------------------

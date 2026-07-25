@@ -27,26 +27,26 @@ from .utils import unsupported_legacy_document_reason
 logger = logging.getLogger(__name__)
 
 _PDF_CONVERTER = None
-_PDF_CONVERTER_LOCK = threading.Lock()
+# Protect both lazy converter creation and use. Docling's native PDF pipeline
+# can segfault when conversions overlap in threads.
+_PDF_LOCK = threading.Lock()
 
 
 def _get_pdf_converter():
-    """Return a shared Docling PDF converter instance (thread-safe lazy singleton).
+    """Return the shared Docling PDF converter.
 
     Reusing the same ``DocumentConverter`` lets Docling reuse its initialised
-    pipeline and heavy layout model across PDF conversion calls.
+    pipeline and heavy layout model across PDF conversion calls. Production
+    callers hold ``_PDF_LOCK`` across both this initialization and conversion.
     """
     global _PDF_CONVERTER
-    if _PDF_CONVERTER is not None:
-        return _PDF_CONVERTER
-    with _PDF_CONVERTER_LOCK:
-        if _PDF_CONVERTER is None:
-            from docling.datamodel.base_models import InputFormat
-            from docling.datamodel.pipeline_options import PdfPipelineOptions
-            from docling.document_converter import DocumentConverter, PdfFormatOption
+    if _PDF_CONVERTER is None:
+        from docling.datamodel.base_models import InputFormat
+        from docling.datamodel.pipeline_options import PdfPipelineOptions
+        from docling.document_converter import DocumentConverter, PdfFormatOption
 
-            opts = PdfPipelineOptions(do_ocr=False, do_table_structure=False, force_backend_text=True)
-            _PDF_CONVERTER = DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
+        opts = PdfPipelineOptions(do_ocr=False, do_table_structure=False, force_backend_text=True)
+        _PDF_CONVERTER = DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
     return _PDF_CONVERTER
 
 
@@ -99,16 +99,17 @@ async def _convert_pdf_to_markdown(pdf_bytes: bytes, url: str, max_pages: int) -
         import gc
         import io
 
-        converter = _get_pdf_converter()
-        filename = url.rsplit("/", 1)[-1].split("?")[0] or "document.pdf"
-        source = DocumentStream(name=filename, stream=io.BytesIO(pdf_bytes))
-        result = converter.convert(source, page_range=(1, max_pages))
-        # Explicit del + gc.collect ensures pypdfium2 child objects (pages) are
-        # garbage-collected before their parent PdfDocument.
-        markdown = result.document.export_to_markdown()
-        del result
-        gc.collect()
-        return markdown
+        with _PDF_LOCK:
+            converter = _get_pdf_converter()
+            filename = url.rsplit("/", 1)[-1].split("?")[0] or "document.pdf"
+            source = DocumentStream(name=filename, stream=io.BytesIO(pdf_bytes))
+            result = converter.convert(source, page_range=(1, max_pages))
+            # Explicit del + gc.collect ensures pypdfium2 child objects (pages) are
+            # garbage-collected before their parent PdfDocument.
+            markdown = result.document.export_to_markdown()
+            del result
+            gc.collect()
+            return markdown
 
     return await asyncio.to_thread(_sync)
 
