@@ -47,9 +47,23 @@ def test_build_default_llm_config_without_api_key_returns_none(monkeypatch):
     assert _build_default_llm_config() is None
 
 
+class _FakeLLMConfig:
+    def __init__(self, provider, api_token=None, temperature=0):
+        self.provider = provider
+        self.api_token = api_token
+        self.temperature = temperature
+
+
+def _patch_crawl4ai_llm_config():
+    mock_crawl4ai = MagicMock()
+    mock_crawl4ai.LLMConfig = _FakeLLMConfig
+    return patch.dict(sys.modules, {"crawl4ai": mock_crawl4ai})
+
+
 def test_build_default_llm_config_uses_followup_selector_model(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    config = _build_default_llm_config()
+    with _patch_crawl4ai_llm_config():
+        config = _build_default_llm_config()
     assert config is not None
     assert config.provider == "gemini/gemini-3-flash-preview"
     assert config.api_token == "test-key"
@@ -63,7 +77,8 @@ def test_crawl4ai_crawler_uses_heuristics_when_llm_config_is_none():
 
 def test_crawl4ai_crawler_resolves_default_llm_config_when_api_key_present(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    crawler = Crawl4AICrawler()
+    with _patch_crawl4ai_llm_config():
+        crawler = Crawl4AICrawler()
     assert crawler._llm_config is not None
     assert crawler._llm_config.provider == "gemini/gemini-3-flash-preview"
 
