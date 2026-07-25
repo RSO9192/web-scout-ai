@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.3.3] - 2026-07-25
+
+### Fixed
+
+- **Docling lock consolidation**: converter creation and PDF conversion/export/cleanup now share a single process-wide lock, closing a race where overlapping native Docling use could still crash under concurrent PDF workloads.
+- **Concurrent PDF regression coverage**: tests cover concurrent PDF conversions and assert that shared Docling converter use never overlaps.
+
+
 ## [1.3.2] - 2026-07-24
 
 ### Fixed
