@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.3.4] - 2026-07-27
+
+### Changed
+
+- **Direct PDF routing and byte reuse**: URLs that visibly identify as PDFs now use the dedicated binary download chain instead of generic browser page navigation. PDF bytes already fetched by either the direct or header-detected path are passed into Docling without a second network request.
+- **Bounded PDF transport fallback**: PDF downloads now make one attempt per transport, avoiding nested retries around Scrapling's own retry loop. Bot-protected documents prefer the browser but retain Scrapling and urllib as fallbacks instead of becoming browser-only.
+
+### Fixed
+
+- **False browser-download detection on `/files/` URLs**: only Playwright's explicit `Download is starting` navigation signal routes to document handling. Connection errors no longer become `__DOWNLOAD_REDIRECT__` merely because the URL contains `file`.
+- **Source/network failure classification**: exhausted PDF transports and recognized browser network failures now populate `source_http_error` instead of `scrape_failed`.
+- **Fetch-error preservation at status zero**: parser routing now retains the original transport error instead of replacing it with `unsupported content` when no HTTP status was received.
+- **Invalid URL retry storms**: non-absolute or non-HTTP(S) URLs are rejected before Scrapling or Playwright is invoked.
+
+
 ## [1.3.3] - 2026-07-25
 
 ### Fixed

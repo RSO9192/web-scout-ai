@@ -453,6 +453,15 @@ def test_build_success_outcome_preserves_typed_and_rendered_views():
         ("Skipped: blocked domain", "blocked_by_policy"),
         ("bot_detected: challenge page", "bot_detected"),
         ("Skipped: HTTP 503", "source_http_error"),
+        (
+            "[Scrape failed: source_http_error: browser fetch failed: "
+            "Error: net::ERR_CONNECTION_TIMED_OUT]",
+            "source_http_error",
+        ),
+        (
+            "source_http_error: PDF download failed after all fallback methods",
+            "source_http_error",
+        ),
         ("[No relevant content found for this query]", "scraped_irrelevant"),
     ],
 )

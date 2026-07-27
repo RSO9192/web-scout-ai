@@ -10,7 +10,6 @@ class RoutingHeuristics:
     validation_timeout: float = 20.0
     document_download_timeout: float = 45.0
     urllib_download_timeout: int = 45
-    pdf_download_retries: int = 2
     short_html_text_chars: int = 150
     short_html_size_chars: int = 8000
     short_html_spa_script_count: int = 2

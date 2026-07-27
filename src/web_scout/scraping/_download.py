@@ -58,34 +58,27 @@ class _ScraplingFetcher(_Downloader):
     async def _attempt(self, url: str) -> Optional[bytes]:
         from scrapling.fetchers import AsyncFetcher
 
-        for attempt in range(ROUTING_HEURISTICS.pdf_download_retries):
-            try:
-                resp = await AsyncFetcher.get(
-                    url,
-                    stealthy_headers=True,
-                    follow_redirects=True,
-                    timeout=ROUTING_HEURISTICS.document_download_timeout,
-                )
-                if resp.status >= 400:
-                    logger.debug("[download] scrapling: HTTP %d", resp.status)
-                    return None
-                data = resp.body
-                if not isinstance(data, bytes):
-                    data = data.encode() if isinstance(data, str) else bytes(data)
-                if data[:4] != PDF_MAGIC_BYTES:
-                    logger.debug("[download] scrapling: server returned non-PDF (ct=%s)", resp.headers.get("content-type"))
-                    return None
-                return data
-            except Exception as exc:
-                logger.debug(
-                    "[download] scrapling attempt %d/%d failed: %s",
-                    attempt + 1,
-                    ROUTING_HEURISTICS.pdf_download_retries,
-                    exc,
-                )
-                if attempt < ROUTING_HEURISTICS.pdf_download_retries - 1:
-                    await asyncio.sleep(1.0 * (attempt + 1))
-        return None
+        try:
+            resp = await AsyncFetcher.get(
+                url,
+                stealthy_headers=True,
+                follow_redirects=True,
+                timeout=ROUTING_HEURISTICS.document_download_timeout,
+                retries=1,
+            )
+            if resp.status >= 400:
+                logger.debug("[download] scrapling: HTTP %d", resp.status)
+                return None
+            data = resp.body
+            if not isinstance(data, bytes):
+                data = data.encode() if isinstance(data, str) else bytes(data)
+            if data[:4] != PDF_MAGIC_BYTES:
+                logger.debug("[download] scrapling: server returned non-PDF (ct=%s)", resp.headers.get("content-type"))
+                return None
+            return data
+        except Exception as exc:
+            logger.debug("[download] scrapling failed: %s", exc)
+            return None
 
 
 def _urllib_download_sync(url: str) -> tuple[bytes, str]:
@@ -98,23 +91,15 @@ class _UrllibDownloader(_Downloader):
     """Download via urllib — tolerates broken Content-Encoding headers that confuse curl_cffi."""
 
     async def _attempt(self, url: str) -> Optional[bytes]:
-        for attempt in range(ROUTING_HEURISTICS.pdf_download_retries):
-            try:
-                data, content_type = await asyncio.to_thread(_urllib_download_sync, url)
-                if data[:4] != PDF_MAGIC_BYTES:
-                    logger.debug("[download] urllib: server returned non-PDF (ct=%s)", content_type)
-                    return None
-                return data
-            except Exception as exc:
-                logger.debug(
-                    "[download] urllib attempt %d/%d failed: %s",
-                    attempt + 1,
-                    ROUTING_HEURISTICS.pdf_download_retries,
-                    exc,
-                )
-                if attempt < ROUTING_HEURISTICS.pdf_download_retries - 1:
-                    await asyncio.sleep(1.0 * (attempt + 1))
-        return None
+        try:
+            data, content_type = await asyncio.to_thread(_urllib_download_sync, url)
+            if data[:4] != PDF_MAGIC_BYTES:
+                logger.debug("[download] urllib: server returned non-PDF (ct=%s)", content_type)
+                return None
+            return data
+        except Exception as exc:
+            logger.debug("[download] urllib failed: %s", exc)
+            return None
 
 
 class _StealthyBrowser(_Downloader):
@@ -135,6 +120,7 @@ class _StealthyBrowser(_Downloader):
                 network_idle=True,
                 solve_cloudflare=True,
                 timeout=ROUTING_HEURISTICS.browser_download_timeout_ms,
+                retries=1,
             )
             data = page.body
             if not isinstance(data, bytes):
@@ -152,20 +138,25 @@ _PDF_CHAIN: _Downloader = _ScraplingFetcher()
 _PDF_CHAIN.then(_UrllibDownloader()).then(_StealthyBrowser())
 
 _BROWSER_PDF_CHAIN: _Downloader = _StealthyBrowser()
+_BROWSER_PDF_CHAIN.then(_ScraplingFetcher()).then(_UrllibDownloader())
 
 
 async def download_pdf(url: str, *, needs_browser: bool = False) -> tuple[Optional[bytes], Optional[str]]:
     """Download PDF bytes via a progressive fallback chain.
 
-    When ``needs_browser`` is True (bot-wall detected during planning), skips
-    straight to the ``StealthyBrowser`` handler.  Otherwise the full chain
-    Scrapling → urllib → StealthyBrowser is tried in order.
+    When ``needs_browser`` is True (bot-wall detected during planning), the
+    browser is tried first, followed by the HTTP fallbacks. Otherwise the chain
+    is Scrapling → urllib → StealthyBrowser.
 
     Returns ``(pdf_bytes, None)`` on success or ``(None, error_message)`` on failure.
     """
     chain = _BROWSER_PDF_CHAIN if needs_browser else _PDF_CHAIN
     pdf_bytes = await chain.download(url)
     if pdf_bytes is None:
-        methods = "StealthyBrowser" if needs_browser else "Scrapling → urllib → StealthyBrowser"
-        return None, f"PDF download failed after all fallback methods ({methods}): {url}"
+        methods = (
+            "StealthyBrowser → Scrapling → urllib"
+            if needs_browser
+            else "Scrapling → urllib → StealthyBrowser"
+        )
+        return None, f"source_http_error: PDF download failed after all fallback methods ({methods}): {url}"
     return pdf_bytes, None

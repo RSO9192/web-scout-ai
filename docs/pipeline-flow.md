@@ -2,12 +2,12 @@
 
 This document is the readable map of the package's main behavior.
 
-Compatibility note: this map reflects a structural refactor of the pipeline files.
-The runtime behavior and public API are intentionally unchanged.
+Compatibility note: this map reflects the current Fetcher → Parser pipeline.
+The public research API remains stable across the internal scraping refactor.
 
 - Entry point: [`run_web_research`](../src/web_scout/agent.py)
-- Scrape router: [`scrape_url`](../src/web_scout/scraping.py)
-- Extractor tool: [`create_scrape_and_extract_tool`](../src/web_scout/tools.py)
+- Fetch/parse entry point: [`fetch_and_parse_url`](../src/web_scout/scraping/_fetch_parse.py)
+- Extractor tool: [`create_scrape_and_extract_tool`](../src/web_scout/tools/scraper.py)
 
 ## Top-Level Flow
 
@@ -66,42 +66,30 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[scrape_url(url, ...)] --> B[Build ScrapePlan]
-    B --> C{Blocked by policy?}
+    A[fetch_and_parse_url(url, ...)] --> B[Screen URL and domain policy]
+    B --> C{Blocked or invalid?}
     C -->|Yes| Z[Return Skipped]
-    C -->|No| D{Looks like document?}
-    D -->|Yes| E[DOCUMENT -> docling]
-    D -->|No| F[HEAD request]
-    F --> G{JSON or image or binary by headers?}
-    G -->|JSON| H[JSON handler]
-    G -->|Image| I[Vision image handler]
-    G -->|Binary| Z
-    G -->|HTML-ish| J[Fast GET]
-    J --> K{Document / JSON / image after GET?}
-    K -->|Document| E
-    K -->|JSON| H
-    K -->|Image| I
-    K -->|No| L[Inspect HTML size, text density, scripts]
-    L --> M{Likely static HTML?}
-    M -->|Yes| N[HTML_FAST -> crawl4ai HTTP strategy]
-    M -->|No| O[HTML_BROWSER -> crawl4ai browser strategy]
+    C -->|No| D{URL is an obvious PDF?}
+    D -->|Yes| E[PDF download chain]
+    D -->|No| F[Scrapling AsyncFetcher]
+    F --> G{Blocked, failed, or thin HTML?}
+    G -->|Yes| H[Stealthy browser fallback]
+    G -->|No| I[Keep fetched response]
+    H --> I
+    I --> J{Classify fetched content}
+    J -->|Document| K[Document parser]
+    J -->|JSON| L[JSON parser]
+    J -->|Image| M[Image artifact]
+    J -->|HTML| N[HTML parser]
+    J -->|Unsupported/error| Z
+    E --> K
 
-    E --> P{PDF with too little text?}
+    K --> P{PDF with too little text?}
     P -->|Yes and vision configured| Q[Vision fallback]
     P -->|No| R[Return extracted document content]
-
-    N --> S{Content too thin?}
-    S -->|Yes| O
-    S -->|No| T[Return HTML content]
-
-    O --> U{Browser download starts?}
-    U -->|Yes| E
-    U -->|No| V{Browser content empty / failed?}
-    V -->|Yes and vision configured| Q
-    V -->|No| T
-
-    H --> W[Return structured JSON markdown]
-    I --> X[Return image-derived text]
+    L --> W[Return structured JSON markdown]
+    M --> X[Return image-derived text]
+    N --> T[Return HTML content]
     Q --> Y[Return screenshot-derived text]
 ```
 
@@ -130,13 +118,14 @@ flowchart TD
 
 | Signal | Handler |
 | --- | --- |
-| URL or headers look like PDF/DOCX/PPTX/XLSX | `docling` document path |
+| URL visibly identifies as PDF | Dedicated PDF download chain, then `docling` using the fetched bytes |
+| Headers or body identify PDF/DOCX/PPTX/XLSX | Document parser; reuse fetched bytes when available |
 | URL or headers look like legacy DOC/XLS/PPT | Skip as unsupported legacy Office binary |
 | JSON content-type or JSON body | Structured JSON extraction |
 | Image content-type | Vision image extraction |
-| Static HTML | crawl4ai HTTP strategy |
-| SPA shell / JS-heavy / timed-out GET | crawl4ai browser strategy |
-| Browser-triggered download | Treat as document and use document path |
+| Static HTML | Parse the Scrapling HTTP response directly |
+| SPA shell / JS-heavy / failed HTTP fetch | Scrapling stealth-browser fallback |
+| Browser-triggered download | Treat only the explicit browser download signal as a document |
 | Empty or image-only PDF and vision is configured | Vision fallback |
 
 ### Extractor rules
@@ -163,5 +152,5 @@ If you want to follow the runtime path in source:
 1. [`run_web_research`](../src/web_scout/agent.py) — public facade and entry point
 2. [`_pipeline_flow.py`](../src/web_scout/_pipeline_flow.py) — orchestration helpers
 3. [`_pipeline_rules.py`](../src/web_scout/_pipeline_rules.py) — heuristics and prompt builders
-4. [`create_scrape_and_extract_tool`](../src/web_scout/tools.py) — extractor contract and rendering
-5. [`scrape_url`](../src/web_scout/scraping.py) — URL-level routing
+4. [`create_scrape_and_extract_tool`](../src/web_scout/tools/scraper.py) — extractor contract and rendering
+5. [`fetch_and_parse_url`](../src/web_scout/scraping/_fetch_parse.py) — URL-level fetch and parsing
