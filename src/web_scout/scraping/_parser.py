@@ -182,7 +182,7 @@ class Parser(ABC):
             return await self.parse_image(result, context)
 
         # "skip"
-        reason = result.error or f"HTTP {result.status}" if result.status else "unsupported content"
+        reason = result.error or (f"HTTP {result.status}" if result.status else "unsupported content")
         return ParseResult(
             url=result.url,
             title="",
@@ -203,9 +203,8 @@ class DefaultParser(Parser):
     HTML parsing uses the Scrapling page object already held in
     ``FetchResult.page`` — no second HTTP round-trip is needed.
 
-    Document parsing still downloads the binary separately via
-    ``_document.scrape_document`` (which uses the existing PDF download chain),
-    because PDFs are not carried in-band in ``FetchResult.body``.
+    Document parsing reuses binary bytes from ``FetchResult.body`` when
+    available and only invokes the document download chain as a fallback.
     """
 
     def __init__(
@@ -323,6 +322,7 @@ class DefaultParser(Parser):
             known_content_type=result.content_type,
             known_content_disposition=result.content_disposition,
             needs_browser=result.used_browser,
+            prefetched_bytes=result.body,
         )
         title = artifact.title if artifact else result.url.rsplit("/", 1)[-1] or "Document"
 

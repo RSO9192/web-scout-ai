@@ -9,6 +9,7 @@ import pytest
 
 from web_scout.scraping import DefaultParser, FetchResult, ScraplingFetcher, SourceArtifact, URLContext
 from web_scout.scraping._download import download_pdf
+from web_scout.scraping._fetcher import _is_download_navigation_error
 from web_scout.scraping._markdown import append_links
 from web_scout.scraping._parser import _classify_fetch_result
 from web_scout.scraping.constants import BLOCKED_DOMAINS
@@ -121,6 +122,24 @@ def test_classify_blocked_domain_error_is_skip():
     assert _classify_fetch_result(r) == "skip"
 
 
+@pytest.mark.asyncio
+async def test_parser_preserves_fetch_error_when_status_is_zero():
+    error = "source_http_error: browser fetch failed: net::ERR_CONNECTION_TIMED_OUT"
+    result = _make_result(
+        "https://example.org/report",
+        status=0,
+        html_content=None,
+        error=error,
+    )
+
+    parsed = await DefaultParser().dispatch(
+        result,
+        URLContext(url=result.url, depth=0),
+    )
+
+    assert parsed.error == error
+
+
 def test_classify_legacy_doc_extension_is_skip():
     """Unsupported legacy formats (.doc, .xls) must be skipped."""
     r = _make_result("https://example.org/report.doc", html_content=None, body=None)
@@ -210,6 +229,126 @@ async def test_download_pdf_falls_back_to_urllib(monkeypatch):
     assert pdf_bytes == b"%PDF-1.7 mock data"
 
 
+@pytest.mark.asyncio
+async def test_browser_preferred_pdf_download_retains_http_fallbacks(monkeypatch):
+    """A failed browser-first attempt must continue through the HTTP chain."""
+    from web_scout.scraping import _download as dl
+
+    async def _browser_fails(self, url):
+        return None
+
+    async def _scrapling_succeeds(self, url):
+        return b"%PDF-1.7 mock data"
+
+    async def _urllib_unexpected(self, url):
+        raise AssertionError("urllib should not be needed")
+
+    monkeypatch.setattr(dl._StealthyBrowser, "_attempt", _browser_fails)
+    monkeypatch.setattr(dl._ScraplingFetcher, "_attempt", _scrapling_succeeds)
+    monkeypatch.setattr(dl._UrllibDownloader, "_attempt", _urllib_unexpected)
+
+    pdf_bytes, error = await download_pdf("https://example.org/report.pdf", needs_browser=True)
+
+    assert error is None
+    assert pdf_bytes == b"%PDF-1.7 mock data"
+
+
+@pytest.mark.asyncio
+async def test_pdf_scrapling_attempt_disables_nested_retries(monkeypatch):
+    """Web Scout owns transport fallback, so Scrapling gets one attempt."""
+    from scrapling.fetchers import AsyncFetcher
+
+    from web_scout.scraping import _download as dl
+
+    captured_kwargs = {}
+
+    class _Response:
+        status = 200
+        body = b"%PDF-1.7 mock data"
+        headers = {"content-type": "application/pdf"}
+
+    async def _fake_get(url, **kwargs):
+        captured_kwargs.update(kwargs)
+        return _Response()
+
+    monkeypatch.setattr(AsyncFetcher, "get", _fake_get)
+
+    pdf_bytes = await dl._ScraplingFetcher()._attempt("https://example.org/report.pdf")
+
+    assert pdf_bytes == b"%PDF-1.7 mock data"
+    assert captured_kwargs["retries"] == 1
+
+
+# ---------------------------------------------------------------------------
+# ScraplingFetcher: URL screening and browser error handling
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_fetcher_rejects_non_absolute_url_before_network():
+    malformed = "[https://example.org/report.pdf](https://example.org/report.pdf)"
+
+    result = await ScraplingFetcher().fetch(malformed, URLContext(url=malformed, depth=0))
+
+    assert result.status == 0
+    assert result.error == "invalid URL: URL must use http or https"
+
+
+@pytest.mark.asyncio
+async def test_fetcher_routes_known_pdf_through_binary_download_chain(monkeypatch):
+    from scrapling.fetchers import AsyncFetcher
+
+    from web_scout.scraping import _download as dl
+
+    url = "https://example.org/report.pdf"
+    pdf_bytes = b"%PDF-1.7 mock data"
+
+    async def _fake_download(requested_url, **kwargs):
+        assert requested_url == url
+        return pdf_bytes, None
+
+    async def _generic_fetch_unexpected(*args, **kwargs):
+        raise AssertionError("known PDFs must not use the generic fetch path")
+
+    monkeypatch.setattr(dl, "download_pdf", _fake_download)
+    monkeypatch.setattr(AsyncFetcher, "get", _generic_fetch_unexpected)
+
+    result = await ScraplingFetcher().fetch(url, URLContext(url=url, depth=0))
+
+    assert result.status == 200
+    assert result.content_type == "application/pdf"
+    assert result.body == pdf_bytes
+    assert result.error is None
+
+
+@pytest.mark.asyncio
+async def test_files_url_timeout_is_not_misclassified_as_download(monkeypatch):
+    from scrapling.fetchers import AsyncFetcher
+
+    from web_scout.scraping import _scrapling
+
+    url = "https://example.org/files/report?id=123"
+
+    async def _fast_timeout(*args, **kwargs):
+        raise TimeoutError("request timed out")
+
+    async def _browser_timeout(*args, **kwargs):
+        raise RuntimeError(f"Page.goto: net::ERR_CONNECTION_TIMED_OUT at {url}")
+
+    monkeypatch.setattr(AsyncFetcher, "get", _fast_timeout)
+    monkeypatch.setattr(_scrapling, "stealthy_fetch", _browser_timeout)
+
+    result = await ScraplingFetcher().fetch(url, URLContext(url=url, depth=0))
+
+    assert result.error.startswith("source_http_error: browser fetch failed:")
+    assert result.error != "__DOWNLOAD_REDIRECT__"
+
+
+def test_download_navigation_detection_requires_explicit_playwright_signal():
+    assert _is_download_navigation_error("Page.goto: Download is starting") is True
+    assert _is_download_navigation_error("Timeout at https://example.org/files/report") is False
+
+
 # ---------------------------------------------------------------------------
 # ScraplingFetcher + DefaultParser: document metadata flows to parse_document
 # ---------------------------------------------------------------------------
@@ -250,6 +389,33 @@ async def test_scrape_pipeline_passes_document_metadata_from_fetch_result(monkey
     assert parse_result.text_content == "PDF content"
     assert captured_kwargs["known_content_type"] == "application/octet-stream"
     assert captured_kwargs["known_content_disposition"] == 'attachment; filename="report.pdf"'
+
+
+@pytest.mark.asyncio
+async def test_scrape_document_reuses_prefetched_pdf_bytes(monkeypatch):
+    from web_scout.scraping import _document as doc_module
+
+    pdf_bytes = b"%PDF-1.7 mock data"
+
+    async def _download_unexpected(*args, **kwargs):
+        raise AssertionError("prefetched PDF bytes must not be downloaded again")
+
+    async def _fake_convert(received_bytes, url, max_pages):
+        assert received_bytes == pdf_bytes
+        return "Extracted PDF content with enough text. " * 20
+
+    monkeypatch.setattr(doc_module, "download_pdf", _download_unexpected)
+    monkeypatch.setattr(doc_module, "_convert_pdf_to_markdown", _fake_convert)
+
+    artifact, error = await doc_module.scrape_document(
+        "https://example.org/report.pdf",
+        known_content_type="application/pdf",
+        prefetched_bytes=pdf_bytes,
+    )
+
+    assert error is None
+    assert artifact.kind == "text"
+    assert "Extracted PDF content" in artifact.text_content
 
 
 async def _async_return(value):

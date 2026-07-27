@@ -13,6 +13,41 @@ from .constants import (
     UNSUPPORTED_LEGACY_DOC_EXTENSIONS,
 )
 
+_NETWORK_ERROR_MARKERS = (
+    "certificate verify failed",
+    "certificateverifyerror",
+    "could not resolve host",
+    "err_connection_",
+    "err_name_not_resolved",
+    "err_network_",
+    "network is unreachable",
+    "connection refused",
+    "connection reset",
+    "connecterror",
+    "connectionerror",
+    "timed out",
+    "timeouterror",
+)
+
+
+def invalid_http_url_reason(url: str) -> str:
+    """Return a reason when *url* is not an absolute HTTP(S) URL."""
+    try:
+        parsed = urlparse(url)
+    except ValueError as exc:
+        return str(exc)
+    if parsed.scheme not in ("http", "https"):
+        return "URL must use http or https"
+    if not parsed.netloc:
+        return "URL must include a hostname"
+    return ""
+
+
+def is_network_error(value: object) -> bool:
+    """Return True when an exception or message represents a transport failure."""
+    message = str(value).lower()
+    return any(marker in message for marker in _NETWORK_ERROR_MARKERS)
+
 
 def is_blocked_domain(url: str, allowed_domains: Optional[frozenset] = None) -> bool:
     netloc = urlparse(url).netloc.lower()

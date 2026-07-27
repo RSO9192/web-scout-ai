@@ -121,6 +121,7 @@ async def scrape_document(
     known_content_type: str = "",
     known_content_disposition: str = "",
     needs_browser: bool = False,
+    prefetched_bytes: bytes | None = None,
 ) -> Tuple[SourceArtifact, Optional[str]]:
     """Extract content from a document URL.
 
@@ -137,7 +138,10 @@ async def scrape_document(
     is_pdf = await _resolve_is_pdf(url, known_content_type, known_content_disposition, needs_browser=needs_browser)
 
     if is_pdf:
-        pdf_bytes, error = await download_pdf(url, needs_browser=needs_browser)
+        pdf_bytes = prefetched_bytes if prefetched_bytes and prefetched_bytes.startswith(b"%PDF") else None
+        error = None
+        if pdf_bytes is None:
+            pdf_bytes, error = await download_pdf(url, needs_browser=needs_browser)
         if error or not pdf_bytes:
             return SourceArtifact(kind="text", title=title), error or "PDF download returned empty bytes"
 

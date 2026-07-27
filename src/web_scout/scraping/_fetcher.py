@@ -15,10 +15,13 @@ from web_scout.config import ROUTING_HEURISTICS
 
 from .constants import BINARY_CONTENT_TYPES, IMAGE_CONTENT_TYPES
 from .context import URLContext
+from .page_classifier import looks_like_pdf_resource
 from .types import FetchResult
 from .utils import (
     extract_text_from_html,
+    invalid_http_url_reason,
     is_blocked_domain,
+    is_network_error,
     normalize_content_type,
     sniff_document_payload,
     unsupported_legacy_document_reason,
@@ -27,6 +30,11 @@ from .utils import (
 logger = logging.getLogger(__name__)
 
 _BOT_STATUS_CODES = frozenset({403, 429, 503})
+
+
+def _is_download_navigation_error(value: object) -> bool:
+    """Return True only for Playwright's explicit download navigation signal."""
+    return "download is starting" in str(value).lower()
 
 
 class Fetcher(ABC):
@@ -78,12 +86,35 @@ class ScraplingFetcher(Fetcher):
         from ._scrapling import stealthy_fetch
 
         # Pre-fetch URL screening — return early without touching the network
+        invalid_reason = invalid_http_url_reason(url)
+        if invalid_reason:
+            return self._empty(url).model_copy(update={"error": f"invalid URL: {invalid_reason}"})
+
         if is_blocked_domain(url, allowed_domains=self._allowed_domains):
             return self._empty(url).model_copy(update={"status": 403, "error": "blocked domain"})
 
         unsupported = unsupported_legacy_document_reason(url)
         if unsupported:
             return self._empty(url).model_copy(update={"status": 415, "error": unsupported})
+
+        # Direct PDF URLs belong to the binary download chain. Browser page
+        # navigation is both slower and unreliable for attachment responses.
+        if looks_like_pdf_resource(url):
+            from ._download import download_pdf
+
+            pdf_bytes, error = await download_pdf(url)
+            if error or not pdf_bytes:
+                return self._empty(url).model_copy(update={"error": error or "PDF download returned empty bytes"})
+            return FetchResult(
+                url=url,
+                status=200,
+                content_type="application/pdf",
+                content_disposition="",
+                html_content=None,
+                body=pdf_bytes,
+                headers={"content-type": "application/pdf"},
+                used_browser=False,
+            )
 
         resp = None
         used_browser = False
@@ -127,21 +158,26 @@ class ScraplingFetcher(Fetcher):
                 try:
                     resp = await stealthy_fetch(url, **kwargs)
                 except Exception as e:
-                    logger.debug("[fetcher] StealthyFetcher failed (%s), trying AsyncFetcher: %s", type(e).__name__, url)
+                    logger.debug(
+                        "[fetcher] StealthyFetcher failed (%s), trying AsyncFetcher: %s",
+                        type(e).__name__,
+                        url,
+                    )
                     raise
             except Exception as e:
                 exc_str = str(e)
                 # Check for download signal (browser navigating to a file download)
-                if "download" in exc_str.lower() or "file" in exc_str.lower():
+                if _is_download_navigation_error(exc_str):
                     # Return a minimal FetchResult that triggers parse_document
                     return self._empty(url).model_copy(update={
                         "used_browser": True,
                         "status": 200,
                         "error": "__DOWNLOAD_REDIRECT__",
                     })
+                error_prefix = "source_http_error: " if is_network_error(e) else ""
                 return self._empty(url).model_copy(update={
                     "used_browser": True,
-                    "error": f"browser fetch failed: {type(e).__name__}: {exc_str}",
+                    "error": f"{error_prefix}browser fetch failed: {type(e).__name__}: {exc_str}",
                 })
 
         if resp is None:

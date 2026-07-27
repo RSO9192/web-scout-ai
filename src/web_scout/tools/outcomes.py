@@ -9,6 +9,7 @@ from typing import Literal, Optional
 
 from web_scout._extractor_contract import ExtractorOutcome
 from web_scout.config import EXTRACTOR_HEURISTICS
+
 from .rendering import RENDERED_LIST_PAGE_MARKER, RENDERED_RELEVANT_LINKS_HEADING
 
 _HTTP_ERROR_RE = re.compile(r"\bHTTP\s+\d{3}\b", re.IGNORECASE)
@@ -17,13 +18,18 @@ _HTTP_ERROR_RE = re.compile(r"\bHTTP\s+\d{3}\b", re.IGNORECASE)
 def classify_failure_action(content: str) -> str:
     """Map failure content to the canonical action label."""
     lower = content.lower()
-    if "bot_detected:" in content:
+    if "bot_detected:" in lower:
         return "bot_detected"
     if "skipped: blocked domain" in lower:
         return "blocked_by_policy"
     if content.startswith("[No relevant content") or content.startswith("No relevant content"):
         return "scraped_irrelevant"
-    if _HTTP_ERROR_RE.search(content) or "get failed:" in lower or "connecterror" in lower:
+    if (
+        "source_http_error:" in lower
+        or _HTTP_ERROR_RE.search(content)
+        or "get failed:" in lower
+        or "connecterror" in lower
+    ):
         return "source_http_error"
     return "scrape_failed"
 
@@ -113,4 +119,9 @@ def render_successful_extractor_output(
 def render_failed_extractor_output(*, url: str, content: str, count_scraped: Optional[int]) -> str:
     """Return the rendered text for a failed extraction."""
     failure_kind = classify_failure_action(content)
-    return build_failure_outcome(url=url, content=content, count_scraped=count_scraped, failure_kind=failure_kind).rendered_text
+    return build_failure_outcome(
+        url=url,
+        content=content,
+        count_scraped=count_scraped,
+        failure_kind=failure_kind,
+    ).rendered_text
