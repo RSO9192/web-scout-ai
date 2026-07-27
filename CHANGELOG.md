@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.3.5] - 2026-07-27
+
+### Changed
+
+- **Scrapling PDF download retries**: PDF downloads via `AsyncFetcher` now use 3 attempts with a fixed 2-second retry delay, improving resilience on flaky document hosts.
+
+
 ## [1.3.4] - 2026-07-27
 
 ### Changed

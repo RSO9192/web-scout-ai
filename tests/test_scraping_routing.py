@@ -254,8 +254,8 @@ async def test_browser_preferred_pdf_download_retains_http_fallbacks(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_pdf_scrapling_attempt_disables_nested_retries(monkeypatch):
-    """Web Scout owns transport fallback, so Scrapling gets one attempt."""
+async def test_pdf_scrapling_attempt_passes_retry_settings(monkeypatch):
+    """Scrapling PDF downloads use AsyncFetcher retries with a fixed delay."""
     from scrapling.fetchers import AsyncFetcher
 
     from web_scout.scraping import _download as dl
@@ -276,7 +276,8 @@ async def test_pdf_scrapling_attempt_disables_nested_retries(monkeypatch):
     pdf_bytes = await dl._ScraplingFetcher()._attempt("https://example.org/report.pdf")
 
     assert pdf_bytes == b"%PDF-1.7 mock data"
-    assert captured_kwargs["retries"] == 1
+    assert captured_kwargs["retries"] == 3
+    assert captured_kwargs["retry_delay"] == 2
 
 
 # ---------------------------------------------------------------------------

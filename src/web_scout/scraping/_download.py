@@ -64,7 +64,8 @@ class _ScraplingFetcher(_Downloader):
                 stealthy_headers=True,
                 follow_redirects=True,
                 timeout=ROUTING_HEURISTICS.document_download_timeout,
-                retries=1,
+                retries=3,
+                retry_delay=2,
             )
             if resp.status >= 400:
                 logger.debug("[download] scrapling: HTTP %d", resp.status)
