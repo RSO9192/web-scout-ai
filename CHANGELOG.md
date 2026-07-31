@@ -9,11 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
-## [1.3.7] - 2026-07-31
+## [1.3.8] - 2026-07-31
 
 ### Changed
 
 - **`boto3` runtime dependency added** (`^1.43.61`): required by LiteLLM's AWS Bedrock provider, enabling Bedrock-hosted models (including reasoning-effort support) out of the box.
+- **`openai-agents` minimum raised to `>=0.13`**: older releases did not forward `ModelSettings.reasoning` through `LitellmModel`, so reasoning effort silently never reached LiteLLM-backed models.
+
+### Fixed
+
+- **Modern reasoning-effort passing**: the synthesiser now sets reasoning effort via the typed `ModelSettings(reasoning=Reasoning(effort="high"))` API instead of the legacy `extra_args={"reasoning_effort": ...}` passthrough. The Agents SDK forwards this correctly to both OpenAI models and LiteLLM-wrapped providers.
 
 
 ## [1.3.5] - 2026-07-27

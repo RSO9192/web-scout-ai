@@ -8,6 +8,7 @@ from typing import Any, Optional
 from urllib.parse import urlparse
 
 from agents import Agent, ModelSettings, Runner
+from openai.types.shared.reasoning import Reasoning
 
 from web_scout.config import FOLLOWUP_HEURISTICS
 
@@ -878,7 +879,7 @@ async def _synthesise_result(
         model=synth_model,
         output_type=WebResearchResultRaw,
         instructions=SYNTHESISER_INSTRUCTIONS,
-        model_settings=ModelSettings(extra_args={"reasoning_effort": "high"}),
+        model_settings=ModelSettings(reasoning=Reasoning(effort="high")),
     )
     valid_urls = {entry.url for entry in scraped}
 
