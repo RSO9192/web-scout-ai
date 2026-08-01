@@ -1,4 +1,4 @@
-# `web-scout-ai`
+# web-scout-ai
 
 ![web-scout-ai logo](assets/web-scout-logo.svg)
 
@@ -7,97 +7,151 @@
 [![Python Versions](https://img.shields.io/pypi/pyversions/web-scout-ai)](https://pypi.org/project/web-scout-ai/)
 [![License](https://img.shields.io/github/license/RSO9192/web-scout-ai)](LICENSE)
 
-**Web research, scraping, and synthesis in one async call.**
+Give it a question or a URL. Get back a cited answer, the extracted evidence behind it, and an audit trail of every source the pipeline could—or could not—read.
+
+```python
+from web_scout import run_web_research
+
+result = await run_web_research(
+    "What are the main climate risks for Kenya's agricultural sector?"
+)
+
+print(result.synthesis)
+print(f"Read {len(result.scraped)} sources across {len(result.queries)} searches")
+```
+
+<details open>
+<summary><strong>Example output</strong> (abridged from a recorded project run)</summary>
+
+> Kenya's agricultural sector is highly exposed because it is approximately
+> 98% rain-fed and most farmers lack irrigation. The evidence identifies five
+> recurring risks:
+>
+> - **Heat stress:** temperatures have risen by about 0.21°C per decade since
+>   the 1960s and are projected to rise further by 2050.
+> - **Less predictable rainfall:** regional drying and greater variability
+>   disrupt planting and crop growth.
+> - **More frequent droughts and floods:** poor rainy seasons have occurred
+>   every 2–3 years since 1999, compared with every 5–6 years previously.
+> - **Water insecurity:** glacier retreat and repeated dry periods threaten
+>   agricultural water supplies.
+> - **Crop and livestock losses:** heat and water stress reduce suitable
+>   production areas and increase food-security risk.
+>
+> Sources: [World Bank climate profile](https://climateknowledgeportal.worldbank.org/sites/default/files/country-profiles/15724-WB_Kenya%20Country%20Profile-WEB.pdf), [Kenya Climate Smart Agriculture Strategy](https://www.adaptation-undp.org/sites/default/files/resources/kenya_climate_smart_agriculture_strategy.pdf), [ILRI](https://www.ilri.org/news/climate-change-africa-what-will-it-mean-agriculture-and-food-security), and four more sources.
+
+That run took 95.2 seconds, executed 3 targeted searches, read 7 sources—including 3 PDFs—and returned a 4,471-character synthesis. Results and timing vary with the query, sources, model, and network.
+
+</details>
+
+## What it actually does
+
+`web-scout-ai` is an async Python research pipeline, not a search-result wrapper. It searches, opens the selected sources, routes each response to the right extractor, evaluates whether the collected evidence is sufficient, and synthesizes only from sources it successfully read.
+
+| Input encountered | What the pipeline does |
+| --- | --- |
+| Static HTML | Uses a fast HTTP fetch and converts the page to clean Markdown |
+| JS-heavy pages and SPA shells | Escalates to a stealth Chromium browser and can interact with page controls |
+| Cloudflare or similar bot challenges | Retries with Scrapling's stealth browser and Cloudflare challenge handling |
+| PDF, DOCX, PPTX, XLSX | Downloads and converts the document with Docling |
+| Scanned PDFs, charts, maps, images | Uses the configured vision model when text extraction is insufficient |
+| JSON endpoints | Converts structured payloads into readable evidence |
+| List, index, and database pages | Ranks detail links, follows them, and can take one pagination hop |
+| Thin or incomplete evidence | Scrapes promising backlog URLs or generates targeted follow-up searches |
+
+The browser fallback can pass many JS-gated and Cloudflare-protected pages, but it is not a guarantee: sites can still block automation. Those URLs are reported in `result.bot_detected` instead of disappearing or being presented as evidence. Use the package only where you have permission and in accordance with the source site's terms.
+
+## Quick start
+
+### 1. Install
 
 ```bash
 pip install web-scout-ai
 web-scout-setup
-export GEMINI_API_KEY="your-gemini-api-key"
-export SERPER_API_KEY="your-serper-api-key"
 ```
 
-```python
-from web_scout import run_web_research
+`web-scout-setup` installs the Patchright-managed Chromium browser and its system dependencies. It may request `sudo` for OS-level browser libraries.
 
-result = await run_web_research("climate risk for agriculture in Kenya")
-print(result.synthesis)
-```
+### 2. Configure keys
 
----
-
-## What Problem It Solves
-
-Built-in web search tools in frameworks like the OpenAI Agents SDK return snippets — short excerpts from search results that the model has to reason from. They don't read the actual pages.
-
-`web-scout-ai` goes deeper: it scrapes, converts, and extracts relevant content from real pages — static HTML, JS-rendered sites, PDFs, DOCX/PPTX/XLSX, and JSON endpoints. Legacy Office binaries such as `.doc`, `.xls`, and `.ppt` are detected and skipped explicitly. You also control exactly which sources get scraped, how deep the pipeline goes, and what counts as good enough coverage before synthesis.
-
-It gives you a controlled pipeline for source-grounded research without stitching together search,
-scraping, document parsing, and synthesis yourself.
-
----
-
-## Three Real Use Cases
-
-### 1. Climate and policy evidence retrieval
-
-Query institutional sources and get a cited synthesis — not just links.
-
-```python
-result = await run_web_research(
-    "drought impact on smallholder farmers in sub-Saharan Africa",
-    include_domains=["fao.org", "ipcc.ch", "worldbank.org"],
-    cache=True,  # reuse successful URL source artifacts for this Python process
-)
-```
-
-### 2. Rapid literature scanning
-
-Point it at a report library or database page. It detects list pages, follows item links, and reads the actual documents.
-
-```python
-result = await run_web_research(
-    "sustainable land management technologies",
-    direct_url="https://wocat.net/en/database/list/?type=technology&country=ke",
-)
-```
-
----
-
-## Quick Start
-
-### Install
+The default models use Gemini and open-web discovery uses Serper:
 
 ```bash
-pip install web-scout-ai
-web-scout-setup   # installs Chromium for JS-rendered pages
-
-# Required by the default Gemini models and the default Serper search backend.
 export GEMINI_API_KEY="your-gemini-api-key"
 export SERPER_API_KEY="your-serper-api-key"
 ```
 
-### First run
+Direct-URL mode does not use Serper, so it only needs the API key for your configured model provider.
+
+### 3. Run research
 
 ```python
 import asyncio
+
 from web_scout import run_web_research
+
 
 async def main():
     result = await run_web_research(
         query="What are the main threats to coral reefs worldwide?",
-        search_backend="serper",
         cache=True,
     )
+
     print(result.synthesis)
+
+    print("\nSources read:")
     for source in result.scraped:
         print(f"- {source.title or source.url}: {source.url}")
+
+    if result.bot_detected or result.scrape_failed:
+        print(
+            f"\nCould not read "
+            f"{len(result.bot_detected) + len(result.scrape_failed)} source(s)"
+        )
+
 
 asyncio.run(main())
 ```
 
----
+## Three ways to use it
 
-## What You Get Back
+### Open-web research
+
+Generate several searches, read the strongest results in parallel, evaluate coverage, and search again if important evidence is missing.
+
+```python
+result = await run_web_research(
+    query="What is driving the global adaptation finance gap?",
+)
+```
+
+### Domain-restricted research
+
+Keep discovery and hub deepening focused on authoritative domains.
+
+```python
+result = await run_web_research(
+    query="Latest evidence on sea-level rise",
+    include_domains=["ipcc.ch", "nasa.gov"],
+)
+```
+
+### Direct URL extraction
+
+Skip search and start from a page, document, API endpoint, image, or database listing.
+
+```python
+result = await run_web_research(
+    query="Extract the recommended adaptation measures and supporting evidence",
+    direct_url="https://example.org/report.pdf",
+)
+```
+
+For a document, the pipeline reads that document without wandering into site navigation. For a list or database page, it can rank and follow relevant records and their linked primary documents.
+
+## The return value is an audit trail
+
+`run_web_research()` returns a typed `WebResearchResult`:
 
 ```python
 class WebResearchResult(BaseModel):
@@ -112,217 +166,154 @@ class WebResearchResult(BaseModel):
     queries: list[SearchQuery]
 ```
 
-- `synthesis`: final grounded answer with inline source citations
-- `scraped`: URLs successfully read, with extracted relevant content
-- `scrape_failed`: URLs attempted but could not be scraped
-- `blocked_by_policy`: URLs skipped because they match the built-in block policy
-- `source_http_error`: URLs that failed because the source returned HTTP/network errors
-- `scraped_irrelevant`: URLs that were fetched successfully but did not contain relevant content
-- `bot_detected`: URLs blocked by bot protection
-- `snippet_only`: search results kept only as snippets
-- `queries`: all search queries executed during the run
+| Field | Meaning |
+| --- | --- |
+| `synthesis` | Final answer with inline Markdown citations |
+| `scraped` | Sources successfully read and extracted; `content` contains the query-relevant evidence |
+| `scrape_failed` | Extraction attempts that failed for an unclassified reason |
+| `blocked_by_policy` | Sources skipped by the built-in domain policy |
+| `source_http_error` | Source-side HTTP or network failures |
+| `scraped_irrelevant` | Pages fetched successfully but not useful for the query |
+| `bot_detected` | Sources that still returned a bot-protection wall |
+| `snippet_only` | Search results discovered but not opened; snippets are never valid citation targets |
+| `queries` | Every search query executed, its result count, and domain restrictions |
 
-`UrlEntry` contains `url`, `title`, and `content`.
-`SearchQuery` contains `query`, `num_results_returned`, and `domains_restricted`.
+`UrlEntry` contains `url`, `title`, and `content`. `SearchQuery` contains `query`, `num_results_returned`, and `domains_restricted`.
 
----
+The synthesizer is instructed to use scraped evidence only. A deterministic final check rejects citations to invented or snippet-only URLs and retries the synthesis with feedback.
 
-## API At A Glance
+## Research depth
+
+```python
+# Faster default
+await run_web_research(query="...", research_depth="standard")
+
+# More searches and sources, with a stricter coverage threshold
+await run_web_research(query="...", research_depth="deep")
+```
+
+| Budget | Standard | Deep |
+| --- | ---: | ---: |
+| Maximum search iterations | 2 | 3 |
+| Initial search queries | 3 | 5 |
+| Follow-up search queries | 2 | 4 |
+| URLs selected in the first round | 6 | 12 |
+| URLs selected in a follow-up round | 4 | 8 |
+| Hub/detail-page cap | 10 | 15 |
+
+The coverage evaluator can stop early when the evidence already answers the question. You can add your own acceptance conditions with `coverage_criteria`:
 
 ```python
 result = await run_web_research(
-    query="latest IPCC findings on sea level rise",
-    models={                                         # optional, defaults to gemini-3-flash-preview
-        "web_researcher": "openai/gpt-4o-mini",
-        "content_extractor": "gemini/gemini-2.0-flash",
-    },
-    search_backend="serper",
-    research_depth="standard",           # or "deep"
-    include_domains=["ipcc.ch"],         # optional
-    direct_url=None,                     # optional
-    domain_expertise="climate science",  # optional
-    allowed_domains=None,                # optional
-    max_pdf_pages=50,                    # optional, default 50
-    max_content_chars=30_000,           # optional, max chars fed to extractor per page, default 30 000
-    cache=False,                         # optional, reuse successful source artifacts in this Python process
-    coverage_criteria=None,              # optional, extra instructions for the coverage evaluator
+    query="Compare national methane policies",
+    coverage_criteria="Include at least one primary government source per country.",
 )
 ```
-
----
-
-## How It Works
-
-See the maintained flow doc: `[docs/pipeline-flow.md](docs/pipeline-flow.md)`
-
-1. Generate targeted search queries.
-2. Search the web with Serper.
-3. Triage the best URLs across result sets.
-4. Scrape and extract relevant content in parallel.
-5. After each non-final search iteration, run the coverage evaluator to decide whether the evidence actually answers the question.
-6. If coverage is still weak, either reuse promising backlog URLs or run follow-up searches.
-7. Produce a grounded synthesis with inline citations.
-8. Run a deterministic citation check before returning.
-
-### Research Modes
-
-```python
-# 1) Open web research
-await run_web_research(query="...", models=models, search_backend="serper")
-
-# 2) Domain-restricted research
-await run_web_research(query="...", models=models, include_domains=["iucn.org", "wwf.org"])
-
-# 3) Direct URL extraction (skip search)
-await run_web_research(query="...", models=models, direct_url="https://example.org/report.pdf")
-
-# 4) Direct URL list-page deepening
-await run_web_research(query="...", models=models, direct_url="https://wocat.net/en/database/list/?type=technology&country=ke")
-```
-
-If the URL is a list, index, or database page, the pipeline detects it, collects relevant item links, follows them, and takes one pagination hop when present.
-
-### How URL Outcomes Are Classified
-
-| What happened                                        | Result bucket        | Meaning                                   |
-| ---------------------------------------------------- | -------------------- | ----------------------------------------- |
-| Scrape and extraction succeeded                      | `scraped`            | The URL produced usable extracted content |
-| Search result was seen but never scraped             | `snippet_only`       | Only the search snippet is kept           |
-| URL matched a blocked domain policy                  | `blocked_by_policy`  | Skipped before normal extraction          |
-| Source returned HTTP/network errors                  | `source_http_error`  | The source failed, not the package logic  |
-| Bot protection or anti-automation page detected      | `bot_detected`       | The URL was reachable but blocked         |
-| Page loaded but content was not useful for the query | `scraped_irrelevant` | Fetch succeeded, relevance failed         |
-| Extraction failed for other reasons                  | `scrape_failed`      | Generic scrape or extraction failure      |
-
-### Follow-Up Rules
-
-| Situation                                                     | What the pipeline does next                                                           |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `direct_url` is a list / index / database page                | Extract ranked detail links, allow one next-page hop, then scrape selected follow-ups |
-| `direct_url` is a document                                    | Do not fan out into site chrome or navigation pages                                   |
-| Search mode completes a non-final iteration                   | Run coverage evaluation to decide whether current evidence is sufficient              |
-| Search mode has weak coverage but promising snippet-only URLs | Scrape backlog URLs before running new searches                                       |
-| Search mode has weak coverage and backlog looks weak          | Generate follow-up search queries                                                     |
-| Domain-restricted mode finds a hub page                       | Deepen within the same domain before broadening search                                |
-
----
-
-## Search Backends
-
-```python
-await run_web_research(query=..., models=..., search_backend="serper")
-```
-
-- `serper`: Google-quality results with rich metadata (date, rank, People Also Ask, Knowledge Graph). Requires `SERPER_API_KEY` — Serper is generous with free-tier limits.
-
-Additional backends can be added by the community — see `SearchBackend` in `[search_backends.py](src/web_scout/search_backends.py)`.
-
----
-
-## Research Depth
-
-```python
-# Standard (default): usually up to ~10 sources
-await run_web_research(query=..., models=..., research_depth="standard")
-
-# Deep: usually up to ~28 sources
-await run_web_research(query=..., models=..., research_depth="deep")
-```
-
-| Parameter                    | Standard | Deep |
-| ---------------------------- | -------- | ---- |
-| Max iterations               | 2        | 3    |
-| Search queries (first round) | 3        | 5    |
-| Search queries (follow-up)   | 2        | 4    |
-| URLs scraped (first round)   | 6        | 12   |
-| URLs scraped (follow-up)     | 4        | 8    |
-| Hub deepening cap            | 10       | 15   |
-
----
-
-## Caching
-
-```python
-await run_web_research(
-    query="climate adaptation finance in Kenya",
-    models=models,
-    cache=True,
-)
-```
-
-When `cache=True`, `web-scout-ai` keeps a process-local in-memory cache of successful URL source artifacts:
-
-- lifetime: the current Python process only
-- scope: reused across multiple `run_web_research(...)` calls in that same process
-- cleared automatically when Python exits
-
-What is cached:
-
-- successful query-agnostic page/document source content
-- successful image/scanned-PDF source payloads, which are then reprocessed per query
-
-What is not cached:
-
-- query-specific extracted summaries
-- final synthesis
-- failed scrapes
-- interactive click-driven exploration results
-
-This means the same URL can be reused across queries without being fetched again, while still producing different extracted summaries when the query changes.
-
----
 
 ## Configuration
 
-### Models
-
-Model IDs follow [LiteLLM provider naming](https://docs.litellm.ai/docs/providers):
+The defaults use `gemini/gemini-3-flash-preview`. Model IDs follow [LiteLLM provider naming](https://docs.litellm.ai/docs/providers), so the research and extraction stages can use different providers or models.
 
 ```python
 models = {
-    # Required
+    # Used as the fallback for query generation, coverage, and synthesis
     "web_researcher": "openai/gpt-4o-mini",
+
+    # Reads and extracts individual sources
     "content_extractor": "gemini/gemini-2.0-flash",
 
-    # Optional step-specific overrides (default: web_researcher)
+    # Optional stage-specific choices
     "query_generator": "openai/gpt-4o-mini",
     "coverage_evaluator": "openai/gpt-4o-mini",
     "synthesiser": "openai/gpt-4o-mini",
-
-    # Optional fallback for scanned PDFs, image URLs, or empty JS pages
+    "followup_selector": "openai/gpt-4o-mini",
     "vision_fallback": "gemini/gemini-2.0-flash",
 }
+
+result = await run_web_research(query="...", models=models)
 ```
 
-### Domain Control
+Provider credentials are read from their standard environment variables, such as `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, or AWS credentials for Bedrock.
+
+### Public API
 
 ```python
-# Restrict discovery to selected domains
-await run_web_research(query=..., models=..., include_domains=["fao.org", "ipcc.ch"])
-
-# Re-allow domains that are blocked by default
-await run_web_research(query=..., models=..., allowed_domains=["reddit.com"])
+result = await run_web_research(
+    query="latest IPCC findings on sea-level rise",
+    models=None,                       # optional; Gemini defaults
+    search_backend="serper",          # currently supported search backend
+    research_depth="standard",        # "standard", "deep", or a custom dict
+    include_domains=["ipcc.ch"],       # optional discovery restriction
+    direct_url=None,                   # optional; skips search when set
+    domain_expertise="climate science",  # optional prompt context
+    allowed_domains=None,              # opt blocked domains back in
+    max_pdf_pages=50,                  # pages converted from each PDF
+    max_content_chars=30_000,          # characters passed to the extractor per source
+    cache=False,                       # process-local source cache
+    coverage_criteria=None,            # extra evidence requirements
+)
 ```
 
-By default, the scraper blocks common social and video platforms. `allowed_domains` lets you opt specific domains back in.
+### Domain policy
 
----
+Common social, video, and consistently paywalled platforms are blocked by default so they do not consume the scrape budget. You can opt a domain back in explicitly:
 
-## Where It Fits Best
+```python
+result = await run_web_research(
+    query="...",
+    allowed_domains=["reddit.com"],
+)
+```
 
-`web-scout-ai` is a strong fit when you need:
+### Source caching
 
-- up-to-date answers grounded in real web sources
-- multi-source synthesis without building a full deep-research stack
-- a reusable research tool inside an agent workflow
-- better handling of report libraries, list pages, and mixed web/document sources
+With `cache=True`, successful raw source artifacts are reused by later `run_web_research()` calls in the same Python process. Pages and documents are not fetched or converted again, but query-specific extraction and synthesis still run each time.
 
-It is probably not the right tool if you only need simple search snippets or if you want a fully autonomous long-form research agent that decides everything itself.
+The cache is in-memory only. Failed scrapes, final answers, query-specific summaries, and click-driven browser sessions are not cached.
 
----
+## Pipeline, in one view
+
+```text
+question
+   │
+   ├─ generate targeted searches ─ search in parallel ─ select diverse URLs
+   │                                                     │
+   │                                                     ▼
+   │      static HTML ────────┐                    fetch in parallel
+   │      JS / bot challenge ─┤                          │
+   │      documents ──────────┼─ route + extract ◀───────┘
+   │      JSON / images ──────┘          │
+   │                                    ▼
+   └─ follow-up search ◀── evaluate evidence coverage
+                                        │ sufficient
+                                        ▼
+                              grounded synthesis
+                                        │
+                                        ▼
+                               citation validation
+```
+
+For the maintained control-flow diagrams and exact routing rules, see [docs/pipeline-flow.md](docs/pipeline-flow.md).
+
+## Where it fits
+
+Use `web-scout-ai` when your application needs the contents of real pages and documents—not only search snippets—and you want the source successes and failures returned as structured data.
+
+It is intentionally a bounded research component. If you only need search links, use a search API directly. If you need an open-ended autonomous research process with human checkpoints, put this package inside a broader agent workflow.
 
 ## Requirements
 
-- Python `>=3.10`
-- API key for at least one supported LLM provider
-- `SERPER_API_KEY` for the Serper search backend (generous free tier)
+- Python 3.10–3.13
+- An API key for the configured LLM provider
+- A Serper API key for search mode
+- Chromium setup for rendered pages, interactive sites, and browser fallbacks
+
+## Contributing
+
+The main extension point is [`SearchBackend`](src/web_scout/search_backends.py). New backends should implement the async `search()` contract and return normalized results and related searches.
+
+Bug reports and focused pull requests are welcome at [github.com/RSO9192/web-scout-ai](https://github.com/RSO9192/web-scout-ai).
+
+## License
+
+[MIT](LICENSE)
