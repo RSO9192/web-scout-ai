@@ -1,79 +1,72 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
   <title id="title">web-scout-ai social card</title>
-  <desc id="desc">Social preview card — terminal frame with sigil panel and product wordmark.</desc>
+  <desc id="desc">Web research that reads the sources. Search and extract web content into cited answers with a complete source audit trail.</desc>
   <defs>
-    <linearGradient id="sig" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d1d17"/>
+      <stop offset="62%" stop-color="#08130f"/>
+      <stop offset="100%" stop-color="#06100e"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#4ade80"/>
       <stop offset="100%" stop-color="#22d3ee"/>
     </linearGradient>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#34d399" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#34d399" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#000000" flood-opacity="0.26"/>
     </filter>
   </defs>
 
-  <!-- Background -->
-  <rect width="1280" height="640" fill="#090909"/>
+  <rect width="1280" height="640" fill="url(#background)"/>
+  <circle cx="280" cy="320" r="330" fill="url(#halo)"/>
+  <rect x="18" y="18" width="1244" height="604" rx="28" fill="none" stroke="#8fffc2" stroke-opacity="0.12" stroke-width="2"/>
 
-  <!-- Terminal frame -->
-  <rect x="12" y="12" width="1256" height="616" rx="20" fill="#0d0d0d" stroke="#4ade80" stroke-width="1.5" opacity="0.28"/>
-
-  <!-- Title bar -->
-  <rect x="12" y="12" width="1256" height="46" rx="18" fill="#4ade80" opacity="0.05"/>
-  <line x1="12" y1="58" x2="1268" y2="58" stroke="#4ade80" stroke-width="0.8" opacity="0.15"/>
-
-  <!-- Traffic lights -->
-  <circle cx="42" cy="35" r="8" fill="#4ade80" opacity="0.55"/>
-  <circle cx="66" cy="35" r="8" fill="#4ade80" opacity="0.28"/>
-  <circle cx="90" cy="35" r="8" fill="#4ade80" opacity="0.14"/>
-
-  <!-- Title bar label -->
-  <text x="640" y="41" fill="#4ade80" font-size="13"
-        font-family="'Courier New', Courier, monospace"
-        text-anchor="middle" opacity="0.30">web-scout-ai — scout</text>
-
-  <!-- Left: sigil panel -->
-  <rect x="60" y="108" width="384" height="424" rx="18"
-        fill="#111111" stroke="#4ade80" stroke-width="1" opacity="0.18"/>
-  <g transform="translate(90,148)" filter="url(#glow)">
-    <!-- W -->
-    <path d="M30 28 L88 272 L172 142 L256 272 L314 28"
-          fill="none" stroke="url(#sig)" stroke-width="18"
-          stroke-linejoin="round" stroke-linecap="round"/>
-    <!-- Magnifier -->
-    <circle cx="172" cy="246" r="90"
-            fill="none" stroke="url(#sig)" stroke-width="13" opacity="0.8"/>
-    <!-- Handle -->
-    <line x1="236" y1="310" x2="292" y2="366"
-          stroke="url(#sig)" stroke-linecap="round" stroke-width="19"/>
+  <g transform="translate(86,116)" filter="url(#shadow)">
+    <rect width="408" height="408" rx="92" fill="#091612" stroke="#8fffc2" stroke-opacity="0.15" stroke-width="2"/>
+    <circle cx="190" cy="185" r="125" fill="#08130f" stroke="url(#brand)" stroke-width="22"/>
+    <path d="M112 128 L139 236 L190 172 L241 236 L268 128"
+          fill="none" stroke="#effff7" stroke-width="28"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M279 273 L356 350"
+          fill="none" stroke="url(#brand)" stroke-width="28"
+          stroke-linecap="round"/>
   </g>
 
-  <!-- Right: text block -->
-  <text x="510" y="224" fill="#e8fdf4" font-size="76"
-        font-family="'Courier New', Courier, monospace"
-        font-weight="700" letter-spacing="1">web-scout-ai</text>
+  <text x="566" y="128" fill="#effff7" font-size="44"
+        font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace"
+        font-weight="700" letter-spacing="-1.5">web-scout<tspan fill="#4ade80">-ai</tspan></text>
 
-  <!-- Separator -->
-  <line x1="512" y1="252" x2="1230" y2="252" stroke="#4ade80" stroke-width="1.2" opacity="0.2"/>
+  <text x="566" y="232" fill="#effff7" font-size="59"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-weight="700" letter-spacing="-1.5">Web research that</text>
+  <text x="566" y="302" fill="url(#brand)" font-size="59"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-weight="700" letter-spacing="-1.5">reads the sources.</text>
 
-  <!-- Tagline -->
-  <text x="510" y="300" fill="#4ade80" font-size="28"
-        font-family="'Courier New', Courier, monospace"
-        opacity="0.78">search → scrape → synthesize</text>
+  <text x="568" y="366" fill="#a6bdb3" font-size="22"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    Search HTML, SPAs, documents, APIs and images.
+  </text>
+  <text x="568" y="400" fill="#a6bdb3" font-size="22"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    Return cited answers and a complete source audit trail.
+  </text>
 
-  <!-- Description -->
-  <text x="510" y="368" fill="#94a3b8" font-size="22"
-        font-family="'Courier New', Courier, monospace"
-        opacity="0.65">The missing middle ground between search</text>
-  <text x="510" y="400" fill="#94a3b8" font-size="22"
-        font-family="'Courier New', Courier, monospace"
-        opacity="0.65">APIs and deep research agents.</text>
+  <g transform="translate(566,454)">
+    <rect width="368" height="62" rx="14" fill="#0d211a" stroke="#4ade80" stroke-opacity="0.25"/>
+    <circle cx="28" cy="31" r="5" fill="#4ade80"/>
+    <text x="49" y="39" fill="#b9f6d2" font-size="20"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">pip install web-scout-ai</text>
+  </g>
 
-  <!-- pip install prompt -->
-  <text x="510" y="490" fill="#4ade80" font-size="20"
-        font-family="'Courier New', Courier, monospace"
-        opacity="0.42">$ pip install web-scout-ai</text>
-
-  <!-- Cursor -->
-  <rect x="510" y="502" width="10" height="16" rx="1" fill="#4ade80" opacity="0.55"/>
+  <g transform="translate(568,556)" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="14" font-weight="600" letter-spacing="1.4">
+    <text x="0" y="14" fill="#4ade80">SEARCH</text>
+    <circle cx="79" cy="9" r="3" fill="#55756a"/>
+    <text x="96" y="14" fill="#6ee7b7">EXTRACT</text>
+    <circle cx="189" cy="9" r="3" fill="#55756a"/>
+    <text x="206" y="14" fill="#22d3ee">CITE</text>
+  </g>
 </svg>
