@@ -169,6 +169,7 @@ def _build_extractor_instructions(
     include_linked_document: bool,
     include_interaction: bool,
     domain_expertise: Optional[str] = None,
+    extractor_guidance: Optional[str] = None,
 ) -> str:
     """Build runtime instructions that mention only tools exposed to the agent."""
     instructions = _BASE_EXTRACTOR_INSTRUCTIONS
@@ -178,6 +179,18 @@ def _build_extractor_instructions(
         instructions += _LINKED_DOCUMENT_INSTRUCTIONS
     if domain_expertise:
         instructions += f"\n\nDomain Expertise: {domain_expertise}\n"
+    if extractor_guidance:
+        instructions += f"""
+
+## Application-specific extractor guidance
+
+The following guidance may refine which content is relevant and how extracted
+evidence is organized. It MUST NOT override the base extractor contract above,
+including source-grounding requirements, tool-use constraints, output fields,
+page-type rules, or the exact no-evidence sentinel.
+
+{extractor_guidance}
+"""
     return instructions
 
 
@@ -215,6 +228,7 @@ def build_extractor_agent(
     use_session_cache: bool = False,
     max_interactive_clicks: int = EXTRACTOR_HEURISTICS.max_interactive_clicks,
     domain_expertise: Optional[str] = None,
+    extractor_guidance: Optional[str] = None,
     pre_fetched_content: str = "",
 ) -> tuple:
     """Build a content extractor sub-agent with a URL-locked scraping tool.
@@ -550,6 +564,7 @@ def build_extractor_agent(
         include_linked_document=allow_linked_document,
         include_interaction=allow_interaction,
         domain_expertise=domain_expertise,
+        extractor_guidance=extractor_guidance,
     )
     logger.info(
         "[extract] extractor_agent tools=%s chars=%d linked_doc=%s interaction=%s shape=%s doc_links=%s metadata_markers=%s url=%s",

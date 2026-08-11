@@ -206,6 +206,33 @@ async def test_run_web_research_passes_cache_flag_to_scrape_tool(monkeypatch):
     assert captured_kwargs["use_session_cache"] is True
 
 
+@pytest.mark.asyncio
+async def test_run_web_research_passes_guidance_only_to_extractor_tool(monkeypatch):
+    """Application guidance is forwarded to extraction without becoming domain expertise."""
+    captured_kwargs = {}
+
+    async def _fake_scrape(url: str) -> str:
+        return "Source content " * 20
+
+    def _fake_factory(**kwargs):
+        captured_kwargs.update(kwargs)
+        return _fake_scrape
+
+    monkeypatch.setattr(_agent_module, "create_scrape_and_extract_tool", _fake_factory)
+    _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Done."))
+
+    guidance = "Keep North Africa findings when the country of interest is Tunisia."
+    await run_web_research(
+        query="Tunisia agricultural trends",
+        models={"web_researcher": "dummy", "content_extractor": "dummy"},
+        direct_url="https://fao.org/report",
+        extractor_guidance=guidance,
+    )
+
+    assert captured_kwargs["extractor_guidance"] == guidance
+    assert captured_kwargs["domain_expertise"] is None
+
+
 # ---------------------------------------------------------------------------
 # Direct URL mode — happy path
 # ---------------------------------------------------------------------------

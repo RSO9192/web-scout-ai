@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.3.10] - 2026-08-11
+
+### Added
+
+- **Extractor-only application guidance**: `run_web_research()` now accepts optional `extractor_guidance` that is appended to each per-source content extractor prompt without affecting query generation, coverage evaluation, or final synthesis. The prompt explicitly preserves the base extractor contract when application guidance conflicts with source-grounding, tool-use, output-schema, page-type, or no-evidence rules.
+
+
 ## [1.3.9] - 2026-07-31
 
 ### Changed
