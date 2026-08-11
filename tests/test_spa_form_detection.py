@@ -182,3 +182,27 @@ def test_runtime_instructions_include_only_document_block_when_document_tool_ava
     assert "scrape_linked_document" in instructions
     assert "list_interactive_elements" not in instructions
     assert "click_element" not in instructions
+
+
+def test_runtime_instructions_append_extractor_guidance_with_base_contract_precedence():
+    guidance = "Keep North Africa findings when the country of interest is Tunisia."
+
+    instructions = _build_extractor_instructions(
+        include_linked_document=False,
+        include_interaction=False,
+        extractor_guidance=guidance,
+    )
+
+    assert "Application-specific extractor guidance" in instructions
+    assert "MUST NOT override the base extractor contract" in instructions
+    assert guidance in instructions
+    assert instructions.index("[No relevant content found for this query]") < instructions.index(guidance)
+
+
+def test_runtime_instructions_omit_extractor_guidance_section_when_none():
+    instructions = _build_extractor_instructions(
+        include_linked_document=False,
+        include_interaction=False,
+    )
+
+    assert "Application-specific extractor guidance" not in instructions

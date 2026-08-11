@@ -41,6 +41,7 @@ def create_scrape_and_extract_tool(
     use_session_cache: bool = False,
     max_interactive_clicks: int = EXTRACTOR_HEURISTICS.max_interactive_clicks,
     domain_expertise: Optional[str] = None,
+    extractor_guidance: Optional[str] = None,
 ):
     """Create a scrape_and_extract function."""
     semaphore = asyncio.Semaphore(max_concurrent)
@@ -194,6 +195,7 @@ def create_scrape_and_extract_tool(
                     use_session_cache=use_session_cache,
                     max_interactive_clicks=max_interactive_clicks,
                     domain_expertise=domain_expertise,
+                    extractor_guidance=extractor_guidance,
                     pre_fetched_content=page_rendered,
                 )
 

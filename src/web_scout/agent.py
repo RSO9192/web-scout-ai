@@ -230,8 +230,13 @@ async def run_web_research(
     max_content_chars: int = 30_000,
     cache: bool = False,
     coverage_criteria: Optional[str] = None,
+    extractor_guidance: Optional[str] = None,
 ) -> WebResearchResult:
-    """Run deterministic web research pipeline."""
+    """Run deterministic web research pipeline.
+
+    ``extractor_guidance`` augments only the per-source content extractor.
+    The base extraction contract takes precedence over conflicting guidance.
+    """
     from .utils import get_model
 
     if models is None:
@@ -301,6 +306,7 @@ async def run_web_research(
         max_content_chars=max_content_chars,
         use_session_cache=cache,
         domain_expertise=domain_expertise,
+        extractor_guidance=extractor_guidance,
     )
 
     logger.info(

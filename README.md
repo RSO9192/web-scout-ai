@@ -210,6 +210,32 @@ result = await run_web_research(
 )
 ```
 
+## Custom extractor guidance
+
+Use `extractor_guidance` to refine what each per-source extractor keeps and how it
+organizes evidence. The guidance applies only to extraction; it does not alter search
+query generation, coverage evaluation, or final synthesis.
+
+```python
+result = await run_web_research(
+    query="Tunisia agricultural trends",
+    extractor_guidance="""
+Country of interest: Tunisia
+
+- Keep findings explicitly about Tunisia.
+- Also keep regional findings whose stated scope includes Tunisia, even when the
+  source does not name Tunisia; label them with the source's scope, such as
+  "North Africa:".
+- Discard purely global findings and findings about geographies that do not
+  include Tunisia.
+""",
+)
+```
+
+Guidance augments rather than replaces WebScout's extractor instructions. The base
+contract always takes precedence for source grounding, tool constraints, output
+fields, page-type handling, and the exact no-evidence sentinel.
+
 ## Configuration
 
 The defaults use `gemini/gemini-3-flash-preview`. Model IDs follow [LiteLLM provider naming](https://docs.litellm.ai/docs/providers), so the research and extraction stages can use different providers or models.
@@ -251,6 +277,7 @@ result = await run_web_research(
     max_content_chars=30_000,          # characters passed to the extractor per source
     cache=False,                       # process-local source cache
     coverage_criteria=None,            # extra evidence requirements
+    extractor_guidance=None,           # optional per-source extraction guidance
 )
 ```
 
