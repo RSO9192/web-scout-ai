@@ -390,8 +390,10 @@ async def test_pdf_docling_conversions_do_not_overlap(monkeypatch):
     max_active_calls = 0
 
     class FakeDocument:
-        @staticmethod
-        def export_to_markdown():
+        def iterate_items(self, **kwargs):
+            return iter([])
+
+        def export_to_markdown(self, **kwargs):
             return "converted"
 
     class FakeResult:

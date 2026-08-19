@@ -323,6 +323,7 @@ class DefaultParser(Parser):
             known_content_disposition=result.content_disposition,
             needs_browser=result.used_browser,
             prefetched_bytes=result.body,
+            vision_model=self._vision_model,
         )
         title = artifact.title if artifact else result.url.rsplit("/", 1)[-1] or "Document"
 

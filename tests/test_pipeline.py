@@ -99,8 +99,10 @@ async def test_pdf_converter_creation_and_use_share_one_lock(monkeypatch):
     lock = TrackingLock()
 
     class FakeDocument:
-        @staticmethod
-        def export_to_markdown():
+        def iterate_items(self, **kwargs):
+            return iter([])
+
+        def export_to_markdown(self, **kwargs):
             return "converted"
 
     class FakeConverter:
