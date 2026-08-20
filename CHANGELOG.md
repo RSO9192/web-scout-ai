@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking: `allowed_domains` replaced by `exclude_domains`**: `run_web_research()` and the scrape/explore path now take an explicit blocklist (`exclude_domains`) instead of an allow-override. `None` (default) uses `BLOCKED_DOMAINS`; `[]` disables domain blocking. Hostnames from `include_domains` and `direct_url` are still subtracted from the effective exclude set.
+
 
 ## [1.3.10] - 2026-08-11
 

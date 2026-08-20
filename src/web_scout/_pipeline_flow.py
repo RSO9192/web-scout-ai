@@ -572,7 +572,7 @@ async def _evaluate_search_coverage(
     depth: dict[str, int],
     evaluator_agent: Agent,
     tracker: ResearchTracker,
-    allowed_domains: Optional[frozenset[str]],
+    exclude_domains: Optional[frozenset[str]],
     state: SearchLoopState,
 ) -> bool:
     """Decide whether to stop, reuse backlog URLs, or trigger new searches."""
@@ -625,7 +625,7 @@ async def _evaluate_search_coverage(
     state.promising_urls_from_evaluator = [
         url
         for url in state.promising_urls_from_evaluator
-        if not is_blocked_domain(url, allowed_domains=allowed_domains)
+        if not is_blocked_domain(url, exclude_domains=exclude_domains)
     ]
     if include_domains:
         state.promising_urls_from_evaluator = [
@@ -690,7 +690,6 @@ async def _run_direct_url_mode(
     scrape_tool: Any,
     depth: dict[str, int],
     followup_model: Any,
-    allowed_domains: Optional[frozenset[str]] = None,
 ) -> None:
     """Handle direct-URL mode, including optional hub or same-domain deepening."""
     logger.info("[pipeline] scraping direct URL: %s", direct_url)
@@ -784,7 +783,7 @@ async def _run_search_mode_impl(
     followup_model: Any,
     tracker: ResearchTracker,
     scrape_tool: Any,
-    allowed_domains: Optional[frozenset[str]],
+    exclude_domains: Optional[frozenset[str]],
     evaluator_extra_prompt: Optional[str] = None,
     build_search_backend: Any,
     build_query_agents: Any,
@@ -841,7 +840,7 @@ async def _run_search_mode_impl(
             depth=depth,
             evaluator_agent=evaluator_agent,
             tracker=tracker,
-            allowed_domains=allowed_domains,
+            exclude_domains=exclude_domains,
             state=state,
         ):
             break

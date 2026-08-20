@@ -171,7 +171,7 @@ class WebResearchResult(BaseModel):
 | `synthesis` | Final answer with inline Markdown citations |
 | `scraped` | Sources successfully read and extracted; `content` contains the query-relevant evidence |
 | `scrape_failed` | Extraction attempts that failed for an unclassified reason |
-| `blocked_by_policy` | Sources skipped by the built-in domain policy |
+| `blocked_by_policy` | Sources skipped by `exclude_domains` (defaults to `BLOCKED_DOMAINS`) |
 | `source_http_error` | Source-side HTTP or network failures |
 | `scraped_irrelevant` | Pages fetched successfully but not useful for the query |
 | `bot_detected` | Sources that still returned a bot-protection wall |
@@ -272,7 +272,7 @@ result = await run_web_research(
     include_domains=["ipcc.ch"],       # optional discovery restriction
     direct_url=None,                   # optional; skips search when set
     domain_expertise="climate science",  # optional prompt context
-    allowed_domains=None,              # opt blocked domains back in
+    exclude_domains=None,              # blocklist; defaults to BLOCKED_DOMAINS
     max_pdf_pages=50,                  # pages converted from each PDF
     max_content_chars=30_000,          # characters passed to the extractor per source
     cache=False,                       # process-local source cache
@@ -283,14 +283,25 @@ result = await run_web_research(
 
 ### Domain policy
 
-Common social, video, and consistently paywalled platforms are blocked by default so they do not consume the scrape budget. You can opt a domain back in explicitly:
+Common social, video, and consistently paywalled platforms are blocked by default so they do not consume the scrape budget. The blocklist is `exclude_domains`, which defaults to `BLOCKED_DOMAINS`. Pass a custom list to replace it, drop entries from the default list to opt a domain back in, or pass `[]` to disable domain blocking:
 
 ```python
+from web_scout.scraping.constants import BLOCKED_DOMAINS
+
+# Opt reddit.com back in while keeping the rest of the default blocklist
 result = await run_web_research(
     query="...",
-    allowed_domains=["reddit.com"],
+    exclude_domains=sorted(BLOCKED_DOMAINS - {"reddit.com"}),
+)
+
+# Disable domain blocking entirely
+result = await run_web_research(
+    query="...",
+    exclude_domains=[],
 )
 ```
+
+Domains listed in `include_domains`, and the host of `direct_url`, are automatically removed from the effective exclude set so those targets remain reachable.
 
 ### Source caching
 

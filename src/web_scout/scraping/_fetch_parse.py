@@ -14,7 +14,7 @@ async def fetch_and_parse_url(
     url: str,
     *,
     wait_for: Optional[str] = None,
-    allowed_domains: Optional[frozenset[str]] = None,
+    exclude_domains: Optional[frozenset[str]] = None,
     vision_model: Optional[str] = None,
     max_pdf_pages: int = ROUTING_HEURISTICS.pdf_max_pages_default,
     fetcher: Optional[Fetcher] = None,
@@ -29,7 +29,7 @@ async def fetch_and_parse_url(
     callers can inspect fetch-level metadata (status, content-type) before
     applying their own error handling.
     """
-    fetcher = fetcher or ScraplingFetcher(allowed_domains=allowed_domains)
+    fetcher = fetcher or ScraplingFetcher(exclude_domains=exclude_domains)
     parser = parser or DefaultParser(vision_model=vision_model, max_pdf_pages=max_pdf_pages)
     context = URLContext(url=url, depth=0, wait_for=wait_for)
     fetch_result = await fetcher.fetch(url, context)

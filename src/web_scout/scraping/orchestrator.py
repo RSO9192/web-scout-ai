@@ -48,7 +48,7 @@ class OrchestratorConfig(BaseSettings):
     max_urls: int = 50
     max_concurrent_fetches: int = 5
     max_concurrent_parses: int = 10
-    allowed_domains: Optional[frozenset[str]] = None
+    exclude_domains: Optional[frozenset[str]] = None
     vision_model: Optional[str] = None
     # Defaults sourced from ROUTING_HEURISTICS in config.py
     max_pdf_pages: int = ROUTING_HEURISTICS.pdf_max_pages_default        # 50
@@ -83,7 +83,7 @@ class Orchestrator:
         crawler: Optional[Crawler] = None,
     ) -> None:
         self.config = config
-        self._fetcher: Fetcher = fetcher or ScraplingFetcher(allowed_domains=config.allowed_domains)
+        self._fetcher: Fetcher = fetcher or ScraplingFetcher(exclude_domains=config.exclude_domains)
         self._parser: Parser = parser or DefaultParser(
             vision_model=config.vision_model,
             max_pdf_pages=config.max_pdf_pages,
@@ -129,7 +129,7 @@ class Orchestrator:
             return
         if len(self._visited) >= self.config.max_urls:
             return
-        if is_blocked_domain(url, allowed_domains=self.config.allowed_domains):
+        if is_blocked_domain(url, exclude_domains=self.config.exclude_domains):
             return
         if unsupported_legacy_document_reason(url):
             return

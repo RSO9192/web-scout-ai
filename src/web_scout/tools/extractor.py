@@ -220,7 +220,7 @@ def build_extractor_agent(
     url: str,
     wait_for: Optional[str],
     vision_model: Optional[str] = None,
-    allowed_domains: Optional[frozenset] = None,
+    exclude_domains: Optional[frozenset] = None,
     max_pdf_pages: int = 50,
     max_content_chars: int = 30_000,
     doc_cache: Optional[dict] = None,
@@ -300,7 +300,7 @@ def build_extractor_agent(
                 url=document_url,
                 wait_for=None,
                 vision_model=vision_model,
-                allowed_domains=allowed_domains,
+                exclude_domains=exclude_domains,
                 max_pdf_pages=max_pdf_pages,
                 cache_pdf_pages=looks_like_pdf_resource(document_url),
             )
@@ -366,7 +366,7 @@ def build_extractor_agent(
     async def _scrape_linked_document_uncached(document_url: str, norm: str) -> str:
         _, parse_result = await fetch_and_parse_url(
             document_url,
-            allowed_domains=allowed_domains,
+            exclude_domains=exclude_domains,
             vision_model=vision_model,
             max_pdf_pages=max_pdf_pages,
         )
@@ -526,11 +526,11 @@ def build_extractor_agent(
                 pass  # timeout is acceptable — page may not trigger a network event
 
             post_click_url = _current_page_url()
-            if is_blocked_domain(post_click_url, allowed_domains=allowed_domains):
+            if is_blocked_domain(post_click_url, exclude_domains=exclude_domains):
                 await page.go_back()
                 return (
                     f"[click_element blocked: navigation to {post_click_url} "
-                    "is outside the allowed domain scope. Try a different element.]"
+                    "is on an excluded domain. Try a different element.]"
                 )
 
             result = (await page.inner_text("body")).strip()

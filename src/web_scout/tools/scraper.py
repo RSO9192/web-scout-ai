@@ -35,7 +35,7 @@ def create_scrape_and_extract_tool(
     query: str = "",
     max_concurrent: int = 6,
     vision_model: Optional[str] = None,
-    allowed_domains: Optional[frozenset] = None,
+    exclude_domains: Optional[frozenset] = None,
     max_pdf_pages: int = 50,
     max_content_chars: int = 30_000,
     use_session_cache: bool = False,
@@ -115,7 +115,7 @@ def create_scrape_and_extract_tool(
                         url=url,
                         wait_for=_wait_for,
                         vision_model=vision_model,
-                        allowed_domains=allowed_domains,
+                        exclude_domains=exclude_domains,
                         max_pdf_pages=max_pdf_pages,
                         cache_pdf_pages=looks_like_pdf_resource(url),
                     )
@@ -156,7 +156,7 @@ def create_scrape_and_extract_tool(
                     _, parse_result = await fetch_and_parse_url(
                         url,
                         wait_for=_wait_for,
-                        allowed_domains=allowed_domains,
+                        exclude_domains=exclude_domains,
                         vision_model=vision_model,
                         max_pdf_pages=max_pdf_pages,
                     )
@@ -187,7 +187,7 @@ def create_scrape_and_extract_tool(
                     url,
                     _wait_for,
                     vision_model=vision_model,
-                    allowed_domains=allowed_domains,
+                    exclude_domains=exclude_domains,
                     max_pdf_pages=max_pdf_pages,
                     max_content_chars=max_content_chars,
                     doc_cache=_doc_cache,

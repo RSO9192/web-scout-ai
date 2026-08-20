@@ -3,12 +3,13 @@
 import pytest
 
 from web_scout.agent import (
-    _build_allowed_domain_set,
+    _build_exclude_domain_set,
     _find_next_page_url,
     _is_promising_followup_url,
     _normalize_domain,
     _rank_followup_candidates,
 )
+from web_scout.scraping.constants import BLOCKED_DOMAINS
 from web_scout.scraping.utils import is_blocked_domain
 from web_scout.tools import ResearchTracker
 
@@ -41,25 +42,37 @@ def test_normalize_domain_uppercase():
     assert _normalize_domain("WOCAT.NET") == "wocat.net"
 
 
-def test_build_allowed_domain_set_from_direct_url():
-    allowed = _build_allowed_domain_set(
+def test_build_exclude_domain_set_default_is_blocked_domains():
+    excluded = _build_exclude_domain_set()
+    assert excluded == BLOCKED_DOMAINS
+
+
+def test_build_exclude_domain_set_from_direct_url_unblocks_host():
+    excluded = _build_exclude_domain_set(
         direct_url="https://www.sciencedirect.com/science/article/pii/S2214581825005567"
     )
-    assert allowed == frozenset({"sciencedirect.com"})
+    assert "sciencedirect.com" not in excluded
+    assert "youtube.com" in excluded
 
 
-def test_build_allowed_domain_set_from_include_domains():
-    allowed = _build_allowed_domain_set(include_domains=["https://www.nature.com", "iccat.int"])
-    assert allowed == frozenset({"nature.com", "iccat.int"})
+def test_build_exclude_domain_set_from_include_domains_unblocks_hosts():
+    excluded = _build_exclude_domain_set(include_domains=["https://www.reddit.com", "iccat.int"])
+    assert "reddit.com" not in excluded
+    assert "iccat.int" not in excluded
+    assert "youtube.com" in excluded
 
 
-def test_build_allowed_domain_set_merges_all_sources():
-    allowed = _build_allowed_domain_set(
-        allowed_domains=["reddit.com"],
+def test_build_exclude_domain_set_custom_list_minus_include_and_direct():
+    excluded = _build_exclude_domain_set(
+        exclude_domains=["reddit.com", "youtube.com", "sciencedirect.com"],
         include_domains=["www.nature.com"],
         direct_url="https://www.sciencedirect.com/science/article/pii/S2214581825005567",
     )
-    assert allowed == frozenset({"reddit.com", "nature.com", "sciencedirect.com"})
+    assert excluded == frozenset({"reddit.com", "youtube.com"})
+
+
+def test_build_exclude_domain_set_empty_list_blocks_nothing():
+    assert _build_exclude_domain_set(exclude_domains=[]) == frozenset()
 
 
 def test_is_promising_followup_url_rejects_homepage():
@@ -296,9 +309,9 @@ def testis_blocked_domain_reddit_blocked_by_default():
     assert is_blocked_domain("https://reddit.com/r/MachineLearning") is True
 
 
-def testis_blocked_domain_reddit_allowed_when_in_allowed_set():
-    allowed = frozenset({"reddit.com"})
-    assert is_blocked_domain("https://reddit.com/r/MachineLearning", allowed_domains=allowed) is False
+def testis_blocked_domain_reddit_unblocked_when_dropped_from_exclude_set():
+    excluded = BLOCKED_DOMAINS - {"reddit.com"}
+    assert is_blocked_domain("https://reddit.com/r/MachineLearning", exclude_domains=excluded) is False
 
 
 def testis_blocked_domain_unrelated_domain_not_blocked():
@@ -317,8 +330,8 @@ def testis_blocked_domain_www_reddit_blocked_by_default():
     assert is_blocked_domain("https://www.reddit.com/r/science") is True
 
 
-def testis_blocked_domain_allowed_set_empty_uses_full_blocklist():
-    assert is_blocked_domain("https://twitter.com/user", allowed_domains=frozenset()) is True
+def testis_blocked_domain_empty_exclude_set_blocks_nothing():
+    assert is_blocked_domain("https://twitter.com/user", exclude_domains=frozenset()) is False
 
 
 # --- Additional _normalize_url coverage ---
@@ -358,22 +371,21 @@ def testis_blocked_domain_nature_not_blocked():
     assert is_blocked_domain("https://www.nature.com/articles/s41598-024-63786-2") is False
 
 
-def testis_blocked_domain_publisher_allowed_when_in_allowed_set():
-    allowed = frozenset({"sciencedirect.com"})
+def testis_blocked_domain_publisher_unblocked_when_not_in_exclude_set():
+    excluded = frozenset({"youtube.com"})
     assert (
         is_blocked_domain(
             "https://www.sciencedirect.com/science/article/pii/S2214581825005567",
-            allowed_domains=allowed,
+            exclude_domains=excluded,
         )
         is False
     )
 
 
-def testis_blocked_domain_allowed_set_only_removes_specified():
-    allowed = frozenset({"reddit.com"})
-    # twitter.com is still blocked even when reddit is allowed
-    assert is_blocked_domain("https://twitter.com/user", allowed_domains=allowed) is True
-    assert is_blocked_domain("https://reddit.com/r/foo", allowed_domains=allowed) is False
+def testis_blocked_domain_custom_exclude_set_only_blocks_listed():
+    excluded = frozenset({"reddit.com"})
+    assert is_blocked_domain("https://twitter.com/user", exclude_domains=excluded) is False
+    assert is_blocked_domain("https://reddit.com/r/foo", exclude_domains=excluded) is True
 
 
 # --- Additional _find_next_page_url realistic content ---

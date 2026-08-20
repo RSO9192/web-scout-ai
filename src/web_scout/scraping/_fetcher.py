@@ -62,11 +62,11 @@ class ScraplingFetcher(Fetcher):
     - Timeout or connection error → retry with StealthyFetcher
     - Thin HTML content (< ``html_fast_thin_content_chars`` text chars) → retry with browser
 
-    ``allowed_domains`` enforces domain blocking before any network call is made.
+    ``exclude_domains`` enforces domain blocking before any network call is made.
     """
 
-    def __init__(self, *, allowed_domains: Optional[frozenset] = None) -> None:
-        self._allowed_domains = allowed_domains
+    def __init__(self, *, exclude_domains: Optional[frozenset] = None) -> None:
+        self._exclude_domains = exclude_domains
 
     def _empty(self, url: str) -> FetchResult:
         return FetchResult(
@@ -90,7 +90,7 @@ class ScraplingFetcher(Fetcher):
         if invalid_reason:
             return self._empty(url).model_copy(update={"error": f"invalid URL: {invalid_reason}"})
 
-        if is_blocked_domain(url, allowed_domains=self._allowed_domains):
+        if is_blocked_domain(url, exclude_domains=self._exclude_domains):
             return self._empty(url).model_copy(update={"status": 403, "error": "blocked domain"})
 
         unsupported = unsupported_legacy_document_reason(url)
