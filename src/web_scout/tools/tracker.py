@@ -113,7 +113,7 @@ class ResearchTracker:
             )
         )
 
-    def record_scrape(self, url: str, title: str, extracted_content: str):
+    def record_scrape(self, url: str, title: str, extracted_content: str, reference: str = ""):
         from web_scout.models import UrlEntry
 
         key = self._normalize_url(url)
@@ -122,6 +122,7 @@ class ResearchTracker:
         entry.content = extracted_content
         if title:
             entry.title = title
+        entry.reference = reference or title or entry.reference
 
     def record_scrape_failure(self, url: str, error: str):
         from web_scout.models import UrlEntry

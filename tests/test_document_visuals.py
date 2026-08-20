@@ -138,7 +138,7 @@ async def test_enrich_skips_gemini_when_section_has_no_visuals(monkeypatch):
         )
     ]
     result = await doc_module._enrich_sections_with_visuals(sections, vision_model="gemini/gemini-3.7-flash")
-    assert result == "## Summary\n\nPlain text only."
+    assert result[0].markdown == "## Summary\n\nPlain text only."
     assert called["count"] == 0
 
 
@@ -172,9 +172,10 @@ async def test_enrich_leaves_placeholders_when_gemini_fails(monkeypatch):
         ),
     ]
     result = await doc_module._enrich_sections_with_visuals(sections, vision_model="gemini/gemini-3.7-flash")
-    assert "<!-- image -->" in result
-    assert "## Notes" in result
-    assert "No figures." in result
+    joined = "\n\n".join(s.markdown for s in result)
+    assert "<!-- image -->" in joined
+    assert "## Notes" in joined
+    assert "No figures." in joined
 
 
 @pytest.mark.asyncio
@@ -200,11 +201,12 @@ async def test_enrich_replaces_placeholders_with_summaries(monkeypatch):
         )
     ]
     result = await doc_module._enrich_sections_with_visuals(sections, vision_model="gemini/gemini-3.7-flash")
-    assert "ROI chart: average return USD 2.34" in result
-    assert "[Summarized Image: gemini/gemini-3.7-flash]" in result
-    assert "page: 5" in result
-    assert "<!-- image -->" not in result
-    assert "<!-- visual:" not in result
+    joined = "\n\n".join(s.markdown for s in result)
+    assert "ROI chart: average return USD 2.34" in joined
+    assert "[Summarized Image: gemini/gemini-3.7-flash]" in joined
+    assert "page: 5" in joined
+    assert "<!-- image -->" not in joined
+    assert "<!-- visual:" not in joined
 
 
 @pytest.mark.asyncio
@@ -233,8 +235,9 @@ async def test_convert_pdf_to_markdown_skips_enrichment_without_vision_model(mon
     monkeypatch.setattr(doc_module, "_extract_pdf_sections_locked", _fake_extract)
     monkeypatch.setattr(doc_module, "_enrich_sections_with_visuals", _should_not_run)
 
-    result = await doc_module._convert_pdf_to_markdown(b"%PDF", "https://example.org/a.pdf", 2)
+    result, layout = await doc_module._convert_pdf_to_markdown(b"%PDF", "https://example.org/a.pdf", 2)
     assert result == section.markdown
+    assert layout.document_title == "Summary"
     assert called["count"] == 0
 
 

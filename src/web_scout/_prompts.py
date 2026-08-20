@@ -47,6 +47,10 @@ explicitly state that coverage is limited.
   information as supporting context but do not attach a citation link to it.
 - Every factual claim with a specific number, date, or named fact must have an inline
   citation pointing to a scraped source that contains that fact.
+- **PDF sources:** when a scraped entry has a non-empty `reference` that includes
+  `p.` / `pp.`, wrap that exact reference as the markdown link text, e.g.
+  [Crop Prospects, pp. 3–7](URL). Do not invent page numbers that are not in `reference`.
+- **HTML/other sources:** cite as [Title](URL) using the source title.
 - Lead with what was found; address the query directly.
 - If sources contradict each other, note the contradiction explicitly.
 - Do NOT cite URLs that appear in the "SOURCES THAT COULD NOT BE ACCESSED" section —

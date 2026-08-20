@@ -58,6 +58,8 @@ def build_success_outcome(
     page_type: Literal["list", "content"],
     links: list[str],
     count_scraped: Optional[int],
+    reference: str = "",
+    used_pages: tuple[int, ...] | list[int] = (),
 ) -> ExtractorOutcome:
     """Build a typed success outcome and its legacy rendered text."""
     header = f"# {title}\nSource: {url}\n\n" if title else f"Source: {url}\n\n"
@@ -70,6 +72,7 @@ def build_success_outcome(
         )
     if count_scraped is not None:
         rendered = _append_min_successful_scrape_reminder(rendered, count_scraped, force_other_urls=False)
+    ref = reference or title
     return ExtractorOutcome(
         url=url,
         status="success",
@@ -78,6 +81,8 @@ def build_success_outcome(
         content=content,
         page_type=page_type,
         relevant_links=links[: EXTRACTOR_HEURISTICS.max_rendered_relevant_links],
+        reference=ref,
+        used_pages=tuple(used_pages),
     )
 
 

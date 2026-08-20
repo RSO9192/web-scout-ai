@@ -27,7 +27,7 @@ from web_scout.config import ROUTING_HEURISTICS
 from ._download import download_pdf
 from ._markdown import append_links
 from .page_classifier import looks_like_pdf_resource
-from .types import SourceArtifact
+from .types import PdfDocumentLayout, PdfPageSpan, PdfSectionSpan, SourceArtifact
 from .utils import unsupported_legacy_document_reason
 
 logger = logging.getLogger(__name__)
@@ -40,8 +40,48 @@ _PDF_LOCK = threading.Lock()
 _IMAGE_PLACEHOLDER = "<!-- image -->"
 _VISUAL_TOKEN_RE = re.compile(r"<!--\s*visual:([^\s>]+)\s*-->")
 _ANY_IMAGE_PLACEHOLDER_RE = re.compile(r"<!--\s*(?:image|visual:[^>]+)\s*-->")
+_PAGE_START_RE = re.compile(r"^========== page (\d+) start ==========$")
+_PAGE_END_RE = re.compile(r"^========== page (\d+) end ==========$")
+_PAGE_BANNER_RE = re.compile(r"^========== page \d+ (?:start|end) ==========$", re.MULTILINE)
 _MIN_VISUAL_SIDE_PX = 80
 _VISUAL_ENRICH_CONCURRENCY = 3
+
+
+def _page_start_banner(page: int) -> str:
+    return f"========== page {page} start =========="
+
+
+def _page_end_banner(page: int) -> str:
+    return f"========== page {page} end =========="
+
+
+@dataclass
+class _PageBannerState:
+    """Tracks open page banners across section serialization."""
+
+    current_page: int | None = None
+    open: bool = False
+
+    def transition(self, page: int | None) -> list[str]:
+        """Return banner lines needed before emitting content on ``page``."""
+        if page is None:
+            return []
+        if self.current_page == page and self.open:
+            return []
+        parts: list[str] = []
+        if self.open and self.current_page is not None:
+            parts.append(_page_end_banner(self.current_page))
+        parts.append(_page_start_banner(page))
+        self.current_page = page
+        self.open = True
+        return parts
+
+    def close(self) -> list[str]:
+        if not self.open or self.current_page is None:
+            return []
+        banner = _page_end_banner(self.current_page)
+        self.open = False
+        return [banner]
 
 
 @dataclass(frozen=True)
@@ -85,9 +125,13 @@ def _get_pdf_converter():
     Reusing the same ``DocumentConverter`` lets Docling reuse its initialised
     pipeline and heavy layout model across PDF conversion calls. Production
     callers hold ``_PDF_LOCK`` across both this initialization and conversion.
+
+    Layout inference is pinned to CPU: Apple MPS aborts inside RT-DETR resize
+    (``data layout to resample should be nchw or nhwc``).
     """
     global _PDF_CONVERTER
     if _PDF_CONVERTER is None:
+        from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
         from docling.datamodel.base_models import InputFormat
         from docling.datamodel.pipeline_options import PdfPipelineOptions
         from docling.document_converter import DocumentConverter, PdfFormatOption
@@ -98,6 +142,7 @@ def _get_pdf_converter():
             generate_page_images=True,
             generate_picture_images=True,
             images_scale=2.0,
+            accelerator_options=AcceleratorOptions(device=AcceleratorDevice.CPU),
         )
         _PDF_CONVERTER = DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
     return _PDF_CONVERTER
@@ -261,8 +306,15 @@ def _bbox_contained(inner, outer, slack: float = 12.0) -> bool:
     )
 
 
-def _markdown_from_section_items(document, bucket: list[tuple[object, int]], picture_boxes: list[tuple[int, object]] | None = None) -> str:
-    """Serialize column-grouped items. Skip pictures, groups, and in-figure labels."""
+def _markdown_from_section_items(
+    document,
+    bucket: list[tuple[object, int]],
+    picture_boxes: list[tuple[int, object]] | None = None,
+    *,
+    page_state: _PageBannerState | None = None,
+    visual_tokens_by_item: dict[int, str] | None = None,
+) -> str:
+    """Serialize column-grouped items with page banners. Skip groups and in-figure labels."""
     from docling_core.transforms.serializer.markdown import MarkdownDocSerializer, MarkdownParams
     from docling_core.types.doc import GroupItem, ImageRefMode, PictureItem, SectionHeaderItem, TitleItem
 
@@ -274,11 +326,23 @@ def _markdown_from_section_items(document, bucket: list[tuple[object, int]], pic
         ),
     )
     boxes = picture_boxes or []
+    state = page_state or _PageBannerState()
+    tokens_by_item = visual_tokens_by_item or {}
     parts: list[str] = []
-    for item, _level in bucket:
-        if isinstance(item, (PictureItem, GroupItem)):
+    for item_idx, (item, _level) in enumerate(bucket):
+        if isinstance(item, GroupItem):
             continue
         located = _top_left_bbox(item, document)
+        page_no = located[0] if located is not None else (_page_nos(item)[0] if _page_nos(item) else None)
+        for banner in state.transition(page_no):
+            parts.append(banner)
+
+        if isinstance(item, PictureItem):
+            token = tokens_by_item.get(item_idx)
+            if token:
+                parts.append(token)
+            continue
+
         if located is not None and not isinstance(item, (SectionHeaderItem, TitleItem)):
             page_no, bbox = located
             if any(p == page_no and _bbox_contained(bbox, outer) for p, outer in boxes):
@@ -392,15 +456,118 @@ def _apply_visual_summaries(
 
 
 def _text_without_image_placeholders(markdown: str) -> str:
-    return _ANY_IMAGE_PLACEHOLDER_RE.sub("", markdown).strip()
+    text = _ANY_IMAGE_PLACEHOLDER_RE.sub("", markdown)
+    text = _PAGE_BANNER_RE.sub("", text)
+    return text.strip()
+
+
+def _filename_title(url: str) -> str:
+    return url.rsplit("/", 1)[-1].split("?")[0] or "Document"
+
+
+def _infer_document_title(sections: list[PdfSection], fallback: str) -> str:
+    titled = [s for s in sections if (s.title or "").strip()]
+    if not titled:
+        return fallback
+    min_level = min(s.level for s in titled)
+    for section in titled:
+        if section.level == min_level:
+            return section.title.strip()
+    return fallback
+
+
+def _heading_paths(sections: list[PdfSection]) -> list[tuple[str, ...]]:
+    stack: list[tuple[int, str]] = []
+    paths: list[tuple[str, ...]] = []
+    for section in sections:
+        title = (section.title or "").strip()
+        if not title:
+            paths.append(tuple(t for _, t in stack))
+            continue
+        while stack and stack[-1][0] >= section.level:
+            stack.pop()
+        stack.append((section.level, title))
+        paths.append(tuple(t for _, t in stack))
+    return paths
+
+
+def _pages_for_line_range(pages: list[PdfPageSpan], start_line: int, end_line: int) -> tuple[int | None, int | None]:
+    overlapping = [p for p in pages if p.start_line <= end_line and p.end_line >= start_line]
+    if not overlapping:
+        return None, None
+    return overlapping[0].page, overlapping[-1].page
+
+
+def _layout_from_markdown(
+    markdown: str,
+    sections: list[PdfSection],
+    *,
+    document_title: str,
+) -> PdfDocumentLayout:
+    """Compute page/section line maps from final bannered markdown."""
+    lines = markdown.splitlines()
+    page_spans: list[PdfPageSpan] = []
+    open_page: int | None = None
+    open_start: int | None = None
+    for idx, line in enumerate(lines, start=1):
+        start_match = _PAGE_START_RE.match(line.strip())
+        if start_match:
+            if open_page is not None and open_start is not None:
+                page_spans.append(PdfPageSpan(page=open_page, start_line=open_start, end_line=idx - 1))
+            open_page = int(start_match.group(1))
+            open_start = idx
+            continue
+        end_match = _PAGE_END_RE.match(line.strip())
+        if end_match and open_page is not None and open_start is not None:
+            page_spans.append(PdfPageSpan(page=open_page, start_line=open_start, end_line=idx))
+            open_page = None
+            open_start = None
+    if open_page is not None and open_start is not None:
+        page_spans.append(PdfPageSpan(page=open_page, start_line=open_start, end_line=len(lines)))
+
+    # Map sections onto consecutive blocks in the joined markdown.
+    section_spans: list[PdfSectionSpan] = []
+    paths = _heading_paths(sections)
+    cursor = 1
+    nonempty = [(section, path) for section, path in zip(sections, paths) if section.markdown and section.markdown.strip()]
+    for i, (section, path) in enumerate(nonempty):
+        block_lines = section.markdown.splitlines()
+        start_line = cursor
+        end_line = cursor + len(block_lines) - 1 if block_lines else cursor
+        # Joined markdown inserts a blank line ("\n\n") between sections.
+        if i > 0:
+            # The join itself is already accounted when we advance cursor by
+            # previous block length + 1 blank line below; start_line is correct.
+            pass
+        page_start, page_end = _pages_for_line_range(page_spans, start_line, end_line)
+        if page_start is None:
+            page_start = section.page_start
+            page_end = section.page_end
+        section_spans.append(
+            PdfSectionSpan(
+                title=section.title,
+                level=section.level,
+                start_line=start_line,
+                end_line=end_line,
+                page_start=page_start,
+                page_end=page_end,
+                heading_path=path,
+            )
+        )
+        cursor = end_line + 2  # blank line separator between joined sections
+
+    return PdfDocumentLayout(
+        document_title=document_title,
+        pages=tuple(page_spans),
+        sections=tuple(section_spans),
+    )
 
 
 def _sections_from_docling_document(document, pdf_bytes: bytes | None = None) -> list[PdfSection]:
     """Build section drafts (markdown + cropped visuals) from a DoclingDocument.
 
     Text follows newspaper order: physical page, then left-to-right column, then
-    top-to-bottom. Sorting by y then x reads across columns and splices the next
-    page's middle column into the previous page's right-column figure.
+    top-to-bottom. Page banners wrap content; visual tokens are emitted inline.
     """
     from docling_core.types.doc import ContentLayer, ImageRefMode, PictureItem, SectionHeaderItem, TitleItem
     from PIL import Image as PILImage
@@ -480,22 +647,15 @@ def _sections_from_docling_document(document, pdf_bytes: bytes | None = None) ->
 
         pdfium_doc = pdfium.PdfDocument(pdf_bytes)
     sections: list[PdfSection] = []
+    page_state = _PageBannerState()
     try:
-        for bucket, (title, level, heading_page, _heading_top) in zip(buckets, meta):
+        for bucket_i, (bucket, (title, level, heading_page, _heading_top)) in enumerate(zip(buckets, meta)):
             if not bucket and not title:
                 continue
-            markdown = _markdown_from_section_items(document, bucket, picture_boxes)
-            pages = [p for item, _lvl in bucket for p in _page_nos(item)]
-            section = PdfSection(
-                index=len(sections),
-                title=title,
-                level=level,
-                page_start=heading_page if heading_page is not None else (min(pages) if pages else None),
-                page_end=max(pages) if pages else heading_page,
-                markdown=markdown,
-                visuals=[],
-            )
-            for item, _lvl in bucket:
+            section_index = len(sections)
+            visuals: list[PdfVisual] = []
+            visual_tokens_by_item: dict[int, str] = {}
+            for item_idx, (item, _lvl) in enumerate(bucket):
                 if not isinstance(item, PictureItem):
                     continue
                 located = _top_left_bbox(item, document)
@@ -522,8 +682,8 @@ def _sections_from_docling_document(document, pdf_bytes: bytes | None = None) ->
                     caption = (item.caption_text(document) or "").strip()
                 except Exception:
                     caption = ""
-                visual_id = f"s{section.index}-v{len(section.visuals)}"
-                section.visuals.append(
+                visual_id = f"s{section_index}-v{len(visuals)}"
+                visuals.append(
                     PdfVisual(
                         visual_id=visual_id,
                         png_bytes=png_bytes,
@@ -534,11 +694,40 @@ def _sections_from_docling_document(document, pdf_bytes: bytes | None = None) ->
                         bbox=_format_bbox(item, document),
                     )
                 )
-            if section.visuals:
-                tokens = "\n\n".join(f"<!-- visual:{visual.visual_id} -->" for visual in section.visuals)
-                body = section.markdown.rstrip()
-                section.markdown = f"{body}\n\n{tokens}" if body else tokens
-            sections.append(section)
+                visual_tokens_by_item[item_idx] = f"<!-- visual:{visual_id} -->"
+
+            markdown = _markdown_from_section_items(
+                document,
+                bucket,
+                picture_boxes,
+                page_state=page_state,
+                visual_tokens_by_item=visual_tokens_by_item,
+            )
+            # Close the open page banner at the end of the last section only so
+            # consecutive sections on the same page share one wrapper.
+            if bucket_i == len(buckets) - 1:
+                closing = page_state.close()
+                if closing:
+                    markdown = f"{markdown}\n\n{closing[0]}" if markdown.strip() else closing[0]
+
+            pages = [p for item, _lvl in bucket for p in _page_nos(item)]
+            sections.append(
+                PdfSection(
+                    index=section_index,
+                    title=title,
+                    level=level,
+                    page_start=heading_page if heading_page is not None else (min(pages) if pages else None),
+                    page_end=max(pages) if pages else heading_page,
+                    markdown=markdown,
+                    visuals=visuals,
+                )
+            )
+        # If the last kept section was not the last bucket, still close banners.
+        if sections and page_state.open:
+            closing = page_state.close()
+            if closing:
+                body = sections[-1].markdown.rstrip()
+                sections[-1].markdown = f"{body}\n\n{closing[0]}" if body else closing[0]
     finally:
         if pdfium_doc is not None:
             pdfium_doc.close()
@@ -577,15 +766,15 @@ async def _enrich_sections_with_visuals(
     sections: list[PdfSection],
     *,
     vision_model: str,
-) -> str:
-    """Describe visuals per section (concurrent) and return joined markdown."""
+) -> list[PdfSection]:
+    """Describe visuals per section (concurrent) and return updated sections."""
     from . import _vision
 
     semaphore = asyncio.Semaphore(_VISUAL_ENRICH_CONCURRENCY)
 
-    async def _enrich_one(section: PdfSection) -> str:
+    async def _enrich_one(section: PdfSection) -> PdfSection:
         if not section.visuals:
-            return section.markdown
+            return section
         markdown = section.markdown
         if _IMAGE_PLACEHOLDER in markdown and section.visuals:
             markdown, labeled_ids = _label_section_placeholders(markdown, section.index)
@@ -615,16 +804,28 @@ async def _enrich_sections_with_visuals(
                     section.title,
                     error,
                 )
-                return section.markdown
-            return _apply_visual_summaries(
+                return section
+            enriched_md = _apply_visual_summaries(
                 markdown,
                 summaries,
                 visuals=section.visuals,
                 vision_model=vision_model,
             )
+            return PdfSection(
+                index=section.index,
+                title=section.title,
+                level=section.level,
+                page_start=section.page_start,
+                page_end=section.page_end,
+                markdown=enriched_md,
+                visuals=section.visuals,
+            )
 
-    enriched = await asyncio.gather(*[_enrich_one(section) for section in sections])
-    return "\n\n".join(part for part in enriched if part and part.strip())
+    return list(await asyncio.gather(*[_enrich_one(section) for section in sections]))
+
+
+def _join_section_markdown(sections: list[PdfSection]) -> str:
+    return "\n\n".join(section.markdown for section in sections if section.markdown and section.markdown.strip())
 
 
 async def _convert_pdf_to_markdown(
@@ -633,12 +834,16 @@ async def _convert_pdf_to_markdown(
     max_pages: int,
     *,
     vision_model: str | None = None,
-) -> str:
-    """Convert PDF bytes to markdown, optionally enriching visuals via a vision model."""
+) -> tuple[str, PdfDocumentLayout]:
+    """Convert PDF bytes to markdown plus layout metadata."""
     sections = await asyncio.to_thread(_extract_pdf_sections_locked, pdf_bytes, url, max_pages)
     if vision_model and any(section.visuals for section in sections):
-        return await _enrich_sections_with_visuals(sections, vision_model=vision_model)
-    return "\n\n".join(section.markdown for section in sections if section.markdown and section.markdown.strip())
+        sections = await _enrich_sections_with_visuals(sections, vision_model=vision_model)
+    markdown = _join_section_markdown(sections)
+    fallback = _filename_title(url)
+    document_title = _infer_document_title(sections, fallback)
+    layout = _layout_from_markdown(markdown, sections, document_title=document_title)
+    return markdown, layout
 
 
 async def scrape_document(
@@ -657,7 +862,7 @@ async def scrape_document(
     or a binary ``SourceArtifact`` (``mime_type="application/pdf"``) for scanned
     PDFs so that callers can optionally apply vision extraction.
     """
-    title = url.rsplit("/", 1)[-1] or "Document"
+    title = _filename_title(url)
 
     unsupported = unsupported_legacy_document_reason(url, known_content_type, known_content_disposition)
     if unsupported:
@@ -673,13 +878,15 @@ async def scrape_document(
         if error or not pdf_bytes:
             return SourceArtifact(kind="text", title=title), error or "PDF download returned empty bytes"
 
-        content = await _convert_pdf_to_markdown(
+        content, layout = await _convert_pdf_to_markdown(
             pdf_bytes,
             url,
             max_pdf_pages,
             vision_model=vision_model,
         )
         content = append_links(content, None)
+        # Recompute layout after append_links only if links were appended (usually none for PDFs).
+        title = layout.document_title or title
 
         if len(_text_without_image_placeholders(content)) < ROUTING_HEURISTICS.min_pdf_text_chars:
             # Scanned / image-only PDF: return raw bytes for optional vision extraction
@@ -690,7 +897,7 @@ async def scrape_document(
                 mime_type="application/pdf",
             ), None
 
-        return SourceArtifact(kind="text", title=title, text_content=content), None
+        return SourceArtifact(kind="text", title=title, text_content=content, layout=layout), None
 
     # Non-PDF office documents (DOCX, PPTX, XLSX) — let docling fetch and convert
     from docling.document_converter import DocumentConverter

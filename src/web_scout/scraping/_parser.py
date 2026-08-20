@@ -387,6 +387,10 @@ async def materialize_parse_result(
     artifact = result.artifact
 
     if artifact.kind == "text":
+        # PDF artifacts with layout must stay intact for short/long routing
+        # and page-span extraction; do not truncate them here.
+        if artifact.layout is not None:
+            return artifact.text_content, None
         return truncate_content(artifact.text_content, max_content_chars), None
 
     if not vision_model:

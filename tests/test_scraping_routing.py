@@ -403,7 +403,11 @@ async def test_scrape_document_reuses_prefetched_pdf_bytes(monkeypatch):
 
     async def _fake_convert(received_bytes, url, max_pages, *, vision_model=None):
         assert received_bytes == pdf_bytes
-        return "Extracted PDF content with enough text. " * 20
+        from web_scout.scraping.types import PdfDocumentLayout
+
+        return "Extracted PDF content with enough text. " * 20, PdfDocumentLayout(
+            document_title="report.pdf"
+        )
 
     monkeypatch.setattr(doc_module, "download_pdf", _download_unexpected)
     monkeypatch.setattr(doc_module, "_convert_pdf_to_markdown", _fake_convert)

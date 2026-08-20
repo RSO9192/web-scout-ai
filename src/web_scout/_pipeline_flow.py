@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+import re
 from collections import OrderedDict
 from typing import Any, Optional
 from urllib.parse import urlparse
@@ -881,6 +882,11 @@ async def _synthesise_result(
         model_settings=ModelSettings(reasoning=Reasoning(effort="high")),
     )
     valid_urls = {entry.url for entry in scraped}
+    pdf_references = {
+        ResearchTracker.normalize_url(entry.url): entry.reference
+        for entry in scraped
+        if entry.reference and re.search(r"\bpp?\.", entry.reference, re.IGNORECASE)
+    }
 
     if bot_detected:
         logger.info(
@@ -903,7 +909,7 @@ async def _synthesise_result(
         output = WebResearchResultRaw(synthesis=f"Synthesis failed: {exc}")
 
     logger.info("[pipeline] running deterministic synthesis judge")
-    issues = _judge_synthesis(output.synthesis, valid_urls)
+    issues = _judge_synthesis(output.synthesis, valid_urls, pdf_references=pdf_references)
     if issues and output.synthesis and not output.synthesis.startswith("Synthesis failed"):
         for issue in issues:
             logger.warning("[pipeline] judge issue: %s", issue)

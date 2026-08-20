@@ -179,8 +179,39 @@ _QUERY_STOPWORDS: frozenset[str] = frozenset(
 )
 
 
-def _judge_synthesis(synthesis: str, valid_urls: set[str]) -> list[str]:
-    """Return a list of issue descriptions, empty if synthesis passes."""
+def _pages_from_reference(reference: str) -> set[int]:
+    """Parse page numbers from a reference like ``Title, pp. 3–7, 12``."""
+    if not reference:
+        return set()
+    # Take the span portion after the last ", p." / ", pp." if present.
+    match = _re.search(r",\s*pp?\.\s*(.+)$", reference, _re.IGNORECASE)
+    span = match.group(1) if match else reference
+    pages: set[int] = set()
+    for part in _re.split(r",\s*", span):
+        part = part.strip()
+        range_match = _re.match(r"(\d+)\s*[–-]\s*(\d+)$", part)
+        if range_match:
+            lo, hi = int(range_match.group(1)), int(range_match.group(2))
+            if lo <= hi:
+                pages.update(range(lo, hi + 1))
+            continue
+        if part.isdigit():
+            pages.add(int(part))
+    return pages
+
+
+def _judge_synthesis(
+    synthesis: str,
+    valid_urls: set[str],
+    *,
+    pdf_references: dict[str, str] | None = None,
+) -> list[str]:
+    """Return a list of issue descriptions, empty if synthesis passes.
+
+    ``pdf_references`` maps normalized URL → reference string that includes
+    page spans (e.g. ``Crop Prospects, pp. 3–7``). Citations to those URLs
+    must include ``p.`` / ``pp.`` whose pages are covered by the reference.
+    """
     issues = []
     text_without_md_links = _re.sub(r"\[[^\]]*\]\((https?://[^\s\)]+)\)", "", synthesis)
     bare_urls = [match.group().rstrip(".,;)\"'") for match in _re.finditer(r"https?://\S+", text_without_md_links)]
@@ -188,13 +219,42 @@ def _judge_synthesis(synthesis: str, valid_urls: set[str]) -> list[str]:
     if bare_urls:
         issues.append("Bare URLs found (must be wrapped as markdown links [Title](URL)): " + ", ".join(bare_urls[:5]))
 
-    md_link_urls = set(_re.findall(r"\[[^\]]*\]\((https?://[^\s\)]+)\)", synthesis))
+    md_links = _re.findall(r"\[([^\]]*)\]\((https?://[^\s\)]+)\)", synthesis)
+    md_link_urls = {url for _, url in md_links}
     valid_norm = {ResearchTracker.normalize_url(url) for url in valid_urls}
     hallucinated = [url for url in md_link_urls if ResearchTracker.normalize_url(url) not in valid_norm]
     if hallucinated:
         issues.append(
             "URLs cited that are NOT in the available sources (remove or replace): " + ", ".join(hallucinated[:5])
         )
+
+    pdf_refs = pdf_references or {}
+    if pdf_refs:
+        missing_pages: list[str] = []
+        bad_pages: list[str] = []
+        for link_text, url in md_links:
+            norm = ResearchTracker.normalize_url(url)
+            ref = pdf_refs.get(norm)
+            if not ref:
+                continue
+            allowed = _pages_from_reference(ref)
+            if not allowed:
+                continue
+            if not _re.search(r"\bpp?\.", link_text, _re.IGNORECASE):
+                missing_pages.append(url)
+                continue
+            cited = _pages_from_reference(link_text)
+            if cited and not cited.issubset(allowed):
+                bad_pages.append(url)
+        if missing_pages:
+            issues.append(
+                "PDF citations missing page span (use [Title, pp. X–Y](URL)): "
+                + ", ".join(missing_pages[:5])
+            )
+        if bad_pages:
+            issues.append(
+                "PDF citations include pages not in the source reference: " + ", ".join(bad_pages[:5])
+            )
 
     return issues
 
@@ -461,7 +521,13 @@ def _build_synth_prompt(
     import json as _json
 
     scraped_json = [
-        {"url": entry.url, "title": entry.title or entry.url, "content": entry.content} for entry in scraped
+        {
+            "url": entry.url,
+            "title": entry.title or entry.url,
+            "reference": entry.reference or entry.title or entry.url,
+            "content": entry.content,
+        }
+        for entry in scraped
     ]
     snippet_json = [
         {"url": entry.url, "title": entry.title or entry.url, "snippet": entry.content}

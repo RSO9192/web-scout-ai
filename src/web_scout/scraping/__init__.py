@@ -37,7 +37,7 @@ from ._parser import DefaultParser, Parser, materialize_parse_result
 from .context import URLContext
 from .orchestrator import Orchestrator, OrchestratorConfig
 from .page_classifier import PageShapeAssessment, classify_html_page_shape, classify_prefetched_page_shape
-from .types import FetchResult, ParseResult, SourceArtifact
+from .types import FetchResult, ParseResult, PdfDocumentLayout, PdfPageSpan, PdfSectionSpan, SourceArtifact
 
 __all__ = [
     # Orchestrator
@@ -55,6 +55,9 @@ __all__ = [
     # Data types
     "FetchResult",
     "ParseResult",
+    "PdfDocumentLayout",
+    "PdfPageSpan",
+    "PdfSectionSpan",
     "SourceArtifact",
     # Classifiers
     "PageShapeAssessment",
