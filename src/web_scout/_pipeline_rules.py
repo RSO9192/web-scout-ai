@@ -5,6 +5,7 @@ from typing import Optional
 from urllib.parse import parse_qsl, urljoin, urlparse
 
 from web_scout.config import FOLLOWUP_HEURISTICS
+from web_scout.scraping.constants import BLOCKED_DOMAINS
 
 from .tools import ResearchTracker
 
@@ -420,20 +421,26 @@ def _normalize_domain(value: str) -> str:
     return value.removeprefix("www.")
 
 
-def _build_allowed_domain_set(
-    allowed_domains: Optional[list[str]] = None,
+def _build_exclude_domain_set(
+    exclude_domains: Optional[list[str]] = None,
     include_domains: Optional[list[str]] = None,
     direct_url: Optional[str] = None,
-) -> Optional[frozenset[str]]:
-    """Build the effective allow-list for blocked-domain overrides."""
-    effective: set[str] = set()
-    if allowed_domains:
-        effective.update(_normalize_domain(domain) for domain in allowed_domains)
+) -> frozenset[str]:
+    """Build the effective exclude/block list for URL exploration.
+
+    Starts from ``BLOCKED_DOMAINS`` when *exclude_domains* is ``None``, otherwise
+    from the caller-supplied list. Hostnames from *include_domains* and
+    *direct_url* are subtracted so those targets remain reachable.
+    """
+    if exclude_domains is None:
+        effective: set[str] = set(BLOCKED_DOMAINS)
+    else:
+        effective = {_normalize_domain(domain) for domain in exclude_domains}
     if include_domains:
-        effective.update(_normalize_domain(domain) for domain in include_domains)
+        effective -= {_normalize_domain(domain) for domain in include_domains}
     if direct_url:
-        effective.add(_normalize_domain(direct_url))
-    return frozenset(effective) if effective else None
+        effective.discard(_normalize_domain(direct_url))
+    return frozenset(effective)
 
 
 def _is_domain_mode_candidate(url: str, include_domains: list[str], query: str) -> bool:
@@ -582,7 +589,7 @@ def _diversify_search_urls(urls: list[str], max_urls: int) -> list[str]:
 
 
 __all__ = [
-    "_build_allowed_domain_set",
+    "_build_exclude_domain_set",
     "_build_coverage_prompt",
     "_build_query_generation_prompt",
     "_build_synth_prompt",

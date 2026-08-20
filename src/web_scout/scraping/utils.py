@@ -49,14 +49,17 @@ def is_network_error(value: object) -> bool:
     return any(marker in message for marker in _NETWORK_ERROR_MARKERS)
 
 
-def is_blocked_domain(url: str, allowed_domains: Optional[frozenset] = None) -> bool:
+def is_blocked_domain(url: str, exclude_domains: Optional[frozenset] = None) -> bool:
+    """Return True when *url*'s host is in the effective exclude/block list.
+
+    ``exclude_domains is None`` uses the built-in ``BLOCKED_DOMAINS`` list.
+    An empty frozenset means block nothing.
+    """
     netloc = urlparse(url).netloc.lower()
     if netloc.startswith("www."):
         netloc = netloc[4:]
-    effective_blocked = BLOCKED_DOMAINS
-    if allowed_domains:
-        effective_blocked = BLOCKED_DOMAINS - allowed_domains
-    return any(netloc == d or netloc.endswith("." + d) for d in effective_blocked)
+    blocked = BLOCKED_DOMAINS if exclude_domains is None else exclude_domains
+    return any(netloc == d or netloc.endswith("." + d) for d in blocked)
 
 
 def is_json(text: str) -> bool:

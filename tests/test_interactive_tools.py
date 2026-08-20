@@ -575,14 +575,14 @@ async def test_click_element_load_state_timeout_still_returns_content():
 def _make_extractor_agent_with_domains(
     url="https://example.org/portal",
     query="fish production",
-    allowed_domains: frozenset = frozenset({"example.org"}),
+    exclude_domains: frozenset | None = None,
 ):
     return _build_extractor_agent(
         model="dummy",
         query=query,
         url=url,
         wait_for=None,
-        allowed_domains=allowed_domains,
+        exclude_domains=exclude_domains,
     )
 
 
@@ -637,11 +637,11 @@ async def test_click_element_blocks_navigation_to_blocked_domain():
 
 
 @pytest.mark.asyncio
-async def test_click_element_allows_navigation_within_allowed_domain():
-    """click_element returns content when navigation stays within the allowed domain."""
+async def test_click_element_allows_navigation_within_non_excluded_domain():
+    """click_element returns content when navigation stays off the exclude list."""
     agent, cleanup = _make_extractor_agent_with_domains(
         url="https://example.org/portal",
-        allowed_domains=frozenset({"example.org"}),
+        exclude_domains=None,
     )
 
     fake_elements = [{"tag": "tab", "text": "Production Data"}]
@@ -650,7 +650,7 @@ async def test_click_element_allows_navigation_within_allowed_domain():
     mock_page.goto = AsyncMock()
     mock_page.evaluate = AsyncMock(side_effect=[fake_elements, True])
     mock_page.wait_for_load_state = AsyncMock()
-    # Navigation stays within allowed domain (not blocked)
+    # Navigation stays on a non-excluded domain
     mock_page.url = "https://example.org/portal/data"
     mock_page.inner_text = AsyncMock(return_value="Production 2023: 1,500 tonnes\n" * 40)
 
@@ -670,12 +670,14 @@ async def test_click_element_allows_navigation_within_allowed_domain():
 
 
 @pytest.mark.asyncio
-async def test_click_element_unblocked_domain_allowed_via_allowed_domains():
-    """click_element allows navigation to a normally-blocked domain when it is in allowed_domains."""
-    # reddit.com is in _BLOCKED_DOMAINS by default; passing it in allowed_domains unblocks it
+async def test_click_element_unblocked_domain_when_dropped_from_exclude_domains():
+    """click_element allows navigation to a normally-blocked domain when it is omitted from exclude_domains."""
+    from web_scout.scraping.constants import BLOCKED_DOMAINS
+
+    # reddit.com is in BLOCKED_DOMAINS by default; dropping it from exclude_domains unblocks it
     agent, cleanup = _make_extractor_agent_with_domains(
         url="https://reddit.com/r/dataisbeautiful",
-        allowed_domains=frozenset({"reddit.com"}),
+        exclude_domains=BLOCKED_DOMAINS - {"reddit.com"},
     )
 
     fake_elements = [{"tag": "button", "text": "Load comments"}]
@@ -684,7 +686,7 @@ async def test_click_element_unblocked_domain_allowed_via_allowed_domains():
     mock_page.goto = AsyncMock()
     mock_page.evaluate = AsyncMock(side_effect=[fake_elements, True])
     mock_page.wait_for_load_state = AsyncMock()
-    # Still on reddit.com — allowed
+    # Still on reddit.com — not excluded
     mock_page.url = "https://www.reddit.com/r/dataisbeautiful/comments/abc"
     mock_page.inner_text = AsyncMock(return_value="Great chart! Source: FAO data\n" * 40)
 
@@ -705,8 +707,8 @@ async def test_click_element_unblocked_domain_allowed_via_allowed_domains():
 
 @pytest.mark.asyncio
 async def test_click_element_no_domain_restriction_allows_any_navigation():
-    """Without allowed_domains, navigation to non-blocked external domains is allowed."""
-    # No allowed_domains set — only standard _BLOCKED_DOMAINS applies
+    """With default exclude_domains, navigation to non-blocked external domains is allowed."""
+    # No exclude_domains override — only standard BLOCKED_DOMAINS applies
     agent, cleanup = _make_extractor_agent(url="https://fao.org/fishery/portal")
 
     fake_elements = [{"tag": "tab", "text": "Download"}]

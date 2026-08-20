@@ -27,8 +27,11 @@ def test_fao_org_is_not_blocked():
     assert is_blocked_domain("https://www.fao.org/fishery/data") is False
 
 
-def test_reddit_unblocked_when_in_allowed_domains():
-    assert is_blocked_domain("https://reddit.com/r/science", allowed_domains=frozenset({"reddit.com"})) is False
+def test_reddit_unblocked_when_dropped_from_exclude_domains():
+    from web_scout.scraping.constants import BLOCKED_DOMAINS
+
+    excluded = BLOCKED_DOMAINS - {"reddit.com"}
+    assert is_blocked_domain("https://reddit.com/r/science", exclude_domains=excluded) is False
 
 
 # ---------------------------------------------------------------------------
@@ -90,12 +93,12 @@ async def _scrape(
     *,
     query: str = "",
     vision_model=None,
-    allowed_domains=None,
+    exclude_domains=None,
     max_pdf_pages: int = 50,
     max_content_chars: int = 30_000,
 ):
     """Convenience wrapper replicating the old scrape_url signature."""
-    fetcher = ScraplingFetcher(allowed_domains=allowed_domains)
+    fetcher = ScraplingFetcher(exclude_domains=exclude_domains)
     parser = DefaultParser(vision_model=vision_model, max_pdf_pages=max_pdf_pages)
     context = URLContext(url=url, depth=0)
     fetch_result = await fetcher.fetch(url, context)

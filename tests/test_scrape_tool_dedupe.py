@@ -216,14 +216,14 @@ async def test_session_source_cache_reuses_successful_fetches(monkeypatch):
         url=url,
         wait_for=None,
         vision_model=None,
-        allowed_domains=None,
+        exclude_domains=None,
         max_pdf_pages=50,
     )
     second, second_error = await get_or_fetch_session_source_artifact(
         url=url,
         wait_for=None,
         vision_model=None,
-        allowed_domains=None,
+        exclude_domains=None,
         max_pdf_pages=50,
     )
 
@@ -267,14 +267,14 @@ async def test_session_source_cache_dedupes_concurrent_misses(monkeypatch):
             url=url,
             wait_for=None,
             vision_model=None,
-            allowed_domains=None,
+            exclude_domains=None,
             max_pdf_pages=50,
         ),
         get_or_fetch_session_source_artifact(
             url=url,
             wait_for=None,
             vision_model=None,
-            allowed_domains=None,
+            exclude_domains=None,
             max_pdf_pages=50,
         ),
     )
@@ -306,14 +306,14 @@ async def test_session_source_cache_does_not_store_failures(monkeypatch):
         url=url,
         wait_for=None,
         vision_model=None,
-        allowed_domains=None,
+        exclude_domains=None,
         max_pdf_pages=50,
     )
     second, second_error = await get_or_fetch_session_source_artifact(
         url=url,
         wait_for=None,
         vision_model=None,
-        allowed_domains=None,
+        exclude_domains=None,
         max_pdf_pages=50,
     )
 

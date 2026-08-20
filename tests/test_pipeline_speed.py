@@ -302,7 +302,7 @@ async def test_run_search_mode_runs_coverage_eval_when_four_sources_scraped(
         followup_model="dummy",
         tracker=tracker,
         scrape_tool=scrape_tool,
-        allowed_domains=None,
+        exclude_domains=None,
     )
 
     coverage_mock.assert_awaited_once()
@@ -349,7 +349,7 @@ async def test_run_search_mode_runs_coverage_eval_when_less_than_four_sources_sc
         followup_model="dummy",
         tracker=tracker,
         scrape_tool=scrape_tool,
-        allowed_domains=None,
+        exclude_domains=None,
     )
 
     coverage_mock.assert_awaited_once()
