@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.4.2] - 2026-08-21
+
+### Fixed
+
+- **`<script>`/`<style>` text no longer leaks into parsed page content**: `_html_to_markdown` passed `strip=["script", "style", "noscript"]` to markdownify, which only skips tag *conversion* and lets the inner text through — on script-heavy publisher pages (Cambridge, ScienceDirect, Wiley) the first 30k chars of `text_content` were 100% JS/CSS junk, so the content extractor classified every page as irrelevant. Non-content elements (`script`, `style`, `noscript`, `svg`) are now removed from the DOM before markdown conversion; article prose starts at offset 0 on all tested publisher pages.
+
+
 ## [1.4.1] - 2026-08-21
 
 ### Changed
