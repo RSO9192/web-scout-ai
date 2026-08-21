@@ -228,3 +228,14 @@ async def test_stealthy_fetch_maps_old_scrapling_typeerror(monkeypatch):
     monkeypatch.setattr(_scrapling, "fetch_via_session", fake_fetch_via_session)
     with pytest.raises(RuntimeError, match="0.4.9"):
         await _scrapling.stealthy_fetch("https://example.org/x")
+
+
+def test_run_web_research_closes_sessions_in_finally():
+    """Teardown guard: the pipeline entry point must always close sessions."""
+    import inspect
+
+    from web_scout import agent
+
+    src = inspect.getsource(agent.run_web_research)
+    assert "close_stealthy_sessions" in src
+    assert "finally" in src
