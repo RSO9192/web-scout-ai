@@ -43,6 +43,7 @@ def cacheable_from_parse_result(url: str, parse_result: object) -> CachedSourceA
         text_content=artifact.text_content,
         binary_bytes=artifact.binary_bytes,
         mime_type=artifact.mime_type,
+        layout=getattr(artifact, "layout", None),
     )
 
 

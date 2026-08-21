@@ -25,6 +25,8 @@ class ExtractorOutcome:
     page_type: ExtractorPageType = "content"
     relevant_links: list[str] = field(default_factory=list)
     failure_kind: ExtractorFailureKind | None = None
+    reference: str = ""
+    used_pages: tuple[int, ...] = ()
 
 
 __all__ = ["ExtractorOutcome"]

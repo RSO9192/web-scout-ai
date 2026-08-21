@@ -99,8 +99,10 @@ async def test_pdf_converter_creation_and_use_share_one_lock(monkeypatch):
     lock = TrackingLock()
 
     class FakeDocument:
-        @staticmethod
-        def export_to_markdown():
+        def iterate_items(self, **kwargs):
+            return iter([])
+
+        def export_to_markdown(self, **kwargs):
             return "converted"
 
     class FakeConverter:
@@ -125,13 +127,14 @@ async def test_pdf_converter_creation_and_use_share_one_lock(monkeypatch):
     monkeypatch.setattr("docling.document_converter.PdfFormatOption", FakePdfFormatOption)
     monkeypatch.setattr("docling.datamodel.pipeline_options.PdfPipelineOptions", FakePdfPipelineOptions)
 
-    result = await _document_module._convert_pdf_to_markdown(
+    result, layout = await _document_module._convert_pdf_to_markdown(
         b"%PDF-1.4 fake",
         "https://example.org/report.pdf",
         1,
     )
 
     assert result == "converted"
+    assert layout.document_title  # inferred or fallback
     assert lock.acquisitions == 1
     assert not lock.held
 

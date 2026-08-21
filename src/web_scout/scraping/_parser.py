@@ -323,6 +323,7 @@ class DefaultParser(Parser):
             known_content_disposition=result.content_disposition,
             needs_browser=result.used_browser,
             prefetched_bytes=result.body,
+            vision_model=self._vision_model,
         )
         title = artifact.title if artifact else result.url.rsplit("/", 1)[-1] or "Document"
 
@@ -386,6 +387,10 @@ async def materialize_parse_result(
     artifact = result.artifact
 
     if artifact.kind == "text":
+        # PDF artifacts with layout must stay intact for short/long routing
+        # and page-span extraction; do not truncate them here.
+        if artifact.layout is not None:
+            return artifact.text_content, None
         return truncate_content(artifact.text_content, max_content_chars), None
 
     if not vision_model:

@@ -230,6 +230,8 @@ def build_extractor_agent(
     domain_expertise: Optional[str] = None,
     extractor_guidance: Optional[str] = None,
     pre_fetched_content: str = "",
+    short_pdf_max_chars: int = 24_000,
+    verify_pdf_claims: bool = False,
 ) -> tuple:
     """Build a content extractor sub-agent with a URL-locked scraping tool.
 
@@ -247,6 +249,8 @@ def build_extractor_agent(
     )
     from web_scout.scraping.utils import is_blocked_domain
 
+    from .pdf_extractor import extract_pdf_for_query, format_reference
+
     legacy_direct_agent = not pre_fetched_content
     page_shape = classify_prefetched_page_shape(pre_fetched_content) if pre_fetched_content else None
     allow_interaction = legacy_direct_agent or prefetched_allows_interaction(pre_fetched_content, page_shape)
@@ -257,6 +261,41 @@ def build_extractor_agent(
         and page_shape.record_score >= page_shape.content_score + 2
     )
     linked_document_called = False
+
+    async def _render_linked_artifact(artifact, document_url: str, title: str) -> str:
+        if artifact.kind == "text" and artifact.layout is not None:
+            pdf_title, content, used_pages = await extract_pdf_for_query(
+                artifact=artifact,
+                query=query,
+                model=model,
+                short_pdf_max_chars=short_pdf_max_chars,
+                verify_pdf_claims=verify_pdf_claims,
+            )
+            reference = format_reference(pdf_title, used_pages)
+            rendered = render_cached_document_text(document_url, pdf_title or title, content)
+            if reference:
+                return f"{rendered}\n\nReference: {reference}"
+            return rendered
+        from web_scout.scraping.types import ParseResult
+
+        tmp_result = ParseResult(
+            url=document_url,
+            title=title,
+            text_content=artifact.text_content,
+            links=[],
+            artifact=artifact,
+        )
+        content, error = await materialize_parse_result(
+            tmp_result,
+            query=query,
+            vision_model=vision_model,
+            max_content_chars=max_content_chars,
+        )
+        if error:
+            return f"[Document scrape failed: {error}]"
+        if not content.strip():
+            return "[Document returned empty content]"
+        return render_cached_document_text(document_url, title, content)
 
     @function_tool
     async def scrape_linked_document(document_url: str) -> str:
@@ -306,32 +345,16 @@ def build_extractor_agent(
             )
             if cache_error or cached_artifact is None:
                 return f"[Document scrape failed: {cache_error}]"
-            from web_scout.scraping.types import ParseResult, SourceArtifact
+            from web_scout.scraping.types import SourceArtifact
             artifact = SourceArtifact(
                 kind=cached_artifact.artifact_kind,
                 title=cached_artifact.title,
                 text_content=cached_artifact.text_content,
                 binary_bytes=cached_artifact.binary_bytes,
                 mime_type=cached_artifact.mime_type,
+                layout=cached_artifact.layout,
             )
-            tmp_result = ParseResult(
-                url=document_url,
-                title=cached_artifact.title,
-                text_content=cached_artifact.text_content,
-                links=[],
-                artifact=artifact,
-            )
-            content, error = await materialize_parse_result(
-                tmp_result,
-                query=query,
-                vision_model=vision_model,
-                max_content_chars=max_content_chars,
-            )
-            if error:
-                return f"[Document scrape failed: {error}]"
-            if not content.strip():
-                return "[Document returned empty content]"
-            return render_cached_document_text(document_url, cached_artifact.title, content)
+            return await _render_linked_artifact(artifact, document_url, cached_artifact.title)
 
         from .tracker import ResearchTracker
 
@@ -373,18 +396,8 @@ def build_extractor_agent(
         title = parse_result.title
         if parse_result.error:
             return f"[Document scrape failed: {parse_result.error}]"
-        content, error = await materialize_parse_result(
-            parse_result,
-            query=query,
-            vision_model=vision_model,
-            max_content_chars=max_content_chars,
-        )
-        if error:
-            return f"[Document scrape failed: {error}]"
-        if not content.strip():
-            return "[Document returned empty content]"
-        result = render_cached_document_text(document_url, title, content)
-        if doc_cache is not None:
+        result = await _render_linked_artifact(parse_result.artifact, document_url, title)
+        if doc_cache is not None and not result.startswith("[Document scrape failed"):
             doc_cache[norm] = result
         return result
 

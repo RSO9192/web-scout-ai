@@ -25,6 +25,13 @@ class UrlEntry(BaseModel):
     url: str
     title: str = ""
     content: str = ""
+    reference: str = Field(
+        default="",
+        description=(
+            "Citation label without URL. For PDFs: 'Title, pp. 3–7'. "
+            "For HTML/JSON: usually just the title."
+        ),
+    )
 
 
 class WebResearchResultRaw(BaseModel):

@@ -228,6 +228,8 @@ async def run_web_research(
     exclude_domains: Optional[List[str]] = None,
     max_pdf_pages: int = 50,
     max_content_chars: int = 30_000,
+    short_pdf_max_chars: int | None = None,
+    verify_pdf_claims: bool | None = None,
     cache: bool = False,
     coverage_criteria: Optional[str] = None,
     extractor_guidance: Optional[str] = None,
@@ -236,11 +238,23 @@ async def run_web_research(
 
     ``extractor_guidance`` augments only the per-source content extractor.
     The base extraction contract takes precedence over conflicting guidance.
+
+    ``short_pdf_max_chars`` controls short vs long PDF extraction routing
+    (default from ``ROUTING_HEURISTICS.short_pdf_max_chars``).
+    ``verify_pdf_claims`` enables an optional extra LLM claim-support check
+    for PDF extracts (default False).
     """
+    from web_scout.config import ROUTING_HEURISTICS
+
     from .utils import get_model
 
     if models is None:
         models = DEFAULT_WEB_RESEARCH_MODELS
+
+    if short_pdf_max_chars is None:
+        short_pdf_max_chars = ROUTING_HEURISTICS.short_pdf_max_chars
+    if verify_pdf_claims is None:
+        verify_pdf_claims = ROUTING_HEURISTICS.verify_pdf_claims
 
     if isinstance(research_depth, str):
         if research_depth not in _DEPTH_PRESETS:
@@ -304,6 +318,8 @@ async def run_web_research(
         exclude_domains=_excluded,
         max_pdf_pages=max_pdf_pages,
         max_content_chars=max_content_chars,
+        short_pdf_max_chars=short_pdf_max_chars,
+        verify_pdf_claims=verify_pdf_claims,
         use_session_cache=cache,
         domain_expertise=domain_expertise,
         extractor_guidance=extractor_guidance,
