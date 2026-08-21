@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Cloudflare-protected domains (e.g. `onlinelibrary.wiley.com`) no longer fail under parallel pipeline load**: browser fetches now reuse one shared stealth session per host (single-flight creation, page pooling, max 4 concurrent browser fetches) instead of launching a fresh browser per URL, which inflated per-fetch latency past the 60 s page timeout under contention.
+
 
 ## [1.4.2] - 2026-08-21
 
