@@ -99,8 +99,10 @@ async def test_pdf_converter_creation_and_use_share_one_lock(monkeypatch):
     lock = TrackingLock()
 
     class FakeDocument:
-        @staticmethod
-        def export_to_markdown():
+        def iterate_items(self, **kwargs):
+            return iter([])
+
+        def export_to_markdown(self, **kwargs):
             return "converted"
 
     class FakeConverter:
@@ -125,13 +127,14 @@ async def test_pdf_converter_creation_and_use_share_one_lock(monkeypatch):
     monkeypatch.setattr("docling.document_converter.PdfFormatOption", FakePdfFormatOption)
     monkeypatch.setattr("docling.datamodel.pipeline_options.PdfPipelineOptions", FakePdfPipelineOptions)
 
-    result = await _document_module._convert_pdf_to_markdown(
+    result, layout = await _document_module._convert_pdf_to_markdown(
         b"%PDF-1.4 fake",
         "https://example.org/report.pdf",
         1,
     )
 
     assert result == "converted"
+    assert layout.document_title  # inferred or fallback
     assert lock.acquisitions == 1
     assert not lock.held
 
@@ -535,7 +538,7 @@ def test_diversify_search_urls_prefers_domain_breadth():
 
 def test_agent_module_keeps_compatibility_exports_after_split():
     from web_scout.agent import (
-        _build_allowed_domain_set,
+        _build_exclude_domain_set,
         _build_synth_prompt,
         _evaluate_search_coverage,
         _normalize_domain,
@@ -544,7 +547,7 @@ def test_agent_module_keeps_compatibility_exports_after_split():
     )
 
     assert callable(_normalize_domain)
-    assert callable(_build_allowed_domain_set)
+    assert callable(_build_exclude_domain_set)
     assert callable(_build_synth_prompt)
     assert callable(_search_and_scrape_iteration)
     assert callable(_evaluate_search_coverage)
@@ -646,7 +649,7 @@ async def test_evaluate_search_coverage_filters_bot_blocked_backlog_domains(
         depth={"urls_followup": 4},
         evaluator_agent=object(),
         tracker=tracker,
-        allowed_domains=None,
+        exclude_domains=None,
         state=state,
     )
 

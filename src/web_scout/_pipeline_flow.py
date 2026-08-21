@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+import re
 from collections import OrderedDict
 from typing import Any, Optional
 from urllib.parse import urlparse
@@ -572,7 +573,7 @@ async def _evaluate_search_coverage(
     depth: dict[str, int],
     evaluator_agent: Agent,
     tracker: ResearchTracker,
-    allowed_domains: Optional[frozenset[str]],
+    exclude_domains: Optional[frozenset[str]],
     state: SearchLoopState,
 ) -> bool:
     """Decide whether to stop, reuse backlog URLs, or trigger new searches."""
@@ -625,7 +626,7 @@ async def _evaluate_search_coverage(
     state.promising_urls_from_evaluator = [
         url
         for url in state.promising_urls_from_evaluator
-        if not is_blocked_domain(url, allowed_domains=allowed_domains)
+        if not is_blocked_domain(url, exclude_domains=exclude_domains)
     ]
     if include_domains:
         state.promising_urls_from_evaluator = [
@@ -690,7 +691,6 @@ async def _run_direct_url_mode(
     scrape_tool: Any,
     depth: dict[str, int],
     followup_model: Any,
-    allowed_domains: Optional[frozenset[str]] = None,
 ) -> None:
     """Handle direct-URL mode, including optional hub or same-domain deepening."""
     logger.info("[pipeline] scraping direct URL: %s", direct_url)
@@ -784,7 +784,7 @@ async def _run_search_mode_impl(
     followup_model: Any,
     tracker: ResearchTracker,
     scrape_tool: Any,
-    allowed_domains: Optional[frozenset[str]],
+    exclude_domains: Optional[frozenset[str]],
     evaluator_extra_prompt: Optional[str] = None,
     build_search_backend: Any,
     build_query_agents: Any,
@@ -841,7 +841,7 @@ async def _run_search_mode_impl(
             depth=depth,
             evaluator_agent=evaluator_agent,
             tracker=tracker,
-            allowed_domains=allowed_domains,
+            exclude_domains=exclude_domains,
             state=state,
         ):
             break
@@ -882,6 +882,11 @@ async def _synthesise_result(
         model_settings=ModelSettings(reasoning=Reasoning(effort="high")),
     )
     valid_urls = {entry.url for entry in scraped}
+    pdf_references = {
+        ResearchTracker.normalize_url(entry.url): entry.reference
+        for entry in scraped
+        if entry.reference and re.search(r"\bpp?\.", entry.reference, re.IGNORECASE)
+    }
 
     if bot_detected:
         logger.info(
@@ -904,7 +909,7 @@ async def _synthesise_result(
         output = WebResearchResultRaw(synthesis=f"Synthesis failed: {exc}")
 
     logger.info("[pipeline] running deterministic synthesis judge")
-    issues = _judge_synthesis(output.synthesis, valid_urls)
+    issues = _judge_synthesis(output.synthesis, valid_urls, pdf_references=pdf_references)
     if issues and output.synthesis and not output.synthesis.startswith("Synthesis failed"):
         for issue in issues:
             logger.warning("[pipeline] judge issue: %s", issue)

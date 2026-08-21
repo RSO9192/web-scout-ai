@@ -15,11 +15,12 @@ import re
 from typing import Any, Dict, Optional
 
 from web_scout._extractor_contract import ExtractorOutcome
-from web_scout.config import EXTRACTOR_HEURISTICS
+from web_scout.config import EXTRACTOR_HEURISTICS, ROUTING_HEURISTICS
 
 from .extractor import ExtractorOutput, build_extractor_agent, run_with_retry
 from .outcomes import build_failure_outcome, build_success_outcome, classify_failure_action
 from .page_analysis import prefetched_is_recoverable, render_cached_page_text
+from .pdf_extractor import extract_pdf_for_query, format_reference
 from .rendering import extract_primary_rendered_content, infer_rendered_outcome
 from .session_cache import get_or_fetch_session_source_artifact
 from .tracker import ResearchTracker
@@ -35,9 +36,11 @@ def create_scrape_and_extract_tool(
     query: str = "",
     max_concurrent: int = 6,
     vision_model: Optional[str] = None,
-    allowed_domains: Optional[frozenset] = None,
+    exclude_domains: Optional[frozenset] = None,
     max_pdf_pages: int = 50,
     max_content_chars: int = 30_000,
+    short_pdf_max_chars: int = ROUTING_HEURISTICS.short_pdf_max_chars,
+    verify_pdf_claims: bool = ROUTING_HEURISTICS.verify_pdf_claims,
     use_session_cache: bool = False,
     max_interactive_clicks: int = EXTRACTOR_HEURISTICS.max_interactive_clicks,
     domain_expertise: Optional[str] = None,
@@ -109,13 +112,14 @@ def create_scrape_and_extract_tool(
 
                 page_rendered = ""
                 is_failure = False
+                pdf_artifact = None
 
                 if use_session_cache:
                     cached_artifact, cache_error = await get_or_fetch_session_source_artifact(
                         url=url,
                         wait_for=_wait_for,
                         vision_model=vision_model,
-                        allowed_domains=allowed_domains,
+                        exclude_domains=exclude_domains,
                         max_pdf_pages=max_pdf_pages,
                         cache_pdf_pages=looks_like_pdf_resource(url),
                     )
@@ -129,6 +133,7 @@ def create_scrape_and_extract_tool(
                             text_content=cached_artifact.text_content,
                             binary_bytes=cached_artifact.binary_bytes,
                             mime_type=cached_artifact.mime_type,
+                            layout=cached_artifact.layout,
                         )
                         tmp_result = ParseResult(
                             url=url,
@@ -147,6 +152,12 @@ def create_scrape_and_extract_tool(
                         if error:
                             page_rendered = f"[Scrape failed: {error}]"
                             is_failure = True
+                        elif not content.strip() and artifact.kind == "text" and artifact.layout is None:
+                            page_rendered = "[Page returned empty content]"
+                            is_failure = True
+                        elif artifact.kind == "text" and artifact.layout is not None:
+                            pdf_artifact = artifact
+                            page_rendered = render_cached_page_text(url, title, content)
                         elif not content.strip():
                             page_rendered = "[Page returned empty content]"
                             is_failure = True
@@ -156,7 +167,7 @@ def create_scrape_and_extract_tool(
                     _, parse_result = await fetch_and_parse_url(
                         url,
                         wait_for=_wait_for,
-                        allowed_domains=allowed_domains,
+                        exclude_domains=exclude_domains,
                         vision_model=vision_model,
                         max_pdf_pages=max_pdf_pages,
                     )
@@ -170,6 +181,12 @@ def create_scrape_and_extract_tool(
                     if error or parse_result.error:
                         page_rendered = f"[Scrape failed: {error or parse_result.error}]"
                         is_failure = True
+                    elif (
+                        parse_result.artifact.kind == "text"
+                        and parse_result.artifact.layout is not None
+                    ):
+                        pdf_artifact = parse_result.artifact
+                        page_rendered = render_cached_page_text(url, title, content)
                     elif not content.strip():
                         page_rendered = "[Page returned empty content]"
                         is_failure = True
@@ -181,13 +198,54 @@ def create_scrape_and_extract_tool(
                     future.set_result(outcome.rendered_text)
                     return outcome.rendered_text
 
+                if pdf_artifact is not None:
+                    pdf_title, pdf_content, used_pages = await extract_pdf_for_query(
+                        artifact=pdf_artifact,
+                        query=query,
+                        model=extractor_model,
+                        short_pdf_max_chars=short_pdf_max_chars,
+                        verify_pdf_claims=verify_pdf_claims,
+                    )
+                    reference = format_reference(pdf_title, used_pages)
+                    is_pdf_failure = (
+                        not pdf_content
+                        or pdf_content.startswith("[No relevant content")
+                        or pdf_content.startswith("[Scrape failed")
+                        or pdf_content.startswith("Scrape failed")
+                    )
+                    if is_pdf_failure:
+                        outcome = _handle_failure(url, pdf_content or "", tracker, outcome_cache, norm)
+                        future.set_result(outcome.rendered_text)
+                        return outcome.rendered_text
+                    if tracker is not None:
+                        tracker.record_scrape(url, pdf_title, pdf_content, reference=reference)
+                    count_scraped = tracker.count_for_action("scraped") if tracker is not None else None
+                    outcome = build_success_outcome(
+                        url=url,
+                        title=pdf_title,
+                        content=pdf_content,
+                        page_type="content",
+                        links=[],
+                        count_scraped=count_scraped,
+                        reference=reference,
+                        used_pages=used_pages,
+                    )
+                    outcome_cache[norm] = outcome
+                    logger.info(
+                        "[extract] pdf_extractor_outcome status=success pages=%s url=%s",
+                        list(used_pages),
+                        url,
+                    )
+                    future.set_result(outcome.rendered_text)
+                    return outcome.rendered_text
+
                 extractor_agent, extractor_cleanup = build_extractor_agent(
                     extractor_model,
                     query,
                     url,
                     _wait_for,
                     vision_model=vision_model,
-                    allowed_domains=allowed_domains,
+                    exclude_domains=exclude_domains,
                     max_pdf_pages=max_pdf_pages,
                     max_content_chars=max_content_chars,
                     doc_cache=_doc_cache,
@@ -197,6 +255,8 @@ def create_scrape_and_extract_tool(
                     domain_expertise=domain_expertise,
                     extractor_guidance=extractor_guidance,
                     pre_fetched_content=page_rendered,
+                    short_pdf_max_chars=short_pdf_max_chars,
+                    verify_pdf_claims=verify_pdf_claims,
                 )
 
                 input_text = (
@@ -293,7 +353,7 @@ def create_scrape_and_extract_tool(
                     return outcome.rendered_text
 
                 if tracker is not None:
-                    tracker.record_scrape(url, title, content)
+                    tracker.record_scrape(url, title, content, reference=title)
                 count_scraped = tracker.count_for_action("scraped") if tracker is not None else None
                 outcome = build_success_outcome(
                     url=url,
@@ -302,6 +362,7 @@ def create_scrape_and_extract_tool(
                     page_type=output.page_type,
                     links=links,
                     count_scraped=count_scraped,
+                    reference=title,
                 )
                 outcome_cache[norm] = outcome
                 logger.info(

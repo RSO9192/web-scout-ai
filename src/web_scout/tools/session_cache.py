@@ -43,6 +43,7 @@ def cacheable_from_parse_result(url: str, parse_result: object) -> CachedSourceA
         text_content=artifact.text_content,
         binary_bytes=artifact.binary_bytes,
         mime_type=artifact.mime_type,
+        layout=getattr(artifact, "layout", None),
     )
 
 
@@ -51,7 +52,7 @@ async def get_or_fetch_session_source_artifact(
     url: str,
     wait_for: Optional[str],
     vision_model: Optional[str],
-    allowed_domains: Optional[frozenset],
+    exclude_domains: Optional[frozenset],
     max_pdf_pages: int,
     cache_pdf_pages: bool = False,
 ) -> tuple[Optional[CachedSourceArtifact], Optional[str]]:
@@ -81,7 +82,7 @@ async def get_or_fetch_session_source_artifact(
         fetch_result, parse_result = await fetch_and_parse_url(
             url,
             wait_for=wait_for,
-            allowed_domains=allowed_domains,
+            exclude_domains=exclude_domains,
             vision_model=vision_model,
             max_pdf_pages=max_pdf_pages,
         )

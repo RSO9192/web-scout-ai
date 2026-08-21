@@ -46,7 +46,7 @@ from ._pipeline_flow import (
     _search_and_scrape_iteration as _search_and_scrape_iteration_impl,
 )
 from ._pipeline_rules import (
-    _build_allowed_domain_set,
+    _build_exclude_domain_set,
     _build_coverage_prompt,
     _build_synth_prompt,
     _diversify_search_urls,
@@ -162,7 +162,7 @@ async def _evaluate_search_coverage(
     depth: dict[str, int],
     evaluator_agent: Any,
     tracker: ResearchTracker,
-    allowed_domains: Optional[frozenset[str]],
+    exclude_domains: Optional[frozenset[str]],
     state: SearchLoopState,
 ) -> bool:
     """Compatibility wrapper kept on the public module for tests and monkeypatching."""
@@ -172,7 +172,7 @@ async def _evaluate_search_coverage(
         depth=depth,
         evaluator_agent=evaluator_agent,
         tracker=tracker,
-        allowed_domains=allowed_domains,
+        exclude_domains=exclude_domains,
         state=state,
     )
 
@@ -189,7 +189,7 @@ async def _run_search_mode(
     followup_model: Any,
     tracker: ResearchTracker,
     scrape_tool: Any,
-    allowed_domains: Optional[frozenset[str]],
+    exclude_domains: Optional[frozenset[str]],
     evaluator_extra_prompt: Optional[str] = None,
 ) -> None:
     """Run the iterative search loop using agent-module symbols for compatibility.
@@ -208,7 +208,7 @@ async def _run_search_mode(
         followup_model=followup_model,
         tracker=tracker,
         scrape_tool=scrape_tool,
-        allowed_domains=allowed_domains,
+        exclude_domains=exclude_domains,
         evaluator_extra_prompt=evaluator_extra_prompt,
         build_search_backend=_build_search_backend,
         build_query_agents=_build_query_agents,
@@ -225,9 +225,11 @@ async def run_web_research(
     search_backend: str = "serper",
     domain_expertise: Optional[str] = None,
     research_depth: str | dict = "standard",
-    allowed_domains: Optional[List[str]] = None,
+    exclude_domains: Optional[List[str]] = None,
     max_pdf_pages: int = 50,
     max_content_chars: int = 30_000,
+    short_pdf_max_chars: int | None = None,
+    verify_pdf_claims: bool | None = None,
     cache: bool = False,
     coverage_criteria: Optional[str] = None,
     extractor_guidance: Optional[str] = None,
@@ -236,11 +238,23 @@ async def run_web_research(
 
     ``extractor_guidance`` augments only the per-source content extractor.
     The base extraction contract takes precedence over conflicting guidance.
+
+    ``short_pdf_max_chars`` controls short vs long PDF extraction routing
+    (default from ``ROUTING_HEURISTICS.short_pdf_max_chars``).
+    ``verify_pdf_claims`` enables an optional extra LLM claim-support check
+    for PDF extracts (default False).
     """
+    from web_scout.config import ROUTING_HEURISTICS
+
     from .utils import get_model
 
     if models is None:
         models = DEFAULT_WEB_RESEARCH_MODELS
+
+    if short_pdf_max_chars is None:
+        short_pdf_max_chars = ROUTING_HEURISTICS.short_pdf_max_chars
+    if verify_pdf_claims is None:
+        verify_pdf_claims = ROUTING_HEURISTICS.verify_pdf_claims
 
     if isinstance(research_depth, str):
         if research_depth not in _DEPTH_PRESETS:
@@ -264,8 +278,8 @@ async def run_web_research(
     if include_domains:
         include_domains = [_normalize_domain(domain) for domain in include_domains]
 
-    _allowed = _build_allowed_domain_set(
-        allowed_domains=allowed_domains,
+    _excluded = _build_exclude_domain_set(
+        exclude_domains=exclude_domains,
         include_domains=include_domains,
         direct_url=direct_url,
     )
@@ -301,9 +315,11 @@ async def run_web_research(
         tracker=tracker,
         query=query,
         vision_model=vision_model,
-        allowed_domains=_allowed,
+        exclude_domains=_excluded,
         max_pdf_pages=max_pdf_pages,
         max_content_chars=max_content_chars,
+        short_pdf_max_chars=short_pdf_max_chars,
+        verify_pdf_claims=verify_pdf_claims,
         use_session_cache=cache,
         domain_expertise=domain_expertise,
         extractor_guidance=extractor_guidance,
@@ -325,7 +341,6 @@ async def run_web_research(
             scrape_tool=scrape_tool,
             depth=depth,
             followup_model=followup_model,
-            allowed_domains=_allowed,
         )
     else:
         await _run_search_mode(
@@ -339,7 +354,7 @@ async def run_web_research(
             followup_model=followup_model,
             tracker=tracker,
             scrape_tool=scrape_tool,
-            allowed_domains=_allowed,
+            exclude_domains=_excluded,
             evaluator_extra_prompt=evaluator_extra_prompt,
         )
 
@@ -362,7 +377,7 @@ __all__ = [
     "SearchIterationResult",
     "SearchLoopState",
     "SearchQueryGeneration",
-    "_build_allowed_domain_set",
+    "_build_exclude_domain_set",
     "_build_coverage_prompt",
     "_build_query_agents",
     "_build_search_backend",

@@ -302,7 +302,7 @@ async def test_run_search_mode_runs_coverage_eval_when_four_sources_scraped(
         followup_model="dummy",
         tracker=tracker,
         scrape_tool=scrape_tool,
-        allowed_domains=None,
+        exclude_domains=None,
     )
 
     coverage_mock.assert_awaited_once()
@@ -349,7 +349,7 @@ async def test_run_search_mode_runs_coverage_eval_when_less_than_four_sources_sc
         followup_model="dummy",
         tracker=tracker,
         scrape_tool=scrape_tool,
-        allowed_domains=None,
+        exclude_domains=None,
     )
 
     coverage_mock.assert_awaited_once()
@@ -390,8 +390,10 @@ async def test_pdf_docling_conversions_do_not_overlap(monkeypatch):
     max_active_calls = 0
 
     class FakeDocument:
-        @staticmethod
-        def export_to_markdown():
+        def iterate_items(self, **kwargs):
+            return iter([])
+
+        def export_to_markdown(self, **kwargs):
             return "converted"
 
     class FakeResult:
@@ -419,7 +421,7 @@ async def test_pdf_docling_conversions_do_not_overlap(monkeypatch):
         ]
     )
 
-    assert results == ["converted"] * 5
+    assert [markdown for markdown, _layout in results] == ["converted"] * 5
     assert max_active_calls == 1
 
 

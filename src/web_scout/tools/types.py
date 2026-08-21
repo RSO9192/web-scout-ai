@@ -1,9 +1,11 @@
 """Shared data types for the tools package."""
 
 from dataclasses import dataclass
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
+
+from web_scout.scraping.types import PdfDocumentLayout
 
 
 @dataclass(frozen=True)
@@ -25,6 +27,7 @@ class CachedSourceArtifact:
     text_content: str = ""
     binary_bytes: bytes = b""
     mime_type: str = ""
+    layout: Optional[PdfDocumentLayout] = None
 
 
 class ExtractorOutput(BaseModel):

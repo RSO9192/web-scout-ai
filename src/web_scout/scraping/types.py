@@ -5,6 +5,37 @@ from pydantic import BaseModel, ConfigDict
 
 
 @dataclass(frozen=True)
+class PdfPageSpan:
+    """Physical page mapped onto 1-based markdown line numbers."""
+
+    page: int
+    start_line: int
+    end_line: int
+
+
+@dataclass(frozen=True)
+class PdfSectionSpan:
+    """Structural section mapped onto 1-based markdown line numbers."""
+
+    title: str
+    level: int
+    start_line: int
+    end_line: int
+    page_start: int | None
+    page_end: int | None
+    heading_path: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class PdfDocumentLayout:
+    """Layout metadata for a Docling-converted PDF."""
+
+    document_title: str
+    pages: tuple[PdfPageSpan, ...] = ()
+    sections: tuple[PdfSectionSpan, ...] = ()
+
+
+@dataclass(frozen=True)
 class SourceArtifact:
     """Query-agnostic source artifact that can be reused across queries."""
 
@@ -13,6 +44,7 @@ class SourceArtifact:
     text_content: str = ""
     binary_bytes: bytes = b""
     mime_type: str = ""
+    layout: PdfDocumentLayout | None = None
 
 
 class FetchResult(BaseModel):

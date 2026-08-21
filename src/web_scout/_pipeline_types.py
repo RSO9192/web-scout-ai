@@ -9,7 +9,7 @@ from ._extractor_contract import ExtractorOutcome
 DEFAULT_WEB_RESEARCH_MODELS = {
     "web_researcher": "gemini/gemini-3-flash-preview",
     "content_extractor": "gemini/gemini-3-flash-preview",
-    "vision_fallback": "gemini/gemini-3-flash-preview",
+    "vision_fallback": "gemini/gemini-3.7-flash",
     "followup_selector": "gemini/gemini-3-flash-preview",
 }
 

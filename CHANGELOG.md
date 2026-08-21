@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.4.0] - 2026-08-21
+
+### Added
+
+- **PDF visual enrichment via Gemini**: Docling now extracts section structure, page spans, and graphical elements; each section with visuals is sent to the vision model (default `gemini/gemini-3.7-flash`) so charts and diagrams are replaced with detailed textual summaries that preserve quantitative detail.
+- **PDF page-span citations**: Docling extracts include page-number banners and section spans. Short PDFs are used in full; long PDFs are processed section-by-section (document context → per-section evidence with pages → final answer), and citations surface page numbers.
+
+### Changed
+
+- **Breaking: `allowed_domains` replaced by `exclude_domains`**: `run_web_research()` and the scrape/explore path now take an explicit blocklist (`exclude_domains`) instead of an allow-override. `None` (default) uses `BLOCKED_DOMAINS`; `[]` disables domain blocking. Hostnames from `include_domains` and `direct_url` are still subtracted from the effective exclude set.
+- **Docling reading order**: layout is rebuilt from Docling geometry as columns left-to-right and top-to-bottom within each column, fixing scrambled multi-column PDF text.
+- **Docling accelerator pinned to CPU**: avoids Apple GPU crashes during PDF conversion.
+
+### Fixed
+
+- **Multi-column PDF reading order**: structural chunks no longer follow Docling's native order when it mis-orders column layouts.
+
+
 ## [1.3.10] - 2026-08-11
 
 ### Added

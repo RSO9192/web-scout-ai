@@ -7,6 +7,8 @@ from dataclasses import dataclass
 class RoutingHeuristics:
     min_pdf_text_chars: int = 300
     pdf_max_pages_default: int = 50
+    short_pdf_max_chars: int = 24_000
+    verify_pdf_claims: bool = False
     validation_timeout: float = 20.0
     document_download_timeout: float = 45.0
     urllib_download_timeout: int = 45
