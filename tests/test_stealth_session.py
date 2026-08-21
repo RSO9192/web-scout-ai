@@ -19,9 +19,12 @@ class FakeSession:
         self.fetches = []
         self.fetch_gate = None  # set to an asyncio.Event to make fetch block
         self.fail_fetch = False
+        self.fail_start = False
         FakeSession.instances.append(self)
 
     async def start(self):
+        if self.fail_start:
+            raise RuntimeError("launch failed")
         self.started = True
 
     async def close(self):
@@ -101,6 +104,27 @@ async def test_fetch_error_evicts_session():
     # next call gets a brand-new session
     await ss.fetch_via_session("https://example.org/again")
     assert len(FakeSession.instances) == 2
+    await ss.close_stealthy_sessions()
+
+
+@pytest.mark.asyncio
+async def test_start_failure_closes_and_evicts_session(monkeypatch):
+    def failing_factory(**kw):
+        session = FakeSession(**kw)
+        session.fail_start = True
+        return session
+
+    monkeypatch.setattr(ss, "_session_factory", failing_factory)
+    with pytest.raises(RuntimeError, match="launch failed"):
+        await ss.fetch_via_session("https://example.org/x")
+    assert FakeSession.instances[0].closed
+
+    # host absent from registry: a fresh factory produces a brand-new session
+    monkeypatch.setattr(ss, "_session_factory", lambda **kw: FakeSession(**kw))
+    result = await ss.fetch_via_session("https://example.org/y")
+    assert result == "resp:https://example.org/y"
+    assert len(FakeSession.instances) == 2
+    assert FakeSession.instances[1].started
     await ss.close_stealthy_sessions()
 
 

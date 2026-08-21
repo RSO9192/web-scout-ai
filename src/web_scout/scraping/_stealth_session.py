@@ -99,8 +99,14 @@ async def _get_or_create(state: _LoopState, host: str, session_kwargs: dict) -> 
                 if len(state.sessions) == before:
                     break  # all busy — accept overshoot
             session = _session_factory(max_pages=SESSION_MAX_PAGES, **session_kwargs)
-            async with state.semaphore:  # a launch is browser work too
-                await session.start()
+            try:
+                async with state.semaphore:  # a launch is browser work too
+                    await session.start()
+            except Exception:
+                # Launch failed: nothing was registered yet, so close the
+                # partially-constructed session directly to avoid leaking it.
+                await _close_entry(host, _Entry(session=session, last_used=0))
+                raise
             entry = _Entry(session=session, last_used=next(state.counter))
             state.sessions[host] = entry
             logger.info("[stealth-session] new browser session for %s", host)
