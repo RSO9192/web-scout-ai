@@ -12,7 +12,9 @@ Design (see docs/superpowers/specs/2026-08-21-cf-session-reuse-design.md):
 - at most MAX_SESSIONS idle sessions per event loop (LRU-evicted);
   busy sessions are never evicted, the cap overshoots instead
 - sessions are per-event-loop (a Playwright object is unusable from
-  another loop); pipeline teardown calls ``close_stealthy_sessions()``
+  another loop); pipelines call ``acquire_stealth_sessions()``/
+  ``release_stealth_sessions()`` so sibling pipelines on the same loop
+  aren't torn down mid-fetch
 """
 
 import asyncio
@@ -26,12 +28,20 @@ from weakref import WeakKeyDictionary
 logger = logging.getLogger(__name__)
 
 MAX_SESSIONS = 3
+# 4+ concurrent same-host fetches pass the semaphore but scrapling's own
+# page pool (max_pages=3) queues the excess internally — the semaphore caps
+# cross-host browser work, the pool caps per-host pages.
 MAX_CONCURRENT_BROWSER_FETCHES = 4
 SESSION_MAX_PAGES = 3
 
 # Keys accepted only by the AsyncStealthySession constructor, not by
 # session.fetch() (scrapling 0.4.14 StealthSession vs StealthFetchParams).
-_SESSION_ONLY_KEYS = frozenset({"headless", "max_pages", "retries", "retry_delay"})
+_SESSION_ONLY_KEYS = frozenset({"headless", "max_pages"})
+
+# retries/retry_delay are constructor-only in scrapling and call sites
+# disagree on them; a shared per-host session cannot honor per-call values,
+# so they are deliberately ignored and sessions use scrapling's defaults.
+_IGNORED_KEYS = frozenset({"retries", "retry_delay"})
 
 
 def _session_factory(**kwargs):
@@ -56,6 +66,7 @@ class _LoopState:
         default_factory=lambda: asyncio.Semaphore(MAX_CONCURRENT_BROWSER_FETCHES)
     )
     counter: Any = field(default_factory=itertools.count)
+    active_pipelines: int = 0
 
 
 _registry: "WeakKeyDictionary[asyncio.AbstractEventLoop, _LoopState]" = WeakKeyDictionary()
@@ -124,6 +135,7 @@ async def fetch_via_session(url: str, **kwargs: Any):
     """
     host = urlparse(url).netloc.lower()
     state = _loop_state()
+    kwargs = {k: v for k, v in kwargs.items() if k not in _IGNORED_KEYS}
     session_kwargs = {k: v for k, v in kwargs.items() if k in _SESSION_ONLY_KEYS}
     fetch_kwargs = {k: v for k, v in kwargs.items() if k not in _SESSION_ONLY_KEYS}
 
@@ -144,7 +156,11 @@ async def fetch_via_session(url: str, **kwargs: Any):
 
 
 async def close_stealthy_sessions() -> None:
-    """Close every stealth session belonging to the current event loop."""
+    """Close every stealth session belonging to the current event loop.
+
+    Closes unconditionally — callers with concurrent pipelines on the same
+    loop should use acquire/release instead; no fetches may be in flight.
+    """
     loop = asyncio.get_running_loop()
     state = _registry.pop(loop, None)
     if state is None:
@@ -152,3 +168,22 @@ async def close_stealthy_sessions() -> None:
     for host, entry in list(state.sessions.items()):
         await _close_entry(host, entry)
     state.sessions.clear()
+
+
+def acquire_stealth_sessions() -> None:
+    """Register a pipeline as a user of this loop's shared sessions.
+
+    Must be paired with ``release_stealth_sessions()``; sessions are only
+    closed when the last registered pipeline releases.
+    """
+    _loop_state().active_pipelines += 1
+
+
+async def release_stealth_sessions() -> None:
+    """Release one pipeline's claim; close all sessions when none remain."""
+    state = _registry.get(asyncio.get_running_loop())
+    if state is None:
+        return
+    state.active_pipelines = max(0, state.active_pipelines - 1)
+    if state.active_pipelines == 0:
+        await close_stealthy_sessions()

@@ -80,7 +80,7 @@ async def test_kwarg_split_session_vs_fetch():
     session = FakeSession.instances[0]
     # constructor got session-level keys plus the pool size
     assert session.kwargs["headless"] is True
-    assert session.kwargs["retries"] == 1
+    assert "retries" not in session.kwargs
     assert session.kwargs["max_pages"] == ss.SESSION_MAX_PAGES
     assert "wait_selector" not in session.kwargs
     # fetch got only per-fetch keys
@@ -231,11 +231,23 @@ async def test_stealthy_fetch_maps_old_scrapling_typeerror(monkeypatch):
 
 
 def test_run_web_research_closes_sessions_in_finally():
-    """Teardown guard: the pipeline entry point must always close sessions."""
+    """Teardown guard: the pipeline entry point must always release sessions."""
     import inspect
 
     from web_scout import agent
 
     src = inspect.getsource(agent.run_web_research)
-    assert "close_stealthy_sessions" in src
+    assert "acquire_stealth_sessions" in src
+    assert "release_stealth_sessions" in src
     assert "finally" in src
+
+
+@pytest.mark.asyncio
+async def test_release_closes_only_when_last_pipeline_exits():
+    ss.acquire_stealth_sessions()
+    ss.acquire_stealth_sessions()
+    await ss.fetch_via_session("https://a.org/1")
+    await ss.release_stealth_sessions()
+    assert not FakeSession.instances[0].closed  # sibling still active
+    await ss.release_stealth_sessions()
+    assert FakeSession.instances[0].closed  # last one out closes

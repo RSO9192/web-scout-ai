@@ -333,8 +333,12 @@ async def run_web_research(
         research_depth,
     )
 
-    from web_scout.scraping._stealth_session import close_stealthy_sessions
+    from web_scout.scraping._stealth_session import (
+        acquire_stealth_sessions,
+        release_stealth_sessions,
+    )
 
+    acquire_stealth_sessions()
     try:
         if direct_url:
             await _run_direct_url_mode(
@@ -361,7 +365,7 @@ async def run_web_research(
                 evaluator_extra_prompt=evaluator_extra_prompt,
             )
     finally:
-        await close_stealthy_sessions()
+        await release_stealth_sessions()
 
     return await _synthesise_result(
         query=query,
