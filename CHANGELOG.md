@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.4.1] - 2026-08-21
+
+### Changed
+
+- **Scrapling minimum raised to `>=0.4.14`**: guarantees the StealthyFetcher locale fix (browsers no longer force `en-US`, avoiding locale/IP mismatches that triggered rate-limiting), the mojibake fix for non-UTF-8 pages fetched via browser, a ~5-6x faster `get_all_text()`, and stable dependency resolution (0.4.13 required a prerelease `curl_cffi` that uv and Poetry refuse by default). After updating, run `scrapling install --force` once in existing environments to refresh browsers.
+
+
 ## [1.4.0] - 2026-08-21
 
 ### Added
