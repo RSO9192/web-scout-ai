@@ -38,9 +38,16 @@ def _is_404_content(content: str) -> bool:
 
 def _html_to_markdown(html: str) -> str:
     """Convert raw HTML to clean Markdown using markdownify."""
-    from markdownify import markdownify
+    from bs4 import BeautifulSoup
+    from markdownify import MarkdownConverter
 
-    return markdownify(html, heading_style="ATX", strip=["script", "style", "noscript"])
+    # markdownify's ``strip=`` option only skips tag *conversion* and lets the
+    # inner text leak through (it disabled the built-in converters that drop
+    # script/style content), so remove non-content elements from the DOM first.
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup(["script", "style", "noscript", "svg"]):
+        tag.decompose()
+    return MarkdownConverter(heading_style="ATX").convert_soup(soup)
 
 
 def _extract_title(html: str, page=None) -> str:
