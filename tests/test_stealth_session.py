@@ -197,3 +197,34 @@ async def test_close_stealthy_sessions_closes_everything():
     await ss.fetch_via_session("https://a.org/2")
     assert len(FakeSession.instances) == 3
     await ss.close_stealthy_sessions()
+
+
+@pytest.mark.asyncio
+async def test_stealthy_fetch_defaults_solve_cloudflare_and_delegates(monkeypatch):
+    from web_scout.scraping import _scrapling
+
+    seen = {}
+
+    async def fake_fetch_via_session(url, **kw):
+        seen["url"] = url
+        seen["kw"] = kw
+        return "page"
+
+    monkeypatch.setattr(_scrapling, "fetch_via_session", fake_fetch_via_session)
+    result = await _scrapling.stealthy_fetch("https://example.org/x", timeout=1000)
+    assert result == "page"
+    assert seen["url"] == "https://example.org/x"
+    assert seen["kw"]["solve_cloudflare"] is True
+    assert seen["kw"]["timeout"] == 1000
+
+
+@pytest.mark.asyncio
+async def test_stealthy_fetch_maps_old_scrapling_typeerror(monkeypatch):
+    from web_scout.scraping import _scrapling
+
+    async def fake_fetch_via_session(url, **kw):
+        raise TypeError("unexpected keyword argument 'solve_cloudflare'")
+
+    monkeypatch.setattr(_scrapling, "fetch_via_session", fake_fetch_via_session)
+    with pytest.raises(RuntimeError, match="0.4.9"):
+        await _scrapling.stealthy_fetch("https://example.org/x")
