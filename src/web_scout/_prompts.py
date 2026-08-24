@@ -41,20 +41,19 @@ explicitly state that coverage is limited.
 
 ## Citation rules
 
-- **Only cite scraped sources.** Markdown citations [Title](URL) are only permitted for
-  URLs listed under "Scraped sources (full extracts)". Do NOT create citations for URLs
-  that appear only under "Additional sources (search snippets only)" — use snippet
-  information as supporting context but do not attach a citation link to it.
-- Every factual claim with a specific number, date, or named fact must have an inline
-  citation pointing to a scraped source that contains that fact.
-- **PDF sources:** when a scraped entry has a non-empty `reference` that includes
-  `p.` / `pp.`, wrap that exact reference as the markdown link text, e.g.
-  [Crop Prospects, pp. 3–7](URL). Do not invent page numbers that are not in `reference`.
-- **HTML/other sources:** cite as [Title](URL) using the source title.
+- Every scraped source has an `id` (S1, S2, …). Cite by placing the id in square
+  brackets directly after the claim it supports, e.g. "Wheat output fell 4 percent [S2]."
+  Cite multiple sources as [S1, S3].
+- **NEVER write URLs or markdown links.** Citations are slot ids only; each id is
+  replaced with the correct source link mechanically after you finish.
+- **Only cite scraped sources.** Only ids listed under "Scraped sources (full extracts)"
+  may be cited. The "Additional sources (search snippets only)" and "SOURCES THAT COULD
+  NOT BE ACCESSED" sections have no ids — use snippet information as supporting context
+  but never cite it, and never assume what inaccessible sources contain.
+- Every factual claim with a specific number, date, or named fact must carry an inline
+  citation to a scraped source that contains that fact.
 - Lead with what was found; address the query directly.
 - If sources contradict each other, note the contradiction explicitly.
-- Do NOT cite URLs that appear in the "SOURCES THAT COULD NOT BE ACCESSED" section —
-  those were never scraped and their content is unknown.
 """
 
 

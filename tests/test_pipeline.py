@@ -448,26 +448,36 @@ async def test_direct_url_hub_page_triggers_deepening(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Direct URL mode — synthesis judge retry
+# Direct URL mode — slot-id citation resolution
 # ---------------------------------------------------------------------------
 
 
+def _patch_recording_scrape_tool(monkeypatch, title: str = "FAO Fishery Report"):
+    """Fake scrape tool that records a successful scrape in the tracker."""
+
+    def _factory(**kwargs):
+        tracker = kwargs["tracker"]
+
+        async def _fake_scrape(url: str) -> str:
+            content = "Solid report content " * 20
+            tracker.record_scrape(url, title, content)
+            return content
+
+        return _fake_scrape
+
+    monkeypatch.setattr(_agent_module, "create_scrape_and_extract_tool", _factory)
+
+
 @pytest.mark.asyncio
-async def test_synthesis_judge_retries_when_hallucinated_citation(monkeypatch):
-    """When the synthesiser produces a hallucinated citation, Runner.run is called a second time."""
-    _patch_scrape_tool(monkeypatch, return_value="Solid report content " * 20)
+async def test_synthesis_slot_citation_resolved_to_link(monkeypatch):
+    """A valid [S1] citation is mechanically resolved to a markdown link, no retry."""
+    _patch_recording_scrape_tool(monkeypatch)
 
     run_calls = []
 
     async def _fake_run(agent_obj, prompt, **kwargs):
-        run_calls.append(prompt[:60])
-        if len(run_calls) == 1:
-            # First synthesis: contains a hallucinated URL not in valid_urls
-            return _FakeRunResult(
-                WebResearchResultRaw(synthesis="Some fact [Hallucinated](https://invented.example.com/data).")
-            )
-        # Retry synthesis: clean
-        return _FakeRunResult(WebResearchResultRaw(synthesis="Clean synthesis with no citations."))
+        run_calls.append(prompt)
+        return _FakeRunResult(WebResearchResultRaw(synthesis="Some fact [S1]."))
 
     monkeypatch.setattr(_agent_module.Runner, "run", _fake_run)
 
@@ -477,9 +487,35 @@ async def test_synthesis_judge_retries_when_hallucinated_citation(monkeypatch):
         direct_url="https://fao.org/fishery/report.pdf",
     )
 
-    # Runner should have been called twice (initial + retry)
+    assert len(run_calls) == 1
+    assert "(https://fao.org/fishery/report.pdf)" in result.synthesis
+    assert "[S1]" not in result.synthesis
+
+
+@pytest.mark.asyncio
+async def test_synthesis_retries_on_unknown_slot_id(monkeypatch):
+    """An unknown slot id triggers one retry whose feedback lists the valid ids."""
+    _patch_recording_scrape_tool(monkeypatch)
+
+    run_calls = []
+
+    async def _fake_run(agent_obj, prompt, **kwargs):
+        run_calls.append(prompt)
+        if len(run_calls) == 1:
+            return _FakeRunResult(WebResearchResultRaw(synthesis="Some fact [S9]."))
+        return _FakeRunResult(WebResearchResultRaw(synthesis="Some fact [S1]."))
+
+    monkeypatch.setattr(_agent_module.Runner, "run", _fake_run)
+
+    result = await run_web_research(
+        query="fish",
+        models={"web_researcher": "dummy", "content_extractor": "dummy"},
+        direct_url="https://fao.org/fishery/report.pdf",
+    )
+
     assert len(run_calls) == 2
-    assert result.synthesis == "Clean synthesis with no citations."
+    assert "S9" in run_calls[1] and "S1" in run_calls[1]
+    assert "(https://fao.org/fishery/report.pdf)" in result.synthesis
 
 
 # ---------------------------------------------------------------------------

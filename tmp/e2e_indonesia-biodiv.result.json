@@ -1,0 +1,161 @@
+{
+  "slug": "indonesia-biodiv",
+  "query": "Indonesia biodiversity hotspots current status and recent trend",
+  "elapsed_s": 188.7,
+  "searches": [
+    "Indonesia biodiversity trends recent years deforestation forest cover wildlife populations biodiversity indicators 2015 2024",
+    "Indonesia biodiversity hotspot conservation status Wallacea Sundaland biodiversity loss drivers recent scientific study",
+    "Indonesia biodiversity hotspots current status 2023 2024 species richness threatened species habitat loss report"
+  ],
+  "buckets": {
+    "scraped": [
+      {
+        "url": "https://gfr.wri.org/latest-analysis-deforestation-trends",
+        "title": "Tropical Rainforest Loss Slowed in 2025, but Fire is a Growing Threat to Forests Worldwide",
+        "reference": "Tropical Rainforest Loss Slowed in 2025, but Fire is a Growing Threat to Forests Worldwide",
+        "content_chars": 2530
+      },
+      {
+        "url": "https://www.sciencedirect.com/science/article/pii/S2351989424001227",
+        "title": "A review of forest fragmentation in Indonesia under the DPSIR framework for biodiversity conservation strategies",
+        "reference": "A review of forest fragmentation in Indonesia under the DPSIR framework for biodiversity conservation strategies",
+        "content_chars": 4504
+      },
+      {
+        "url": "https://dicf.unepgrid.ch/indonesia/biodiversity",
+        "title": "Biodiversity / Indonesia | Interactive Country Fiches",
+        "reference": "Biodiversity / Indonesia | Interactive Country Fiches",
+        "content_chars": 3969
+      },
+      {
+        "url": "https://www.nature.com/articles/s41893-024-01433-4",
+        "title": "Biodiversity impacts of recent land-use change driven by increases in agri-food imports",
+        "reference": "Biodiversity impacts of recent land-use change driven by increases in agri-food imports",
+        "content_chars": 3455
+      },
+      {
+        "url": "https://conbio.onlinelibrary.wiley.com/doi/10.1111/csp2.169",
+        "title": "Severe human pressures in the Sundaland biodiversity hotspot",
+        "reference": "Severe human pressures in the Sundaland biodiversity hotspot",
+        "content_chars": 5503
+      },
+      {
+        "url": "https://www.cepf.net/resources/calls-for-proposals/ecosystem-profile-technical-summary-1",
+        "title": "Ecosystem Profile SUMMARY",
+        "reference": "Ecosystem Profile SUMMARY, pp. 3, 5–7, 9–12, 15, 19–21",
+        "content_chars": 4188
+      },
+      {
+        "url": "https://news.mongabay.com/2021/10/on-islands-that-inspired-theory-of-evolution-deforestation-cuts-uneven-path/",
+        "title": "On islands that inspired theory of evolution, deforestation cuts uneven path",
+        "reference": "On islands that inspired theory of evolution, deforestation cuts uneven path",
+        "content_chars": 2687
+      },
+      {
+        "url": "https://news.mongabay.com/2022/04/study-most-biodiversity-hotspots-lack-formal-protection-in-borneo-and-sumatra/",
+        "title": "Study: Most biodiversity hotspots lack formal protection in Borneo and Sumatra",
+        "reference": "Study: Most biodiversity hotspots lack formal protection in Borneo and Sumatra",
+        "content_chars": 2763
+      },
+      {
+        "url": "https://www.cell.com/cell-reports-sustainability/fulltext/S2949-7906(26)00080-7?rss=yes",
+        "title": "High-resolution mapping reveals widespread encroachment of nickel mining on threatened-species habitats",
+        "reference": "High-resolution mapping reveals widespread encroachment of nickel mining on threatened-species habitats",
+        "content_chars": 4227
+      }
+    ],
+    "scraped_irrelevant": [
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12498518/",
+        "title": "Engaging Sustainable Reforestation and Forest Protection in ...",
+        "reference": "",
+        "content_chars": 68
+      }
+    ],
+    "scrape_failed": [],
+    "blocked_by_policy": [],
+    "source_http_error": [],
+    "bot_detected": [],
+    "snippet_only": [
+      {
+        "url": "https://ourworldindata.org/deforestation",
+        "title": "Deforestation and Forest Loss",
+        "reference": "",
+        "content_chars": 175
+      },
+      {
+        "url": "https://www.tandfonline.com/doi/full/10.1080/21580103.2024.2347902",
+        "title": "Forest land redistribution and its relevance to biodiversity ...",
+        "reference": "",
+        "content_chars": 199
+      },
+      {
+        "url": "https://unstats.un.org/sdgs/report/2024/extended-report/Extended-Report_Goal-15.pdf",
+        "title": "The Sustainable Development Goals Extended Report 2024",
+        "reference": "",
+        "content_chars": 164
+      },
+      {
+        "url": "https://storymaps.arcgis.com/stories/42c8e88cc84f4fbba0a750174348b27f",
+        "title": "Deforestation and Endangered Wildlife in Indonesia",
+        "reference": "",
+        "content_chars": 141
+      },
+      {
+        "url": "https://www.worldwildlife.org/our-work/forests/deforestation-and-forest-degradation/",
+        "title": "Deforestation and Forest Degradation",
+        "reference": "",
+        "content_chars": 164
+      },
+      {
+        "url": "https://www.researchgate.net/publication/338827756_Severe_human_pressures_in_the_Sundaland_biodiversity_hotspot",
+        "title": "Severe human pressures in the Sundaland biodiversity ...",
+        "reference": "",
+        "content_chars": 134
+      },
+      {
+        "url": "https://academic.oup.com/bioscience/article/72/11/1118/6763234",
+        "title": "Safeguarding Imperiled Biodiversity and Evolutionary ...",
+        "reference": "",
+        "content_chars": 183
+      },
+      {
+        "url": "https://wildlifeconservationsociety.medium.com/a-biodiversity-crisis-in-sundaland-80c0855ecc0c",
+        "title": "A Biodiversity Crisis in Sundaland - Medium",
+        "reference": "",
+        "content_chars": 129
+      },
+      {
+        "url": "https://www.kew.org/science/our-science/projects/indonesia-biodiversity-hotspot-old",
+        "title": "Threatened Biodiversity Hotspots in Indonesia",
+        "reference": "",
+        "content_chars": 164
+      },
+      {
+        "url": "https://www.ran.org/indonesia_s_rainforests_biodiversity_and_endangered_species/",
+        "title": "Indonesia's Rainforests: Biodiversity and Endangered ...",
+        "reference": "",
+        "content_chars": 159
+      },
+      {
+        "url": "https://www.linkedin.com/posts/innandya-kusumawardhani_biodiversity-indonesia-conservation-activity-7323269931569999872-8QpN",
+        "title": "Innandya Kusumawardhani - Indonesia",
+        "reference": "",
+        "content_chars": 144
+      },
+      {
+        "url": "https://www.conservation.org/learning/biodiversity-hotspots",
+        "title": "What Are Biodiversity Hotspots?",
+        "reference": "",
+        "content_chars": 156
+      },
+      {
+        "url": "https://www.researchgate.net/publication/287195479_Conservation_Challenges_in_Indonesia",
+        "title": "(PDF) Conservation Challenges in Indonesia",
+        "reference": "",
+        "content_chars": 157
+      }
+    ]
+  },
+  "synthesis": "## Overall assessment\n\nIndonesia remains one of the world’s most important centres of biodiversity, but the available evidence indicates a **negative overall status and trend**. The UNEP country fiche describes Indonesia as one of 17 megadiverse countries, containing two globally recognised biodiversity hotspots, 18 WWF Global 200 ecoregions and 24 endemic-bird areas; it reports approximately 31,750 plant species, 732 mammals, 1,711 birds, 750 reptiles, 403 amphibians and 1,236 freshwater fish. The fiche does not name the two hotspots. The scraped sources separately provide detailed evidence for the **Sundaland** region, including Sumatra, Java, Borneo and the Sunda Shelf islands, and **Wallacea**, comprising Sulawesi, the Moluccas and the Lesser Sunda Islands. [Biodiversity / Indonesia | Interactive Country Fiches](https://dicf.unepgrid.ch/indonesia/biodiversity) [Severe human pressures in the Sundaland biodiversity hotspot](https://conbio.onlinelibrary.wiley.com/doi/10.1111/csp2.169) [Ecosystem Profile SUMMARY, pp. 3, 5–7, 9–12, 15, 19–21](https://www.cepf.net/resources/calls-for-proposals/ecosystem-profile-technical-summary-1)\n\n### Current condition\n\nIndonesia’s terrestrial biodiversity is being damaged mainly by agricultural and oil-palm expansion, mining, infrastructure, logging, settlement and forest fragmentation. A 2024 review reports that, according to Ministry of Environment and Forestry data for 2020, Indonesia retained **86.9 million hectares of forest**, including **45.3 million hectares of primary forest**, **37.3 million hectares of secondary forest** and **4.3 million hectares of plantation forest**. A further **33.4 million hectares** of designated forest land had no forest cover, including 4.5 million hectares of conservation forest. [A review of forest fragmentation in Indonesia under the DPSIR framework for biodiversity conservation strategies](https://www.sciencedirect.com/science/article/pii/S2351989424001227)\n\nFragmentation is widespread and affects protected areas as well as unprotected landscapes. The same review found an overall fragmentation index of approximately **0.30**, with especially low values for Bali, Nusa Tenggara and Maluku, where small islands leave species with less habitat and greater extinction risk. It reports fragmentation in parks including Bukit Barisan Selatan, Kerinci Seblat, Baluran and Kutai; in parts of Kutai National Park, only **16.76% of dry-land primary forest** and **1.66% of primary mangrove forest** remained in the areas assessed. The review links fragmentation to reduced habitat and gene flow, edge effects, invasive species and increased human–wildlife conflict. [A review of forest fragmentation in Indonesia under the DPSIR framework for biodiversity conservation strategies](https://www.sciencedirect.com/science/article/pii/S2351989424001227)\n\nThe Sundaland evidence shows particularly severe human pressure. In the study’s latest regional dataset, from **2009**, **70.6%** of Sundaland had an intense human-footprint score. Java had no remaining areas classified as natural under that threshold, while the share of Indonesian protected areas affected by intense pressure rose from **70.5% in 1993 to 77.9% in 2009**. Among 308 lowland-forest bird species assessed, **273, or 88.6%, experienced a reduction in suitable range between 2000 and 2015**, with a mean reduction of 17.5%. The authors warn that official protected-area coverage substantially overstates effective protection once human pressure inside protected areas is considered. [Severe human pressures in the Sundaland biodiversity hotspot](https://conbio.onlinelibrary.wiley.com/doi/10.1111/csp2.169)\n\nWallacea is similarly important but highly exposed. The CEPF assessment says the region had already lost at least **70% of its natural habitat**, while forests covered **17.7 million hectares in 2011**. Wallacea supported **560 globally threatened species**, including 35 critically endangered, 108 endangered and 417 vulnerable species. Approximately **70% of Indonesia’s terrestrial Key Biodiversity Area (KBA) land—6.2 million hectares—was outside the formal protected-area network**. Forest-loss rates during 2000–2011 were higher in partially protected KBAs (**0.29% annually**) than in unprotected KBAs (**0.21%**) or protected KBAs (**0.09%**). [Ecosystem Profile SUMMARY, pp. 3, 5–7, 9–12, 15, 19–21](https://www.cepf.net/resources/calls-for-proposals/ecosystem-profile-technical-summary-1)\n\nCoastal and marine ecosystems are also in poor condition. Indonesia contains approximately **3.3 million hectares of mangroves**, around one-fifth of the global total, but up to **40% had been lost over the three decades to 2018** and **637,624 hectares, or 19.26%, were classified as critically degraded** in the cited 2022 assessment. More than **35% of Indonesian coral reefs were classified as being in poor condition in 2017**. [Biodiversity / Indonesia | Interactive Country Fiches](https://dicf.unepgrid.ch/indonesia/biodiversity)\n\n### Recent direction of change\n\nThe most recent forest-loss signal is mixed but concerning. WRI/University of Maryland analysis reports that Indonesia’s tropical primary-forest loss **increased 14% from 2024 to 2025**, although it remained below the high levels of the mid-2010s. The source associates recent clearing partly with agricultural expansion and mining, including the food-estate programme in South Papua and nickel mining in Sulawesi and elsewhere. It also stresses that tree-cover loss can result from fire, disease or other causes and is not itself a direct measurement of biodiversity decline. [Tropical Rainforest Loss Slowed in 2025, but Fire is a Growing Threat to Forests Worldwide](https://gfr.wri.org/latest-analysis-deforestation-trends)\n\nA global land-use analysis covering **1995–2022** found that Indonesia accounted for **22% of global biodiversity losses attributed to land-use change**, the largest national share in the study. Indonesia’s modeled net impact was **0.28% PSLglo**, and the impact increased over the study period from both domestic-production and consumption perspectives. About **75%** of Indonesia’s impact was associated with domestic consumption and **25%** with exports; rice and other plant-based foods were major domestic drivers, while palm-oil-related oilseed exports were the main export-linked driver. These are modeled potential species-loss estimates, not observed extinction counts. [Biodiversity impacts of recent land-use change driven by increases in agri-food imports](https://www.nature.com/articles/s41893-024-01433-4)\n\nMining is an increasingly important newer pressure, particularly in Sulawesi. A study using conditions as of **2024** found that Indonesia had significantly greater threatened-species habitat overlap at operational nickel mines than at pre-operational sites. Its Indonesia-specific operational-stage effect was a Cliff’s delta of **+0.24**, and Indonesia had the fastest operational species-accumulation rate in the study, at **2.20 new threatened species per additional mining project**. The study identifies small-range Sulawesi species, including rabbit snails, as especially vulnerable and reports more than **5,331 hectares of tropical forest loss** associated with nickel-mining activity on Halmahera. These are spatial-exposure estimates rather than direct measurements of population decline. [High-resolution mapping reveals widespread encroachment of nickel mining on threatened-species habitats](https://www.cell.com/cell-reports-sustainability/fulltext/S2949-7906(26)00080-7?rss=yes)\n\nWallacea’s projected trajectory is particularly worrying. A modeling study found that deforestation between 2000 and 2018 was about half the rate observed in Borneo, but projected future forest loss across Wallacea averaged **1.23% per year**, with up to **49,570 km²** potentially lost by 2053. Forest cover in the assessed KBAs was projected to fall **12% by 2033 and 26% by 2053**; North Maluku was projected to lose more than half its forest at **2.17% per year**. These are projections based on continuation of past drivers, not observed post-2018 losses. [On islands that inspired theory of evolution, deforestation cuts uneven path](https://news.mongabay.com/2021/10/on-islands-that-inspired-theory-of-evolution-deforestation-cuts-uneven-path/)\n\n### Factors that could moderate the decline\n\nThere are some positive or potentially positive measures: Indonesia has a permanent moratorium on new permits in primary forests and peatlands, strengthened fire monitoring, the FOLU Net Sink 2030 target, social-forestry and marine-tenure programmes, action against illegal fishing, and initiatives to recognise Indigenous forests. The sources also mention a **9,700-hectare** conservation area beside Bukit Tigapuluh National Park intended to function as an endangered-species corridor. However, the evidence indicates that these measures have not yet offset habitat conversion, fragmentation, overexploitation and mining expansion. [Tropical Rainforest Loss Slowed in 2025, but Fire is a Growing Threat to Forests Worldwide](https://gfr.wri.org/latest-analysis-deforestation-trends) [Biodiversity / Indonesia | Interactive Country Fiches](https://dicf.unepgrid.ch/indonesia/biodiversity)\n\nIn summary, Indonesia’s hotspots remain exceptionally rich in endemic and threatened species, but their **effective conservation status is deteriorating**. The newest forest data show a 2025 rebound in primary-forest loss, while longer-term studies show expanding human pressure, shrinking species ranges, continuing agricultural conversion and rapidly increasing exposure to nickel mining. Comparisons should be made cautiously because the sources use different indicators and years: human-footprint data end in 2009, bird-range data in 2015, several forest assessments in 2020–2022, mining exposure in 2024 and primary-forest-loss data in 2025. The available sources did not contain a single, current, species-level status assessment for each of Indonesia’s two hotspots."
+}

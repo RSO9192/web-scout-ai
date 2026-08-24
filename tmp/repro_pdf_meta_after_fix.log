@@ -1,0 +1,24 @@
+[2026-08-24 15:26:16] INFO: Fetched (200) <GET https://openknowledge.fao.org/server/api/core/bitstreams/3323e50e-1875-491c-b4c0-3e47cbaae123/content> (referer: https://www.google.com/)
+INFO scrapling Fetched (200) <GET https://openknowledge.fao.org/server/api/core/bitstreams/3323e50e-1875-491c-b4c0-3e47cbaae123/content> (referer: https://www.google.com/)
+INFO docling.datamodel.document detected formats: [<InputFormat.PDF: 'pdf'>]
+INFO docling.document_converter Going to convert document batch...
+INFO docling.document_converter Initializing pipeline for StandardPdfPipeline with options hash e6fbac18a9e3157491cf865e108c4a5f
+INFO docling.models.factories.base_factory Loading plugin 'docling_defaults'
+INFO docling.models.factories Registered picture descriptions: ['picture_description_vlm_engine', 'vlm', 'api']
+INFO docling.models.factories.base_factory Loading plugin 'docling_defaults'
+INFO docling.models.factories Registered ocr engines: ['auto', 'easyocr', 'kserve_v2_ocr', 'ocrmac', 'rapidocr', 'tesserocr', 'tesseract']
+INFO docling.models.factories.base_factory Loading plugin 'docling_defaults'
+INFO docling.models.factories Registered layout engines: ['layout_object_detection', 'docling_layout_default', 'docling_experimental_table_crops_layout']
+INFO docling.utils.accelerator_utils Accelerator device: 'cpu'
+INFO docling.models.factories.base_factory Loading plugin 'docling_defaults'
+INFO docling.models.factories Registered table structure engines: ['docling_tableformer', 'docling_tableformer_v2']
+INFO docling.utils.accelerator_utils Accelerator device: 'cpu'
+INFO docling.pipeline.base_pipeline Processing document content
+INFO docling.document_converter Finished converting document content in 25.21 sec.
+INFO web_scout.tools.scraper [extract] extractor_outcome status=failure failure_kind=scraped_irrelevant url=https://openknowledge.fao.org/server/api/core/bitstreams/3323e50e-1875-491c-b4c0-3e47cbaae123/content
+
+
+bucket=scraped_irrelevant status=failure reference=''
+content:
+[No relevant content found for this query]
+

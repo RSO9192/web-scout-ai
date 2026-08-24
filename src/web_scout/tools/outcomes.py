@@ -92,9 +92,23 @@ def build_failure_outcome(
     content: str,
     count_scraped: Optional[int],
     failure_kind: str,
+    page_type: Literal["list", "content"] = "content",
+    links: Optional[list[str]] = None,
 ) -> ExtractorOutcome:
-    """Build a typed failure outcome and its legacy rendered text."""
+    """Build a typed failure outcome and its legacy rendered text.
+
+    ``links`` carries follow-up links from hub/list pages that held no direct
+    evidence themselves: the page is not citable, but the crawl must still be
+    able to deepen into its ranked links.
+    """
+    links = links or []
     rendered = f"No relevant content found at {url}: {content}"
+    if page_type == "list":
+        rendered += "\n" + RENDERED_LIST_PAGE_MARKER
+    if links:
+        rendered += RENDERED_RELEVANT_LINKS_HEADING + "\n".join(
+            f"- {link}" for link in links[: EXTRACTOR_HEURISTICS.max_rendered_relevant_links]
+        )
     if count_scraped is not None:
         rendered = _append_min_successful_scrape_reminder(rendered, count_scraped, force_other_urls=True)
     return ExtractorOutcome(
@@ -102,6 +116,8 @@ def build_failure_outcome(
         status="failure",
         rendered_text=rendered,
         content=content,
+        page_type=page_type,
+        relevant_links=links[: EXTRACTOR_HEURISTICS.max_rendered_relevant_links],
         failure_kind=failure_kind,
     )
 

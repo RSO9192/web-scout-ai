@@ -1,0 +1,192 @@
+{
+  "slug": "kenya-precip",
+  "query": "Kenya precipitation trends current status and recent trend",
+  "elapsed_s": 173.2,
+  "searches": [
+    "Kenya Meteorological Department latest rainfall outlook climate trends precipitation 2024 2025",
+    "Kenya current precipitation status rainfall trends 1981 2024 CHIRPS ERA5 scientific study",
+    "Kenya precipitation trends recent years 2020 2021 2022 2023 2024 climate report rainfall variability"
+  ],
+  "buckets": {
+    "scraped": [
+      {
+        "url": "https://meteo.go.ke/our-products/seasonal-forecast/ond-2025-seasonal-forecast/",
+        "title": "OND 2025 Seasonal Forecast",
+        "reference": "OND 2025 Seasonal Forecast",
+        "content_chars": 1218
+      },
+      {
+        "url": "https://www.sciencedirect.com/science/article/pii/S2214581825003222",
+        "title": "Increased water availability and high flows in an ungauged Kenyan catchment: A comprehensive SWAT+ model evaluation for climate change assessment",
+        "reference": "Increased water availability and high flows in an ungauged Kenyan catchment: A comprehensive SWAT+ model evaluation for climate change assessment",
+        "content_chars": 3416
+      },
+      {
+        "url": "https://climateknowledgeportal.worldbank.org/country/kenya",
+        "title": "Kenya - Country Overview | Climate Change Knowledge Portal",
+        "reference": "Kenya - Country Overview | Climate Change Knowledge Portal",
+        "content_chars": 982
+      },
+      {
+        "url": "https://journals.eanso.org/index.php/ajccrs/article/view/3239",
+        "title": "Climate Variability in Narok County of Kenya: A Temporal Analysis of Temperature and Rainfall",
+        "reference": "Climate Variability in Narok County of Kenya: A Temporal Analysis of Temperature and Rainfall",
+        "content_chars": 1472
+      },
+      {
+        "url": "https://meteo.go.ke/publications/state-of-the-climate-report-2024/",
+        "title": "State of the Climate Report (2024)",
+        "reference": "State of the Climate Report (2024)",
+        "content_chars": 1343
+      }
+    ],
+    "scraped_irrelevant": [
+      {
+        "url": "https://www.chc.ucsb.edu/data/chirps",
+        "title": "CHIRPS: Rainfall Estimates from Rain Gauge and Satellite ...",
+        "reference": "",
+        "content_chars": 68
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/",
+        "title": "Observations of enhanced rainfall variability in Kenya, East ...",
+        "reference": "",
+        "content_chars": 68
+      },
+      {
+        "url": "https://www.ncei.noaa.gov/access/monitoring/monthly-report/global/202413",
+        "title": "Monthly Climate Reports | Global Climate Report | Annual 2024",
+        "reference": "",
+        "content_chars": 68
+      },
+      {
+        "url": "https://www.preventionweb.net/media/101319/download",
+        "title": "[PDF] STATE OF THE CLIMATE KENYA 2023 - PreventionWeb.net",
+        "reference": "",
+        "content_chars": 68
+      }
+    ],
+    "scrape_failed": [
+      {
+        "url": "https://www.facebook.com/KenyaMeteorologicalDepartment/posts/%EF%B8%8F-kenya-climate-outlook-for-july-2025-review-of-june-2025-%EF%B8%8Fthe-july-2025-climate/1031055845874727/",
+        "title": "Kenya Climate Outlook for July 2025 & Review of June 2025 ... - Facebook",
+        "reference": "",
+        "content_chars": 48
+      }
+    ],
+    "blocked_by_policy": [],
+    "source_http_error": [],
+    "bot_detected": [],
+    "snippet_only": [
+      {
+        "url": "https://meteo.go.ke/our-products/seasonal-forecast/",
+        "title": "Seasonal Forecast - Kenya Meteorological Department",
+        "reference": "",
+        "content_chars": 121
+      },
+      {
+        "url": "https://www.cpc.ncep.noaa.gov/",
+        "title": "Climate Prediction Center",
+        "reference": "",
+        "content_chars": 148
+      },
+      {
+        "url": "https://www.icpac.net/seasonal-forecast/",
+        "title": "Seasonal forecast - ICPAC",
+        "reference": "",
+        "content_chars": 150
+      },
+      {
+        "url": "https://meteo.go.ke/",
+        "title": "Kenya Meteorological Department",
+        "reference": "",
+        "content_chars": 96
+      },
+      {
+        "url": "https://www.instagram.com/reel/C_amm_dgb9E/",
+        "title": "The launch event for our climate impact report on Kenya was a ...",
+        "reference": "",
+        "content_chars": 142
+      },
+      {
+        "url": "https://www.scribd.com/document/941257886/November-Kenya-Forecast",
+        "title": "November 2025 Rainfall Outlook Kenya | PDF | Rain | Vortices - Scribd",
+        "reference": "",
+        "content_chars": 144
+      },
+      {
+        "url": "https://meteo.go.ke/our-products/monthly-forecast/",
+        "title": "Monthly Forecast - Kenya Meteorological Department",
+        "reference": "",
+        "content_chars": 154
+      },
+      {
+        "url": "https://x.com/MeteoKenya?lang=en",
+        "title": "Kenya Meteorological Service Authority (@MeteoKenya) / Posts / X",
+        "reference": "",
+        "content_chars": 152
+      },
+      {
+        "url": "https://www.researchgate.net/figure/Seasonal-rainfall-trends-upper-map-based-on-CHIRPS-in-East-Africa-for-the-period-of_fig2_334999967",
+        "title": "Seasonal rainfall trends (upper map) based on CHIRPS in ...",
+        "reference": "",
+        "content_chars": 157
+      },
+      {
+        "url": "https://www.sciencedirect.com/science/article/pii/S2616651826002149",
+        "title": "CHIRPS v3.0 improvements in Caribbean Colombian",
+        "reference": "",
+        "content_chars": 179
+      },
+      {
+        "url": "https://link.springer.com/article/10.1007/s00703-024-01008-0",
+        "title": "Evaluation of ERA5 and CHIRPS rainfall estimates against ...",
+        "reference": "",
+        "content_chars": 180
+      },
+      {
+        "url": "https://ui.adsabs.harvard.edu/abs/2024MAP...136...17A/abstract",
+        "title": "Evaluation of ERA5 and CHIRPS rainfall estimates against ...",
+        "reference": "",
+        "content_chars": 195
+      },
+      {
+        "url": "https://earlywarning.usgs.gov/fews/product/598",
+        "title": "CHIRPS Seasonal Rainfall Accumulation - Mar-May",
+        "reference": "",
+        "content_chars": 163
+      },
+      {
+        "url": "https://www.nature.com/articles/s41597-026-07096-4",
+        "title": "The Climate Hazards Center Infrared Precipitation with ...",
+        "reference": "",
+        "content_chars": 166
+      },
+      {
+        "url": "https://www.mdpi.com/2225-1154/8/7/84",
+        "title": "Using the CHIRPS Dataset to Investigate Historical ...",
+        "reference": "",
+        "content_chars": 198
+      },
+      {
+        "url": "https://www.adaptation-undp.org/explore/africa/kenya",
+        "title": "Kenya - UNDP Climate Change Adaptation",
+        "reference": "",
+        "content_chars": 158
+      },
+      {
+        "url": "https://saspublishers.com/article/24042/download/",
+        "title": "[PDF] Temperature and Rainfall Variability in East Africa - SAS Publishers",
+        "reference": "",
+        "content_chars": 144
+      },
+      {
+        "url": "https://www.frontiersin.org/journals/climate/articles/10.3389/fclim.2024.1346677/full",
+        "title": "Examining climate trends and patterns and their implications for ... - Frontiers",
+        "reference": "",
+        "content_chars": 162
+      }
+    ]
+  },
+  "synthesis": "The available sources indicate that Kenya’s precipitation is highly variable by region and season, rather than following a uniform nationwide pattern. The latest national historical estimate provided is from ERA5: precipitation declined by 14.36 mm per decade from 1970 onward, indicating an overall drying trend, with mean annual precipitation of 681.66 mm during 1995–2014. This national figure does not capture substantial year-to-year or regional differences. [Kenya - Country Overview | Climate Change Knowledge Portal](https://climateknowledgeportal.worldbank.org/country/kenya)\n\nThe most recent observed national conditions described in the sources were mixed in 2024. Western Kenya and the central highlands received above-average rainfall, while most other areas were drier than normal. The March–May long-rains season produced severe flooding, whereas the October–December short-rains season was below average and worsened drought conditions toward the end of the year. [State of the Climate Report (2024)](https://meteo.go.ke/publications/state-of-the-climate-report-2024/)\n\nFor the late-2025 short-rains outlook, the Kenya Meteorological Department forecast generally drier-than-normal conditions across much of the country. Below-average rainfall was expected in most northeastern and southeastern lowlands and coastal areas, while near- to below-average rainfall was forecast for parts of the Rift Valley, the Lake Victoria region, the eastern highlands including Nairobi, and parts of the southeastern lowlands. Near- to above-average rainfall was expected mainly in the western highlands and parts of northwestern Kenya. The forecast attributed this pattern to a developing negative Indian Ocean Dipole, which the department states typically produces drier-than-normal conditions over East Africa. [OND 2025 Seasonal Forecast](https://meteo.go.ke/our-products/seasonal-forecast/ond-2025-seasonal-forecast/)\n\nA location-specific 2025 study of Narok County found a minimal 2% decline in long-term mean rainfall, but the decline was not statistically significant. Seasonal trends were also non-significant, while rainfall variability was high—particularly during October–December, when the coefficient of variation was 69.5%. The study detected a rainfall shift around 1964, after which average rainfall was largely below normal, but it cautions that the results are specific to Narok and should not be treated as a Kenya-wide trend. [Climate Variability in Narok County of Kenya: A Temporal Analysis of Temperature and Rainfall](https://journals.eanso.org/index.php/ajccrs/article/view/3239)\n\nOverall, the evidence supports three conclusions: Kenya has a longer-term national drying signal in the ERA5 record; recent conditions have been highly uneven, with wet long rains and dry short rains in 2024; and the latest supplied outlook pointed toward continued dryness in many regions during the 2025 short-rains season. The sources do not establish a statistically significant recent nationwide increase or decrease in observed precipitation beyond the ERA5 trend since 1970. The available sources did not contain a measured national precipitation trend for the latest months or for 2026. The Sand River Basin study projects future increases in annual precipitation, but these are model projections rather than observations of the current trend and apply to a 1,435 km² sub-catchment in Narok County rather than Kenya as a whole. [Increased water availability and high flows in an ungauged Kenyan catchment: A comprehensive SWAT+ model evaluation for climate change assessment](https://www.sciencedirect.com/science/article/pii/S2214581825003222)"
+}

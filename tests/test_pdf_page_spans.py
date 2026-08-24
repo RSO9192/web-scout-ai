@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import pytest
-
+from web_scout._pipeline_rules import _build_citation_slots, _resolve_slot_citations
 from web_scout.scraping._document import (
     PdfSection,
-    _PageBannerState,
     _infer_document_title,
     _layout_from_markdown,
     _page_end_banner,
     _page_start_banner,
+    _PageBannerState,
     _text_without_image_placeholders,
 )
 from web_scout.scraping.types import PdfDocumentLayout, PdfPageSpan, PdfSectionSpan
@@ -21,7 +20,6 @@ from web_scout.tools.pdf_extractor import (
     format_reference,
     pack_section_chunks,
 )
-from web_scout._pipeline_rules import _judge_synthesis, _pages_from_reference
 
 
 def test_page_banner_state_transitions():
@@ -138,27 +136,20 @@ def test_pack_section_chunks_packs_and_splits():
     assert all(len(chunk[2]) <= 200 for chunk in packed)
 
 
-def test_pages_from_reference_parses_spans():
-    assert _pages_from_reference("Crop Prospects, pp. 3–7, 12") == {3, 4, 5, 6, 7, 12}
-    assert _pages_from_reference("Title, p. 4") == {4}
+def test_pdf_reference_page_span_becomes_citation_link_text():
+    """A PDF entry's reference (with page span) is rendered as the resolved link text."""
+    from web_scout.models import UrlEntry
 
-
-def test_judge_requires_page_span_for_pdf_references():
-    from web_scout.tools.tracker import ResearchTracker
-
-    url = "https://fao.org/report.pdf"
-    valid = {url}
-    pdf_refs = {ResearchTracker.normalize_url(url): "Crop Prospects, pp. 3–7"}
-    clean = "Fact [Crop Prospects, pp. 3–5](https://fao.org/report.pdf)."
-    assert _judge_synthesis(clean, valid, pdf_references=pdf_refs) == []
-
-    missing = "Fact [Crop Prospects](https://fao.org/report.pdf)."
-    issues = _judge_synthesis(missing, valid, pdf_references=pdf_refs)
-    assert any("missing page span" in i.lower() for i in issues)
-
-    bad = "Fact [Crop Prospects, pp. 3–9](https://fao.org/report.pdf)."
-    issues = _judge_synthesis(bad, valid, pdf_references=pdf_refs)
-    assert any("not in the source reference" in i.lower() for i in issues)
+    entry = UrlEntry(
+        url="https://fao.org/report.pdf",
+        title="Crop Prospects",
+        reference="Crop Prospects, pp. 3–7",
+        content="x",
+    )
+    slots = _build_citation_slots([entry])
+    resolved, unknown = _resolve_slot_citations("Fact [S1].", slots)
+    assert resolved == "Fact [Crop Prospects, pp. 3–7](https://fao.org/report.pdf)."
+    assert unknown == []
 
 
 def test_url_entry_reference_field():

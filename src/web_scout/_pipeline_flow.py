@@ -3,7 +3,6 @@
 import asyncio
 import logging
 import os
-import re
 from collections import OrderedDict
 from typing import Any, Optional
 from urllib.parse import urlparse
@@ -15,6 +14,7 @@ from web_scout.config import FOLLOWUP_HEURISTICS
 
 from ._extractor_contract import ExtractorOutcome
 from ._pipeline_rules import (
+    _build_citation_slots,
     _build_coverage_prompt,
     _build_query_generation_prompt,
     _build_synth_prompt,
@@ -23,9 +23,9 @@ from ._pipeline_rules import (
     _find_next_page_url,
     _is_domain_mode_candidate,
     _is_promising_followup_url,
-    _judge_synthesis,
     _normalize_domain,
     _rank_followup_candidates,
+    _resolve_slot_citations,
 )
 from ._pipeline_types import (
     CoverageEvaluation,
@@ -881,12 +881,7 @@ async def _synthesise_result(
         instructions=SYNTHESISER_INSTRUCTIONS,
         model_settings=ModelSettings(reasoning=Reasoning(effort="high")),
     )
-    valid_urls = {entry.url for entry in scraped}
-    pdf_references = {
-        ResearchTracker.normalize_url(entry.url): entry.reference
-        for entry in scraped
-        if entry.reference and re.search(r"\bpp?\.", entry.reference, re.IGNORECASE)
-    }
+    slots = _build_citation_slots(scraped)
 
     if bot_detected:
         logger.info(
@@ -908,18 +903,14 @@ async def _synthesise_result(
         logger.error("[pipeline] synthesis failed: %s", exc)
         output = WebResearchResultRaw(synthesis=f"Synthesis failed: {exc}")
 
-    logger.info("[pipeline] running deterministic synthesis judge")
-    issues = _judge_synthesis(output.synthesis, valid_urls, pdf_references=pdf_references)
-    if issues and output.synthesis and not output.synthesis.startswith("Synthesis failed"):
-        for issue in issues:
-            logger.warning("[pipeline] judge issue: %s", issue)
-        logger.warning("[pipeline] retrying synthesis due to %d issue(s)", len(issues))
-
+    resolved, unknown_ids = _resolve_slot_citations(output.synthesis, slots)
+    if unknown_ids and output.synthesis and not output.synthesis.startswith("Synthesis failed"):
+        logger.warning("[pipeline] retrying synthesis: unknown source id(s) cited: %s", unknown_ids)
+        valid_ids = ", ".join(slots) if slots else "(none — no scraped sources, cite nothing)"
         feedback = (
-            "Your synthesis has the following citation issues that must be fixed:\n"
-            + "\n".join(f"- {issue}" for issue in issues)
-            + "\n\nPlease rewrite the synthesis fixing all issues. "
-            "Keep all factual content unchanged."
+            "Your synthesis cites unknown source ids: " + ", ".join(unknown_ids) + ". "
+            f"The only valid source ids are: {valid_ids}.\n"
+            "Rewrite the synthesis citing only valid ids. Keep all factual content unchanged."
         )
         retry_prompt = synth_prompt + f"\n\nPrevious attempt:\n{output.synthesis}\n\n{feedback}"
         try:
@@ -927,8 +918,13 @@ async def _synthesise_result(
             output = synth_res2.final_output_as(WebResearchResultRaw)
         except Exception as exc:
             logger.error("[pipeline] synthesis retry failed: %s", exc)
-    elif not issues and output.synthesis and not output.synthesis.startswith("Synthesis failed"):
-        logger.info("[pipeline] synthesis passed judge with 0 issues")
+        resolved, unknown_ids = _resolve_slot_citations(output.synthesis, slots)
+        if unknown_ids:
+            logger.warning(
+                "[pipeline] unknown source id(s) still cited after retry, left as plain text: %s",
+                unknown_ids,
+            )
+    output.synthesis = resolved
 
     logger.info(
         "[pipeline] done scraped=%d failed=%d blocked=%d source_http=%d irrelevant=%d "

@@ -1,0 +1,16 @@
+[2026-08-24 14:50:10] INFO: Fetched (200) <GET https://www.fao.org/faostat/en/> (referer: https://www.google.com/)
+INFO:scrapling:Fetched (200) <GET https://www.fao.org/faostat/en/> (referer: https://www.google.com/)
+[2026-08-24 14:50:13] ERROR: No Cloudflare challenge found.
+ERROR:scrapling:No Cloudflare challenge found.
+[2026-08-24 14:50:14] INFO: Fetched (200) <GET https://www.fao.org/faostat/en/#home> (referer: https://www.google.com/)
+INFO:scrapling:Fetched (200) <GET https://www.fao.org/faostat/en/#home> (referer: https://www.google.com/)
+[2026-08-24 14:50:18] INFO: Fetched (200) <GET https://www.fao.org/faostat/en/> (referer: https://www.google.com/)
+INFO:scrapling:Fetched (200) <GET https://www.fao.org/faostat/en/> (referer: https://www.google.com/)
+[2026-08-24 14:50:19] ERROR: No Cloudflare challenge found.
+ERROR:scrapling:No Cloudflare challenge found.
+[2026-08-24 14:50:20] INFO: Fetched (200) <GET https://www.fao.org/faostat/en/#home> (referer: https://www.google.com/)
+INFO:scrapling:Fetched (200) <GET https://www.fao.org/faostat/en/#home> (referer: https://www.google.com/)
+
+run_1: has_evidence=False page_type=list links=6 bucket=scraped_irrelevant
+run_2: has_evidence=False page_type=list links=3 bucket=scraped_irrelevant
+

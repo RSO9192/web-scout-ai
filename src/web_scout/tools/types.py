@@ -37,6 +37,15 @@ class ExtractorOutput(BaseModel):
         default="",
         description="Title of the page or document.",
     )
+    has_evidence: bool = Field(
+        default=True,
+        description=(
+            "False when the page contains no facts that answer the research query. "
+            "Statements about where the answer might be found, or descriptions of "
+            "what the page links to, are NOT evidence. relevant_links may still be "
+            "returned when has_evidence is false."
+        ),
+    )
     relevant_content: str = Field(
         description=(
             "Comprehensive extraction from the page that directly answers the research query. "

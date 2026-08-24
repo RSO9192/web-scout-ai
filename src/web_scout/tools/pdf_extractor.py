@@ -26,6 +26,23 @@ _EVIDENCE_CONCURRENCY = 3
 _NO_RELEVANT = "[No relevant content found for this query]"
 _PAGE_START_RE = re.compile(r"^========== page (\d+) start ==========$")
 
+_NO_EVIDENCE_RULE = (
+    "If the document contains no facts that answer the research query — "
+    "including when the query asks about a specific country or region the "
+    "document does not cover — set has_evidence to false. Generic guidance, "
+    "methodology, definitions, or 'how to assess' content is not evidence. "
+)
+
+
+def _guidance_block(extractor_guidance: Optional[str]) -> str:
+    """Render optional application guidance for PDF prompts (never overrides base rules)."""
+    if not extractor_guidance:
+        return ""
+    return (
+        "\nApplication-specific guidance (must not override the rules above):\n"
+        f"{extractor_guidance}\n"
+    )
+
 
 class PdfEvidenceItem(BaseModel):
     text: str = Field(description="Evidence snippet relevant to the research query.")
@@ -34,6 +51,14 @@ class PdfEvidenceItem(BaseModel):
 
 
 class PdfExtractResult(BaseModel):
+    has_evidence: bool = Field(
+        default=True,
+        description=(
+            "False when the document contains no facts that answer the research "
+            "query. Generic guidance, methodology, or definitions about the "
+            "query topic are not evidence."
+        ),
+    )
     relevant_content: str = Field(
         description=(
             "Narrative extract answering the research query. Tag each fact with "
@@ -266,6 +291,7 @@ async def _extract_chunk_evidence(
     document_summary: str,
     heading_path: str,
     chunk_markdown: str,
+    extractor_guidance: Optional[str] = None,
 ) -> list[PdfEvidenceItem]:
     prompt = (
         f"Research query: {query}\n\n"
@@ -277,6 +303,9 @@ async def _extract_chunk_evidence(
         "Extract ONLY query-relevant evidence from this section. "
         "Do NOT write a section answer. For each evidence item, set page_start "
         "and page_end to physical page numbers from the banners. "
+        "Return an empty evidence list when the section holds no facts that "
+        "answer the query; generic guidance or methodology is not evidence. "
+        f"{_guidance_block(extractor_guidance)}"
         'Return JSON: {"evidence":[{"text":"...","page_start":1,"page_end":1}]}'
     )
 
@@ -298,6 +327,7 @@ async def _final_answer_from_evidence(
     query: str,
     document_title: str,
     evidence: list[PdfEvidenceItem],
+    extractor_guidance: Optional[str] = None,
 ) -> PdfExtractResult:
     payload = [
         {"text": item.text, "page_start": item.page_start, "page_end": item.page_end}
@@ -309,8 +339,10 @@ async def _final_answer_from_evidence(
         f"Evidence items:\n{json.dumps(payload, ensure_ascii=False, indent=2)}\n\n"
         "Answer the research query using ONLY these evidence items. "
         "Tag each fact with [pp. X–Y] or [p. X] matching the evidence pages. "
+        f"{_NO_EVIDENCE_RULE}"
+        f"{_guidance_block(extractor_guidance)}"
         "Return JSON matching "
-        '{"relevant_content":"...","evidence":[{"text":"...","page_start":1,"page_end":1}]} '
+        '{"has_evidence":true,"relevant_content":"...","evidence":[{"text":"...","page_start":1,"page_end":1}]} '
         "where evidence is the subset you relied on."
     )
     result = await _llm_json(model, prompt, PdfExtractResult)
@@ -324,6 +356,7 @@ async def _short_path_extract(
     query: str,
     document_title: str,
     markdown: str,
+    extractor_guidance: Optional[str] = None,
 ) -> PdfExtractResult:
     prompt = (
         f"Research query: {query}\n"
@@ -334,8 +367,10 @@ async def _short_path_extract(
         "Extract all facts that answer the research query. "
         "Every fact MUST cite physical pages present in the markdown using "
         "[pp. X–Y] or [p. X]. Do not invent pages. "
+        f"{_NO_EVIDENCE_RULE}"
+        f"{_guidance_block(extractor_guidance)}"
         "Return JSON matching "
-        '{"relevant_content":"...","evidence":[{"text":"...","page_start":1,"page_end":1}]}'
+        '{"has_evidence":true,"relevant_content":"...","evidence":[{"text":"...","page_start":1,"page_end":1}]}'
     )
     result = await _llm_json(model, prompt, PdfExtractResult)
     assert isinstance(result, PdfExtractResult)
@@ -379,6 +414,7 @@ async def extract_pdf_for_query(
     model: Any,
     short_pdf_max_chars: int = ROUTING_HEURISTICS.short_pdf_max_chars,
     verify_pdf_claims: bool = ROUTING_HEURISTICS.verify_pdf_claims,
+    extractor_guidance: Optional[str] = None,
 ) -> tuple[str, str, list[int]]:
     """Extract query-focused PDF content with page references.
 
@@ -397,6 +433,7 @@ async def extract_pdf_for_query(
                 query=query,
                 document_title=title,
                 markdown=markdown,
+                extractor_guidance=extractor_guidance,
             )
         else:
             summary = await _summarize_document(model=model, layout=layout)
@@ -412,6 +449,7 @@ async def extract_pdf_for_query(
                         document_summary=summary,
                         heading_path=heading_path,
                         chunk_markdown=chunk_md,
+                        extractor_guidance=extractor_guidance,
                     )
 
             evidence_lists = await asyncio.gather(*[_one(chunk) for chunk in chunks])
@@ -424,10 +462,15 @@ async def extract_pdf_for_query(
                 query=query,
                 document_title=title,
                 evidence=all_evidence,
+                extractor_guidance=extractor_guidance,
             )
     except Exception as exc:
         logger.error("[pdf-extract] extraction failed: %s", exc)
         return title, f"[Scrape failed: PDF extraction error: {exc}]", []
+
+    if not result.has_evidence:
+        logger.info("[pdf-extract] has_evidence=false for %r", title)
+        return title, _NO_RELEVANT, []
 
     evidence = filter_evidence_by_layout(result.evidence, layout)
     if verify_pdf_claims:

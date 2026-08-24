@@ -1,0 +1,31 @@
+[2026-08-24 14:24:43] INFO: Fetched (200) <GET https://www.fao.org/faostat/en/> (referer: https://www.google.com/)
+INFO:scrapling:Fetched (200) <GET https://www.fao.org/faostat/en/> (referer: https://www.google.com/)
+[2026-08-24 14:24:46] ERROR: No Cloudflare challenge found.
+ERROR:scrapling:No Cloudflare challenge found.
+[2026-08-24 14:24:47] INFO: Fetched (200) <GET https://www.fao.org/faostat/en/#home> (referer: https://www.google.com/)
+INFO:scrapling:Fetched (200) <GET https://www.fao.org/faostat/en/#home> (referer: https://www.google.com/)
+[2026-08-24 14:24:51] INFO: Fetched (200) <GET https://www.fao.org/faostat/en/> (referer: https://www.google.com/)
+INFO:scrapling:Fetched (200) <GET https://www.fao.org/faostat/en/> (referer: https://www.google.com/)
+[2026-08-24 14:24:52] ERROR: No Cloudflare challenge found.
+ERROR:scrapling:No Cloudflare challenge found.
+[2026-08-24 14:24:53] INFO: Fetched (200) <GET https://www.fao.org/faostat/en/#home> (referer: https://www.google.com/)
+INFO:scrapling:Fetched (200) <GET https://www.fao.org/faostat/en/#home> (referer: https://www.google.com/)
+[2026-08-24 14:24:55] INFO: Fetched (200) <GET https://www.fao.org/faostat/en/> (referer: https://www.google.com/)
+INFO:scrapling:Fetched (200) <GET https://www.fao.org/faostat/en/> (referer: https://www.google.com/)
+[2026-08-24 14:24:56] ERROR: No Cloudflare challenge found.
+ERROR:scrapling:No Cloudflare challenge found.
+[2026-08-24 14:24:58] INFO: Fetched (200) <GET https://www.fao.org/faostat/en/#home> (referer: https://www.google.com/)
+INFO:scrapling:Fetched (200) <GET https://www.fao.org/faostat/en/#home> (referer: https://www.google.com/)
+[2026-08-24 14:25:01] INFO: Fetched (200) <GET https://www.fao.org/faostat/en/> (referer: https://www.google.com/)
+INFO:scrapling:Fetched (200) <GET https://www.fao.org/faostat/en/> (referer: https://www.google.com/)
+[2026-08-24 14:25:02] ERROR: No Cloudflare challenge found.
+ERROR:scrapling:No Cloudflare challenge found.
+[2026-08-24 14:25:03] INFO: Fetched (200) <GET https://www.fao.org/faostat/en/#home> (referer: https://www.google.com/)
+INFO:scrapling:Fetched (200) <GET https://www.fao.org/faostat/en/#home> (referer: https://www.google.com/)
+
+with_guidance_1: bucket=scraped page_type=list sentinel=False links=8
+with_guidance_2: bucket=scraped_irrelevant page_type=content sentinel=True links=0
+no_guidance_1: bucket=scraped page_type=list sentinel=False links=6
+no_guidance_2: bucket=scraped page_type=list sentinel=False links=10
+Saved: /Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tmp/repro_hub_relevance2.result.json
+

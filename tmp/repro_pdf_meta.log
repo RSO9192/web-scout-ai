@@ -1,0 +1,24 @@
+[2026-08-24 15:14:06] INFO: Fetched (200) <GET https://openknowledge.fao.org/server/api/core/bitstreams/3323e50e-1875-491c-b4c0-3e47cbaae123/content> (referer: https://www.google.com/)
+INFO scrapling Fetched (200) <GET https://openknowledge.fao.org/server/api/core/bitstreams/3323e50e-1875-491c-b4c0-3e47cbaae123/content> (referer: https://www.google.com/)
+INFO docling.datamodel.document detected formats: [<InputFormat.PDF: 'pdf'>]
+INFO docling.document_converter Going to convert document batch...
+INFO docling.document_converter Initializing pipeline for StandardPdfPipeline with options hash e6fbac18a9e3157491cf865e108c4a5f
+INFO docling.models.factories.base_factory Loading plugin 'docling_defaults'
+INFO docling.models.factories Registered picture descriptions: ['picture_description_vlm_engine', 'vlm', 'api']
+INFO docling.models.factories.base_factory Loading plugin 'docling_defaults'
+INFO docling.models.factories Registered ocr engines: ['auto', 'easyocr', 'kserve_v2_ocr', 'ocrmac', 'rapidocr', 'tesserocr', 'tesseract']
+INFO docling.models.factories.base_factory Loading plugin 'docling_defaults'
+INFO docling.models.factories Registered layout engines: ['layout_object_detection', 'docling_layout_default', 'docling_experimental_table_crops_layout']
+INFO docling.utils.accelerator_utils Accelerator device: 'cpu'
+INFO docling.models.factories.base_factory Loading plugin 'docling_defaults'
+INFO docling.models.factories Registered table structure engines: ['docling_tableformer', 'docling_tableformer_v2']
+INFO docling.utils.accelerator_utils Accelerator device: 'cpu'
+INFO docling.pipeline.base_pipeline Processing document content
+INFO docling.document_converter Finished converting document content in 25.23 sec.
+INFO web_scout.tools.scraper [extract] pdf_extractor_outcome status=success pages=[19, 24, 27, 28, 65, 66, 70, 76] url=https://openknowledge.fao.org/server/api/core/bitstreams/3323e50e-1875-491c-b4c0-3e47cbaae123/content
+
+
+bucket=scraped status=success reference='guidelines, pp. 19, 24, 27–28, 65–66, 70, 76'
+content:
+The evidence does not provide Somalia-specific data or a dated assessment of current access to livestock processing or animal-health services. Therefore, Somalia’s present status and recent trend cannot be established from these guidelines alone. The guidelines indicate that small-scale livestock producers commonly face restricted access to markets and related services, limited capacities, poor-quality inputs such as veterinary drugs, inadequate expertise, high transaction costs, and low sanitary standards [p. 19]. They identify livestock processing as including aggregation, slaughter, transformation, storage, refrigeration, and distribution, with facilities such as abattoirs, milk tanks, dairy plants, and tanneries potentially crucial to the value chain [pp. 27–28]. Access is also shaped by infrastructure—including roads, transport, cold chains, markets, ports, electricity, and ICT—which affects processing and distribution [pp. 65–66]. For animal health, the guidelines recommend assessing the availability and reliability of veterinary drugs, vaccines, acaricides, insecticides, and other treatments, as well as identifying whether services are provided by public, private, or community-based providers [p. 70]. They also stress that veterinary care is needed to maintain production, prevent losses, and reduce zoonotic disease transmission [p. 27]. Recent trends should be measured using production and market volumes, prices, employment, output, and growth rates over time; the value-chain map can depict both the current situation and changes at each link [p. 76].
+

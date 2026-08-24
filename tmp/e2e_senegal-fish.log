@@ -1,0 +1,91 @@
+2026-08-24 14:55:00,186 INFO web_scout.agent [pipeline] start  query='Senegal marine fisheries catch trends current status and recent trend'  backend=serper mode=open depth=standard
+2026-08-24 14:55:00,187 INFO web_scout.agent [pipeline] starting search iteration 1
+2026-08-24 14:55:01,884 INFO web_scout.agent [pipeline] generated 3 queries: ['Senegal marine fisheries catch trends 2015 2024 current status official statistics FAO', 'Senegal fisheries landings recent trend 2020 2024 marine catch species stock status report', 'Senegal marine fish catch data Sea Around Us FAO annual landings 2000 2023']
+2026-08-24 14:55:03,801 INFO web_scout.agent [pipeline] selected 6 new URLs to scrape
+[2026-08-24 14:55:04] INFO: Fetched (200) <GET https://www.fisheries.noaa.gov/national/population-assessments/fishery-stock-status-updates> (referer: https://www.google.com/)
+2026-08-24 14:55:04,129 INFO scrapling Fetched (200) <GET https://www.fisheries.noaa.gov/national/population-assessments/fishery-stock-status-updates> (referer: https://www.google.com/)
+[2026-08-24 14:55:04] INFO: Fetched (200) <GET https://www.fao.org/publications/fao-flagship-publications/the-state-of-world-fisheries-and-aquaculture/en> (referer: https://www.google.com/)
+2026-08-24 14:55:04,130 INFO scrapling Fetched (200) <GET https://www.fao.org/publications/fao-flagship-publications/the-state-of-world-fisheries-and-aquaculture/en> (referer: https://www.google.com/)
+2026-08-24 14:55:04,175 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=47248 linked_doc=False interaction=False shape=content_page doc_links=99 metadata_markers=2 url=https://www.fisheries.noaa.gov/national/population-assessments/fishery-stock-status-updates
+2026-08-24 14:55:04,193 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=18738 linked_doc=False interaction=False shape=content_page doc_links=16 metadata_markers=2 url=https://www.fao.org/publications/fao-flagship-publications/the-state-of-world-fisheries-and-aquaculture/en
+[2026-08-24 14:55:04] INFO: Fetched (200) <GET https://www.fao.org/fishery/statistics/yearbook/en> (referer: https://www.google.com/)
+2026-08-24 14:55:04,436 INFO scrapling Fetched (200) <GET https://www.fao.org/fishery/statistics/yearbook/en> (referer: https://www.google.com/)
+2026-08-24 14:55:04,446 INFO web_scout.tools.extractor [extract] extractor_agent tools=['list_interactive_elements', 'click_element'] chars=1639 linked_doc=False interaction=True shape=content_page doc_links=0 metadata_markers=0 url=https://www.fao.org/fishery/statistics/yearbook/en
+[2026-08-24 14:55:05] INFO: Fetched (200) <GET https://www.seaaroundus.org/tag/fao/page/5/> (referer: https://www.google.com/)
+2026-08-24 14:55:05,024 INFO scrapling Fetched (200) <GET https://www.seaaroundus.org/tag/fao/page/5/> (referer: https://www.google.com/)
+2026-08-24 14:55:05,037 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=31814 linked_doc=False interaction=False shape=content_page doc_links=0 metadata_markers=7 url=https://www.seaaroundus.org/tag/fao/page/5/
+[2026-08-24 14:55:05] INFO: Fetched (200) <GET https://www.iss-foundation.org/tuna-stocks-and-management/our-tuna-stock-tools/status-of-the-stocks/> (referer: https://www.google.com/)
+2026-08-24 14:55:05,251 INFO scrapling Fetched (200) <GET https://www.iss-foundation.org/tuna-stocks-and-management/our-tuna-stock-tools/status-of-the-stocks/> (referer: https://www.google.com/)
+2026-08-24 14:55:05,284 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=49866 linked_doc=False interaction=False shape=content_page doc_links=2 metadata_markers=4 url=https://www.iss-foundation.org/tuna-stocks-and-management/our-tuna-stock-tools/status-of-the-stocks/
+[2026-08-24 14:55:05] INFO: Fetched (200) <GET https://www.seaaroundus.org/catch-reconstruction-and-allocation-methods/> (referer: https://www.google.com/)
+2026-08-24 14:55:05,351 INFO scrapling Fetched (200) <GET https://www.seaaroundus.org/catch-reconstruction-and-allocation-methods/> (referer: https://www.google.com/)
+2026-08-24 14:55:05,393 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=60187 linked_doc=False interaction=False shape=content_page doc_links=3 metadata_markers=10 url=https://www.seaaroundus.org/catch-reconstruction-and-allocation-methods/
+2026-08-24 14:55:05,564 INFO web_scout.tools.scraper [extract] extractor_outcome status=failure failure_kind=scraped_irrelevant url=https://www.fisheries.noaa.gov/national/population-assessments/fishery-stock-status-updates
+2026-08-24 14:55:05,713 INFO web_scout.tools.extractor [extract-tool] sub-agent calling list_interactive_elements for https://www.fao.org/fishery/statistics/yearbook/en
+2026-08-24 14:55:06,444 INFO web_scout.tools.scraper [extract] extractor_outcome status=failure failure_kind=scraped_irrelevant url=https://www.fao.org/publications/fao-flagship-publications/the-state-of-world-fisheries-and-aquaculture/en
+2026-08-24 14:55:08,313 INFO web_scout.tools.scraper [extract] extractor_outcome status=failure failure_kind=scraped_irrelevant url=https://www.iss-foundation.org/tuna-stocks-and-management/our-tuna-stock-tools/status-of-the-stocks/
+2026-08-24 14:55:08,384 INFO web_scout.tools.scraper [extract] extractor_outcome status=failure failure_kind=scraped_irrelevant url=https://www.seaaroundus.org/catch-reconstruction-and-allocation-methods/
+2026-08-24 14:55:09,652 INFO web_scout.tools.scraper [extract] extractor_outcome status=success page_type=list links=7 url=https://www.seaaroundus.org/tag/fao/page/5/
+2026-08-24 14:55:11,859 INFO web_scout.tools.extractor [extract-tool] sub-agent calling click_element(1) for https://www.fao.org/fishery/statistics/yearbook/en
+2026-08-24 14:55:13,748 INFO web_scout.tools.scraper [extract] extractor_outcome status=failure failure_kind=scraped_irrelevant url=https://www.fao.org/fishery/statistics/yearbook/en
+2026-08-24 14:55:17,497 INFO web_scout.agent [pipeline] coverage evaluation: fully_answered=False, gaps='The scraped content does not provide Senegal-specific catch totals, an annual time series, or a recent/current catch trend. It only documents 2013 concerns about under-reporting and IUU fishing, plus species names without catch values. It also lacks quantitative evidence on current stock status, recent changes, or the relative contributions of artisanal and industrial fisheries.', needs_new_searches=False, promising_urls=7
+2026-08-24 14:55:17,497 INFO web_scout.agent [pipeline] starting search iteration 2
+2026-08-24 14:55:17,497 INFO web_scout.agent [pipeline] skipping search; scraping 4 evaluator-selected backlog URLs
+[2026-08-24 14:55:17] INFO: Fetched (403) <GET https://www.sciencedirect.com/science/article/pii/S0308597X24004470> (referer: https://www.google.com/)
+2026-08-24 14:55:17,625 INFO scrapling Fetched (403) <GET https://www.sciencedirect.com/science/article/pii/S0308597X24004470> (referer: https://www.google.com/)
+2026-08-24 14:55:17,626 INFO web_scout.scraping._fetcher [fetcher] falling back to StealthyFetcher (HTTP 403) url=https://www.sciencedirect.com/science/article/pii/S0308597X24004470
+[2026-08-24 14:55:17] INFO: Fetched (403) <GET https://www.alr-journal.org/articles/alr/full_html/2018/01/alr170033/alr170033.html> (referer: https://www.google.com/)
+2026-08-24 14:55:17,688 INFO scrapling Fetched (403) <GET https://www.alr-journal.org/articles/alr/full_html/2018/01/alr170033/alr170033.html> (referer: https://www.google.com/)
+2026-08-24 14:55:17,689 INFO web_scout.scraping._fetcher [fetcher] falling back to StealthyFetcher (HTTP 403) url=https://www.alr-journal.org/articles/alr/full_html/2018/01/alr170033/alr170033.html
+[2026-08-24 14:55:18] INFO: Fetched (200) <GET https://www.seaaroundus.org/data/> (referer: https://www.google.com/)
+2026-08-24 14:55:18,183 INFO scrapling Fetched (200) <GET https://www.seaaroundus.org/data/> (referer: https://www.google.com/)
+2026-08-24 14:55:18,192 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=1612 linked_doc=False interaction=False shape=content_page doc_links=0 metadata_markers=1 url=https://www.seaaroundus.org/data/
+2026-08-24 14:55:18,483 INFO web_scout.scraping._stealth_session [stealth-session] new browser session for www.sciencedirect.com
+2026-08-24 14:55:18,490 INFO web_scout.scraping._stealth_session [stealth-session] new browser session for www.alr-journal.org
+2026-08-24 14:55:19,555 INFO web_scout.tools.scraper [extract] extractor_outcome status=failure failure_kind=scraped_irrelevant url=https://www.seaaroundus.org/data/
+[2026-08-24 14:55:20] INFO: The turnstile version discovered is "interactive"
+2026-08-24 14:55:20,182 INFO scrapling The turnstile version discovered is "interactive"
+[2026-08-24 14:55:20] ERROR: No Cloudflare challenge found.
+2026-08-24 14:55:20,655 ERROR scrapling No Cloudflare challenge found.
+[2026-08-24 14:55:21] INFO: Fetched (403) <GET https://www.alr-journal.org/articles/alr/full_html/2018/01/alr170033/alr170033.html> (referer: https://www.google.com/)
+2026-08-24 14:55:21,661 INFO scrapling Fetched (403) <GET https://www.alr-journal.org/articles/alr/full_html/2018/01/alr170033/alr170033.html> (referer: https://www.google.com/)
+2026-08-24 14:55:21,668 INFO web_scout.tools.scraper [extract] source_http_error https://www.alr-journal.org/articles/alr/full_html/2018/01/alr170033/alr170033.html
+2026-08-24 14:55:21,668 INFO web_scout.tools.scraper [extract] extractor_outcome status=failure failure_kind=source_http_error url=https://www.alr-journal.org/articles/alr/full_html/2018/01/alr170033/alr170033.html
+[2026-08-24 14:55:32] INFO: Fetched (200) <GET https://apps.fas.usda.gov/newgainapi/api/Report/DownloadReportByFileName?fileName=Fisheries%20and%20Aquaculture%20in%20Senegal_Dakar_Senegal_SG2022-0015.pdf> (referer: https://www.google.com/)
+2026-08-24 14:55:32,149 INFO scrapling Fetched (200) <GET https://apps.fas.usda.gov/newgainapi/api/Report/DownloadReportByFileName?fileName=Fisheries%20and%20Aquaculture%20in%20Senegal_Dakar_Senegal_SG2022-0015.pdf> (referer: https://www.google.com/)
+2026-08-24 14:55:34,853 INFO docling.datamodel.document detected formats: [<InputFormat.PDF: 'pdf'>]
+2026-08-24 14:55:34,885 INFO docling.document_converter Going to convert document batch...
+2026-08-24 14:55:34,885 INFO docling.document_converter Initializing pipeline for StandardPdfPipeline with options hash e6fbac18a9e3157491cf865e108c4a5f
+2026-08-24 14:55:34,892 INFO docling.models.factories.base_factory Loading plugin 'docling_defaults'
+2026-08-24 14:55:34,893 INFO docling.models.factories Registered picture descriptions: ['picture_description_vlm_engine', 'vlm', 'api']
+2026-08-24 14:55:34,896 INFO docling.models.factories.base_factory Loading plugin 'docling_defaults'
+2026-08-24 14:55:34,900 INFO docling.models.factories Registered ocr engines: ['auto', 'easyocr', 'kserve_v2_ocr', 'ocrmac', 'rapidocr', 'tesserocr', 'tesseract']
+2026-08-24 14:55:34,934 INFO docling.models.factories.base_factory Loading plugin 'docling_defaults'
+2026-08-24 14:55:34,935 INFO docling.models.factories Registered layout engines: ['layout_object_detection', 'docling_layout_default', 'docling_experimental_table_crops_layout']
+2026-08-24 14:55:34,940 INFO docling.utils.accelerator_utils Accelerator device: 'cpu'
+[2026-08-24 14:55:35] INFO: Cloudflare page didn't disappear after 10s, continuing...
+2026-08-24 14:55:35,032 INFO scrapling Cloudflare page didn't disappear after 10s, continuing...
+[2026-08-24 14:55:35] INFO: Looks like Cloudflare captcha is still present, solving again
+2026-08-24 14:55:35,067 INFO scrapling Looks like Cloudflare captcha is still present, solving again
+[2026-08-24 14:55:35] INFO: The turnstile version discovered is "interactive"
+2026-08-24 14:55:35,114 INFO scrapling The turnstile version discovered is "interactive"
+2026-08-24 14:55:35,413 INFO docling.models.factories.base_factory Loading plugin 'docling_defaults'
+2026-08-24 14:55:35,415 INFO docling.models.factories Registered table structure engines: ['docling_tableformer', 'docling_tableformer_v2']
+2026-08-24 14:55:35,613 INFO docling.utils.accelerator_utils Accelerator device: 'cpu'
+2026-08-24 14:55:36,002 INFO docling.pipeline.base_pipeline Processing document DownloadReportByFileName
+[2026-08-24 14:55:36] WARNING: Attempt 1 failed: Page.content: Unable to retrieve content because the page is navigating and changing the content.. Retrying in 1s...
+2026-08-24 14:55:36,343 WARNING scrapling Attempt 1 failed: Page.content: Unable to retrieve content because the page is navigating and changing the content.. Retrying in 1s...
+2026-08-24 14:55:46,217 INFO docling.document_converter Finished converting document DownloadReportByFileName in 11.36 sec.
+2026-08-24 14:56:23,534 INFO web_scout.tools.scraper [extract] pdf_extractor_outcome status=success pages=[2, 3, 4, 7, 16] url=https://apps.fas.usda.gov/newgainapi/api/Report/DownloadReportByFileName?fileName=Fisheries%20and%20Aquaculture%20in%20Senegal_Dakar_Senegal_SG2022-0015.pdf
+[2026-08-24 14:56:42] ERROR: No Cloudflare challenge found.
+2026-08-24 14:56:42,807 ERROR scrapling No Cloudflare challenge found.
+[2026-08-24 14:57:43] INFO: Fetched (200) <GET https://www.sciencedirect.com/science/article/pii/S0308597X24004470> (referer: https://www.google.com/)
+2026-08-24 14:57:43,896 INFO scrapling Fetched (200) <GET https://www.sciencedirect.com/science/article/pii/S0308597X24004470> (referer: https://www.google.com/)
+2026-08-24 14:57:43,981 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=60223 linked_doc=False interaction=False shape=content_page doc_links=2 metadata_markers=6 url=https://www.sciencedirect.com/science/article/pii/S0308597X24004470
+2026-08-24 14:57:51,793 INFO web_scout.tools.scraper [extract] extractor_outcome status=success page_type=content links=5 url=https://www.sciencedirect.com/science/article/pii/S0308597X24004470
+2026-08-24 14:57:59,129 INFO web_scout.agent [pipeline] running deterministic synthesis judge
+2026-08-24 14:57:59,130 INFO web_scout.agent [pipeline] synthesis passed judge with 0 issues
+2026-08-24 14:57:59,130 INFO web_scout.agent [pipeline] done scraped=3 failed=0 blocked=0 source_http=1 irrelevant=6 bot_detected=0 snippet_only=14 queries=3
+
+[e2e] senegal-fish done in 179s -> /Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tmp/e2e_senegal-fish.result.json
+
