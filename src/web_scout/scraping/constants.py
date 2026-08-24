@@ -12,19 +12,14 @@ BLOCKED_DOMAINS = frozenset(
         "reddit.com",
         # Search engines
         "scholar.google.com",
-        # Consistently paywalled academic publishers (thin HTML without subscription)
-        "sciencedirect.com",
-        "springer.com",
-        "link.springer.com",
-        "wiley.com",
-        "onlinelibrary.wiley.com",
-        "tandfonline.com",
-        "sagepub.com",
-        "cambridge.org",
+        # Hard-paywalled publishers (login required even for abstracts)
         "jstor.org",
         # NOTE: open-access publishers (frontiersin.org, mdpi.com, journals.plos.org) and
         # abstract-available publishers (researchgate.net, nature.com, academic.oup.com)
         # are intentionally NOT blocked — they yield useful content for research queries.
+        # Cloudflare-protected publishers (wiley, sciencedirect, cambridge, tandfonline,
+        # springer, sagepub) were unblocked 2026-08-21: shared stealth sessions
+        # (_stealth_session.py) scrape them reliably, validated under parallel load.
     }
 )
 
