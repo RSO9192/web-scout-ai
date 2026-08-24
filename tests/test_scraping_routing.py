@@ -455,17 +455,25 @@ def test_abstract_available_publishers_not_blocked():
 
 
 def test_paywalled_publishers_remain_blocked():
-    """Consistently paywalled publishers must stay blocked."""
+    """Hard-paywalled publishers (login-gated even for abstracts) must stay blocked."""
     paywalled = [
+        "jstor.org",
+    ]
+    for domain in paywalled:
+        assert domain in BLOCKED_DOMAINS, f"{domain} is paywalled and should stay blocked"
+
+
+def test_cloudflare_publishers_unblocked():
+    """Publishers scrapeable via shared stealth sessions must not be blocked."""
+    unblocked = [
         "sciencedirect.com",
         "springer.com",
         "link.springer.com",
         "wiley.com",
         "onlinelibrary.wiley.com",
-        "jstor.org",
         "tandfonline.com",
         "sagepub.com",
         "cambridge.org",
     ]
-    for domain in paywalled:
-        assert domain in BLOCKED_DOMAINS, f"{domain} is paywalled and should stay blocked"
+    for domain in unblocked:
+        assert domain not in BLOCKED_DOMAINS, f"{domain} is scrapeable and should not be blocked"

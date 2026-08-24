@@ -362,8 +362,8 @@ def testis_blocked_domain_linkedin_blocked():
     assert is_blocked_domain("https://linkedin.com/in/someone") is True
 
 
-def testis_blocked_domain_sciencedirect_blocked():
-    assert is_blocked_domain("https://www.sciencedirect.com/science/article/pii/S2214581825005567") is True
+def testis_blocked_domain_jstor_blocked():
+    assert is_blocked_domain("https://www.jstor.org/stable/10.2307/48726899") is True
 
 
 def testis_blocked_domain_nature_not_blocked():

@@ -333,30 +333,39 @@ async def run_web_research(
         research_depth,
     )
 
-    if direct_url:
-        await _run_direct_url_mode(
-            query=query,
-            direct_url=direct_url,
-            tracker=tracker,
-            scrape_tool=scrape_tool,
-            depth=depth,
-            followup_model=followup_model,
-        )
-    else:
-        await _run_search_mode(
-            query=query,
-            include_domains=include_domains,
-            search_backend=search_backend,
-            domain_expertise=domain_expertise,
-            depth=depth,
-            query_gen_model=query_gen_model,
-            evaluator_model=evaluator_model,
-            followup_model=followup_model,
-            tracker=tracker,
-            scrape_tool=scrape_tool,
-            exclude_domains=_excluded,
-            evaluator_extra_prompt=evaluator_extra_prompt,
-        )
+    from web_scout.scraping._stealth_session import (
+        acquire_stealth_sessions,
+        release_stealth_sessions,
+    )
+
+    acquire_stealth_sessions()
+    try:
+        if direct_url:
+            await _run_direct_url_mode(
+                query=query,
+                direct_url=direct_url,
+                tracker=tracker,
+                scrape_tool=scrape_tool,
+                depth=depth,
+                followup_model=followup_model,
+            )
+        else:
+            await _run_search_mode(
+                query=query,
+                include_domains=include_domains,
+                search_backend=search_backend,
+                domain_expertise=domain_expertise,
+                depth=depth,
+                query_gen_model=query_gen_model,
+                evaluator_model=evaluator_model,
+                followup_model=followup_model,
+                tracker=tracker,
+                scrape_tool=scrape_tool,
+                exclude_domains=_excluded,
+                evaluator_extra_prompt=evaluator_extra_prompt,
+            )
+    finally:
+        await release_stealth_sessions()
 
     return await _synthesise_result(
         query=query,
