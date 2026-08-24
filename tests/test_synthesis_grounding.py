@@ -8,7 +8,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from web_scout.agent import (
     SYNTHESISER_INSTRUCTIONS,
     _build_synth_prompt,
-    _judge_synthesis,
 )
 from web_scout.models import UrlEntry
 
@@ -126,35 +125,47 @@ def test_synth_prompt_no_failure_section_when_no_failures():
 
 
 # ---------------------------------------------------------------------------
-# _judge_synthesis — citation validation
+# Slot-id citation contract
 # ---------------------------------------------------------------------------
 
 
-def test_judge_passes_scraped_url_citation():
-    """A URL that was scraped may be cited without flagging."""
-    synthesis = "Some fact. [Title](https://scraped.com/page)"
-    valid_urls = {"https://scraped.com/page"}
-    issues = _judge_synthesis(synthesis, valid_urls)
-    assert not any("scraped.com" in i for i in issues)
+def test_instructions_require_slot_id_citations():
+    """Model must be told to cite slot ids, never URLs."""
+    lower = SYNTHESISER_INSTRUCTIONS.lower()
+    assert "s1" in lower
+    assert "never write urls" in lower or "do not write urls" in lower
 
 
-def test_judge_flags_snippet_only_url_citation():
-    """A URL that only appeared as a snippet (not scraped) must be flagged."""
-    synthesis = "Some fact [Title](https://snippet-only.com/article)"
-    valid_urls = {"https://scraped.com/page"}  # snippet-only URL not included
-    issues = _judge_synthesis(synthesis, valid_urls)
-    assert any("snippet-only.com" in i for i in issues), "Judge should flag citation to URL not in scraped set"
+def test_synth_prompt_assigns_slot_ids_to_scraped_sources():
+    scraped = [
+        _make_entry("https://a.com/page", "content a"),
+        _make_entry("https://b.com/page", "content b"),
+    ]
+    prompt = _build_synth_prompt(
+        query="test",
+        scraped=scraped,
+        snippet_only=[],
+        bot_detected=[],
+        blocked_by_policy=[],
+        scrape_failed=[],
+        source_http_error=[],
+        domain_expertise=None,
+    )
+    assert '"id": "S1"' in prompt
+    assert '"id": "S2"' in prompt
 
 
-def test_judge_flags_fully_hallucinated_url():
-    """A URL invented from thin air that never appeared anywhere must be flagged."""
-    synthesis = "Ethiopia corn area is 2.6M ha [FAS](https://www.fas.usda.gov/data/production/et)"
-    valid_urls = {"https://fao.org/faostat/", "https://tradingeconomics.com/ethiopia/"}
-    issues = _judge_synthesis(synthesis, valid_urls)
-    assert any("fas.usda.gov" in i for i in issues), "Judge should flag hallucinated USDA URL not in scraped set"
-
-
-def test_judge_passes_synthesis_with_no_urls():
-    """A synthesis with no citations raises no issues."""
-    issues = _judge_synthesis("No specific sources found.", {"https://a.com"})
-    assert issues == []
+def test_synth_prompt_omits_scraped_urls():
+    """Scraped URLs stay out of the model's context so they cannot be cited."""
+    scraped = [_make_entry("https://a.com/secret-path", "content a")]
+    prompt = _build_synth_prompt(
+        query="test",
+        scraped=scraped,
+        snippet_only=[],
+        bot_detected=[],
+        blocked_by_policy=[],
+        scrape_failed=[],
+        source_http_error=[],
+        domain_expertise=None,
+    )
+    assert "https://a.com/secret-path" not in prompt

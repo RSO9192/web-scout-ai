@@ -111,6 +111,10 @@ If the page is a list, database view, catalogue, index, or search-results page:
 - Your primary job is to identify and rank item/detail/document links, not to extract prose from the list page.
 - Return up to 15 absolute URLs in `relevant_links`, ordered by likely relevance to the research query.
 - Keep `relevant_content` brief unless the list page itself contains direct evidence.
+- If the list page itself contains NO direct evidence answering the query, apply the
+  no-evidence rule below to `relevant_content` while still returning the ranked
+  `relevant_links`. Do not describe what the page links to or where the answer
+  might be found — that description is not evidence.
 
 Content-page rule:
 If the page is an article, report, document, detail page, or other direct evidence source:
@@ -120,8 +124,13 @@ If the page is an article, report, document, detail page, or other direct eviden
 - Include `relevant_links` only for deeper sources that are clearly likely to contain additional query-relevant evidence.
 
 No-evidence rule:
-If the page contains no relevant information, set `relevant_content` exactly to:
+If the page contains no facts that answer the research query, set `has_evidence`
+to false and set `relevant_content` exactly to:
 "[No relevant content found for this query]"
+This applies to both page types. Set `has_evidence` to false even when you
+return `relevant_links`: promising links do not make the page itself evidence.
+Statements like "the page does not display X" or "X can be retrieved from
+the linked datasets" count as no evidence.
 """
 
 _INTERACTION_INSTRUCTIONS = """\
@@ -270,6 +279,7 @@ def build_extractor_agent(
                 model=model,
                 short_pdf_max_chars=short_pdf_max_chars,
                 verify_pdf_claims=verify_pdf_claims,
+                extractor_guidance=extractor_guidance,
             )
             reference = format_reference(pdf_title, used_pages)
             rendered = render_cached_document_text(document_url, pdf_title or title, content)

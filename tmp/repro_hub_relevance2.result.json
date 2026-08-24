@@ -1,0 +1,38 @@
+[
+  {
+    "label": "with_guidance_1",
+    "bucket": "scraped_irrelevant",
+    "status": "failure",
+    "page_type": "list",
+    "sentinel": true,
+    "n_links": 2,
+    "content": "[No relevant content found for this query]"
+  },
+  {
+    "label": "with_guidance_2",
+    "bucket": "scraped_irrelevant",
+    "status": "failure",
+    "page_type": "content",
+    "sentinel": true,
+    "n_links": 2,
+    "content": "[No relevant content found for this query]"
+  },
+  {
+    "label": "no_guidance_1",
+    "bucket": "scraped_irrelevant",
+    "status": "failure",
+    "page_type": "list",
+    "sentinel": true,
+    "n_links": 8,
+    "content": "[No relevant content found for this query]"
+  },
+  {
+    "label": "no_guidance_2",
+    "bucket": "scraped_irrelevant",
+    "status": "failure",
+    "page_type": "list",
+    "sentinel": true,
+    "n_links": 9,
+    "content": "[No relevant content found for this query]"
+  }
+]

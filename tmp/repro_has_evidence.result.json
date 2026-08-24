@@ -1,0 +1,18 @@
+[
+  {
+    "label": "run_1",
+    "bucket": "scraped_irrelevant",
+    "has_evidence": false,
+    "page_type": "list",
+    "content": "[No relevant content found for this query]",
+    "n_links": 6
+  },
+  {
+    "label": "run_2",
+    "bucket": "scraped_irrelevant",
+    "has_evidence": false,
+    "page_type": "list",
+    "content": "[No relevant content found for this query]",
+    "n_links": 3
+  }
+]

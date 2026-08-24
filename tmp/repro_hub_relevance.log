@@ -1,0 +1,52 @@
+[2026-08-24 14:23:10] INFO: Fetched (200) <GET https://www.fao.org/faostat/en/> (referer: https://www.google.com/)
+INFO scrapling Fetched (200) <GET https://www.fao.org/faostat/en/> (referer: https://www.google.com/)
+INFO web_scout.scraping._fetcher [fetcher] falling back to StealthyFetcher (HTTP 200) url=https://www.fao.org/faostat/en/
+INFO web_scout.scraping._stealth_session [stealth-session] new browser session for www.fao.org
+[2026-08-24 14:23:14] ERROR: No Cloudflare challenge found.
+ERROR scrapling No Cloudflare challenge found.
+[2026-08-24 14:23:15] INFO: Fetched (200) <GET https://www.fao.org/faostat/en/#home> (referer: https://www.google.com/)
+INFO scrapling Fetched (200) <GET https://www.fao.org/faostat/en/#home> (referer: https://www.google.com/)
+INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=22607 linked_doc=False interaction=False shape=content_page doc_links=0 metadata_markers=3 url=https://www.fao.org/faostat/en/
+INFO web_scout.tools.scraper [extract] extractor_outcome status=success page_type=list links=9 url=https://www.fao.org/faostat/en/
+
+
+================================================================================
+URL: https://www.fao.org/faostat/en/
+  status       : success
+  failure_kind : None
+  page_type    : list
+  title        : 'FAOSTAT'
+  links (9): ['https://www.fao.org/faostat/en/#data/FBS', 'https://www.fao.org/faostat/en/#data/SCL', 'https://www.fao.org/faostat/en/#data/SUA', 'https://www.fao.org/faostat/en/#data/FS', 'https://www.fao.org/faostat/en/#data/HCES']
+  content      :
+The FAOSTAT landing page does not provide Kenya-specific figures or trends for per-capita supply of cereals, fruits, pulses, starchy roots, or vegetables. It states that FAOSTAT provides free access to food and agriculture data for more than 245 countries and territories, covering FAO regional groupings from 1961 through the most recent available year. Relevant FAOSTAT datasets for investigating this query include Food Balances (2010–), Supply Utilization Accounts (2010–), Availability based on supply utilization accounts, and dietary-intake datasets. The page also states that the FAOSTAT API provides access to its datasets for research and data integration. Kenya values and recent trends must be retrieved by selecting Kenya, the relevant food groups, a per-capita supply/availability measure, and the desired years in the linked datasets or API.
+
+================================================================================
+URL: https://www.fao.org/faostat/en/#data
+  status       : success
+  failure_kind : None
+  page_type    : list
+  title        : 'FAOSTAT'
+  links (9): ['https://www.fao.org/faostat/en/#data/FBS', 'https://www.fao.org/faostat/en/#data/SCL', 'https://www.fao.org/faostat/en/#data/SUA', 'https://www.fao.org/faostat/en/#data/FS', 'https://www.fao.org/faostat/en/#data/HCES']
+  content      :
+The FAOSTAT landing page does not provide Kenya-specific figures or trends for per-capita supply of cereals, fruits, pulses, starchy roots, or vegetables. It states that FAOSTAT provides free access to food and agriculture data for more than 245 countries and territories, covering FAO regional groupings from 1961 through the most recent available year. Relevant FAOSTAT datasets for investigating this query include Food Balances (2010–), Supply Utilization Accounts (2010–), Availability based on supply utilization accounts, and dietary-intake datasets. The page also states that the FAOSTAT API provides access to its datasets for research and data integration. Kenya values and recent trends must be retrieved by selecting Kenya, the relevant food groups, a per-capita supply/availability measure, and the desired years in the linked datasets or API.
+
+================================================================================
+URL: https://www.fao.org/faostat/en/#country/114
+  status       : success
+  failure_kind : None
+  page_type    : list
+  title        : 'FAOSTAT'
+  links (9): ['https://www.fao.org/faostat/en/#data/FBS', 'https://www.fao.org/faostat/en/#data/SCL', 'https://www.fao.org/faostat/en/#data/SUA', 'https://www.fao.org/faostat/en/#data/FS', 'https://www.fao.org/faostat/en/#data/HCES']
+  content      :
+The FAOSTAT landing page does not provide Kenya-specific figures or trends for per-capita supply of cereals, fruits, pulses, starchy roots, or vegetables. It states that FAOSTAT provides free access to food and agriculture data for more than 245 countries and territories, covering FAO regional groupings from 1961 through the most recent available year. Relevant FAOSTAT datasets for investigating this query include Food Balances (2010–), Supply Utilization Accounts (2010–), Availability based on supply utilization accounts, and dietary-intake datasets. The page also states that the FAOSTAT API provides access to its datasets for research and data integration. Kenya values and recent trends must be retrieved by selecting Kenya, the relevant food groups, a per-capita supply/availability measure, and the desired years in the linked datasets or API.
+
+================================================================================
+Tracker buckets (scraped = citable evidence):
+{
+  "scraped": [
+    "https://www.fao.org/faostat/en/"
+  ]
+}
+
+Saved: /Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tmp/repro_hub_relevance.result.json
+

@@ -1,0 +1,168 @@
+{
+  "slug": "senegal-fish",
+  "query": "Senegal marine fisheries catch trends current status and recent trend",
+  "elapsed_s": 178.9,
+  "searches": [
+    "Senegal fisheries landings recent trend 2020 2024 marine catch species stock status report",
+    "Senegal marine fish catch data Sea Around Us FAO annual landings 2000 2023",
+    "Senegal marine fisheries catch trends 2015 2024 current status official statistics FAO"
+  ],
+  "buckets": {
+    "scraped": [
+      {
+        "url": "https://www.sciencedirect.com/science/article/pii/S0308597X24004470",
+        "title": "Local knowledge and official landing data point to decades of fishery stock decline in West Africa",
+        "reference": "Local knowledge and official landing data point to decades of fishery stock decline in West Africa",
+        "content_chars": 3813
+      },
+      {
+        "url": "https://apps.fas.usda.gov/newgainapi/api/Report/DownloadReportByFileName?fileName=Fisheries%20and%20Aquaculture%20in%20Senegal_Dakar_Senegal_SG2022-0015.pdf",
+        "title": "Report Name: Fisheries and Aquaculture in Senegal",
+        "reference": "Report Name: Fisheries and Aquaculture in Senegal, pp. 2–4, 7, 16",
+        "content_chars": 1032
+      },
+      {
+        "url": "https://www.seaaroundus.org/tag/fao/page/5/",
+        "title": "FAO Archives | Page 5 of 6 | Sea Around Us",
+        "reference": "FAO Archives | Page 5 of 6 | Sea Around Us",
+        "content_chars": 1917
+      }
+    ],
+    "scraped_irrelevant": [
+      {
+        "url": "https://www.fisheries.noaa.gov/national/population-assessments/fishery-stock-status-updates",
+        "title": "Fishery Stock Status Updates",
+        "reference": "",
+        "content_chars": 68
+      },
+      {
+        "url": "https://www.iss-foundation.org/tuna-stocks-and-management/our-tuna-stock-tools/status-of-the-stocks/",
+        "title": "Status of the Stocks - International Seafood Sustainability Foundation",
+        "reference": "",
+        "content_chars": 68
+      },
+      {
+        "url": "https://www.seaaroundus.org/catch-reconstruction-and-allocation-methods/",
+        "title": "Catch Reconstruction: concepts, methods, and data sources",
+        "reference": "",
+        "content_chars": 68
+      },
+      {
+        "url": "https://www.seaaroundus.org/data/",
+        "title": "Sea Around Us | Fisheries, Ecosystems and Biodiversity",
+        "reference": "",
+        "content_chars": 68
+      },
+      {
+        "url": "https://www.fao.org/fishery/statistics/yearbook/en",
+        "title": "FAO Yearbook of Fishery and Aquaculture Statistics",
+        "reference": "",
+        "content_chars": 68
+      },
+      {
+        "url": "https://www.fao.org/publications/fao-flagship-publications/the-state-of-world-fisheries-and-aquaculture/en",
+        "title": "The State of World Fisheries and Aquaculture",
+        "reference": "",
+        "content_chars": 68
+      }
+    ],
+    "scrape_failed": [],
+    "blocked_by_policy": [],
+    "source_http_error": [
+      {
+        "url": "https://www.alr-journal.org/articles/alr/full_html/2018/01/alr170033/alr170033.html",
+        "title": "Long-term fishing impact on the Senegalese coastal demersal ...",
+        "reference": "",
+        "content_chars": 46
+      }
+    ],
+    "bot_detected": [],
+    "snippet_only": [
+      {
+        "url": "https://www.fao.org/3/cc0461en/online/sofia/2022/status-of-fishery-resources.html",
+        "title": "The status of fishery resources",
+        "reference": "",
+        "content_chars": 155
+      },
+      {
+        "url": "https://www.seaaroundus.org/stock-status-plots-method/",
+        "title": "Stock Status Plots Method | Sea Around Us - SeaAroundUs.org",
+        "reference": "",
+        "content_chars": 142
+      },
+      {
+        "url": "https://www.facebook.com/FisheriesGoI/posts/news-marine-fish-stocks-largely-sustainable-no-decline-in-trawl-landings-icar-cm/1357672199879344/",
+        "title": "Marine fish stocks largely sustainable, no decline in trawl landings",
+        "reference": "",
+        "content_chars": 140
+      },
+      {
+        "url": "https://www.eea.europa.eu/en/analysis/indicators/status-of-marine-fish-and",
+        "title": "Status of marine fish and shellfish stocks in Europe's seas | Indicators",
+        "reference": "",
+        "content_chars": 146
+      },
+      {
+        "url": "https://s3.us-west-2.amazonaws.com/legacy.seaaroundus/researcher/dpauly/PDF/2022/Book%2C+chapters%2C+reports/Mathews%2C+C.P.%2C+N.+Lazar%2C+V.+Ndiaye%2C+S.+Baxter+and+D.+Pauly%2C+Comparing+assessments+of+sardinella+stocks+in+Senegal+and+Northwest+Africa.pdf",
+        "title": "[PDF] Comparing assessments of sardinella stocks in Senegal and Northwest ...",
+        "reference": "",
+        "content_chars": 164
+      },
+      {
+        "url": "https://openknowledge.fao.org/server/api/core/bitstreams/1273bc36-339b-43d2-8163-af4d805f2ad2/content/sofia/2024/capture-fisheries-production.html",
+        "title": "Capture fisheries production - FAO Knowledge Repository",
+        "reference": "",
+        "content_chars": 162
+      },
+      {
+        "url": "https://researchdata.edu.au/global-fisheries-landings-v40/1361113",
+        "title": "Global Fisheries Landings V4.0 - Research Data Australia",
+        "reference": "",
+        "content_chars": 157
+      },
+      {
+        "url": "https://ourworldindata.org/fish-and-overfishing",
+        "title": "Fish and Overfishing | Our World in Data",
+        "reference": "",
+        "content_chars": 158
+      },
+      {
+        "url": "https://openknowledge.fao.org/server/api/core/bitstreams/141decf1-33f3-4837-a137-d6ba8b0a9456/content",
+        "title": "[PDF] A third assessment of global marine fisheries discards",
+        "reference": "",
+        "content_chars": 157
+      },
+      {
+        "url": "https://www.fao.org/4/w3839e/W3839e01.htm",
+        "title": "FAO Fisheries Circular No. 922 FIPP/C922",
+        "reference": "",
+        "content_chars": 156
+      },
+      {
+        "url": "https://www.fao.org/fishery/fishstat/en",
+        "title": "FishStat - Fisheries and Aquaculture",
+        "reference": "",
+        "content_chars": 139
+      },
+      {
+        "url": "https://paris.pias.science/article/from-science-to-conscience-the-plunder-of-senegal-s-fisheries-resources-or-europe-s-role-in-the-making-of-a-migration-crisis",
+        "title": "The Plunder of Senegal's Fisheries Resources, or Europe's ...",
+        "reference": "",
+        "content_chars": 184
+      },
+      {
+        "url": "https://www.oecd.org/en/publications/2025/07/oecd-fao-agricultural-outlook-2025-2034_3eb15914/full-report/fish-and-other-aquatic-products_ed13346f.html",
+        "title": "Fish and other aquatic products: OECD-FAO Agricultural ...",
+        "reference": "",
+        "content_chars": 134
+      },
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11754102/",
+        "title": "Illuminating the multidimensional contributions of small-scale ...",
+        "reference": "",
+        "content_chars": 180
+      }
+    ]
+  },
+  "synthesis": "Senegal’s marine fisheries remain large but are under substantial pressure. Available sector data put annual catch at approximately 450,000 metric tons, with saltwater fishing accounting for more than 95% of total landings. Artisanal fisheries contribute about 80% of the catch and mainly target pelagic species, while industrial fisheries focus primarily on demersal species. [Report Name: Fisheries and Aquaculture in Senegal, pp. 2–4, 7, 16](https://apps.fas.usda.gov/newgainapi/api/Report/DownloadReportByFileName?fileName=Fisheries%20and%20Aquaculture%20in%20Senegal_Dakar_Senegal_SG2022-0015.pdf)\n\nThe most recent Senegal-specific figures in the scraped sources show a clear short-term decline: total fish production fell from approximately 510,000 MT in 2020 to 460,000 MT in 2021, a 10.8% reduction. Artisanal landings decreased by 12%, from an estimated 395,000 MT to 348,208 MT, while industrial landings fell by 3% to 110,722 MT. [Report Name: Fisheries and Aquaculture in Senegal, pp. 2–4, 7, 16](https://apps.fas.usda.gov/newgainapi/api/Report/DownloadReportByFileName?fileName=Fisheries%20and%20Aquaculture%20in%20Senegal_Dakar_Senegal_SG2022-0015.pdf)\n\nThe reported status is concerning rather than sustainable: high-value coastal demersal stocks are described as overexploited, fishing pressure on small pelagics consumed locally is increasing, and fisheries resources have been significantly depleted. The cited drivers of the recent decline include illegal, unreported and unregulated fishing, overexploitation, climate-related warming that shifts fish northward, and competition from external markets. [Report Name: Fisheries and Aquaculture in Senegal, pp. 2–4, 7, 16](https://apps.fas.usda.gov/newgainapi/api/Report/DownloadReportByFileName?fileName=Fisheries%20and%20Aquaculture%20in%20Senegal_Dakar_Senegal_SG2022-0015.pdf)\n\nCatch figures should be interpreted cautiously because reporting quality is itself an issue. A 2013 Dakar workshop documented official acknowledgement of substantial illegal fishing in Senegalese waters, unregulated fishing by Senegalese vessels in neighboring countries, and problems with catch reporting; however, the source does not provide the reconstructed catch totals or a subsequent time series. [FAO Archives | Page 5 of 6 | Sea Around Us](https://www.seaaroundus.org/tag/fao/page/5/)\n\nThe available sources did not contain a Senegal-specific catch total or trend after 2021, a current-year estimate, or a continuous species-level catch series. One other scraped study reports declining catch rates and stock depletion for Maio Island in Cabo Verde, but it explicitly states that those results are not direct measurements of Senegal’s catches. [Local knowledge and official landing data point to decades of fishery stock decline in West Africa](https://www.sciencedirect.com/science/article/pii/S0308597X24004470) Overall, the limited evidence supports a recent decline in reported Senegalese landings and a depleted, overexploited resource base, but it does not establish the current catch level beyond the 2021 figures."
+}

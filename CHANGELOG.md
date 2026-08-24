@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-08-24
+
+### Added
+
+- **Structured relevance verdict (`has_evidence`) on both extraction paths**: `ExtractorOutput` (HTML extractor) and `PdfExtractResult` (PDF extractor) now carry a schema-enforced `has_evidence` boolean that is the authoritative signal for whether a page/document contains facts answering the query. Previously the verdict rode on the model reproducing the exact sentinel string `"[No relevant content found for this query]"` in free text; hedged meta-summaries ("the page does not display X…", "a country-specific assessment would require…") slipped past the string checks and entered the citable `scraped` bucket. The sentinel remains as a deterministic fallback (it is also produced programmatically by the PDF path and round-trips through cached rendered text). Live-validated on the FAOSTAT homepage (4/5 runs leaked before, 0/4 after) and an FAO guideline PDF asked a Somalia-specific query.
+- **Hub pages keep their links when judged irrelevant**: a list/hub page with no direct evidence is now recorded as `scraped_irrelevant` (never citable) while its ranked `relevant_links` survive on the failure outcome and in the rendered text, so hub deepening and follow-up selection continue to work. Previously the sentinel path dropped links entirely, which pressured the extractor to hedge with meta-summaries to keep the crawl alive. `build_failure_outcome` accepts optional `page_type`/`links` for this.
+
+### Changed
+
+- **Synthesis citations are now slot ids resolved mechanically**: the synthesiser is shown scraped sources as `S1, S2, …` (no URLs in the evidence payload) and cites `[S1]` / `[S1, S3]`; slot ids are replaced with `[reference](url)` markdown links in code after synthesis. This makes hallucinated, truncated, or parent-path citation URLs impossible by construction. The deterministic citation judge (`_judge_synthesis`) and its URL/page-span regex checks are removed; the single retry now triggers only when unknown slot ids are cited, and unresolved ids are left as visible plain text rather than becoming wrong links. PDF page spans ride the slot label from `UrlEntry.reference` mechanically.
+- **`extractor_guidance` now applies to PDF extraction**: the public-API argument was silently ignored for PDF sources (both directly scraped PDFs and documents fetched via `scrape_linked_document`); it is now injected into all PDF extraction prompts as subordinate guidance, matching the HTML extractor's contract.
+- **Extractor no-evidence rule tightened**: the rule now explicitly applies to list pages, states that promising links do not make a page evidence, and bans meta-descriptions of where the answer might be found. PDF prompts gained the equivalent rule ("generic guidance, methodology, definitions, or 'how to assess' content is not evidence").
+- **Behavioral note for callers**: pages/documents that previously entered `result.scraped` as no-evidence filler now land in `result.scraped_irrelevant`, so `scraped` can be smaller (or empty) more often — honestly reflecting actual evidence coverage.
+
 ## [1.4.3] - 2026-08-24
 
 ### Fixed

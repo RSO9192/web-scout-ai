@@ -179,84 +179,45 @@ _QUERY_STOPWORDS: frozenset[str] = frozenset(
 )
 
 
-def _pages_from_reference(reference: str) -> set[int]:
-    """Parse page numbers from a reference like ``Title, pp. 3–7, 12``."""
-    if not reference:
-        return set()
-    # Take the span portion after the last ", p." / ", pp." if present.
-    match = _re.search(r",\s*pp?\.\s*(.+)$", reference, _re.IGNORECASE)
-    span = match.group(1) if match else reference
-    pages: set[int] = set()
-    for part in _re.split(r",\s*", span):
-        part = part.strip()
-        range_match = _re.match(r"(\d+)\s*[–-]\s*(\d+)$", part)
-        if range_match:
-            lo, hi = int(range_match.group(1)), int(range_match.group(2))
-            if lo <= hi:
-                pages.update(range(lo, hi + 1))
-            continue
-        if part.isdigit():
-            pages.add(int(part))
-    return pages
+# Matches [S1] or [S1, S3] citation tokens; the optional trailing (...) group
+# swallows a URL the model wrongly attached so no invented link survives.
+_SLOT_CITATION_RE = _re.compile(r"\[(S\d+(?:\s*,\s*S\d+)*)\](?:\([^)\s]*\))?")
 
 
-def _judge_synthesis(
-    synthesis: str,
-    valid_urls: set[str],
-    *,
-    pdf_references: dict[str, str] | None = None,
-) -> list[str]:
-    """Return a list of issue descriptions, empty if synthesis passes.
+def _build_citation_slots(scraped: list) -> dict[str, tuple[str, str]]:
+    """Map slot id (``S1``, ``S2``, …) → ``(link text, url)`` for scraped entries.
 
-    ``pdf_references`` maps normalized URL → reference string that includes
-    page spans (e.g. ``Crop Prospects, pp. 3–7``). Citations to those URLs
-    must include ``p.`` / ``pp.`` whose pages are covered by the reference.
+    Ids are positional and must match the ordering used by ``_build_synth_prompt``.
     """
-    issues = []
-    text_without_md_links = _re.sub(r"\[[^\]]*\]\((https?://[^\s\)]+)\)", "", synthesis)
-    bare_urls = [match.group().rstrip(".,;)\"'") for match in _re.finditer(r"https?://\S+", text_without_md_links)]
-    bare_urls = [url for url in bare_urls if url]
-    if bare_urls:
-        issues.append("Bare URLs found (must be wrapped as markdown links [Title](URL)): " + ", ".join(bare_urls[:5]))
+    return {
+        f"S{idx}": (entry.reference or entry.title or entry.url, entry.url)
+        for idx, entry in enumerate(scraped, 1)
+    }
 
-    md_links = _re.findall(r"\[([^\]]*)\]\((https?://[^\s\)]+)\)", synthesis)
-    md_link_urls = {url for _, url in md_links}
-    valid_norm = {ResearchTracker.normalize_url(url) for url in valid_urls}
-    hallucinated = [url for url in md_link_urls if ResearchTracker.normalize_url(url) not in valid_norm]
-    if hallucinated:
-        issues.append(
-            "URLs cited that are NOT in the available sources (remove or replace): " + ", ".join(hallucinated[:5])
-        )
 
-    pdf_refs = pdf_references or {}
-    if pdf_refs:
-        missing_pages: list[str] = []
-        bad_pages: list[str] = []
-        for link_text, url in md_links:
-            norm = ResearchTracker.normalize_url(url)
-            ref = pdf_refs.get(norm)
-            if not ref:
-                continue
-            allowed = _pages_from_reference(ref)
-            if not allowed:
-                continue
-            if not _re.search(r"\bpp?\.", link_text, _re.IGNORECASE):
-                missing_pages.append(url)
-                continue
-            cited = _pages_from_reference(link_text)
-            if cited and not cited.issubset(allowed):
-                bad_pages.append(url)
-        if missing_pages:
-            issues.append(
-                "PDF citations missing page span (use [Title, pp. X–Y](URL)): "
-                + ", ".join(missing_pages[:5])
-            )
-        if bad_pages:
-            issues.append(
-                "PDF citations include pages not in the source reference: " + ", ".join(bad_pages[:5])
-            )
+def _resolve_slot_citations(synthesis: str, slots: dict[str, tuple[str, str]]) -> tuple[str, list[str]]:
+    """Replace slot-id citation tokens with markdown links.
 
-    return issues
+    Returns the resolved text and the list of unknown slot ids (deduplicated,
+    in order of appearance). Unknown ids are left in place as plain text so
+    they are visible but never become a wrong link.
+    """
+    unknown: list[str] = []
+
+    def _replace(match: "_re.Match[str]") -> str:
+        parts: list[str] = []
+        for slot_id in (token.strip() for token in match.group(1).split(",")):
+            slot = slots.get(slot_id)
+            if slot is None:
+                if slot_id not in unknown:
+                    unknown.append(slot_id)
+                parts.append(slot_id)
+            else:
+                label, url = slot
+                parts.append(f"[{label}]({url})")
+        return ", ".join(parts)
+
+    return _SLOT_CITATION_RE.sub(_replace, synthesis), unknown
 
 
 def _find_next_page_url(content: str, base_url: str) -> Optional[str]:
@@ -520,14 +481,17 @@ def _build_synth_prompt(
     """Build the synthesis prompt from scraped content and failure context."""
     import json as _json
 
+    # No URLs in the scraped entries: the model cites slot ids (S1, S2, …) that
+    # are resolved to real links mechanically after synthesis, so URL
+    # hallucination is impossible by construction. Ids are positional and must
+    # match _build_citation_slots.
     scraped_json = [
         {
-            "url": entry.url,
-            "title": entry.title or entry.url,
-            "reference": entry.reference or entry.title or entry.url,
+            "id": f"S{idx}",
+            "title": entry.title or urlparse(entry.url).netloc,
             "content": entry.content,
         }
-        for entry in scraped
+        for idx, entry in enumerate(scraped, 1)
     ]
     snippet_json = [
         {"url": entry.url, "title": entry.title or entry.url, "snippet": entry.content}
@@ -572,7 +536,10 @@ def _build_synth_prompt(
         if snippet_json:
             prompt += f"Additional sources (search snippets only):\n{_json.dumps(snippet_json, indent=2)}\n\n"
 
-    prompt += "Provide the 'synthesis' of the findings directly answering the query.\n"
+    prompt += (
+        "Provide the 'synthesis' of the findings directly answering the query. "
+        "Cite scraped sources by their id in square brackets, e.g. [S1].\n"
+    )
     return prompt
 
 
@@ -655,6 +622,7 @@ def _diversify_search_urls(urls: list[str], max_urls: int) -> list[str]:
 
 
 __all__ = [
+    "_build_citation_slots",
     "_build_exclude_domain_set",
     "_build_coverage_prompt",
     "_build_query_generation_prompt",
@@ -667,12 +635,12 @@ __all__ = [
     "_is_domain_mode_candidate",
     "_is_promising_followup_url",
     "_is_same_domain",
-    "_judge_synthesis",
     "_looks_like_document_url",
     "_looks_like_paginated_index_page",
     "_normalize_domain",
     "_query_prefers_data_pages",
     "_query_prefers_report_pages",
     "_rank_followup_candidates",
+    "_resolve_slot_citations",
     "_score_followup_candidate",
 ]

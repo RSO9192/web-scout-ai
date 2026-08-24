@@ -1,71 +1,94 @@
 """Tests for pure helper functions in agent.py."""
 
 from web_scout.agent import (
+    _build_citation_slots,
     _extract_links_from_markdown,
     _extract_query_keywords,
     _is_promising_followup_url,
     _is_same_domain,
-    _judge_synthesis,
     _looks_like_document_url,
     _looks_like_paginated_index_page,
     _query_prefers_data_pages,
     _query_prefers_report_pages,
+    _resolve_slot_citations,
     _score_followup_candidate,
 )
 
 # ---------------------------------------------------------------------------
-# _judge_synthesis
+# _build_citation_slots / _resolve_slot_citations
 # ---------------------------------------------------------------------------
 
 
-def test_judge_synthesis_passes_clean_synthesis():
-    """No issues returned when all citations point to valid scraped URLs."""
-    valid = {"https://fao.org/report", "https://worldbank.org/data"}
-    synthesis = (
-        "Fish production rose in 2023 [FAO Report](https://fao.org/report). "
-        "Poverty data confirms this [World Bank](https://worldbank.org/data)."
-    )
-    assert _judge_synthesis(synthesis, valid) == []
+def _entry(url, title="", reference=""):
+    from web_scout.models import UrlEntry
+
+    return UrlEntry(url=url, title=title, reference=reference, content="x")
 
 
-def test_judge_synthesis_detects_bare_url():
-    """A raw https:// URL outside a markdown link is flagged."""
-    valid = {"https://fao.org/report"}
-    synthesis = "See more at https://fao.org/report for details."
-    issues = _judge_synthesis(synthesis, valid)
-    assert any("Bare URLs" in issue for issue in issues)
+def test_build_citation_slots_assigns_positional_ids():
+    slots = _build_citation_slots([_entry("https://a.org", title="A"), _entry("https://b.org", title="B")])
+    assert slots == {"S1": ("A", "https://a.org"), "S2": ("B", "https://b.org")}
 
 
-def test_judge_synthesis_detects_hallucinated_citation():
-    """A markdown citation to a URL not in valid_urls is flagged."""
-    valid = {"https://fao.org/report"}
-    synthesis = "Data shows [Fake Source](https://invented.example.com/data)."
-    issues = _judge_synthesis(synthesis, valid)
-    assert any("NOT in the available sources" in issue for issue in issues)
+def test_build_citation_slots_prefers_reference_over_title():
+    slots = _build_citation_slots([_entry("https://a.org/r.pdf", title="A", reference="Crop Prospects, pp. 3–7")])
+    assert slots["S1"] == ("Crop Prospects, pp. 3–7", "https://a.org/r.pdf")
 
 
-def test_judge_synthesis_allows_valid_scraped_citation():
-    """A markdown link whose URL appears in valid_urls raises no issue."""
-    valid = {"https://fao.org/report"}
-    synthesis = "Production is up [FAO](https://fao.org/report)."
-    assert _judge_synthesis(synthesis, valid) == []
+def test_build_citation_slots_falls_back_to_url():
+    slots = _build_citation_slots([_entry("https://a.org/page")])
+    assert slots["S1"] == ("https://a.org/page", "https://a.org/page")
 
 
-def test_judge_synthesis_flags_both_bare_and_hallucinated():
-    """Both bare URL and hallucinated citation issues can appear together."""
-    valid = {"https://fao.org/report"}
-    synthesis = "See https://fao.org/report raw. Also [Fake](https://made-up.org/page)."
-    issues = _judge_synthesis(synthesis, valid)
-    assert len(issues) == 2
+def test_resolve_slot_citations_single_id():
+    slots = {"S1": ("FAO Report", "https://fao.org/report")}
+    resolved, unknown = _resolve_slot_citations("Production rose 4% [S1].", slots)
+    assert resolved == "Production rose 4% [FAO Report](https://fao.org/report)."
+    assert unknown == []
 
 
-def test_judge_synthesis_url_normalization_strips_tracking_params():
-    """A citation URL with utm_source still matches the clean valid URL."""
-    valid = {"https://fao.org/report"}
-    synthesis = "[Report](https://fao.org/report?utm_source=google)."
-    # After normalization both should match
-    issues = _judge_synthesis(synthesis, valid)
-    assert not any("NOT in the available sources" in i for i in issues)
+def test_resolve_slot_citations_multiple_ids_in_one_bracket():
+    slots = {
+        "S1": ("FAO", "https://fao.org/report"),
+        "S3": ("WB", "https://worldbank.org/data"),
+    }
+    resolved, unknown = _resolve_slot_citations("Fact [S1, S3].", slots)
+    assert resolved == "Fact [FAO](https://fao.org/report), [WB](https://worldbank.org/data)."
+    assert unknown == []
+
+
+def test_resolve_slot_citations_unknown_id_left_as_text_and_reported():
+    slots = {"S1": ("FAO", "https://fao.org/report")}
+    resolved, unknown = _resolve_slot_citations("Fact [S9].", slots)
+    assert resolved == "Fact S9."
+    assert unknown == ["S9"]
+
+
+def test_resolve_slot_citations_mixed_known_and_unknown():
+    slots = {"S1": ("FAO", "https://fao.org/report")}
+    resolved, unknown = _resolve_slot_citations("Fact [S1, S9].", slots)
+    assert resolved == "Fact [FAO](https://fao.org/report), S9."
+    assert unknown == ["S9"]
+
+
+def test_resolve_slot_citations_drops_model_attached_url():
+    """If the model wrongly writes [S1](url), the invented URL is discarded."""
+    slots = {"S1": ("FAO", "https://fao.org/report")}
+    resolved, unknown = _resolve_slot_citations("Fact [S1](https://invented.example.com).", slots)
+    assert resolved == "Fact [FAO](https://fao.org/report)."
+    assert unknown == []
+
+
+def test_resolve_slot_citations_leaves_non_slot_brackets_untouched():
+    slots = {"S1": ("FAO", "https://fao.org/report")}
+    resolved, unknown = _resolve_slot_citations("In [2023] output fell [see note].", slots)
+    assert resolved == "In [2023] output fell [see note]."
+    assert unknown == []
+
+
+def test_resolve_slot_citations_deduplicates_unknown_ids():
+    resolved, unknown = _resolve_slot_citations("Fact [S9]. Other fact [S9].", {})
+    assert unknown == ["S9"]
 
 
 # ---------------------------------------------------------------------------

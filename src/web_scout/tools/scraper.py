@@ -205,6 +205,7 @@ def create_scrape_and_extract_tool(
                         model=extractor_model,
                         short_pdf_max_chars=short_pdf_max_chars,
                         verify_pdf_claims=verify_pdf_claims,
+                        extractor_guidance=extractor_guidance,
                     )
                     reference = format_reference(pdf_title, used_pages)
                     is_pdf_failure = (
@@ -325,6 +326,13 @@ def create_scrape_and_extract_tool(
                 title = output.title.strip()
                 links = output.relevant_links
 
+                # The structured flag is the authoritative relevance verdict; the
+                # sentinel string below remains as fallback for models that only
+                # follow the prompt contract.
+                if not output.has_evidence and not content.startswith("[No relevant content"):
+                    logger.info("[extract] has_evidence=false overrides content for %s", url)
+                    content = "[No relevant content found for this query]"
+
                 _content_lower = content.lower()
                 _short = len(content) < EXTRACTOR_HEURISTICS.failure_short_content_chars
                 is_failure = (
@@ -348,7 +356,15 @@ def create_scrape_and_extract_tool(
                 )
 
                 if is_failure:
-                    outcome = _handle_failure(url, content or "", tracker, outcome_cache, norm)
+                    outcome = _handle_failure(
+                        url,
+                        content or "",
+                        tracker,
+                        outcome_cache,
+                        norm,
+                        page_type=output.page_type,
+                        links=links,
+                    )
                     future.set_result(outcome.rendered_text)
                     return outcome.rendered_text
 
@@ -410,9 +426,16 @@ def _handle_failure(
     tracker: Optional[ResearchTracker],
     outcome_cache: dict,
     norm: str,
+    *,
+    page_type: str = "content",
+    links: Optional[list] = None,
 ) -> ExtractorOutcome:
     """Record a scrape failure in the tracker and build the failure outcome."""
     action = classify_failure_action(content)
+    # Keep hub navigation alive: a no-evidence page is never citable, but its
+    # ranked links must still feed follow-up deepening.
+    if action != "scraped_irrelevant":
+        links = None
     if action in {"scraped_irrelevant", "blocked_by_policy"}:
         logger.debug("[extract] %s %s", action, url)
     elif action in {"source_http_error", "bot_detected"}:
@@ -424,7 +447,14 @@ def _handle_failure(
         _record_by_action(tracker, action, url, content)
 
     count_scraped = tracker.count_for_action("scraped") if tracker is not None else None
-    outcome = build_failure_outcome(url=url, content=content, count_scraped=count_scraped, failure_kind=action)
+    outcome = build_failure_outcome(
+        url=url,
+        content=content,
+        count_scraped=count_scraped,
+        failure_kind=action,
+        page_type="list" if (links and page_type == "list") else "content",
+        links=list(links) if links else None,
+    )
     outcome_cache[norm] = outcome
     logger.info("[extract] extractor_outcome status=failure failure_kind=%s url=%s", action, url)
     return outcome

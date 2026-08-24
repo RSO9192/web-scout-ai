@@ -1,0 +1,100 @@
+2026-08-24 14:54:58,525 INFO web_scout.agent [pipeline] start  query='Indonesia biodiversity hotspots current status and recent trend'  backend=serper mode=open depth=standard
+2026-08-24 14:54:58,526 INFO web_scout.agent [pipeline] starting search iteration 1
+2026-08-24 14:55:00,214 INFO web_scout.agent [pipeline] generated 3 queries: ['Indonesia biodiversity hotspots current status 2023 2024 species richness threatened species habitat loss report', 'Indonesia biodiversity trends recent years deforestation forest cover wildlife populations biodiversity indicators 2015 2024', 'Indonesia biodiversity hotspot conservation status Wallacea Sundaland biodiversity loss drivers recent scientific study']
+2026-08-24 14:55:02,363 INFO web_scout.agent [pipeline] selected 6 new URLs to scrape
+[2026-08-24 14:55:02] INFO: Fetched (403) <GET https://conbio.onlinelibrary.wiley.com/doi/10.1111/csp2.169> (referer: https://www.google.com/)
+2026-08-24 14:55:02,535 INFO scrapling Fetched (403) <GET https://conbio.onlinelibrary.wiley.com/doi/10.1111/csp2.169> (referer: https://www.google.com/)
+2026-08-24 14:55:02,536 INFO web_scout.scraping._fetcher [fetcher] falling back to StealthyFetcher (HTTP 403) url=https://conbio.onlinelibrary.wiley.com/doi/10.1111/csp2.169
+[2026-08-24 14:55:02] INFO: Fetched (200) <GET https://gfr.wri.org/latest-analysis-deforestation-trends> (referer: https://www.google.com/)
+2026-08-24 14:55:02,582 INFO scrapling Fetched (200) <GET https://gfr.wri.org/latest-analysis-deforestation-trends> (referer: https://www.google.com/)
+2026-08-24 14:55:02,622 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=60225 linked_doc=False interaction=False shape=content_page doc_links=4 metadata_markers=5 url=https://gfr.wri.org/latest-analysis-deforestation-trends
+[2026-08-24 14:55:02] INFO: Fetched (403) <GET https://www.sciencedirect.com/science/article/pii/S2351989424001227> (referer: https://www.google.com/)
+2026-08-24 14:55:02,647 INFO scrapling Fetched (403) <GET https://www.sciencedirect.com/science/article/pii/S2351989424001227> (referer: https://www.google.com/)
+2026-08-24 14:55:02,647 INFO web_scout.scraping._fetcher [fetcher] falling back to StealthyFetcher (HTTP 403) url=https://www.sciencedirect.com/science/article/pii/S2351989424001227
+[2026-08-24 14:55:03] INFO: Fetched (200) <GET https://dicf.unepgrid.ch/indonesia/biodiversity> (referer: https://www.google.com/)
+2026-08-24 14:55:03,058 INFO scrapling Fetched (200) <GET https://dicf.unepgrid.ch/indonesia/biodiversity> (referer: https://www.google.com/)
+2026-08-24 14:55:03,083 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=35960 linked_doc=False interaction=False shape=content_page doc_links=60 metadata_markers=3 url=https://dicf.unepgrid.ch/indonesia/biodiversity
+2026-08-24 14:55:03,088 INFO web_scout.scraping._stealth_session [stealth-session] new browser session for conbio.onlinelibrary.wiley.com
+2026-08-24 14:55:03,426 INFO web_scout.scraping._stealth_session [stealth-session] new browser session for www.sciencedirect.com
+[2026-08-24 14:55:03] INFO: Fetched (200) <GET https://news.mongabay.com/2022/04/study-most-biodiversity-hotspots-lack-formal-protection-in-borneo-and-sumatra/> (referer: https://www.google.com/)
+2026-08-24 14:55:03,501 INFO scrapling Fetched (200) <GET https://news.mongabay.com/2022/04/study-most-biodiversity-hotspots-lack-formal-protection-in-borneo-and-sumatra/> (referer: https://www.google.com/)
+2026-08-24 14:55:03,522 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=31294 linked_doc=False interaction=False shape=content_page doc_links=0 metadata_markers=5 url=https://news.mongabay.com/2022/04/study-most-biodiversity-hotspots-lack-formal-protection-in-borneo-and-sumatra/
+[2026-08-24 14:55:04] INFO: Fetched (200) <GET https://www.cepf.net/resources/calls-for-proposals/ecosystem-profile-technical-summary-1> (referer: https://www.google.com/)
+2026-08-24 14:55:04,481 INFO scrapling Fetched (200) <GET https://www.cepf.net/resources/calls-for-proposals/ecosystem-profile-technical-summary-1> (referer: https://www.google.com/)
+2026-08-24 14:55:06,781 INFO docling.datamodel.document detected formats: [<InputFormat.PDF: 'pdf'>]
+2026-08-24 14:55:06,790 INFO docling.document_converter Going to convert document batch...
+2026-08-24 14:55:06,790 INFO docling.document_converter Initializing pipeline for StandardPdfPipeline with options hash e6fbac18a9e3157491cf865e108c4a5f
+2026-08-24 14:55:06,793 INFO docling.models.factories.base_factory Loading plugin 'docling_defaults'
+2026-08-24 14:55:06,795 INFO docling.models.factories Registered picture descriptions: ['picture_description_vlm_engine', 'vlm', 'api']
+2026-08-24 14:55:06,800 INFO docling.models.factories.base_factory Loading plugin 'docling_defaults'
+2026-08-24 14:55:06,804 INFO docling.models.factories Registered ocr engines: ['auto', 'easyocr', 'kserve_v2_ocr', 'ocrmac', 'rapidocr', 'tesserocr', 'tesseract']
+2026-08-24 14:55:06,838 INFO docling.models.factories.base_factory Loading plugin 'docling_defaults'
+2026-08-24 14:55:06,839 INFO docling.models.factories Registered layout engines: ['layout_object_detection', 'docling_layout_default', 'docling_experimental_table_crops_layout']
+2026-08-24 14:55:06,843 INFO docling.utils.accelerator_utils Accelerator device: 'cpu'
+[2026-08-24 14:55:07] INFO: The turnstile version discovered is "interactive"
+2026-08-24 14:55:07,046 INFO scrapling The turnstile version discovered is "interactive"
+2026-08-24 14:55:07,364 INFO docling.models.factories.base_factory Loading plugin 'docling_defaults'
+2026-08-24 14:55:07,365 INFO docling.models.factories Registered table structure engines: ['docling_tableformer', 'docling_tableformer_v2']
+2026-08-24 14:55:07,464 INFO web_scout.tools.scraper [extract] extractor_outcome status=success page_type=content links=7 url=https://gfr.wri.org/latest-analysis-deforestation-trends
+2026-08-24 14:55:07,560 INFO docling.utils.accelerator_utils Accelerator device: 'cpu'
+2026-08-24 14:55:07,717 INFO docling.pipeline.base_pipeline Processing document ecosystem-profile-technical-summary-1
+2026-08-24 14:55:07,722 INFO web_scout.tools.scraper [extract] extractor_outcome status=success page_type=content links=2 url=https://news.mongabay.com/2022/04/study-most-biodiversity-hotspots-lack-formal-protection-in-borneo-and-sumatra/
+[2026-08-24 14:55:08] WARNING: Attempt 1 failed: Page.content: Unable to retrieve content because the page is navigating and changing the content.. Retrying in 1s...
+2026-08-24 14:55:08,550 WARNING scrapling Attempt 1 failed: Page.content: Unable to retrieve content because the page is navigating and changing the content.. Retrying in 1s...
+2026-08-24 14:55:09,716 INFO web_scout.tools.scraper [extract] extractor_outcome status=success page_type=content links=7 url=https://dicf.unepgrid.ch/indonesia/biodiversity
+2026-08-24 14:55:25,792 INFO docling.document_converter Finished converting document ecosystem-profile-technical-summary-1 in 19.01 sec.
+[2026-08-24 14:56:12] ERROR: No Cloudflare challenge found.
+2026-08-24 14:56:12,119 ERROR scrapling No Cloudflare challenge found.
+[2026-08-24 14:56:15] ERROR: No Cloudflare challenge found.
+2026-08-24 14:56:15,305 ERROR scrapling No Cloudflare challenge found.
+2026-08-24 14:56:21,525 INFO web_scout.tools.scraper [extract] pdf_extractor_outcome status=success pages=[3, 5, 6, 7, 9, 10, 11, 12, 15, 19, 20, 21] url=https://www.cepf.net/resources/calls-for-proposals/ecosystem-profile-technical-summary-1
+[2026-08-24 14:57:13] INFO: Fetched (302) <GET https://conbio.onlinelibrary.wiley.com/action/oidcCallback?idpCode=connect&error=login_required&error_description=Login+required&state=Dps2IO0LOrpSUAYYguc7KjWtugvQmVzeIKLq%2B62WBXxLV0mQz83MB4MrFZuZWsusht%2BV7vwd%2B40wPt%2FBwPwdfOCyeB0U9D88GWrb8JEec3m0wDGw2gfWRmXagna9KWWkfJ9TvdQPK8a0wDGw2gfWRlbZ%2BgFdDo%2BDBar2l5KSXce0wDGw2gfWRgLCSavBKAK36z3NDEBY391S0jhDJf5lyZc%2Ft5uTsSTuGImmB2spxG4qDP4NuiE07ALw6%2FdePMMVawtilWoGYed6pIepx3huDWfKuqY1%2F8FF> (referer: https://www.google.com/)
+2026-08-24 14:57:13,132 INFO scrapling Fetched (302) <GET https://conbio.onlinelibrary.wiley.com/action/oidcCallback?idpCode=connect&error=login_required&error_description=Login+required&state=Dps2IO0LOrpSUAYYguc7KjWtugvQmVzeIKLq%2B62WBXxLV0mQz83MB4MrFZuZWsusht%2BV7vwd%2B40wPt%2FBwPwdfOCyeB0U9D88GWrb8JEec3m0wDGw2gfWRmXagna9KWWkfJ9TvdQPK8a0wDGw2gfWRlbZ%2BgFdDo%2BDBar2l5KSXce0wDGw2gfWRgLCSavBKAK36z3NDEBY391S0jhDJf5lyZc%2Ft5uTsSTuGImmB2spxG4qDP4NuiE07ALw6%2FdePMMVawtilWoGYed6pIepx3huDWfKuqY1%2F8FF> (referer: https://www.google.com/)
+[2026-08-24 14:57:13] INFO: Fetched (302) <GET https://wiley.scienceconnect.io/api/oauth/authorize?ui_locales=en&scope=affiliations+alm_identity_ids+merged_users+openid+session_level+settings&response_type=code&redirect_uri=https%3A%2F%2Fconbio.onlinelibrary.wiley.com%2Faction%2FoidcCallback%3FidpCode%3Dconnect&state=Dps2IO0LOrpSUAYYguc7KjWtugvQmVzeIKLq%2B62WBXxLV0mQz83MB4MrFZuZWsusht%2BV7vwd%2B40wPt%2FBwPwdfOCyeB0U9D88GWrb8JEec3m0wDGw2gfWRmXagna9KWWkfJ9TvdQPK8a0wDGw2gfWRlbZ%2BgFdDo%2BDBar2l5KSXce0wDGw2gfWRgLCSavBKAK36z3NDEBY391S0jhDJf5lyZc%2Ft5uTsSTuGImmB2spxG4qDP4NuiE07ALw6%2FdePMMVawtilWoGYed6pIepx3huDWfKuqY1%2F8FF&prompt=none&nonce=J3Nb%2FPo3Usu8F2edDgGzAtX1K18SBISuaA9eg6J%2BWMw%3D&client_id=wiley> (referer: https://www.google.com/)
+2026-08-24 14:57:13,133 INFO scrapling Fetched (302) <GET https://wiley.scienceconnect.io/api/oauth/authorize?ui_locales=en&scope=affiliations+alm_identity_ids+merged_users+openid+session_level+settings&response_type=code&redirect_uri=https%3A%2F%2Fconbio.onlinelibrary.wiley.com%2Faction%2FoidcCallback%3FidpCode%3Dconnect&state=Dps2IO0LOrpSUAYYguc7KjWtugvQmVzeIKLq%2B62WBXxLV0mQz83MB4MrFZuZWsusht%2BV7vwd%2B40wPt%2FBwPwdfOCyeB0U9D88GWrb8JEec3m0wDGw2gfWRmXagna9KWWkfJ9TvdQPK8a0wDGw2gfWRlbZ%2BgFdDo%2BDBar2l5KSXce0wDGw2gfWRgLCSavBKAK36z3NDEBY391S0jhDJf5lyZc%2Ft5uTsSTuGImmB2spxG4qDP4NuiE07ALw6%2FdePMMVawtilWoGYed6pIepx3huDWfKuqY1%2F8FF&prompt=none&nonce=J3Nb%2FPo3Usu8F2edDgGzAtX1K18SBISuaA9eg6J%2BWMw%3D&client_id=wiley> (referer: https://www.google.com/)
+[2026-08-24 14:57:13] INFO: Fetched (302) <GET https://conbio.onlinelibrary.wiley.com/action/oidcStart?redirectUri=%2Fdoi%2F10.1111%2Fcsp2.169> (referer: https://www.google.com/)
+2026-08-24 14:57:13,134 INFO scrapling Fetched (302) <GET https://conbio.onlinelibrary.wiley.com/action/oidcStart?redirectUri=%2Fdoi%2F10.1111%2Fcsp2.169> (referer: https://www.google.com/)
+[2026-08-24 14:57:13] INFO: Fetched (302) <GET https://conbio.onlinelibrary.wiley.com/doi/10.1111/csp2.169> (referer: https://www.google.com/)
+2026-08-24 14:57:13,138 INFO scrapling Fetched (302) <GET https://conbio.onlinelibrary.wiley.com/doi/10.1111/csp2.169> (referer: https://www.google.com/)
+[2026-08-24 14:57:13] INFO: Fetched (307) <GET https://conbio.onlinelibrary.wiley.com/doi/10.1111/csp2.169> (referer: https://www.google.com/)
+2026-08-24 14:57:13,139 INFO scrapling Fetched (307) <GET https://conbio.onlinelibrary.wiley.com/doi/10.1111/csp2.169> (referer: https://www.google.com/)
+[2026-08-24 14:57:13] INFO: Fetched (200) <GET https://conbio.onlinelibrary.wiley.com/doi/10.1111/csp2.169> (referer: https://www.google.com/)
+2026-08-24 14:57:13,199 INFO scrapling Fetched (200) <GET https://conbio.onlinelibrary.wiley.com/doi/10.1111/csp2.169> (referer: https://www.google.com/)
+2026-08-24 14:57:13,299 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=60137 linked_doc=False interaction=False shape=content_page doc_links=0 metadata_markers=8 url=https://conbio.onlinelibrary.wiley.com/doi/10.1111/csp2.169
+[2026-08-24 14:57:16] INFO: Fetched (200) <GET https://www.sciencedirect.com/science/article/pii/S2351989424001227> (referer: https://www.google.com/)
+2026-08-24 14:57:16,422 INFO scrapling Fetched (200) <GET https://www.sciencedirect.com/science/article/pii/S2351989424001227> (referer: https://www.google.com/)
+2026-08-24 14:57:16,613 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=60237 linked_doc=False interaction=False shape=content_page doc_links=0 metadata_markers=6 url=https://www.sciencedirect.com/science/article/pii/S2351989424001227
+2026-08-24 14:57:22,230 INFO web_scout.tools.scraper [extract] extractor_outcome status=success page_type=content links=4 url=https://conbio.onlinelibrary.wiley.com/doi/10.1111/csp2.169
+2026-08-24 14:57:23,908 INFO web_scout.tools.scraper [extract] extractor_outcome status=success page_type=content links=4 url=https://www.sciencedirect.com/science/article/pii/S2351989424001227
+2026-08-24 14:57:29,379 INFO web_scout.agent [pipeline] coverage evaluation: fully_answered=False, gaps='Coverage is substantial but not fully current or consistently hotspot-specific. Sundaland evidence relies mainly on human-pressure and habitat data from 1993–2015, while the Wallacea assessment largely covers 2000–2011 and gives limited recent measurements. The sources establish that both Sundaland and Wallacea are under severe pressure, but they do not provide a comparable, up-to-date status and trend assessment for each hotspot, including recent hotspot-level forest loss, habitat conversion, species trends, and conservation effectiveness. The 2025 Indonesia-wide forest-loss data indicate renewed pressure but do not quantify impacts separately for Sundaland and Wallacea.', needs_new_searches=False, promising_urls=4
+2026-08-24 14:57:29,379 INFO web_scout.agent [pipeline] starting search iteration 2
+2026-08-24 14:57:29,379 INFO web_scout.agent [pipeline] skipping search; scraping 4 evaluator-selected backlog URLs
+[2026-08-24 14:57:29] INFO: Fetched (200) <GET https://pmc.ncbi.nlm.nih.gov/articles/PMC12498518/> (referer: https://www.google.com/)
+2026-08-24 14:57:29,579 INFO scrapling Fetched (200) <GET https://pmc.ncbi.nlm.nih.gov/articles/PMC12498518/> (referer: https://www.google.com/)
+2026-08-24 14:57:29,582 INFO web_scout.scraping._fetcher [fetcher] falling back to StealthyFetcher (HTTP 200) url=https://pmc.ncbi.nlm.nih.gov/articles/PMC12498518/
+[2026-08-24 14:57:30] INFO: Fetched (200) <GET https://news.mongabay.com/2021/10/on-islands-that-inspired-theory-of-evolution-deforestation-cuts-uneven-path/> (referer: https://www.google.com/)
+2026-08-24 14:57:30,315 INFO scrapling Fetched (200) <GET https://news.mongabay.com/2021/10/on-islands-that-inspired-theory-of-evolution-deforestation-cuts-uneven-path/> (referer: https://www.google.com/)
+2026-08-24 14:57:30,338 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=29126 linked_doc=False interaction=False shape=content_page doc_links=0 metadata_markers=4 url=https://news.mongabay.com/2021/10/on-islands-that-inspired-theory-of-evolution-deforestation-cuts-uneven-path/
+[2026-08-24 14:57:30] INFO: Fetched (200) <GET https://www.nature.com/articles/s41893-024-01433-4> (referer: https://www.google.com/)
+2026-08-24 14:57:30,343 INFO scrapling Fetched (200) <GET https://www.nature.com/articles/s41893-024-01433-4> (referer: https://www.google.com/)
+2026-08-24 14:57:30,418 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=60203 linked_doc=False interaction=False shape=content_page doc_links=1 metadata_markers=6 url=https://www.nature.com/articles/s41893-024-01433-4
+2026-08-24 14:57:30,660 INFO web_scout.scraping._stealth_session [stealth-session] new browser session for pmc.ncbi.nlm.nih.gov
+[2026-08-24 14:57:32] INFO: Fetched (200) <GET https://www.cell.com/cell-reports-sustainability/fulltext/S2949-7906(26)00080-7?rss=yes> (referer: https://www.google.com/)
+2026-08-24 14:57:32,003 INFO scrapling Fetched (200) <GET https://www.cell.com/cell-reports-sustainability/fulltext/S2949-7906(26)00080-7?rss=yes> (referer: https://www.google.com/)
+2026-08-24 14:57:32,107 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=60185 linked_doc=False interaction=False shape=content_page doc_links=0 metadata_markers=8 url=https://www.cell.com/cell-reports-sustainability/fulltext/S2949-7906(26)00080-7?rss=yes
+[2026-08-24 14:57:32] ERROR: No Cloudflare challenge found.
+2026-08-24 14:57:32,374 ERROR scrapling No Cloudflare challenge found.
+[2026-08-24 14:57:33] INFO: Fetched (200) <GET https://pmc.ncbi.nlm.nih.gov/articles/PMC12498518/> (referer: https://www.google.com/)
+2026-08-24 14:57:33,389 INFO scrapling Fetched (200) <GET https://pmc.ncbi.nlm.nih.gov/articles/PMC12498518/> (referer: https://www.google.com/)
+2026-08-24 14:57:33,406 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=300 linked_doc=False interaction=False shape=uncertain doc_links=0 metadata_markers=0 url=https://pmc.ncbi.nlm.nih.gov/articles/PMC12498518/
+2026-08-24 14:57:34,763 INFO web_scout.tools.scraper [extract] extractor_outcome status=failure failure_kind=scraped_irrelevant url=https://pmc.ncbi.nlm.nih.gov/articles/PMC12498518/
+2026-08-24 14:57:35,049 INFO web_scout.tools.scraper [extract] extractor_outcome status=success page_type=content links=4 url=https://news.mongabay.com/2021/10/on-islands-that-inspired-theory-of-evolution-deforestation-cuts-uneven-path/
+2026-08-24 14:57:36,304 INFO web_scout.tools.scraper [extract] extractor_outcome status=success page_type=content links=3 url=https://www.nature.com/articles/s41893-024-01433-4
+2026-08-24 14:57:38,531 INFO web_scout.tools.scraper [extract] extractor_outcome status=success page_type=content links=3 url=https://www.cell.com/cell-reports-sustainability/fulltext/S2949-7906(26)00080-7?rss=yes
+2026-08-24 14:57:57,514 INFO web_scout.agent [pipeline] running deterministic synthesis judge
+2026-08-24 14:57:57,515 WARNING web_scout.agent [pipeline] judge issue: URLs cited that are NOT in the available sources (remove or replace): https://www.cell.com/cell-reports-sustainability/fulltext/S2949-7906(26
+2026-08-24 14:57:57,515 WARNING web_scout.agent [pipeline] retrying synthesis due to 1 issue(s)
+2026-08-24 14:58:07,271 INFO web_scout.agent [pipeline] done scraped=9 failed=0 blocked=0 source_http=0 irrelevant=1 bot_detected=0 snippet_only=13 queries=3
+
+[e2e] indonesia-biodiv done in 189s -> /Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tmp/e2e_indonesia-biodiv.result.json
+

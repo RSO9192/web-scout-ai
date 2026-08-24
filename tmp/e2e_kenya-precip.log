@@ -1,0 +1,74 @@
+2026-08-24 14:54:56,154 INFO web_scout.agent [pipeline] start  query='Kenya precipitation trends current status and recent trend'  backend=serper mode=open depth=standard
+2026-08-24 14:54:56,155 INFO web_scout.agent [pipeline] starting search iteration 1
+2026-08-24 14:54:57,953 INFO web_scout.agent [pipeline] generated 3 queries: ['Kenya precipitation trends recent years 2020 2021 2022 2023 2024 climate report rainfall variability', 'Kenya current precipitation status rainfall trends 1981 2024 CHIRPS ERA5 scientific study', 'Kenya Meteorological Department latest rainfall outlook climate trends precipitation 2024 2025']
+2026-08-24 14:54:58,943 INFO web_scout.agent [pipeline] selected 6 new URLs to scrape
+2026-08-24 14:54:59,024 INFO web_scout.tools.scraper [extract] scrape_failed https://www.facebook.com/KenyaMeteorologicalDepartment/posts/%EF%B8%8F-kenya-climate-outlook-for-july-2025-review-of-june-2025-%EF%B8%8Fthe-july-2025-climate/1031055845874727/
+2026-08-24 14:54:59,024 INFO web_scout.tools.scraper [extract] extractor_outcome status=failure failure_kind=scrape_failed url=https://www.facebook.com/KenyaMeteorologicalDepartment/posts/%EF%B8%8F-kenya-climate-outlook-for-july-2025-review-of-june-2025-%EF%B8%8Fthe-july-2025-climate/1031055845874727/
+[2026-08-24 14:54:59] INFO: Fetched (403) <GET https://www.sciencedirect.com/science/article/pii/S2214581825003222> (referer: https://www.google.com/)
+2026-08-24 14:54:59,192 INFO scrapling Fetched (403) <GET https://www.sciencedirect.com/science/article/pii/S2214581825003222> (referer: https://www.google.com/)
+2026-08-24 14:54:59,194 INFO web_scout.scraping._fetcher [fetcher] falling back to StealthyFetcher (HTTP 403) url=https://www.sciencedirect.com/science/article/pii/S2214581825003222
+[2026-08-24 14:54:59] INFO: Fetched (200) <GET https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/> (referer: https://www.google.com/)
+2026-08-24 14:54:59,232 INFO scrapling Fetched (200) <GET https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/> (referer: https://www.google.com/)
+2026-08-24 14:54:59,233 INFO web_scout.scraping._fetcher [fetcher] falling back to StealthyFetcher (HTTP 200) url=https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/
+[2026-08-24 14:54:59] INFO: Fetched (200) <GET https://www.chc.ucsb.edu/data/chirps> (referer: https://www.google.com/)
+2026-08-24 14:54:59,363 INFO scrapling Fetched (200) <GET https://www.chc.ucsb.edu/data/chirps> (referer: https://www.google.com/)
+2026-08-24 14:54:59,372 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=8187 linked_doc=False interaction=False shape=content_page doc_links=0 metadata_markers=2 url=https://www.chc.ucsb.edu/data/chirps
+[2026-08-24 14:54:59] INFO: Fetched (200) <GET https://meteo.go.ke/our-products/seasonal-forecast/ond-2025-seasonal-forecast/> (referer: https://www.google.com/)
+2026-08-24 14:54:59,638 INFO scrapling Fetched (200) <GET https://meteo.go.ke/our-products/seasonal-forecast/ond-2025-seasonal-forecast/> (referer: https://www.google.com/)
+2026-08-24 14:54:59,657 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=12020 linked_doc=False interaction=False shape=content_page doc_links=0 metadata_markers=1 url=https://meteo.go.ke/our-products/seasonal-forecast/ond-2025-seasonal-forecast/
+2026-08-24 14:54:59,717 INFO web_scout.scraping._stealth_session [stealth-session] new browser session for www.sciencedirect.com
+2026-08-24 14:54:59,763 INFO web_scout.scraping._stealth_session [stealth-session] new browser session for pmc.ncbi.nlm.nih.gov
+[2026-08-24 14:54:59] INFO: Fetched (200) <GET https://www.ncei.noaa.gov/access/monitoring/monthly-report/global/202413> (referer: https://www.google.com/)
+2026-08-24 14:54:59,829 INFO scrapling Fetched (200) <GET https://www.ncei.noaa.gov/access/monitoring/monthly-report/global/202413> (referer: https://www.google.com/)
+2026-08-24 14:54:59,838 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=2193 linked_doc=False interaction=False shape=content_page doc_links=0 metadata_markers=0 url=https://www.ncei.noaa.gov/access/monitoring/monthly-report/global/202413
+[2026-08-24 14:55:01] INFO: The turnstile version discovered is "interactive"
+2026-08-24 14:55:01,169 INFO scrapling The turnstile version discovered is "interactive"
+[2026-08-24 14:55:01] ERROR: No Cloudflare challenge found.
+2026-08-24 14:55:01,319 ERROR scrapling No Cloudflare challenge found.
+2026-08-24 14:55:01,449 INFO web_scout.tools.scraper [extract] extractor_outcome status=failure failure_kind=scraped_irrelevant url=https://www.chc.ucsb.edu/data/chirps
+2026-08-24 14:55:01,576 INFO web_scout.tools.scraper [extract] extractor_outcome status=failure failure_kind=scraped_irrelevant url=https://www.ncei.noaa.gov/access/monitoring/monthly-report/global/202413
+[2026-08-24 14:55:02] INFO: Fetched (200) <GET https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/> (referer: https://www.google.com/)
+2026-08-24 14:55:02,325 INFO scrapling Fetched (200) <GET https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/> (referer: https://www.google.com/)
+2026-08-24 14:55:02,337 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=300 linked_doc=False interaction=False shape=uncertain doc_links=0 metadata_markers=0 url=https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/
+2026-08-24 14:55:02,619 INFO web_scout.tools.scraper [extract] extractor_outcome status=success page_type=content links=2 url=https://meteo.go.ke/our-products/seasonal-forecast/ond-2025-seasonal-forecast/
+2026-08-24 14:55:03,522 INFO web_scout.tools.scraper [extract] extractor_outcome status=failure failure_kind=scraped_irrelevant url=https://pmc.ncbi.nlm.nih.gov/articles/PMC11153539/
+[2026-08-24 14:55:15] INFO: Cloudflare page didn't disappear after 10s, continuing...
+2026-08-24 14:55:15,586 INFO scrapling Cloudflare page didn't disappear after 10s, continuing...
+[2026-08-24 14:55:15] INFO: Looks like Cloudflare captcha is still present, solving again
+2026-08-24 14:55:15,628 INFO scrapling Looks like Cloudflare captcha is still present, solving again
+[2026-08-24 14:55:15] INFO: The turnstile version discovered is "interactive"
+2026-08-24 14:55:15,669 INFO scrapling The turnstile version discovered is "interactive"
+[2026-08-24 14:55:16] WARNING: Attempt 1 failed: Page.content: Unable to retrieve content because the page is navigating and changing the content.. Retrying in 1s...
+2026-08-24 14:55:16,842 WARNING scrapling Attempt 1 failed: Page.content: Unable to retrieve content because the page is navigating and changing the content.. Retrying in 1s...
+[2026-08-24 14:56:23] ERROR: No Cloudflare challenge found.
+2026-08-24 14:56:23,264 ERROR scrapling No Cloudflare challenge found.
+[2026-08-24 14:57:24] INFO: Fetched (200) <GET https://www.sciencedirect.com/science/article/pii/S2214581825003222> (referer: https://www.google.com/)
+2026-08-24 14:57:24,363 INFO scrapling Fetched (200) <GET https://www.sciencedirect.com/science/article/pii/S2214581825003222> (referer: https://www.google.com/)
+2026-08-24 14:57:24,504 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=60270 linked_doc=False interaction=False shape=content_page doc_links=0 metadata_markers=6 url=https://www.sciencedirect.com/science/article/pii/S2214581825003222
+2026-08-24 14:57:31,267 INFO web_scout.tools.scraper [extract] extractor_outcome status=success page_type=content links=2 url=https://www.sciencedirect.com/science/article/pii/S2214581825003222
+2026-08-24 14:57:33,941 INFO web_scout.agent [pipeline] coverage evaluation: fully_answered=False, gaps='The sources provide a late-2025 seasonal outlook and localized historical averages/model projections for the Sand River Basin, but they do not establish Kenya-wide measured recent precipitation trends, such as observed increases or decreases per decade, nor a comprehensive current national status based on recent observations. Coverage is also geographically limited for the historical data and projections.', needs_new_searches=False, promising_urls=5
+2026-08-24 14:57:33,941 INFO web_scout.agent [pipeline] starting search iteration 2
+2026-08-24 14:57:33,941 INFO web_scout.agent [pipeline] skipping search; scraping 4 evaluator-selected backlog URLs
+[2026-08-24 14:57:34] INFO: Fetched (200) <GET https://climateknowledgeportal.worldbank.org/country/kenya> (referer: https://www.google.com/)
+2026-08-24 14:57:34,249 INFO scrapling Fetched (200) <GET https://climateknowledgeportal.worldbank.org/country/kenya> (referer: https://www.google.com/)
+2026-08-24 14:57:34,289 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=29191 linked_doc=False interaction=False shape=content_page doc_links=6 metadata_markers=8 url=https://climateknowledgeportal.worldbank.org/country/kenya
+[2026-08-24 14:57:34] INFO: Fetched (200) <GET https://meteo.go.ke/publications/state-of-the-climate-report-2024/> (referer: https://www.google.com/)
+2026-08-24 14:57:34,550 INFO scrapling Fetched (200) <GET https://meteo.go.ke/publications/state-of-the-climate-report-2024/> (referer: https://www.google.com/)
+2026-08-24 14:57:34,586 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=13568 linked_doc=False interaction=False shape=content_page doc_links=0 metadata_markers=2 url=https://meteo.go.ke/publications/state-of-the-climate-report-2024/
+[2026-08-24 14:57:34] INFO: Fetched (200) <GET https://www.preventionweb.net/media/101319> (referer: https://www.google.com/)
+2026-08-24 14:57:34,711 INFO scrapling Fetched (200) <GET https://www.preventionweb.net/media/101319> (referer: https://www.google.com/)
+2026-08-24 14:57:34,717 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=401 linked_doc=False interaction=False shape=uncertain doc_links=0 metadata_markers=1 url=https://www.preventionweb.net/media/101319/download
+[2026-08-24 14:57:35] INFO: Fetched (200) <GET https://journals.eanso.org/index.php/ajccrs/article/view/3239> (referer: https://www.google.com/)
+2026-08-24 14:57:35,094 INFO scrapling Fetched (200) <GET https://journals.eanso.org/index.php/ajccrs/article/view/3239> (referer: https://www.google.com/)
+2026-08-24 14:57:35,129 INFO web_scout.tools.extractor [extract] extractor_agent tools=[] chars=34236 linked_doc=False interaction=False shape=content_page doc_links=16 metadata_markers=9 url=https://journals.eanso.org/index.php/ajccrs/article/view/3239
+2026-08-24 14:57:36,615 INFO web_scout.tools.scraper [extract] extractor_outcome status=failure failure_kind=scraped_irrelevant url=https://www.preventionweb.net/media/101319/download
+2026-08-24 14:57:37,172 INFO web_scout.tools.scraper [extract] extractor_outcome status=success page_type=content links=1 url=https://meteo.go.ke/publications/state-of-the-climate-report-2024/
+2026-08-24 14:57:37,411 INFO web_scout.tools.scraper [extract] extractor_outcome status=success page_type=content links=6 url=https://climateknowledgeportal.worldbank.org/country/kenya
+2026-08-24 14:57:38,059 INFO web_scout.tools.scraper [extract] extractor_outcome status=success page_type=content links=2 url=https://journals.eanso.org/index.php/ajccrs/article/view/3239
+2026-08-24 14:57:44,787 INFO web_scout.agent [pipeline] running deterministic synthesis judge
+2026-08-24 14:57:44,787 WARNING web_scout.agent [pipeline] judge issue: URLs cited that are NOT in the available sources (remove or replace): https://meteo.go.ke/our-products/seasonal-forecast/
+2026-08-24 14:57:44,787 WARNING web_scout.agent [pipeline] retrying synthesis due to 1 issue(s)
+2026-08-24 14:57:49,389 INFO web_scout.agent [pipeline] done scraped=5 failed=1 blocked=0 source_http=0 irrelevant=4 bot_detected=0 snippet_only=18 queries=3
+
+[e2e] kenya-precip done in 173s -> /Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/tmp/e2e_kenya-precip.result.json
+
