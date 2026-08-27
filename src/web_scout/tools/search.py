@@ -31,18 +31,21 @@ def create_web_search(
     async def web_search(
         query: str,
         include_domains: Optional[List[str]] = None,
+        exclude_domains: Optional[List[str]] = None,
     ) -> str:
         """Search the web for information.
 
-        Returns a numbered list of sources with titles, URLs, snippets,
-        and publication dates.  Rank positions are included when the
-        backend supports them (e.g. Serper).  Snippets marked ``[rich]``
-        contain specific data; ``[thin]`` are generic.
+        Returns a numbered list of sources with titles, URLs, and
+        snippets.  Snippets marked ``[rich]`` contain specific data;
+        ``[thin]`` are generic.
 
         Args:
             query: Search query.
             include_domains: Restrict results to these domains (only valid
                 in domain-restricted mode; ignored in open-web mode).
+            exclude_domains: Exclude results from these domains (applied
+                natively by backends that support it, e.g. Exa; ignored
+                by backends that don't, e.g. Serper).
         """
         if force_open_web and include_domains:
             logger.info("[search] open-web mode: stripping self-imposed include_domains %s", include_domains)
@@ -75,7 +78,12 @@ def create_web_search(
 
         try:
             max_results = 10 if include_domains else 12
-            response = await _backend.search(query, max_results, include_domains)
+            response = await _backend.search(
+                query,
+                max_results=max_results,
+                include_domains=include_domains,
+                exclude_domains=exclude_domains,
+            )
 
             if not response.results:
                 logger.info("[search] no results")
@@ -110,38 +118,10 @@ def create_web_search(
 
             parts = []
 
-            if response.knowledge_graph:
-                kg = response.knowledge_graph
-                kg_lines = [f"\n**Knowledge Graph: {kg.title}**"]
-                if kg.entity_type:
-                    kg_lines.append(f"Type: {kg.entity_type}")
-                if kg.description:
-                    kg_lines.append(kg.description)
-                if kg.attributes:
-                    attrs = ", ".join(f"{k}: {v}" for k, v in list(kg.attributes.items())[:6])
-                    kg_lines.append(f"Attributes: {attrs}")
-                parts.append("\n".join(kg_lines))
-
             parts.append("\n**Sources:**")
             for i, r in enumerate(response.results, 1):
                 quality = snippet_quality(r.snippet)
-                date_tag = f" · {r.date}" if r.date else ""
-                rank_tag = f" · rank #{r.position}" if r.position else ""
-                parts.append(f"\n[{i}] **{r.title}** {quality}{date_tag}{rank_tag}\nURL: {r.url}\n{r.snippet}")
-
-            if response.people_also_ask:
-                parts.append("\n**People Also Ask:**")
-                for paa in response.people_also_ask[:4]:
-                    parts.append(f"\nQ: {paa.question}")
-                    if paa.snippet:
-                        parts.append(f"A: {paa.snippet}")
-                    if paa.link:
-                        parts.append(f"Source: {paa.link}")
-
-            if response.related_searches:
-                parts.append("\n**Related searches:**")
-                for rs in response.related_searches[:5]:
-                    parts.append(f"- {rs}")
+                parts.append(f"\n[{i}] **{r.title}** {quality}\nURL: {r.url}\n{r.snippet}")
 
             if tracker is not None and tracker.scrape_count == 0 and tracker.search_count > 5:
                 parts.append(

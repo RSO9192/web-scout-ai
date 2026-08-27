@@ -606,8 +606,8 @@ def _make_mock_browser(page):
 
 @pytest.mark.asyncio
 async def test_click_element_blocks_navigation_to_blocked_domain():
-    """click_element rejects content when a click navigates to a blocked domain (e.g. youtube.com)."""
-    agent, cleanup = _make_extractor_agent_with_domains()
+    """click_element rejects content when a click navigates to an excluded domain (e.g. youtube.com)."""
+    agent, cleanup = _make_extractor_agent_with_domains(exclude_domains=frozenset({"youtube.com"}))
 
     fake_elements = [{"tag": "a", "text": "Watch video"}]
 
@@ -672,12 +672,12 @@ async def test_click_element_allows_navigation_within_non_excluded_domain():
 @pytest.mark.asyncio
 async def test_click_element_unblocked_domain_when_dropped_from_exclude_domains():
     """click_element allows navigation to a normally-blocked domain when it is omitted from exclude_domains."""
-    from web_scout.scraping.constants import BLOCKED_DOMAINS
+    from web_scout.scraping.constants import RECOMMENDED_EXCLUDE_DOMAINS
 
-    # reddit.com is in BLOCKED_DOMAINS by default; dropping it from exclude_domains unblocks it
+    # reddit.com is in RECOMMENDED_EXCLUDE_DOMAINS by default; dropping it from exclude_domains unblocks it
     agent, cleanup = _make_extractor_agent_with_domains(
         url="https://reddit.com/r/dataisbeautiful",
-        exclude_domains=BLOCKED_DOMAINS - {"reddit.com"},
+        exclude_domains=RECOMMENDED_EXCLUDE_DOMAINS - {"reddit.com"},
     )
 
     fake_elements = [{"tag": "button", "text": "Load comments"}]
@@ -708,7 +708,7 @@ async def test_click_element_unblocked_domain_when_dropped_from_exclude_domains(
 @pytest.mark.asyncio
 async def test_click_element_no_domain_restriction_allows_any_navigation():
     """With default exclude_domains, navigation to non-blocked external domains is allowed."""
-    # No exclude_domains override — only standard BLOCKED_DOMAINS applies
+    # No exclude_domains override — only standard RECOMMENDED_EXCLUDE_DOMAINS applies
     agent, cleanup = _make_extractor_agent(url="https://fao.org/fishery/portal")
 
     fake_elements = [{"tag": "tab", "text": "Download"}]

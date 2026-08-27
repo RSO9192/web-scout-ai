@@ -81,7 +81,13 @@ export GEMINI_API_KEY="your-gemini-api-key"
 export SERPER_API_KEY="your-serper-api-key"
 ```
 
-Direct-URL mode does not use Serper, so it only needs the API key for your configured model provider.
+To use the Exa search backend instead (`search_backend="exa"`):
+
+```bash
+export EXA_API_KEY="your-exa-api-key"
+```
+
+Direct-URL mode does not use a search backend, so it only needs the API key for your configured model provider.
 
 ### 3. Run research
 
@@ -171,7 +177,7 @@ class WebResearchResult(BaseModel):
 | `synthesis` | Final answer with inline Markdown citations |
 | `scraped` | Sources successfully read and extracted; `content` contains the query-relevant evidence |
 | `scrape_failed` | Extraction attempts that failed for an unclassified reason |
-| `blocked_by_policy` | Sources skipped by `exclude_domains` (defaults to `BLOCKED_DOMAINS`) |
+| `blocked_by_policy` | Sources skipped because their domain is in `exclude_domains` |
 | `source_http_error` | Source-side HTTP or network failures |
 | `scraped_irrelevant` | Pages fetched successfully but not useful for the query |
 | `bot_detected` | Sources that still returned a bot-protection wall |
@@ -267,12 +273,13 @@ Provider credentials are read from their standard environment variables, such as
 result = await run_web_research(
     query="latest IPCC findings on sea-level rise",
     models=None,                       # optional; Gemini defaults
-    search_backend="serper",          # currently supported search backend
+    search_backend="serper",          # "serper" (Google via serper.dev) or "exa" (exa.ai)
     research_depth="standard",        # "standard", "deep", or a custom dict
     include_domains=["ipcc.ch"],       # optional discovery restriction
     direct_url=None,                   # optional; skips search when set
     domain_expertise="climate science",  # optional prompt context
-    exclude_domains=None,              # blocklist; defaults to BLOCKED_DOMAINS
+    exclude_domains=None,              # optional blocklist; nothing is blocked
+                                       # by default. See "Domain policy" below.
     max_pdf_pages=50,                  # pages converted from each PDF
     max_content_chars=30_000,          # characters passed to the extractor per source
     cache=False,                       # process-local source cache
@@ -283,25 +290,25 @@ result = await run_web_research(
 
 ### Domain policy
 
-Common social, video, and consistently paywalled platforms are blocked by default so they do not consume the scrape budget. The blocklist is `exclude_domains`, which defaults to `BLOCKED_DOMAINS`. Pass a custom list to replace it, drop entries from the default list to opt a domain back in, or pass `[]` to disable domain blocking:
+Nothing is blocked by default: `exclude_domains=None` means every domain is eligible for search and scraping. To block domains, pass a list explicitly. A curated list of platforms that waste the scrape budget (social/video sites with no scrapeable text, bot-blocked search engines, hard-paywalled publishers) is exported as `RECOMMENDED_EXCLUDE_DOMAINS`:
 
 ```python
-from web_scout.scraping.constants import BLOCKED_DOMAINS
+from web_scout import run_web_research, RECOMMENDED_EXCLUDE_DOMAINS
 
-# Opt reddit.com back in while keeping the rest of the default blocklist
+# Opt in to the curated list
 result = await run_web_research(
     query="...",
-    exclude_domains=sorted(BLOCKED_DOMAINS - {"reddit.com"}),
+    exclude_domains=RECOMMENDED_EXCLUDE_DOMAINS,
 )
 
-# Disable domain blocking entirely
+# Curated list plus your own additions
 result = await run_web_research(
     query="...",
-    exclude_domains=[],
+    exclude_domains=[*RECOMMENDED_EXCLUDE_DOMAINS, "statista.com"],
 )
 ```
 
-Domains listed in `include_domains`, and the host of `direct_url`, are automatically removed from the effective exclude set so those targets remain reachable.
+Exclusions are applied natively by search backends that support them (Exa's `excludeDomains`); backends without native support (Serper) rely on the post-search URL filter, which always runs. Contradictions fail fast: a domain appearing in both `include_domains` and `exclude_domains`, or a `direct_url` whose host is excluded, raises `ValueError`.
 
 ### Source caching
 
@@ -331,8 +338,6 @@ question
                                citation validation
 ```
 
-For the maintained control-flow diagrams and exact routing rules, see [docs/pipeline-flow.md](docs/pipeline-flow.md).
-
 ## Where it fits
 
 Use `web-scout-ai` when your application needs the contents of real pages and documents—not only search snippets—and you want the source successes and failures returned as structured data.
@@ -343,12 +348,12 @@ It is intentionally a bounded research component. If you only need search links,
 
 - Python 3.10–3.13
 - An API key for the configured LLM provider
-- A Serper API key for search mode
+- A Serper or Exa API key for search mode
 - Chromium setup for rendered pages, interactive sites, and browser fallbacks
 
 ## Contributing
 
-The main extension point is [`SearchBackend`](src/web_scout/search_backends.py). New backends should implement the async `search()` contract and return normalized results and related searches.
+The main extension point is [`SearchBackend`](src/web_scout/search_backends.py). New backends should implement the async `search()` contract and return normalized results (title, url, snippet).
 
 Bug reports and focused pull requests are welcome at [github.com/RSO9192/web-scout-ai](https://github.com/RSO9192/web-scout-ai).
 

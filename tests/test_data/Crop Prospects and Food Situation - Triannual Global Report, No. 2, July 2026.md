@@ -4,13 +4,13 @@
 page: 1
 bounding box: l=26.9, t=27.0, r=233.4, b=84.8 (TOPLEFT)
 Summary:
-The image displays the official logo of the Food and Agriculture Organization of the United Nations (FAO) on an orange rectangular background. 
+The image is the official logo of the Food and Agriculture Organization of the United Nations (FAO) displayed in white against a solid orange background.
 
-- **Emblem (Left):** A circular white icon containing a stylized ear of wheat flanked by the letters "F", "A", and "O". Along the bottom inner rim of the circle, the Latin motto "FIAT PANIS" is inscribed in capital letters.
-- **Text (Right):** White sans-serif text arranged in three stacked lines reading:
-  - "Food and Agriculture"
-  - "Organization of the"
-  - "United Nations"
+- **Emblem (Left):** A circular seal featuring an ear of wheat/grain stylized with the letters **F**, **A**, and **O** embedded within the stalks, and the Latin motto **"FIAT PANIS"** ("Let there be bread") inscribed along the lower outer arc.
+- **Text (Right):** Three lines of white sans-serif text reading:
+  - Food and Agriculture
+  - Organization of the
+  - United Nations
 
 ## CROP PROSPECTS and FOOD SITUATION
 
@@ -18,13 +18,20 @@ The image displays the official logo of the Food and Agriculture Organization of
 page: 1
 bounding box: l=180.1, t=206.6, r=357.8, b=407.5 (TOPLEFT)
 Summary:
-### Map Summary
+### 1. **World region**
+Sub-Saharan Africa (covering Central, Eastern, and Southern Africa, as well as Madagascar and parts of the Horn of Africa).
 
-1. **World region** — Sub-Saharan Africa (covering Central, Eastern, Southern Africa, and Madagascar).
-2. **Main message** — Overview map indicating the geographical focus on African regions/countries relating to food assistance needs.
-3. **Regions with data** — Sub-Saharan African countries across West, Central, East, and Southern Africa, including the Horn of Africa, the Great Lakes region, and Madagascar.
-4. **Quantitative information by region** — The entire landmass is rendered uniformly in an orange/terracotta silhouette with subtle country borders demarcated; no distinct color-coded numeric classes or legend intervals are shown directly inside this map snippet.
-5. **Summary in context** — Serves as a visual anchor alongside the report's headline metric of 41 countries/territories globally requiring external food assistance, highlighting Africa as a primary region of concern.
+### 2. **Main message**
+A geographic map silhouette highlighting the African continent to represent regional food situation and crop prospects.
+
+### 3. **Regions with data**
+Countries across Central Africa, East Africa, Southern Africa, the Horn of Africa, and Madagascar.
+
+### 4. **Quantitative information by region**
+The visual is a monochromatic thematic outline map rendered in a uniform orange/terracotta shade with faint country boundary outlines. It does not contain overlaid numerical labels or category legends within the map frame itself.
+
+### 5. **Summary in context**
+The map provides regional context for the accompanying report metrics indicating countries/territories facing food insecurity and requiring external food assistance in Africa.
 
 Countries/territories in need of external assistance for food
 
@@ -46,17 +53,14 @@ Countries/territories in need of external assistance for food
 page: 1
 bounding box: l=184.5, t=607.8, r=364.6, b=785.3 (TOPLEFT)
 Summary:
-### Bar Chart: Low-Income Food-Deficit Countries (LIFDCs) Cereal Production
+A vertical bar chart showing cereal production comparisons in million tonnes across three timeframes:
 
-- **Metric / Unit**: Cereal production in million tonnes.
-- **Vertical (Y) Axis**:
-  - Range: 115 to 135 million tonnes
-  - Major Gridlines / Ticks: 115, 120, 125, 130, 135
-- **Horizontal (X) Axis Categories and Values**:
-  - **5-year average**: 125.0 million tonnes (purple/mauve bar)
-  - **2025**: 127.2 million tonnes (purple/mauve bar)
-  - **2026 forecast**: 129.0 million tonnes (gold/orange bar)
-- **Key Comparison**: 2026 production is forecasted to increase by 1.8 million tonnes (+1.4%) relative to 2025, continuing an upward trend above the 5-year average of 125.0 million tonnes.
+- **Unit of Measurement:** million tonnes
+- **Y-Axis Range:** 115 to 135 million tonnes (ticks at 115, 120, 125, 130, 135)
+- **Categories and Values:**
+  - **5-year average:** 125.0 million tonnes (purple bar)
+  - **2025:** 127.2 million tonnes (purple bar)
+  - **2026 forecast:** 129.0 million tonnes (gold/orange bar)
 
 Cereal production forecast 2017 (%) Low-Income Food-Deficit Countries cereal production 2026 over 2025 125
 
@@ -159,25 +163,28 @@ Cover page map: Refer to the disclaimer on this page for the names and boundarie
 page: 4
 bounding box: l=1.1, t=108.7, r=595.0, b=353.3 (TOPLEFT)
 Summary:
-### 1. **World region**
-Global map showing all continents, with particular visual focus on highlighted countries across Africa, Asia, Europe, and Latin America.
+### 1. World region
+Global map displaying all world continents with political country boundaries.
 
-### 2. **Main message**
-Identifies highlighted countries and territories requiring external assistance for food as of June 2026.
+### 2. Main message
+The map highlights countries and territories requiring external assistance for food (or facing severe food insecurity), presenting the geographic distribution of food assistance needs globally as of June 2026.
 
-### 3. **Regions with data**
-Global national-level data distinguishing between highlighted countries/territories (dark orange/red shading) and non-highlighted countries (light peach shading), with a listed breakdown beginning with **AFRICA (31 countries)**.
+### 3. Regions with data
+Global coverage, with specific highlighted countries/territories in Africa, Asia, the Near East, Europe, and Latin America and the Caribbean.
 
-### 4. **Quantitative information by region**
-- **Map status date**: Situation as of June 2026.
-- **Highlighted regions/countries (dark reddish-orange)**:
-  - **Africa (31 countries total)**: Listed countries visible include Burkina Faso, Burundi, Cameroon, Central African Republic, Chad, Democratic Republic of Congo, among other shaded nations across the Sahel, Horn of Africa, Central Africa, and Southern Africa (e.g., Mali, Mauritania, Niger, Nigeria, Sudan, South Sudan, Ethiopia, Somalia, Kenya, Uganda, Zimbabwe, Namibia, Mozambique, Madagascar).
-  - **Other visibly shaded regions globally**: Select countries across the Near East/Asia (e.g., Yemen, Syrian Arab Republic, Afghanistan, Pakistan, Myanmar, Democratic People's Republic of Korea), Europe (Ukraine), and the Caribbean (Haiti).
-- **Non-highlighted regions (light peach)**: Rest of the world's countries/territories.
-- **Legend/Notes**: Indicates dashed lines for special territories/boundaries (**).
+### 4. Quantitative information by region
+- **Color Coding / Classification:**
+  - **Dark Reddish-Orange:** Highlighted countries/territories requiring external assistance for food.
+  - **Light Peach/Salmon:** Other countries/territories.
+- **Highlighted Categories and Listed Countries:**
+  - **AFRICA (31 countries):** Text explicitly lists the start of the group: *Burkina Faso, Burundi, Cameroon, Central African Republic, Chad, Democratic Republic of Congo*, with dark shading extending across extensive parts of West, Central, East, and Southern Africa (including Mali, Niger, Nigeria, Sudan, South Sudan, Ethiopia, Somalia, Kenya, Mozambique, Zimbabwe, Namibia, Madagascar, etc.).
+  - **Other Highlighted Countries (visible on map):** Ukraine in Europe; Syrian Arab Republic, Yemen, Afghanistan, Pakistan, Myanmar, and Democratic People's Republic of Korea in Asia/Near East; Haiti and Venezuela in the Americas.
+- **Metadata / Legend:**
+  - Note: *Situation as of June 2026*
+  - Dashed white line: *Territories/boundaries***
 
-### 5. **Summary in context**
-The map visually introduces the global overview and regional reviews of countries and territories requiring external food assistance as detailed in the report's Table of Contents and subsequent regional assessment chapters.
+### 5. Summary in context
+This global overview visualizes the primary subject matter of the report's opening chapter ("Countries/territories requiring external assistance for food"), demonstrating the heavy concentration of food-insecure nations in Sub-Saharan Africa (31 countries) as well as conflict- and crisis-affected countries in the Near East, Asia, and Eastern Europe.
 
 ## Highlighted countries /territories AFRICA (31 countries)
 
@@ -777,44 +784,43 @@ page: 14
 bounding box: l=18.2, t=107.5, r=574.8, b=514.6 (TOPLEFT)
 Summary:
 ### 1. World region
-Africa (covering North Africa, West Africa, Central Africa, East Africa, and Southern Africa).
+Africa (including North, West, Central, East, and Southern Africa subregions).
 
 ### 2. Main message
-Crop calendar stages and crop growing conditions across Africa as of June 2026, highlighting specific countries experiencing unfavourable cereal production prospects in 2026 due to adverse/unfavourable weather conditions.
+The map illustrates the agricultural crop calendar and development stages across African subregions as of June 2026, while highlighting specific countries experiencing unfavourable cereal production prospects in 2026 primarily due to adverse or unfavourable weather conditions.
 
 ### 3. Regions with data
-- **Subregions**: North Africa, West Africa (Coastal countries, Sahel), Central Africa (Northern parts, Democratic Republic of the Congo), East Africa (Ethiopia, South Sudan, the Sudan, Uganda, United Republic of Tanzania, Kenya, Somalia, Burundi, Rwanda), and Southern Africa.
-- **Countries highlighted with unfavourable production prospects**: Angola, Libya, Madagascar, and Somalia.
+The map presents data for five main subregions (North Africa, West Africa, Central Africa, East Africa, and Southern Africa) and specifically identifies four countries with unfavourable production prospects: Angola, Libya, Madagascar, and Somalia.
 
 ### 4. Quantitative information by region
-**Countries with unfavourable cereal production prospects in 2026 (highlighted in orange):**
-- **Angola**: Adverse weather conditions
-- **Libya**: Unfavourable weather conditions
-- **Madagascar**: Adverse weather conditions
-- **Somalia**: Unfavourable weather conditions
+- **Countries with unfavourable cereal production prospects in 2026 (highlighted in orange):**
+  - **Angola:** Adverse weather conditions.
+  - **Libya:** Unfavourable weather conditions.
+  - **Madagascar:** Adverse weather conditions.
+  - **Somalia:** Unfavourable weather conditions.
 
-**Crop stages by subregion (as of June 2026):**
-- **North Africa**:
-  - Rice: Planting
-  - Small grains: Harvesting
-- **West Africa**:
-  - *Coastal countries*: Coarse grains: Reproductive; Rice (main season): Reproductive
-  - *Sahel*: Coarse grains: Planting; Rice (main season): Planting
-- **Central Africa**:
-  - *Northern parts*: Maize (main season): Harvesting; Millet: Planting; Rice: Planting; Sorghum: Planting
-  - *Democratic Republic of the Congo*: Maize (main season): Planting; Millet: Reproductive; Sorghum: Reproductive
-- **East Africa**:
-  - *Ethiopia*: *Belg* grains (minor): Maturing; *Meher* grains (main season): Planting
-  - *South Sudan, the Sudan*: Coarse grains: Planting
-  - *Uganda, United Republic of Tanzania*: Cereals (main season): Harvesting
-  - *Kenya, Somalia*: Cereals (main season): Reproductive to maturing
-  - *Burundi, Rwanda*: Second season: Harvesting
-- **Southern Africa**:
-  - Summer cereals (main season): Harvesting
-  - Winter cereals (secondary season): Planting
+- **Crop development stages by subregion (as of June 2026):**
+  - **North Africa:**
+    - *Rice:* Planting
+    - *Small grains:* Harvesting
+  - **West Africa:**
+    - *Coastal countries:* Coarse grains (Reproductive), Rice (main season: Reproductive)
+    - *Sahel:* Coarse grains (Planting), Rice (main season: Planting)
+  - **Central Africa:**
+    - *Northern parts:* Maize (main season: Harvesting), Millet (Planting), Rice (Planting), Sorghum (Planting)
+    - *Democratic Republic of the Congo:* Maize (main season: Planting), Millet (Reproductive), Sorghum (Reproductive)
+  - **East Africa:**
+    - *Ethiopia:* *Belg* grains (minor: Maturing), *Meher* grains (main season: Planting)
+    - *South Sudan, the Sudan:* Coarse grains (Planting)
+    - *Uganda, United Republic of Tanzania:* Cereals (main season: Harvesting)
+    - *Kenya, Somalia:* Cereals (main season: Reproductive to maturing)
+    - *Burundi, Rwanda:* Second season (Harvesting)
+  - **Southern Africa:**
+    - *Summer cereals (main season):* Harvesting
+    - *Winter cereals (secondary season):* Planting
 
 ### 5. Summary in context
-The map complements the section text by detailing crop development stages across the continent and visually identifying countries facing weather shocks (Angola, Libya, Madagascar, Somalia) in 2026. This contextualizes the report's discussion on elevated cereal import requirements across African Low-Income Food-Deficit Countries (LIFDCs)—such as increased import needs in Madagascar—and provides agricultural timing for harvest and planting periods influencing 2026/27 supply balances.
+The map complements the text regarding import requirements and food security across Low-Income Food-Deficit Countries (LIFDCs) in Africa. Specifically, it details the crop calendar progression and underlines production shortfalls in countries like Madagascar (which drives elevated import needs in Southern Africa) and Somalia/Angola/Libya, where weather-driven production constraints contribute to high cereal import dependence.
 
 ## Sahel
 
@@ -834,39 +840,38 @@ Total cereal production (including rice in paddy terms) in Africa is forecast at
 page: 14
 bounding box: l=360.0, t=590.6, r=563.2, b=802.7 (TOPLEFT)
 Summary:
-A line chart depicting cereal production trends across African regions from 2022 to 2026 (forecast), measured in **million tonnes**.
+A line chart depicting cereal production trends across African regions from 2022 to 2026 (forecast).
 
-### Axes and Categories:
-- **Vertical Axis (Y-axis):** Volume in million tonnes, ranging from `0` to `90` with gridlines every 10 units.
-- **Horizontal Axis (X-axis):** Years `2022`, `2023`, `2024`, `2025`, and `2026 forecast`.
+- **Vertical Axis:** Production in *(million tonnes)*, ranging from 0 to 90 with increments of 10.
+- **Horizontal Axis:** Years from 2022 to 2026, with 2026 marked as *forecast*.
 
-### Series and Approximate Data Values:
-1. **WEST (Brown Line):**
-   - **2022:** ~78 million tonnes
-   - **2023:** ~76 million tonnes
-   - **2024:** ~79.5 million tonnes
-   - **2025:** ~81.5 million tonnes
-   - **2026 (forecast):** ~78.5 million tonnes
-2. **EAST (Golden/Yellow Line):**
-   - **2022:** ~61.5 million tonnes
-   - **2023:** ~60.5 million tonnes
-   - **2024:** ~65 million tonnes
-   - **2025:** ~62.5 million tonnes
-   - **2026 (forecast):** ~64 million tonnes
-3. **SOUTHERN (Grey Line):**
-   - **2022:** ~39 million tonnes
-   - **2023:** ~41 million tonnes
-   - **2024:** ~33 million tonnes (significant dip)
-   - **2025:** ~41.5 million tonnes
-   - **2026 (forecast):** ~43.5 million tonnes
-4. **NORTH (Purple Line):**
-   - **2022:** ~32.5 million tonnes
-   - **2023:** ~33.5 million tonnes
-   - **2024:** ~32.5 million tonnes
-   - **2025:** ~34.5 million tonnes
-   - **2026 (forecast):** ~38 million tonnes
-5. **CENTRAL (Dark Orange/Red Line):**
-   - Consistently flat near ~8.5 million tonnes across all years (`2022` to `2026 forecast`).
+### Series and Approximate Values:
+- **WEST (brown/taupe line):**
+  - 2022: ~78 million tonnes
+  - 2023: ~76 million tonnes
+  - 2024: ~79.5 million tonnes
+  - 2025: ~81.5 million tonnes
+  - 2026: ~78.5 million tonnes
+- **EAST (yellow/ochre line):**
+  - 2022: ~61.5 million tonnes
+  - 2023: ~60.5 million tonnes
+  - 2024: ~65 million tonnes
+  - 2025: ~62.5 million tonnes
+  - 2026: ~64 million tonnes
+- **SOUTHERN (grey line):**
+  - 2022: ~39 million tonnes
+  - 2023: ~41 million tonnes
+  - 2024: ~33 million tonnes (notable dip)
+  - 2025: ~41.5 million tonnes
+  - 2026: ~43.5 million tonnes
+- **NORTH (purple line):**
+  - 2022: ~32.5 million tonnes
+  - 2023: ~33.8 million tonnes
+  - 2024: ~32.8 million tonnes
+  - 2025: ~34.5 million tonnes
+  - 2026: ~38 million tonnes
+- **CENTRAL (red/rust line):**
+  - Remains flat at approximately 8 to 8.5 million tonnes throughout 2022–2026.
 
 ========== page 14 end ==========
 
@@ -969,33 +974,28 @@ page: 17
 bounding box: l=41.0, t=511.9, r=238.5, b=763.9 (TOPLEFT)
 Summary:
 ### Overview
-A line graph showing monthly millet prices across three major West African markets from May 2024 to May 2026.
+A monthly line chart displaying millet prices across three selected West African markets from May 2024 to May 2026.
 
-### Chart Metadata
-- **Title / Caption**: Millet prices in selected West African markets (CFA franc BCEAO/100 kg)
-- **Vertical (Y) Axis**: Price in CFA franc BCEAO per 100 kg, ranging from 15 000 to 45 000 in increments of 5 000 (15 000, 20 000, 25 000, 30 000, 35 000, 40 000, 45 000).
-- **Horizontal (X) Axis**: Monthly timeline labeled by month initial (`M J J A S O N D`) across three years: 2024 (starting May), 2025, and 2026 (ending May).
+- **Vertical Axis (Y-axis):** Price in **CFA franc BCEAO/100 kg**, ranging from **15 000** to **45 000** with tick marks at intervals of 5 000 (15 000, 20 000, 25 000, 30 000, 35 000, 40 000, 45 000).
+- **Horizontal Axis (X-axis):** Time in monthly intervals (M, J, J, A, S, O, N, D) across three calendar years: **2024**, **2025**, and **2026** (ending in May 2026).
 
-### Series and Key Data Points
+### Series and Key Trends
 
-1. **NIGER (Niamey)** (grey line with open circles):
-   - **May 2024**: ~34 000 CFA/100 kg
-   - **Peak (August 2024)**: ~44 000 CFA/100 kg (highest point across all markets)
-   - **Late 2024 / Early 2025**: Decreased to ~28 000 CFA/100 kg in November 2024, rebounding slightly to ~31 000 CFA/100 kg in February 2025.
-   - **Mid-to-late 2025**: Steady downward trend, dipping to a series low of ~18 500 CFA/100 kg in November 2025.
-   - **Early–Mid 2026**: Fluctuated between ~21 000 and 23 000 CFA/100 kg through May 2026.
+1. **NIGER (Niamey)** *(Grey line)*:
+   - Starts around **34 000** CFA francs in May 2024, rises sharply to reach the chart's overall peak of approximately **44 000** CFA francs in August 2024, and remains high at **43 000** in September 2024.
+   - Drops substantially in late 2024 (down to ~28 000 in November 2024), fluctuating between **28 000 and 31 000** through mid-2025.
+   - Experiences a sharp decline in late 2025 to a low of approximately **18 500** in November 2025.
+   - Recovers slightly to stabilize between **21 000 and 23 000** CFA francs from December 2025 through May 2026 (~23 000 in May 2026).
 
-2. **BURKINA FASO (Ouagadougou)** (yellow/amber line with open circles):
-   - **May 2024**: ~32 500 CFA/100 kg
-   - **Peaks**: Reached ~42 000 CFA/100 kg in August 2024 and ~40 000 CFA/100 kg in November 2024.
-   - **2025 Trend**: Dropped to ~30 000 CFA/100 kg in January 2025, peaked secondary at ~34 000 CFA/100 kg in March–April 2025, then declined steadily to ~22 500 CFA/100 kg by November 2025.
-   - **Early–Mid 2026**: Remained stable between ~22 000 and 23 500 CFA/100 kg, ending at ~22 500 CFA/100 kg in May 2026.
+2. **BURKINA FASO (Ouagadougou)** *(Yellow/Orange line)*:
+   - Starts at ~**32 500** CFA francs in May 2024, dips slightly to ~31 500 in June, then spikes to **42 000** CFA francs in August 2024 and peaks again at **40 000** in November 2024.
+   - Declines to **30 000** in January 2025, rebounds to a secondary peak of **34 000** CFA francs in March–April 2025, and follows a downward trajectory through late 2025 (reaching ~**22 500** by November 2025).
+   - Remains relatively steady between **22 000 and 23 500** CFA francs during early 2026, ending at approximately **22 500** in May 2026.
 
-3. **MALI (Bamako)** (reddish-brown line with open circles):
-   - **May 2024**: ~25 000 CFA/100 kg
-   - **Peak (October 2024)**: Reached ~38 500 CFA/100 kg
-   - **2025 Trend**: Declined to ~30 000 CFA/100 kg in January 2025, minor peak at ~32 000 CFA/100 kg in March 2025, falling to ~24 000 CFA/100 kg in July 2025 and ~22 000 CFA/100 kg in October–December 2025.
-   - **2026 Trend**: Dipped to a low of ~19 000 CFA/100 kg in April 2026 before rising sharply back to ~22 500 CFA/100 kg in May 2026.
+3. **MALI (Bamako)** *(Brown/Red line)*:
+   - Starts at the lowest baseline of the three markets at ~**25 000** CFA francs in May 2024, increasing steadily to **36 000** in August/September and peaking at **38 500** CFA francs in October 2024.
+   - Follows a secondary peak of ~**32 000** CFA francs in March 2025 before declining steadily through mid-to-late 2025 (reaching ~**22 000** in October–December 2025).
+   - Continues a gentle decline to a low of ~**19 000** CFA francs in April 2026 before rising sharply back to approximately **22 500** CFA francs in May 2026.
 
 According to the latest CH analyses, about 51.6 million people are estimated to be severely acute food insecure (CH Phase 3 [Crisis] and above) in the subregion during the June to August 2026 lean season, up from 47.9 million people during the same period in 2025. However, the figures are not fully comparable, as the 2026 analyses did not include Gambia , Guinea-Bissau and refugees, returnees and IDPs in Chad , all of which were covered in 2025, while Liberia was included only in the 2026 assessment. In addition, no CH analyses were carried out for Burkina Faso in either year. Consequently, the actual year-on-year increase is likely to be larger than indicated by the reported estimates.
 
@@ -1112,23 +1112,29 @@ bounding box: l=29.0, t=519.0, r=242.0, b=791.5 (TOPLEFT)
 Summary:
 ### Retail prices of millet and sorghum in the Sudan (Sudanese pound/kg)
 
-**Chart Type:** Multi-line time series chart  
-**Y-Axis:** Retail price in Sudanese pound/kg, ranging from 500 to 2,300 in increments of 200.  
-**X-Axis:** Monthly timeline from May 2024 to May 2026 (labeled by month initials with year markers for 2024, 2025, and 2026).  
+**Chart Type:** Line graph  
+**Time Period:** May 2024 to May 2026 (monthly)  
+**Y-Axis:** Price in Sudanese pound/kg, with gridlines from 500 to 2 300 at intervals of 200.  
+**X-Axis:** Month abbreviations (M, J, J, A, S, O, N, D) for years 2024, 2025, and 2026 (ending in May 2026).  
 
-**Series and Data Points:**
-
+**Data Series:**
 1. **Kassala – Millet (Gold line):**
-   - **2024:** May (~750), Jun (~1,140), Jul (~1,290), Aug (~1,500), Sep (~1,430), Oct (~1,500), Nov (~1,570), Dec (~1,610).
-   - **2025:** Jan (~1,710), Feb (sharp dip to ~1,060), Mar (~1,540), Apr (~1,990), May (~1,930), Jun (~2,000), Jul (~2,040), Aug (~2,040), Sep (~2,090), Oct (~1,930), Nov (~1,820), Dec (~1,820).
-   - **2026:** Jan (~1,740), Feb (~1,750), Mar (peak at ~2,210), Apr (~1,870), May (~2,070).
+   - **May 2024:** ~750 SDG/kg
+   - **Jun 2024 – Jan 2025:** Rises steadily from ~1 140 to ~1 710 SDG/kg.
+   - **Feb 2025:** Sharp drop to ~1 060 SDG/kg.
+   - **Mar 2025 – Sep 2025:** Recovers rapidly, reaching ~1 990 in April 2025 and peaking at ~2 090 in September 2025.
+   - **Oct 2025 – Feb 2026:** Fluctuates downward to around 1 740–1 750 SDG/kg.
+   - **Mar 2026 – May 2026:** Reaches an overall peak of ~2 210 in March 2026, dropping to ~1 860 in April, and finishing at ~2 070 SDG/kg in May 2026.
 
 2. **Al-Damazin – Sorghum (Reddish-brown line):**
-   - **2024:** Jun (~750), Aug (~1,290), Sep (~1,330), Oct (~1,170), Nov (~1,500), Dec (~1,660).
-   - **2025:** Jan (~1,670), Feb (drop to ~1,200), Mar (~1,640), Apr (~1,510), May (~1,490), Jun (~1,500), Jul (~1,000), Aug (trough at ~840), Sep (~1,730), Oct (peak at ~2,000), Nov (~1,650), Dec (~1,390).
-   - **2026:** Jan (~1,330), Feb (~1,440), Mar (~1,500), Apr (~1,520), May (~1,520).
-
-**Key Trends:** Both cereal prices have shown an overall upward trajectory from around 750 SDG/kg in mid-2024 to sustained elevated levels above 1,500–2,000 SDG/kg in 2025–2026, with Kassala millet peaking in March 2026 above 2,200 SDG/kg and Al-Damazin sorghum stabilizing around 1,520 SDG/kg by May 2026.
+   - **Jun 2024:** ~750 SDG/kg
+   - **Aug 2024 – Jan 2025:** Rises from ~1 290 to ~1 670 SDG/kg (with a dip to ~1 170 in Oct 2024).
+   - **Feb 2025:** Drops to ~1 210 SDG/kg before rebounding to ~1 640 in March 2025.
+   - **Apr 2025 – Jun 2025:** Level around 1 490–1 500 SDG/kg.
+   - **Jul 2025 – Aug 2025:** Sharp decrease to a low of ~840 SDG/kg in August 2025.
+   - **Sep 2025 – Oct 2025:** Steep spike to a peak of ~2 000 SDG/kg in October 2025.
+   - **Nov 2025 – Jan 2026:** Declines back to ~1 330 SDG/kg in January 2026.
+   - **Feb 2026 – May 2026:** Climbs steadily to ~1 520 SDG/kg by May 2026.
 
 May 2026 in most monitored markets. As of May, prices of sorghum and millet were on average 50 and 25 percent their already elevated year-earlier values, respectively. The exceptionally high prices reflect a reduced 2025 production, the impact of the ongoing conflict through high input prices and trade disruptions, and persistent macroeconomic challenges. In South Sudan ' s capital Juba, prices of sorghum were firm between March and May 2026, while prices of maize were stable between March and April before increasing by 15 percent in May. Prices of maize and sorghum in May were, respectively, at near-record and record levels, mainly due to persisting macroeconomic challenges, including currency weakness and high inflation rates. In Somalia , prices of locally produced sorghum and maize unseasonably increased by 10 to 40 percent between January and April 2026 in most markets located in key-producing areas and in the capital Mogadishu, due to the near-failure the Deyr harvest, gathered in January, owing to drought conditions. In April, prices were more than twice their year-earlier levels. In Kenya , in line with seasonal trends, the average retail price of maize increased by 5 percent between November 2025 and April 2026, when it was 7 percent higher year-on-year, mainly reflecting increased transport costs due to high fuel prices. In Uganda , the average retail price of maize
 
@@ -1148,22 +1154,28 @@ In the Sudan , the ongoing conflict continues to severely disrupt livelihoods, p
 page: 20
 bounding box: l=339.2, t=501.5, r=565.4, b=791.9 (TOPLEFT)
 Summary:
-### Line Chart: Retail Prices of Maize in Kenya and Uganda
+A dual-axis line chart titled **"Retail prices of maize in Kenya and Uganda"** tracking monthly retail maize prices from April 2024 to April 2026.
 
-- **X-axis**: Monthly timeline from April 2024 to April 2026 (labeled `A M J J A S O N D` for 2024, `J F M A M J J A S O N D` for 2025, and `J F M A` for 2026).
-- **Left Y-axis**: Kenya shilling/kg (ranges from 55 to 85 in increments of 5).
-- **Right Y-axis**: Ugandanan shilling/kg (ranges from 1 000 to 2 200 in increments of 200).
+### Axes and Legend
+- **Left vertical axis:** Price in Kenya (`Kenya shilling/kg`), ranging from 55 to 85 in increments of 5.
+- **Right vertical axis:** Price in Uganda (`Ugandanan shilling/kg`), ranging from 1 000 to 2 200 in increments of 200.
+- **Horizontal axis:** Monthly timeline covering:
+  - **2024:** A, M, J, J, A, S, O, N, D (April to December)
+  - **2025:** J, F, M, A, M, J, J, A, S, O, N, D (January to December)
+  - **2026:** J, F, M, A (January to April)
+- **Series:**
+  - **KENYA national average (left axis):** Reddish-brown line with white-filled circular data markers.
+  - **UGANDA national average (right axis):** Yellow-gold line with white-filled circular data markers.
 
-#### Series & Trends:
-1. **KENYA national average (left axis)** (Brown line with circle markers):
-   - **2024**: Starts at ~63 KES/kg in April, declines to a low of ~59.3 KES/kg in August, then slowly climbs to ~61.6 KES/kg by December.
-   - **2025**: Steadily rises from ~62.3 KES/kg in January to ~71.2 KES/kg in July, drops briefly in August–September (~68.3 KES/kg), spikes to a peak of ~74.7 KES/kg in October, drops to ~68.2 KES/kg in November, and rises to ~69.4 KES/kg in December.
-   - **2026**: Increases to ~72.1 KES/kg in February, dips to ~70.4 KES/kg in March, and ends at ~71.3 KES/kg in April.
-
-2. **UGANDA national average (right axis)** (Gold/yellow line with circle markers):
-   - **2024**: Remains relatively flat between ~1 120 and ~1 150 UGX/kg from April to October, then rises to ~1 280 UGX/kg by December.
-   - **2025**: Accelerates sharply from ~1 290 UGX/kg in January to a peak of ~1 810 UGX/kg in June, then falls steadily to ~1 330 UGX/kg in October before a slight rebound to ~1 410 UGX/kg in December.
-   - **2026**: Dips to ~1 250 UGX/kg in January before surging dramatically to ~1 990 UGX/kg in February, ~2 040 UGX/kg in March, and reaching its highest point at approximately 2 165 UGX/kg in April 2026.
+### Key Data Trends
+- **Kenya national average (Kenya shilling/kg):**
+  - **2024:** Decreased gradually from ~63 in Apr to a low of ~59.3 in Aug, then rose to ~61.6 in Dec.
+  - **2025:** Climbed steadily from ~62.3 in Jan to ~71.2 in Jul, dipped to ~68.3 in Sep, spiked sharply to a peak of ~74.7 in Oct, dropped back to ~68.2 in Nov, and ended at ~69.4 in Dec.
+  - **2026:** Increased from ~71.2 in Jan to ~72.2 in Feb, slightly declining to ~70.5 in Mar and finishing at ~71.3 in Apr.
+- **Uganda national average (Ugandan shilling/kg):**
+  - **2024:** Remained low and flat between ~1 120 and ~1 150 from Apr to Oct, then rose to ~1 290 by Dec.
+  - **2025:** Rose steadily from ~1 300 in Jan to reach a peak of ~1 810 in Jun, followed by a decline to ~1 330 in Oct, then edged up to ~1 410 in Dec.
+  - **2026:** Dipped to ~1 260 in Jan, followed by a dramatic surge to ~1 990 in Feb, ~2 040 in Mar, and reaching the series high of ~2 170 in Apr.
 
 ========== page 20 end ==========
 
@@ -1212,23 +1224,26 @@ Looking further ahead, the recently declared El Niño event represents a major d
 page: 22
 bounding box: l=29.1, t=466.7, r=255.7, b=753.7 (TOPLEFT)
 Summary:
-A dual-axis line chart tracking maize grain prices from May 2024 through May 2026 for Zambia and Malawi.
+### Overview
+A dual-axis line graph tracking monthly maize grain prices in Zambia and Malawi from May 2024 through May 2026.
 
-### Axes and Scales:
-- **X-axis:** Monthly time series from May 2024 (`M 2024`) to May 2026 (`M 2026`), labeled by month initials (`M J J A S O N D J F M A M J J A S O N D J F M A M`) with years marked at `2024`, `2025`, and `2026`.
-- **Left Y-axis:** `(Zambian kwacha/kg)` with tick marks from `5.0` to `12.0` in increments of `1.0`.
-- **Right Y-axis:** `(Malawi kwacha/kg)` with tick marks from `550` to `1 600` in increments of `150` (`550`, `700`, `850`, `1 000`, `1 150`, `1 300`, `1 450`, `1 600`).
+### Axes and Legends
+- **X-axis (Time):** Monthly intervals from May 2024 to May 2026 (`M J J A S O N D 2024`, `J F M A M J J A S O N D 2025`, `J F M A M 2026`).
+- **Left Y-axis:** `(Zambian kwacha/kg)`, with values ranging from `5.0` to `12.0` in steps of `1.0`.
+- **Right Y-axis:** `(Malawi kwacha/kg)`, with values ranging from `550` to `1 600` in steps of `150` (`550`, `700`, `850`, `1 000`, `1 150`, `1 300`, `1 450`, `1 600`).
 
-### Series Data:
-1. **ZAMBIA national average (left axis)** (grey line with circular markers):
-   - **2024:** Starts at ~8.95 ZMW/kg in May, dips slightly to ~8.45 ZMW/kg in August–September, rises steadily through October (~8.55), November (~8.70), and December (~9.25).
-   - **2025:** Climbs sharply to ~9.60 in January and peaks at ~11.45 ZMW/kg in February. It declines steeply through March (~10.60), April (~9.15), May (~7.10), June (~5.95), reaching a low of ~5.60 ZMW/kg in August. It begins a gradual recovery through September (~6.00), October (~6.10), November (~6.50), and December (~6.95).
-   - **2026:** Continues rising to ~7.30 in January, peaking at ~7.90 ZMW/kg in February–March, before declining to ~7.50 in April and ~6.40 ZMW/kg in May.
+### Data Series
+1. **ZAMBIA national average (left axis, grey/brown line):**
+   - **Mid–Late 2024:** Fluctuates between ~8.4 and 9.0 Zambian kwacha/kg from May to November, before rising to ~9.3 in December.
+   - **Early 2025 Peak:** Surges to ~9.6 in January and peaks sharply at ~11.4 kwacha/kg in February 2025.
+   - **Mid 2025 Decline:** Drops rapidly to ~10.6 in March, ~9.1 in April, ~7.1 in May, reaching a low of ~5.6 in August 2025.
+   - **Late 2025 – Early 2026:** Gradually increases from ~6.0 in September 2025 to a secondary peak of ~7.9 kwacha/kg in February–March 2026, before falling to ~6.4 by May 2026.
 
-2. **MALAWI national average (right axis)** (orange-red line with circular markers):
-   - **2024:** Starts at ~600 MWK/kg in May, rises to ~710 in June, remains around ~800 MWK/kg during July–October, then rises through November (~860) and December (~970).
-   - **2025:** Surges rapidly to ~1 240 in January and reaches its main peak at ~1 580 MWK/kg in February. It then plunges through March (~1 490), April (~1 030), reaching a trough of ~940 MWK/kg in May. It rebounds sharply through June (~1 010), July (~1 130), August (~1 280), to a secondary peak of ~1 380 MWK/kg in September. It then decreases through October (~1 210), November (~1 180), and December (~1 170).
-   - **2026:** Continues to decline: January (~1 070), February (~1 090), March (~1 060), April (~880), ending at ~760 MWK/kg in May.
+2. **MALAWI national average (right axis, orange/rust line):**
+   - **Mid–Late 2024:** Rises steadily from ~600 Malawi kwacha/kg in May 2024 to ~790 in July–September, ~860 in November, and ~960 in December 2024.
+   - **Early 2025 Peak:** Spikes sharply to ~1 240 in January and hits a peak of ~1 570 kwacha/kg in February 2025.
+   - **Mid 2025 Retracement & Secondary Peak:** Drops to ~940 kwacha/kg by May 2025, rises to a secondary peak of ~1 380 kwacha/kg in September 2025.
+   - **Late 2025 – Early 2026:** Gradually declines from ~1 200 kwacha/kg in October 2025 to ~1 065–1 090 in early 2026, then falls sharply to ~755 kwacha/kg by May 2026.
 
 risk to agricultural production in 2027, as it is typically associated with below-average rainfall amounts during the main cropping season, from October to March. Elevated global fertilizer prices pose an additional but secondary risk to production. While the subregion relies on imports for its fertilizer supplies, leaving domestic prices, and farmers' access to fertilizer, exposed to global price movements. The predominantly low input nature of agricultural systems means the overall impact on production is likely to be limited.
 
@@ -1269,54 +1284,53 @@ page: 24
 bounding box: l=25.5, t=113.7, r=572.7, b=416.2 (TOPLEFT)
 Summary:
 ### 1. World region
-Asia (encompassing the Near East in Asia, CIS in Asia, South Asia, East Asia, and Southeast Asia).
+Asia, including Near East Asia, CIS in Asia, and Far East Asia (South Asia, East Asia, and Southeast Asia).
 
 ### 2. Main message
-The map depicts the crop calendar stages and agricultural progress across Asia as of June 2026, highlighting crop cycle phases (planting, vegetative, reproductive, maturing, and harvesting) for major cereals by subregion, with Afghanistan highlighted in orange.
+The map illustrates the agricultural crop calendar and growth/harvest stages across Asian subregions as of June 2026, highlighting Afghanistan in orange among the subregions.
 
 ### 3. Regions with data
 - **CIS in Asia**
 - **Near East Asia**
-- **Far East Asia** (including China [mainland], India, Southern Far East Asia, and Southeastern Far East Asia)
-- **Afghanistan** (highlighted territory)
+- **Far East Asia**, broken down into:
+  - China (mainland)
+  - Southeastern Far East Asia
+  - Southern Far East Asia
+  - India
+- **Afghanistan** (highlighted in orange)
 
 ### 4. Quantitative information by region
-*(Note: Situation as of June 2026)*
-
 - **CIS in Asia**:
   - Maize: Reproductive
   - Small grains: Harvesting
   - Wheat (north): Maturing to harvesting
   - Wheat (south): Harvesting
-
 - **Near East Asia**:
   - Winter cereals: Harvesting
-
-- **Far East Asia – China (mainland)**:
-  - Early rice: Harvesting
-  - Late rice: Planting
-  - Maize (north): Vegetative to reproductive
-  - Maize (south): Harvesting
-  - Wheat (spring): Vegetative to reproductive
-  - Wheat (winter): Harvesting
-
-- **Far East Asia – Southeastern Far East Asia**:
-  - Maize: Planting to vegetative
-  - Rice (main): Planting to vegetative
-
-- **Far East Asia – Southern Far East Asia**:
-  - Rice (main): Planting
-  - Coarse grains: Planting
-
-- **Far East Asia – India**:
-  - Coarse grains (*Kharif*): Planting
-  - Rice (*Kharif*): Planting
-
-- **Afghanistan**:
-  - Highlighted distinctly in solid orange/rust among the otherwise beige/grey Asian landmass.
+- **Far East Asia**:
+  - **China (mainland)**:
+    - Early rice: Harvesting
+    - Late rice: Planting
+    - Maize (north): Vegetative to reproductive
+    - Maize (south): Harvesting
+    - Wheat (spring): Vegetative to reproductive
+    - Wheat (winter): Harvesting
+  - **Southeastern Far East Asia**:
+    - Maize: Planting to vegetative
+    - Rice (main): Planting to vegetative
+  - **Southern Far East Asia**:
+    - Rice (main): Planting
+    - Coarse grains: Planting
+  - **India**:
+    - Coarse grains (*Kharif*): Planting
+    - Rice (*Kharif*): Planting
+- **Map Legend / Styling**:
+  - Dashed black line: Subregional borders
+  - White solid line: Territories/boundaries
+  - Shading: Afghanistan is highlighted in orange; other landmasses are beige/tan.
 
 ### 5. Summary in context
-The map provides an overview of the agricultural calendar as of June 2026 across Asia, indicating that harvesting of winter wheat and early cereals is underway in parts of East, Central, and Near East Asia, while planting of main season *Kharif* crops and rice is actively taking place across South and Southeast Asia. Afghanistan is visually distinguished as an area of special focus/hotspot.
+The map provides an overview of the ongoing crop cycles across Asia as of June 2026, indicating harvesting periods for winter cereals and wheat across Near East and CIS in Asia, alongside the planting of main rice and *Kharif* coarse grains across South and Southeast Asia, framing regional agricultural production and food security monitoring.
 
 ## Countries with unfavourable cereal production prospects in 2026*
 
@@ -1348,34 +1362,35 @@ Cereal production growth in Asia has moderated in 2025 and 2026 relative to rece
 page: 24
 bounding box: l=359.9, t=556.8, r=564.9, b=782.5 (TOPLEFT)
 Summary:
-A multi-line chart titled **Cereal production (million tonnes)** showing production trends across three regions from 2022 to 2026 (forecast).
+### Cereal production (million tonnes)
 
-### Axes and Scales:
-- **X-axis:** Years labeled `2022`, `2023`, `2024`, `2025`, and `2026 forecast`.
-- **Left Y-axis (million tonnes):** Ranges from `800` to `1 600` in increments of 100, corresponding to **FAR EAST**.
-- **Right Y-axis (million tonnes):** Ranges from `0` to `120` in increments of 20, corresponding to **NEAR EAST** and **SOUTH CAUCASUS AND CENTRAL ASIA**.
+**Chart Type:** Multi-line graph with dual vertical axes  
+**Time Period:** 2022 to 2026 (forecast)  
 
-### Series and Approximate Values:
-1. **FAR EAST (left axis)** (Purple line):
-   - **2022:** ~1 390 million tonnes
-   - **2023:** ~1 415 million tonnes
-   - **2024:** ~1 455 million tonnes
-   - **2025:** ~1 480 million tonnes
-   - **2026 forecast:** ~1 480 million tonnes
+**Axes & Units:**
+- **X-axis:** Year (2022, 2023, 2024, 2025, 2026 forecast)
+- **Left Y-axis (million tonnes):** Ranges from 800 to 1 600 in increments of 100.
+- **Right Y-axis (million tonnes):** Ranges from 0 to 120 in increments of 20.
 
-2. **NEAR EAST (right axis)** (Brown/taupe line):
-   - **2022:** ~68 million tonnes
-   - **2023:** ~76 million tonnes
-   - **2024:** ~75 million tonnes
-   - **2025:** ~63 million tonnes
-   - **2026 forecast:** ~73 million tonnes
-
-3. **SOUTH CAUCASUS AND CENTRAL ASIA (right axis)** (Orange-red line):
-   - **2022:** ~37 million tonnes
-   - **2023:** ~33 million tonnes
-   - **2024:** ~41 million tonnes
-   - **2025:** ~40 million tonnes
-   - **2026 forecast:** ~36 million tonnes
+**Series and Trajectories:**
+- **FAR EAST (left axis)** (Purple line):
+  - 2022: ~1 390 million tonnes
+  - 2023: ~1 415 million tonnes
+  - 2024: ~1 460 million tonnes
+  - 2025: ~1 480 million tonnes
+  - 2026 (forecast): ~1 480 million tonnes
+- **NEAR EAST (right axis)** (Brown/taupe line):
+  - 2022: ~68 million tonnes
+  - 2023: ~78 million tonnes
+  - 2024: ~77 million tonnes
+  - 2025: ~63 million tonnes
+  - 2026 (forecast): ~74 million tonnes
+- **SOUTH CAUCASUS AND CENTRAL ASIA (right axis)** (Orange-red line):
+  - 2022: ~37 million tonnes
+  - 2023: ~33 million tonnes
+  - 2024: ~41 million tonnes
+  - 2025: ~40 million tonnes
+  - 2026 (forecast): ~36 million tonnes
 
 ## Cereal production
 
@@ -1441,23 +1456,22 @@ In the 2026/27 marketing year, the subregional cereal import requirement is fore
 page: 26
 bounding box: l=28.3, t=219.2, r=254.7, b=511.1 (TOPLEFT)
 Summary:
-A dual-axis line chart tracking monthly rice retail prices in the Philippines and Myanmar from May 2024 to May 2026.
+### Dual-Axis Line Chart: Rice Retail Prices in the Philippines and Myanmar
 
-### Axes and Legend:
-- **X-axis (Time):** Monthly intervals labeled by initial (M, J, J, A, S, O, N, D) for the years **2024**, **2025**, and **2026** (ending in May 2026).
-- **Left Y-axis (Philippine peso/kg):** Ranges from 38 to 52 in increments of 2.
-- **Right Y-axis (Myanmar kyat/kg):** Ranges from 1,700 to 2,400 in increments of 100.
+- **X-axis (Time)**: Monthly intervals from May 2024 through May 2026 (`M J J A S O N D 2024`, `J F M A M J J A S O N D 2025`, `J F M A M 2026`).
+- **Left Y-axis (Philippine peso/kg)**: Ranges from 38 to 52 in increments of 2.
+- **Right Y-axis (Myanmar kyat/kg)**: Ranges from 1,700 to 2,400 in increments of 100.
 
-### Series and Trends:
-1. **PHILIPPINES — Regular milled rice, national average (left axis, reddish-orange line):**
-   - **2024:** Starts near 51.2 PHP/kg in May–June 2024, gradually declining through late 2024 (reaching ~48.9 PHP/kg in December).
-   - **2025:** Steeper decline through mid-2025, reaching a low of approximately 40.0 PHP/kg around September–October 2025, before starting an upturn in November (~40.3 PHP/kg) and December (~41.5 PHP/kg).
-   - **2026:** Sharp rebound in early 2026, rising from ~43.3 PHP/kg in January to a peak of ~51.7 PHP/kg in April and ~51.5 PHP/kg in May 2026.
+#### Series and Key Values:
+1. **PHILIPPINES – Regular milled rice, national average (left axis, reddish-orange line):**
+   - **Mid-2024**: Starts high at ~51.2–51.4 PHP/kg in May–June 2024, gradually declining to ~48.8 PHP/kg by December 2024.
+   - **2025**: Steady downward trend through the first three quarters, falling from ~48.2 PHP/kg in January 2025 to reach a low of ~39.8–40.0 PHP/kg in September–October 2025.
+   - **Late 2025 to Mid-2026**: Sharp rebound starting in November 2025 (~40.1 PHP/kg), accelerating rapidly throughout early 2026 (reaching ~45.5 in February, ~48.6 in March, and peaking at ~51.7 PHP/kg in April 2026 before slightly easing to ~51.5 PHP/kg in May 2026).
 
-2. **MYANMAR — Emata, Yangon (right axis, grey/brown line):**
-   - **2024:** Starts at ~2,250 MMK/kg in May 2024, rises to ~2,300 MMK/kg in June, then sharply drops to ~1,950 MMK/kg in July before recovering to ~2,210 MMK/kg by November–December 2024.
-   - **2025:** Declines steadily to ~2,020 MMK/kg by May 2025, holds steady at ~2,020 MMK/kg through September 2025, and drops slightly to ~1,970 MMK/kg by November–December 2025.
-   - **2026:** Reaches a low of around 1,880 MMK/kg in February–March 2026, before rising back to ~1,920 MMK/kg in April and ~1,970 MMK/kg in May 2026.
+2. **MYANMAR – Emata, Yangon (right axis, grey/taupe line):**
+   - **2024**: Starts at ~2,250 MMK/kg in May 2024, peaks at ~2,300 MMK/kg in June, then sharply drops to ~1,950 MMK/kg in July before rebounding to ~2,130–2,210 MMK/kg between August and December 2024.
+   - **2025**: Decreases to ~2,020 MMK/kg by May 2025, remaining flat at exactly 2,020 MMK/kg through September 2025, then dipping slightly to ~1,970–1,980 MMK/kg by late 2025.
+   - **2026**: Reaches its lowest point of ~1,880 MMK/kg in February–March 2026, followed by a slight increase to ~1,920 MMK/kg in April and ~1,970 MMK/kg in May 2026.
 
 Table 12. Far East cereal production and anticipated trade in 2026/27
 
@@ -1502,23 +1516,33 @@ Afghanistan , prices of wheat grain and flour increased in March and April, and 
 page: 27
 bounding box: l=28.6, t=183.9, r=255.1, b=473.3 (TOPLEFT)
 Summary:
-A line chart tracking monthly retail prices of wheat flour in Sri Lanka and Pakistan from May 2024 through May 2026.
+### Chart Overview
+A dual-axis line chart illustrating monthly wheat flour retail prices in Colombo, Sri Lanka, and Karachi, Pakistan, from May 2024 to May 2026.
 
-### Axes and Labels:
-- **X-axis (Time):** Monthly intervals spanning from May 2024 to May 2026 (labeled `M J J A S O N D` for 2024, `J F M A M J J A S O N D` for 2025, and `J F M A M` for 2026).
-- **Left Y-axis:** Sri Lanka rupee/kg, ranging from 170 to 230 in increments of 10.
-- **Right Y-axis:** Pakistan rupee/kg, ranging from 50 to 170 in increments of 20.
+### Axes and Legends
+- **Left Vertical Axis:** Sri Lanka rupee/kg, ranging from 170 to 230 in intervals of 10.
+- **Right Vertical Axis:** Pakistan rupee/kg, ranging from 50 to 170 in intervals of 20.
+- **Horizontal Axis:** Timeline spanning May 2024 through May 2026 (labeled with initial letters of each month: M, J, J, A, S, O, N, D, J, F, M, A, M, J, J, A, S, O, N, D, J, F, M, A, M).
+- **Series:**
+  - **SRI LANKA (Colombo, left axis):** Reddish-brown line with circular markers.
+  - **PAKISTAN (Karachi, right axis):** Yellow-orange line with circular markers.
 
-### Series Data:
-1. **SRI LANKA (Colombo, left axis)** — Brown line with circular markers:
-   - **2024:** May (~206), Jun (~207), Jul (~208), Aug (drops sharply to ~194), Sep (~191), Oct (~187), Nov (~186), Dec (~188).
-   - **2025:** Jan (~184), Feb (~183), Mar (~181), Apr (~182), May (~183), Jun (~182), Jul (~182), Aug (~183), Sep (spikes to ~193), Oct (~189), Nov (~186), Dec (~184).
-   - **2026:** Jan (~183), Feb (~182), Mar (~183), Apr (~190), May (~192).
+### Key Data Trends and Values
+- **Sri Lanka (Colombo) [Left Axis, Sri Lanka rupee/kg]:**
+  - **May–Jul 2024:** High and stable between ~206 and ~208 LKR/kg.
+  - **Aug 2024–Apr 2025:** Sharp decrease in August 2024 to ~194 LKR/kg, gradually declining to a low of ~181 LKR/kg by April 2025.
+  - **May–Aug 2025:** Stays low and flat around 182–183 LKR/kg.
+  - **Sep 2025:** Brief spike up to ~195 LKR/kg.
+  - **Oct 2025–Feb 2026:** Decreases again, reaching ~183 LKR/kg in February 2026.
+  - **Mar–May 2026:** Rebounds upward to ~193 LKR/kg.
 
-2. **PAKISTAN (Karachi, right axis)** — Yellow/ochre line with circular markers:
-   - **2024:** May (~102), Jun (~98), Jul (~101), Aug (~100), Sep (~95), Oct (~99), Nov (~101), Dec (~98).
-   - **2025:** Jan (~99), Feb (~95), Mar (~93), Apr (~83), May (~79), Jun (~79), Jul (~83), Aug (~86), Sep (surges to ~112), Oct (~121), Nov (~119), Dec (~123).
-   - **2026:** Jan (~127), Feb (~126), Mar (~118), Apr (~121), May (~126).
+- **Pakistan (Karachi) [Right Axis, Pakistan rupee/kg]:**
+  - **May 2024–Jan 2025:** Fluctuates narrowly between ~96 and ~101 PKR/kg.
+  - **Feb–May 2025:** Steady decline from ~95 PKR/kg to a trough of ~78 PKR/kg in May 2025.
+  - **Jun–Aug 2025:** Modest increase from ~79 to ~85 PKR/kg.
+  - **Sep–Oct 2025:** Sharp increase, jumping from ~85 PKR/kg in August to ~112 PKR/kg in September and ~121 PKR/kg in October.
+  - **Nov 2025–Feb 2026:** Continues high, peaking around 126–127 PKR/kg in January–February 2026.
+  - **Mar–May 2026:** Slight dip to ~118 PKR/kg in March before rising back to ~126 PKR/kg in May 2026.
 
 ## Large number of people acutely food insecure in several countries
 
@@ -1626,23 +1650,26 @@ market availability and elevated logistic costs. In Kyrgyzstan and Uzbekistan, r
 page: 30
 bounding box: l=29.3, t=287.9, r=254.6, b=591.5 (TOPLEFT)
 Summary:
-A dual-axis line chart showing retail wheat flour price trends in Georgia and Armenia from May 2024 to May 2026.
+### Retail Wheat Flour Prices in Georgia and Armenia
 
-### Axes and Parameters:
-- **X-axis:** Monthly time series from May 2024 to May 2026, labeled by month initials (`M J J A S O N D` for 2024, `J F M A M J J A S O N D` for 2025, and `J F M A M` for 2026).
-- **Left Y-axis:** Georgia price in `(Lari/kg)`, ranging from 3.40 to 4.40 with gridlines at 0.20 intervals (3.40, 3.60, 3.80, 4.00, 4.20, 4.40).
-- **Right Y-axis:** Armenia price in `(Armenian dram/kg)`, ranging from 200 to 250 with gridlines at intervals of 10 (200, 210, 220, 230, 240, 250).
+**Chart Type:** Dual-axis line chart  
+**Time Period:** Monthly from May 2024 through May 2026  
 
-### Series and Trajectories:
-1. **GEORGIA national average (left axis, reddish-brown line with white circular markers):**
-   - **2024:** Stays relatively low between ~3.49 and ~3.53 Lari/kg from May to August, then gradually increases through autumn: Sep (~3.59), Oct (~3.64), Nov (~3.74), before a brief dip in Dec (~3.63).
-   - **2025:** Fluctuates in early 2025 (Jan ~3.66, Feb ~3.78, Mar ~3.72, Apr ~3.62), rises sharply in May (~3.81) to a spike in June (~4.13 Lari/kg). It dips slightly through October (~3.91 Lari/kg) before rising to an overall peak in December 2025 at approximately 4.27 Lari/kg.
-   - **2026:** Declines from Jan (~4.12) to April (~3.94), ending at around 4.02 Lari/kg in May 2026.
+#### Axes and Units:
+- **X-axis:** Months (`M, J, J, A, S, O, N, D`) across years **2024**, **2025**, and **2026** (ending in May 2026).
+- **Left Y-axis (Georgia):** Retail price in **Lari/kg**, ranging from `3.40` to `4.40` in increments of `0.20`.
+- **Right Y-axis (Armenia):** Retail price in **Armenian dram/kg**, ranging from `200` to `250` in increments of `10`.
 
-2. **ARMENIA national average (right axis, gold/yellow line with white circular markers):**
-   - **2024:** Remains stable around 219–221 AMD/kg from May to October, edging up slightly to ~223–224 AMD/kg in Nov–Dec.
-   - **2025:** Drops sharply to ~213 AMD/kg in January, stays at ~213–214 AMD/kg through March, then climbs steadily from April (~216 AMD/kg) to ~223 AMD/kg in June. Prices stay elevated near 222–225 AMD/kg through December (peaking around 225 AMD/kg).
-   - **2026:** Drops slightly and remains steady at ~220–221.5 AMD/kg from January through May 2026.
+#### Series and Data Trends:
+1. **GEORGIA national average (left axis, reddish-brown line):**
+   - **2024:** Starts at ~3.50 Lari/kg in May, remains relatively flat around 3.50–3.54 through August, then trends upwards to ~3.74 in November before dipping to ~3.63 in December.
+   - **2025:** Fluctuates between 3.62 and 3.78 Lari/kg from January to April, followed by a sharp increase in May (~3.81) and June (~4.13). It stays elevated around 3.92–4.06 from July to October, spikes to its peak of ~4.27 Lari/kg in December 2025.
+   - **2026:** Declines from ~4.12 in January to ~3.94 in April, ending at ~4.02 Lari/kg in May.
+
+2. **ARMENIA national average (right axis, gold line):**
+   - **2024:** Remains stable around 219–221 AMD/kg from May to September, rises slightly to ~223.5 in November–December.
+   - **2025:** Drops sharply in January to ~213 AMD/kg and stays near 213–216 through April, then rises back to ~223 AMD/kg in June. Stays stable near 222–225 AMD/kg through December (peaking at ~225 in December).
+   - **2026:** Eases to ~221.5 AMD/kg in January–February and levels off at ~220–221 AMD/kg through May 2026.
 
 ## PACIFIC ISLANDS
 
@@ -1718,23 +1745,25 @@ Wheat (winter): Planting
 page: 31
 bounding box: l=360.2, t=589.6, r=564.9, b=794.8 (TOPLEFT)
 Summary:
-A line chart showing cereal production trends and forecasts from 2022 to 2026.
+A line chart illustrating annual cereal production from 2022 to 2026 (forecast) in million tonnes for two regions:
 
-- **Vertical Axis:** Cereal production in (million tonnes), ranging from 0 to 350 with gridlines every 50 units (0, 50, 100, 150, 200, 250, 300, 350).
-- **Horizontal Axis:** Years from 2022 to 2026 (labeled "2026 forecast").
-- **Series Data:**
-  - **SOUTH AMERICA** (tan/brown line with white circular markers):
-    - 2022: ~255 million tonnes
-    - 2023: ~257 million tonnes
-    - 2024: ~259 million tonnes
-    - 2025: ~300 million tonnes
-    - 2026 (forecast): ~305 million tonnes
-  - **CENTRAL AMERICA & CARIBBEAN** (purple/maroon line with white circular markers):
-    - 2022: ~43 million tonnes
-    - 2023: ~44 million tonnes
-    - 2024: ~40 million tonnes
-    - 2025: ~37 million tonnes
-    - 2026 (forecast): ~38 million tonnes
+- **Vertical (Y) Axis:** Cereal production in million tonnes, ranging from 0 to 350 in increments of 50.
+- **Horizontal (X) Axis:** Years: 2022, 2023, 2024, 2025, and 2026 (labeled "2026 forecast").
+
+### Series Data:
+1. **South America** (brown line):
+   - **2022:** ~255 million tonnes
+   - **2023:** ~257 million tonnes
+   - **2024:** ~259 million tonnes
+   - **2025:** ~300 million tonnes
+   - **2026 (forecast):** ~306 million tonnes
+
+2. **Central America & Caribbean** (purple line):
+   - **2022:** ~43 million tonnes
+   - **2023:** ~44 million tonnes
+   - **2024:** ~40 million tonnes
+   - **2025:** ~37 million tonnes
+   - **2026 (forecast):** ~38 million tonnes
 
 ========== page 31 end ==========
 
@@ -1796,26 +1825,23 @@ In Haiti , retail prices of domestically produced black beans and maize meal inc
 page: 33
 bounding box: l=28.7, t=362.9, r=255.0, b=675.7 (TOPLEFT)
 Summary:
-### Chart: Wholesale white maize prices in selected Central America countries
+A dual-axis line chart titled **"Wholesale white maize prices in selected Central America countries"** showing monthly wholesale prices from May 2024 to May 2026.
 
-**Chart Type:** Dual-axis line chart  
-**Time Horizon:** Monthly from May 2024 to May 2026 (labeled by month initials under years 2024, 2025, 2026)
+### Axes & Legend
+- **Left Axis (Red/Orange series):** Mexican peso/tonne for **MEXICO (Puebla)**, ranging from 8 000 to 18 000 with increments of 1 000.
+- **Right Axis (Brown/Grey series):** Honduran lempira/tonne for **HONDURAS (Tegucigalpa)**, ranging from 8 000 to 18 000 with increments of 1 000.
+- **X-axis (Time):** Monthly ticks from May 2024 to May 2026 (labelled M, J, J, A, S, O, N, D for 2024; J through D for 2025; J through M for 2026).
 
-#### Axes:
-- **Left Vertical Axis:** Mexican peso/tonne (ranges from 8 000 to 18 000 in intervals of 1 000)
-- **Right Vertical Axis:** Honduran lempira/tonne (ranges from 8 000 to 18 000 in intervals of 1 000)
-- **Horizontal Axis:** Month/Year (May 2024 to May 2026)
-
-#### Series and Data Trends:
-1. **MEXICO – Puebla (left axis, reddish-orange line):**
-   - **2024:** Starts at 14 000 in May, drops to ~10 950 in June and ~10 100 in July, surges to a peak of ~15 300 in August, then trends downwards through September (~14 500), October (~13 800), November (~13 500), to ~12 600 in December.
-   - **2025:** Rebounds in January (~13 700), stays around ~13 500 in February, reaches a secondary peak of ~14 500 in March, before dropping steeply in April (~9 800) to reach a low of ~8 250 in May. Remains low through June (~8 400), minor rise in July–August (~9 200), and stays in the range of 8 400–8 900 through the end of 2025.
-   - **2026:** Stays low at ~8 400–8 500 in Jan–Mar, then slightly rises to ~8 900 in April and ~9 250 in May.
-
-2. **HONDURAS – Tegucigalpa (right axis, greyish-brown line):**
-   - **2024:** Starts stable at ~10 100 in May–June, increases to ~11 350 in August, then steadily declines to ~9 500 in December.
-   - **2025:** Bottoms out around ~9 300 in January–February, then rises rapidly from ~10 100 in April, ~10 950 in May, ~12 350 in June, ~14 400 in July, reaching a peak of ~15 800 in August–September. It declines to ~14 000 in October and stabilizes around 13 150–13 200 in November 2025 to January 2026.
-   - **2026:** Rises continuously through February (~14 000), March (~14 400), April (~15 100), reaching ~15 350 in May 2026.
+### Trends & Key Values
+- **Mexico (Puebla, left axis, Mexican peso/tonne):**
+  - Started at approximately 14 000 in May 2024, dropped to ~10 100 in July 2024, then spiked to a peak of ~15 300 in August 2024.
+  - Fluctuated downward to ~12 600 in December 2024, rebounded to ~14 500 in March 2025.
+  - Fell sharply to ~8 300 in May 2025.
+  - Remained relatively low and stable between 8 400 and 9 300 through mid-2025 to May 2026, ending at ~9 300 in May 2026.
+- **Honduras (Tegucigalpa, right axis, Honduran lempira/tonne):**
+  - Stood around 10 100 to 11 350 between May and October 2024, then declined to a low of ~9 300 in February 2025.
+  - Began a steep rise in early 2025, reaching a high of ~15 800 in August–September 2025.
+  - Decreased to ~13 200 in November 2025–January 2026, before rising again steadily through early 2026 to ~15 400 in May 2026.
 
 in May 2026, following an increase in fuel prices.
 
@@ -1833,24 +1859,31 @@ Food security in Cuba has deteriorated since early 2026, as rising food prices, 
 page: 33
 bounding box: l=352.3, t=362.3, r=567.5, b=656.4 (TOPLEFT)
 Summary:
-### Chart: Wholesale white maize prices in selected Central America countries
+### Wholesale White Maize Prices in Selected Central America Countries
 
-- **Type:** Dual-axis line chart.
-- **Left Vertical Axis (Purple Series):** Wholesale price in Guatemala, labeled `(Quetzal/tonne)`, ranging from `3 000` to `7 000` with grid intervals of `500`.
-- **Right Vertical Axis (Yellow/Gold Series):** Wholesale price in El Salvador, labeled `(United States dollar/tonne)`, ranging from `350` to `750` with grid intervals of `50`.
-- **Horizontal Axis:** Monthly timeline from May 2024 to May 2026 (`M J J A S O N D 2024`, `J F M A M J J A S O N D 2025`, `J F M A M 2026`).
+**Chart Type:** Dual-axis line chart  
+**Time Period:** May 2024 to May 2026 (monthly ticks: M, J, J, A, S, O, N, D for 2024; J, F, M, A, M, J, J, A, S, O, N, D for 2025; J, F, M, A, M for 2026)  
 
-#### Series and Key Values:
-1. **GUATEMALA (Guatemala City - left axis, purple line with white circles):**
-   - **2024:** Starts at ~4 500 Quetzal/tonne in May, rises to a peak of ~4 850 Quetzal/tonne in July–August, then declines steadily through late 2024.
-   - **Early 2025:** Reaches a low of ~3 750 Quetzal/tonne in January 2025, remaining around 3 800–4 050 Quetzal/tonne through May.
-   - **Mid-to-Late 2025:** Rises sharply to a second peak of ~4 700 Quetzal/tonne in September 2025, before dropping to ~3 950 Quetzal/tonne by January–February 2026.
-   - **2026:** Rebounds to ~4 350 Quetzal/tonne in April 2026 before easing to ~4 200 Quetzal/tonne in May 2026.
+**Axes:**
+- **Left Vertical Axis:** Price in Quetzal/tonne for Guatemala, ranging from 3 000 to 7 000 in increments of 500.
+- **Right Vertical Axis:** Price in United States dollar/tonne for El Salvador, ranging from 350 to 750 in increments of 50.
+- **Horizontal Axis:** Month/Year (May 2024 – May 2026).
 
-2. **EL SALVADOR (San Salvador - right axis, gold line with white circles):**
-   - **2024:** Starts at ~440 USD/tonne in May, reaches a local high of ~500 USD/tonne in July–August, then decreases to ~450 USD/tonne by late 2024.
-   - **2025:** Remains steady around 450 USD/tonne through April 2025, followed by a steep increase starting in May (~505 USD/tonne) to a major peak of ~730 USD/tonne in September 2025.
-   - **Late 2025 – 2026:** Drops sharply to ~555 USD/tonne in January 2026, slightly rising to fluctuate between 565 and 580 USD/tonne from February through May 2026.
+**Series Data:**
+1. **Guatemala (Guatemala City) [Purple line, left axis, Quetzal/tonne]:**
+   - Starts at ~4,520 Quetzal/tonne in May 2024, rises to a peak around July–August 2024 (~4,840 Quetzal/tonne).
+   - Declines steadily to a low of ~3,750 Quetzal/tonne in January 2025.
+   - Remains between ~3,800 and 4,050 Quetzal/tonne through May 2025.
+   - Rises to a secondary peak in August–September 2025 (~4,680 Quetzal/tonne).
+   - Drops back to ~3,950 Quetzal/tonne by December 2025–January 2026.
+   - Increases slightly to ~4,350 Quetzal/tonne in April 2026 before ending at ~4,180 Quetzal/tonne in May 2026.
+
+2. **El Salvador (San Salvador) [Golden-orange line, right axis, USD/tonne]:**
+   - Starts at ~440 USD/tonne in May 2024, peaks modestly at ~495 USD/tonne in July–August 2024.
+   - Fluctuates near 450 USD/tonne from November 2024 to March 2025.
+   - Rises sharply starting in April 2025 (~475 USD/tonne) to a major peak of ~730 USD/tonne in September 2025.
+   - Declines rapidly to ~555 USD/tonne in January 2026.
+   - Stabilizes and slightly rebounds to ~575 USD/tonne between March and May 2026.
 
 ========== page 33 end ==========
 
@@ -1906,23 +1939,26 @@ Between March and May 2026, wheat prices rose seasonally across most markets in 
 page: 35
 bounding box: l=28.8, t=174.0, r=254.0, b=459.5 (TOPLEFT)
 Summary:
-### Wholesale Maize Prices in Brazil and Argentina
+### Dual-Axis Line Chart: Wholesale Maize Prices in Brazil and Argentina
 
-* **Chart Type**: Dual-axis line chart.
-* **Time Period**: Monthly from May 2024 to May 2026.
-* **Left Vertical Axis**: Brazilian real/tonne, ranging from 700 to 1 700 in increments of 200.
-* **Right Vertical Axis**: Argentine peso/tonne, ranging from 140 000 to 340 000 in increments of 40 000.
-* **Horizontal Axis**: Months from May 2024 (M) through May 2026 (M).
+* **Left Y-axis (Brazil):** Price in Brazilian Real/tonne, ranging from 700 to 1 700 with increments of 200.
+* **Right Y-axis (Argentina):** Price in Argentine peso/tonne, ranging from 140 000 to 340 000 with increments of 40 000.
+* **X-axis:** Monthly timeline from May 2024 to May 2026 (labeled by month initials: M, J, J, A, S, O, N, D for 2024; J, F, M, A, M, J, J, A, S, O, N, D for 2025; J, F, M, A, M for 2026).
 
-**Series Data**:
-* **Brazil (Federal district - left axis, grey line)**: 
-  * Started around 860 Real/tonne in May 2024, dipping to about 800 in July 2024.
-  * Rose steadily through late 2024 to reach ~1 090 Real/tonne in January 2025, before a sharp spike to a peak of approximately 1 440 Real/tonne in April 2025.
-  * Dropped sharply to around 890 Real/tonne by August 2025, followed by a slight rebound to ~1 050 Real/tonne in January 2026, ending around 980 Real/tonne in May 2026.
-* **Argentina (Rosario - right axis, reddish-brown line)**:
-  * Began at approximately 160 000 Peso/tonne in May 2024, remaining relatively flat until August 2024.
-  * Began an upward trend through 2024 and 2025, reaching ~225 000 Peso/tonne in April 2025, dipping slightly in June 2025 (~205 000 Peso/tonne), then steadily climbing to a peak of ~280 000 Peso/tonne in January 2026.
-  * Moderated to around 245 000 Peso/tonne in March 2026 before rising to ~260 000 Peso/tonne in May 2026.
+**Data Series:**
+1. **BRAZIL – Federal district (left axis)** (grey line with open circle markers):
+   - May–Jul 2024: Starts around 860 BRL/tonne, dips slightly to ~800 BRL/tonne in July.
+   - Aug 2024–Apr 2025: Steeps upward to reach a peak of approximately 1 440 BRL/tonne in April 2025.
+   - May–Aug 2025: Rapid decrease, hitting a low of around 890 BRL/tonne in August 2025.
+   - Sep 2025–Jan 2026: Climbs back up to about 1 060 BRL/tonne in January 2026.
+   - Feb–May 2026: Gradually declines to around 980 BRL/tonne by May 2026.
+
+2. **ARGENTINA – Rosario (right axis)** (reddish-brown line with open circle markers):
+   - May–Jul 2024: Starts at ~160 000 ARS/tonne, dipping to ~155 000 ARS/tonne in July.
+   - Aug 2024–Apr 2025: Steady increase to ~225 000 ARS/tonne in April 2025.
+   - May–Jun 2025: Brief drop to ~205 000 ARS/tonne in June 2025.
+   - Jul 2025–Jan 2026: Sustained upward trend, peaking at approximately 280 000 ARS/tonne in January 2026.
+   - Feb–May 2026: Dips to ~245 000 ARS/tonne in March before rebounding to roughly 260 000 ARS/tonne in May 2026.
 
 (Peruvian Sol/tonne) Wholesale rice prices in selected countries in South America (Paraguayan guarani/tonne)
 
@@ -1930,23 +1966,24 @@ Summary:
 page: 35
 bounding box: l=28.2, t=498.6, r=255.1, b=792.0 (TOPLEFT)
 Summary:
-### Wholesale Rice Prices in Peru and Paraguay
+### Dual-Axis Line Chart: Wholesale Rice Prices in Peru and Paraguay
 
-* **Chart Type**: Dual-axis line chart.
-* **Time Period**: Monthly from May 2024 to May 2026.
-* **Left Vertical Axis**: Peruvian Sol/tonne, ranging from 1 500 to 4 500 in increments of 500.
-* **Right Vertical Axis**: Paraguayan guarani/tonne, ranging from 5 000 000 to 8 000 000 in increments of 500 000.
-* **Horizontal Axis**: Months from May 2024 (M) through May 2026 (M).
+* **Left Y-axis (Peru):** Price in Peruvian Sol/tonne, ranging from 1 500 to 4 500 with major intervals of 500.
+* **Right Y-axis (Paraguay):** Price in Paraguayan guarani/tonne, ranging from 5 000 000 to 8 000 000 with major intervals of 500 000.
+* **X-axis:** Monthly timeline from May 2024 to May 2026 (labeled by month initials: M, J, J, A, S, O, N, D for 2024; J, F, M, A, M, J, J, A, S, O, N, D for 2025; J, F, M, A, M for 2026).
 
-**Series Data**:
-* **Peru (Lima - left axis, grey line)**:
-  * Fluctuated slightly around 2 900–3 000 Sol/tonne from May to October 2024.
-  * Peaked at approximately 3 250 Sol/tonne in January 2025.
-  * Experienced a sustained downward trend throughout 2025 and early 2026, dropping to roughly 2 000 Sol/tonne by April–May 2026.
-* **Paraguay (Asunción - right axis, reddish-brown line)**:
-  * Started at ~6 100 000 Guarani/tonne in May 2024, rising to ~6 900 000 in October 2024 before dropping to ~6 350 000 in January 2025.
-  * Spiked sharply to a peak of ~7 500 000 Guarani/tonne in February 2025.
-  * Remained elevated around 7 000 000–7 300 000 Guarani/tonne through October 2025, dipped sharply to ~6 350 000 in December 2025, spiked again to ~7 150 000 in January 2026, and ended at ~6 500 000 Guarani/tonne in May 2026.
+**Data Series:**
+1. **PERU – Lima (left axis)** (grey line with open circle markers):
+   - May–Dec 2024: Starts at ~2 900 Sol/tonne and gradually rises to ~3 200 Sol/tonne.
+   - Jan 2025: Reaches a peak of ~3 250 Sol/tonne.
+   - Feb 2025–May 2026: Consistent downward trend, dropping to ~2 600 Sol/tonne by June 2025, ~2 400 Sol/tonne by November 2025, and reaching a series low of slightly below 2 000 Sol/tonne (~1 950 Sol/tonne) in May 2026.
+
+2. **PARAGUAY – Asunción (right axis)** (reddish-brown line with open circle markers):
+   - May–Nov 2024: Fluctuates upward from ~6 100 000 PYG/tonne to ~6 900 000 PYG/tonne in October before dipping to ~6 400 000 PYG/tonne in December.
+   - Feb 2025: Spikes sharply to a series high of approximately 7 500 000 PYG/tonne.
+   - Mar–Oct 2025: Remains elevated between 7 100 000 and 7 400 000 PYG/tonne.
+   - Nov–Dec 2025: Drops sharply to roughly 6 400 000 PYG/tonne in December 2025.
+   - Jan–May 2026: Rebounds to ~7 200 000 PYG/tonne in January, fluctuates around 7 000 000 PYG/tonne through April, and declines to ~6 550 000 PYG/tonne in May 2026.
 
 Argentina , prices of wheat grain were about 30 percent above their year-earlier levels in May, mainly supported by a 75 percent year-on-year increase in exports during the January to April 2026 period.
 
@@ -1956,22 +1993,28 @@ Argentina , prices of wheat grain were about 30 percent above their year-earlie
 page: 35
 bounding box: l=337.4, t=170.2, r=563.9, b=458.0 (TOPLEFT)
 Summary:
-### Dual-Axis Line Chart: Wholesale Wheat Prices in Colombia and Chile
+### Wholesale Wheat / Flour Prices in Colombia and Chile (May 2024 – May 2026)
 
-* **Title / Context:** Wholesale wheat prices in selected countries in South America (Colombia and Chile)
-* **Time Period (X-axis):** Monthly from May 2024 through May 2026 (labelled `M J J A S O N D` for 2024, `J F M A M J J A S O N D` for 2025, and `J F M A M` for 2026).
-* **Left Vertical Axis:** Colombian peso/tonne, ranging from 2,500,000 to 3,100,000 in increments of 100,000.
-* **Right Vertical Axis:** Chilean peso/tonne, ranging from 220,000 to 340,000 in increments of 20,000.
+**Chart Type:** Dual-axis line chart
 
-#### Series and Key Values:
-* **COLOMBIA – Bogotá - wheat flour (left axis, yellow line with hollow circles):**
-  * **2024:** Starts at 2,900,000 in May; drops to ~2,740,000 in June and ~2,690,000 in August; stabilizes between ~2,715,000 and 2,745,000 from September through December.
-  * **2025:** Climbs from ~2,725,000 in January to a sharp peak of ~2,935,000 in February; drops to ~2,755,000 in April; fluctuates between ~2,690,000 and 2,815,000 through the rest of 2025.
-  * **2026:** Dips to a low of ~2,625,000 in January; rises to ~2,710,000 in February–March; surges to ~2,780,000 in April; ends at ~2,705,000 in May.
-* **CHILE – national average (right axis, purple line with hollow circles):**
-  * **2024:** Starts at ~226,000 in May and ~228,000 in June; rises sharply to ~260,000 in July; reaches ~278,000 in October–November; falls to ~271,000 in December.
-  * **2025:** Drops to ~248,000 in January; trends steadily upward from ~251,000 in February to peak at ~299,000 in September; drops to ~295,000 in October, ~282,000 in November, and falls steeply to ~240,000 in December.
-  * **2026:** Reaches a trough of ~228,000 in February; rebounds to ~238,000 in March, ~248,000 in April, and ~251,000 in May.
+**Axes & Units:**
+- **X-axis:** Monthly time series from May 2024 to May 2026 (`M J J A S O N D` for 2024, `J F M A M J J A S O N D` for 2025, `J F M A M` for 2026).
+- **Left Y-axis (Colombian peso/tonne):** 2 500 000 to 3 100 000 in increments of 100 000.
+- **Right Y-axis (Chilean peso/tonne):** 220 000 to 340 000 in increments of 20 000.
+
+**Series Data:**
+1. **Colombia (Bogotá – wheat flour, left axis, gold line):**
+   - Starts at 2 900 000 in May 2024, declining to ~2 740 000 in June and ~2 690 000 in July–August 2024.
+   - Fluctuates between ~2 720 000 and ~2 740 000 through January 2025.
+   - Surges sharply to a peak of ~2 935 000 in February 2025 before declining to ~2 760 000 in April 2025 and rebounding to ~2 815 000 in May 2025.
+   - Steadily eases from ~2 780 000 in June 2025 to a low of ~2 625 000 in January 2026.
+   - Rebounds to ~2 710 000 in February–March 2026, spikes to ~2 780 000 in April 2026, and finishes at ~2 705 000 in May 2026.
+
+2. **Chile (national average, right axis, purple line):**
+   - Starts at ~227 000 in May 2024, jumping to ~260 000 in July and peaking around ~278 000 in October–November 2024.
+   - Drops to ~248 000 in January 2025 before rising steadily through mid-2025 to peak at ~299 000 in September 2025.
+   - Decreases rapidly from October 2025 (~295 000) down to a low of ~229 000 in February 2026.
+   - Recovers over spring 2026 to reach ~251 000 by May 2026.
 
 (Brazilian real/tonne) Wholesale wheat prices in selected countries in South America (Argentine peso/tonne)
 
@@ -1979,22 +2022,26 @@ Summary:
 page: 35
 bounding box: l=338.8, t=501.6, r=563.5, b=790.9 (TOPLEFT)
 Summary:
-### Dual-Axis Line Chart: Wholesale Wheat Prices in Brazil and Argentina
+### Wholesale Wheat Prices in Brazil and Argentina (May 2024 – May 2026)
 
-* **Title / Context:** Wholesale wheat prices in selected countries in South America (Brazil and Argentina)
-* **Time Period (X-axis):** Monthly from May 2024 through May 2026 (labelled `M J J A S O N D` for 2024, `J F M A M J J A S O N D` for 2025, and `J F M A M` for 2026).
-* **Left Vertical Axis:** Brazilian real/tonne, ranging from 900 to 1,500 in increments of 100.
-* **Right Vertical Axis:** Argentine peso/tonne, ranging from 120,000 to 300,000 in increments of 30,000.
+**Chart Type:** Dual-axis line chart
 
-#### Series and Key Values:
-* **BRAZIL – Rio Grande do Sul (left axis, grey/taupe line with hollow circles):**
-  * **2024:** Starts at ~1,295 in May; peaks at ~1,430 in July; declines steadily to a low of ~1,190 in December.
-  * **2025:** Rises steadily to ~1,390 in April and ~1,370 in May; begins a prolonged decline from June (~1,325) through the end of the year, dropping sharply after September (~1,240) to reach a low of ~1,010 in December.
-  * **2026:** Remains low in January–February (~1,025 to 1,030); rebounds sharply through March (~1,060), April (~1,175), and May (~1,280).
-* **ARGENTINA – Cordoba (right axis, rust-orange line with hollow circles):**
-  * **2024:** Begins around 237,000 in May; reaches ~243,000 in August; drops sharply to ~188,000 in November and ~190,000 in December.
-  * **2025:** Rises steadily from ~200,000 in January to ~239,000 in April; after a slight dip to ~230,000 in May, climbs continuously to peak at ~280,000 in September; drops to ~229,000 in November before rising to ~242,000 in December.
-  * **2026:** Holds around 250,000–255,000 in January–March; increases to ~259,000 in April; surges to a series high of ~292,000 in May.
+**Axes & Units:**
+- **X-axis:** Monthly time series from May 2024 to May 2026 (`M J J A S O N D` for 2024, `J F M A M J J A S O N D` for 2025, `J F M A M` for 2026).
+- **Left Y-axis (Brazilian real/tonne):** 900 to 1 500 in increments of 100.
+- **Right Y-axis (Argentine peso/tonne):** 120 000 to 300 000 in increments of 30 000.
+
+**Series Data:**
+1. **Brazil (Rio Grande do Sul, left axis, brown/grey line):**
+   - Starts at ~1 295 in May 2024, peaks at ~1 430 in June 2024, and declines to ~1 190 in December 2024.
+   - Rises to a second peak of ~1 390 in April 2025 (~1 370 in May 2025).
+   - Drops steeply across late 2025, reaching a trough of ~1 010 in December 2025 and ~1 025 in January 2026.
+   - Strongly rebounds throughout early 2026, reaching ~1 280 in May 2026.
+
+2. **Argentina (Cordoba, right axis, reddish-orange line):**
+   - Starts at ~237 000 in May 2024, stays around 240 000 through August 2024, then drops sharply to ~160 000 in November–December 2024.
+   - Rises steadily throughout 2025, reaching an interim peak of ~280 000 in September 2025.
+   - Dips to ~230 000 in November 2025 before escalating sharply through early 2026 to reach ~292 000 in May 2026.
 
 ========== page 35 end ==========
 
@@ -2069,20 +2116,19 @@ page: 37
 bounding box: l=477.3, t=365.0, r=587.8, b=450.3 (TOPLEFT)
 Summary:
 ### 1. World region
-Oceania (primarily showing Australia, Tasmania, and New Zealand, along with surrounding Pacific Island outlines).
+Oceania (centered on Australia, Tasmania, and New Zealand, with outlines of adjacent southwestern Pacific islands).
 
 ### 2. Main message
-Provides a regional locator/base map for Oceania corresponding to crop stage reporting for the region.
+A regional locator map defining the Oceania monitoring zone associated with cereal crop condition and phenology reporting.
 
 ### 3. Regions with data
-Australia (mainland and Tasmania) and New Zealand.
+Australia (including Tasmania) and New Zealand.
 
 ### 4. Quantitative information by region
-- The map displays Australia and New Zealand filled in a uniform light brown/beige color outlined in white against a very light beige background.
-- No numerical values, legends, or color-graded regional subdivisions are plotted directly within this map graphic.
+The landmasses of Australia and New Zealand are rendered in a uniform solid neutral beige/tan fill outlined with white borders. No numeric values, sub-national divisions, or data scales are embedded directly on the map surface.
 
 ### 5. Summary in context
-This visual serves as the geographic reference map for the "OCEANIA" section, which describes crop progress in Australia as of June 2026: summer cereals are in the "Vegetative" stage, and winter cereals are in the "Planting" stage.
+The map provides geographic context for the crop stage indicators listed in the section text for Oceania/Australia as of June, where summer cereals are reported in the vegetative stage and winter cereals are in the planting stage.
 
 ## Cereal production
 
@@ -2090,34 +2136,33 @@ This visual serves as the geographic reference map for the "OCEANIA" section, wh
 page: 37
 bounding box: l=359.9, t=515.4, r=567.5, b=734.6 (TOPLEFT)
 Summary:
-### Cereal Production Trends (2022–2026 forecast)
+A line chart displaying cereal production trends from 2022 to 2026 (forecast) across three regions: North America, Europe, and Oceania.
 
-A line graph showing cereal production in million tonnes across three regions from 2022 to 2026 (forecast):
+### Axis and Scale:
+- **Y-axis:** Cereal production in **million tonnes**, ranging from 0 to 700 with tick marks at intervals of 100.
+- **X-axis:** Years from **2022** to **2026 forecast** (2022, 2023, 2024, 2025, 2026 forecast).
 
-- **Vertical Axis (Y-axis):** Production in million tonnes, ranging from 0 to 700 with increments of 100.
-- **Horizontal Axis (X-axis):** Years: 2022, 2023, 2024, 2025, and 2026 forecast.
-
-#### Regional Data Series:
+### Series and Approximate Data Points (million tonnes):
 - **NORTH AMERICA** (purple line):
-  - 2022: ~473 million tonnes
-  - 2023: ~521 million tonnes
-  - 2024: ~520 million tonnes
-  - 2025: ~580 million tonnes
-  - 2026 (forecast): ~530 million tonnes
+  - 2022: ~473
+  - 2023: ~521
+  - 2024: ~519
+  - 2025: ~580
+  - 2026 (forecast): ~531
 
-- **EUROPE** (red/orange line):
-  - 2022: ~525 million tonnes
-  - 2023: ~516 million tonnes
-  - 2024: ~478 million tonnes
-  - 2025: ~535 million tonnes
-  - 2026 (forecast): ~514 million tonnes
+- **EUROPE** (orange-red line):
+  - 2022: ~524
+  - 2023: ~517
+  - 2024: ~478
+  - 2025: ~534
+  - 2026 (forecast): ~513
 
-- **OCEANIA** (tan/grey-brown line):
-  - 2022: ~62 million tonnes
-  - 2023: ~45 million tonnes
-  - 2024: ~53 million tonnes
-  - 2025: ~60 million tonnes
-  - 2026 (forecast): ~48 million tonnes
+- **OCEANIA** (tan/greyish-brown line):
+  - 2022: ~62
+  - 2023: ~44
+  - 2024: ~53
+  - 2025: ~59
+  - 2026 (forecast): ~47
 
 ========== page 37 end ==========
 
@@ -2189,44 +2234,41 @@ page: 39
 bounding box: l=29.1, t=420.9, r=250.5, b=697.6 (TOPLEFT)
 Summary:
 ### Overview
-A line graph showing monthly **Wheat export prices in the Russian Federation** in **USD per tonne** from **May 2024 to May 2026**.
+A line graph showing the monthly trend of **wheat export prices in the Russian Federation** from May 2024 to May 2026.
 
-### Axes
-- **Vertical (Y-axis):** Price in United States dollar/tonne (USD/tonne), ranging from 200 to 270 with horizontal gridlines every 10 USD/tonne.
-- **Horizontal (X-axis):** Monthly timeline covering:
-  - **2024:** May (M) to December (D)
-  - **2025:** January (J) to December (D)
-  - **2026:** January (J) to May (M)
+### Axes & Units
+- **Vertical (Y-axis):** Price in **United States dollar/tonne (USD/tonne)**, ranging from 200 to 270 in increments of 10.
+- **Horizontal (X-axis):** Time in months from **May 2024 through May 2026** (labeled by month initial: M, J, J, A, S, O, N, D / J, F, M, A, M, J, J, A, S, O, N, D / J, F, M, A, M).
 
-### Data Series & Key Approximate Values (USD/tonne)
+### Monthly Price Data (approximate USD/tonne):
 - **2024:**
-  - May: ~236
-  - June: ~240
-  - July: ~221
-  - August: ~219
-  - September: ~217 (period low in 2024)
-  - October: ~236
-  - November: ~228
-  - December: ~234
+  - May: 236
+  - June: 239.5
+  - July: 220.5
+  - August: 219
+  - September: 216.5 (lowest point in 2024)
+  - October: 235.5
+  - November: 228
+  - December: 234
 - **2025:**
-  - January: ~238
-  - February: ~247
-  - March: ~251
-  - April: ~251 (peak price level)
-  - May: ~246
-  - June: ~226
-  - July: ~233
-  - August: ~238
-  - September: ~228
-  - October: ~231
-  - November: ~230
-  - December: ~228
+  - January: 238
+  - February: 247
+  - March: 251
+  - April: 251 (peak level)
+  - May: 246
+  - June: 226
+  - July: 233.5
+  - August: 238
+  - September: 228.5
+  - October: 230.5
+  - November: 230
+  - December: 227.5
 - **2026:**
-  - January: ~227
-  - February: ~231
-  - March: ~238
-  - April: ~239
-  - May: ~241
+  - January: 226.5
+  - February: 231.5
+  - March: 238
+  - April: 238.8
+  - May: 241
 
 3  Information provided by Ukraine excludes statistical data concerning the Autonomous Republic of Crimea, the city of Sevastopol and the Donetsk, Luhansk, Kherson and Zaporizhzhia regions. The information is presented without prejudice to relevant UN General Assembly and UN Security Council resolutions, which reaffirm the territorial integrity of Ukraine.
 
@@ -2589,11 +2631,11 @@ The Global  Information  and  Early  Warning  System  on  Food  and  Agriculture
 page: 47
 bounding box: l=445.0, t=724.3, r=579.7, b=787.6 (TOPLEFT)
 Summary:
-A publication barcode block on a salmon-colored background displaying publication identifiers:
-- **Top Left:** ISBN 978-92-5-140833-9
-- **Top Right:** ISSN 2707-2223
-- **Barcode & Digits:** Standard EAN-13 barcode encoding `9 789251 408339`
-- **Bottom Right:** Document identifier `CE0480EN/1/07.26`
+A standard publication barcode graphic featuring:
+- **ISBN:** `978-92-5-140833-9` (top left)
+- **ISSN:** `2707-2223` (top right)
+- **Barcode number:** `9 789251 408339`
+- **Document code:** `CE0480EN/1/07.26` (bottom right)
 
 ========== page 47 end ==========
 

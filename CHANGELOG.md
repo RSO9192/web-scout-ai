@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-08-27
+
+### Added
+
+- **Exa search backend**: `run_web_research(search_backend="exa")` (requires `EXA_API_KEY`) searches via exa.ai's `/search` API with `type="auto"`. Implemented with direct httpx calls — no new dependencies. Since bare Exa results carry no snippet, query-relevant `highlights` (capped at 1000 characters) fill the `snippet` field; richer than a Google snippet, which benefits the coverage evaluator's unscraped-candidate reasoning. Live-validated against the real API (field mapping, include and exclude filters, subdomain semantics matching Serper's `site:`).
+- **Capability-based domain exclusion**: `SearchBackend.search()` gains an `exclude_domains` parameter, applied natively where the engine supports it. Exa receives the exclude set as `excludeDomains`, so excluded domains never occupy result slots. Serper ignores the parameter — Google has no native exclusion and `-site:` emulation would eat its ~32-term query budget — and relies on the pipeline's post-search URL filter, which continues to run for every backend. The `web_search` function tool accepts `exclude_domains` under the same semantics.
+- **`RECOMMENDED_EXCLUDE_DOMAINS`**: the previously implicit blocklist is now a curated opt-in constant exported from the package root (social/video platforms with no scrapeable text, bot-blocked search engines, hard-paywalled publishers). Pass it — or extend it — via `exclude_domains`.
+
+### Changed
+
+- **Breaking: no domains are blocked by default.** `exclude_domains=None` now means nothing is excluded; the implicit `BLOCKED_DOMAINS` default is gone (the constant was renamed to `RECOMMENDED_EXCLUDE_DOMAINS` and must be passed explicitly). Callers who relied on the silent default should pass `exclude_domains=RECOMMENDED_EXCLUDE_DOMAINS`. Contradictions now fail fast with `ValueError` instead of being silently reconciled: a domain present in both `include_domains` and `exclude_domains`, or a `direct_url` whose host is excluded.
+- **Breaking: search contract slimmed to what the pipeline consumes.** `SearchResponse` now carries only `results`, and `SearchResult` only `title`/`url`/`snippet`. Removed: the `PeopleAlsoAsk` and `KnowledgeGraph` dataclasses, `SearchResponse.people_also_ask`/`knowledge_graph`/`related_searches`, and `SearchResult.date`/`position`. These were engine-specific extras rendered solely in the `create_web_search` tool text and never used by the research pipeline; dropping them keeps every backend on one uniform output. Custom `SearchBackend` subclasses must accept the new `exclude_domains` keyword in `search()`.
+- **Serper retry logic extracted**: the 429/5xx exponential-backoff loop moved to a module-level `_post_with_retries()` helper shared by both backends.
+
 ## [1.5.0] - 2026-08-24
 
 ### Added

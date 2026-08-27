@@ -9,7 +9,6 @@ from web_scout.agent import (
     _normalize_domain,
     _rank_followup_candidates,
 )
-from web_scout.scraping.constants import BLOCKED_DOMAINS
 from web_scout.scraping.utils import is_blocked_domain
 from web_scout.tools import ResearchTracker
 
@@ -42,29 +41,37 @@ def test_normalize_domain_uppercase():
     assert _normalize_domain("WOCAT.NET") == "wocat.net"
 
 
-def test_build_exclude_domain_set_default_is_blocked_domains():
-    excluded = _build_exclude_domain_set()
-    assert excluded == BLOCKED_DOMAINS
+def test_build_exclude_domain_set_default_is_empty():
+    """No implicit blocklist: exclusions must always be explicit."""
+    assert _build_exclude_domain_set() == frozenset()
 
 
-def test_build_exclude_domain_set_from_direct_url_unblocks_host():
+def test_build_exclude_domain_set_normalizes_entries():
+    excluded = _build_exclude_domain_set(exclude_domains=["https://www.reddit.com/r/x", "YOUTUBE.COM"])
+    assert excluded == frozenset({"reddit.com", "youtube.com"})
+
+
+def test_build_exclude_domain_set_include_overlap_raises():
+    """A domain in both include_domains and exclude_domains is a contradiction."""
+    with pytest.raises(ValueError, match="reddit.com"):
+        _build_exclude_domain_set(
+            exclude_domains=["reddit.com", "youtube.com"],
+            include_domains=["www.reddit.com", "iccat.int"],
+        )
+
+
+def test_build_exclude_domain_set_direct_url_in_excludes_raises():
+    """A direct_url pointing into the exclude list is a contradiction."""
+    with pytest.raises(ValueError, match="sciencedirect.com"):
+        _build_exclude_domain_set(
+            exclude_domains=["sciencedirect.com"],
+            direct_url="https://www.sciencedirect.com/science/article/pii/S2214581825005567",
+        )
+
+
+def test_build_exclude_domain_set_disjoint_include_and_direct_ok():
     excluded = _build_exclude_domain_set(
-        direct_url="https://www.sciencedirect.com/science/article/pii/S2214581825005567"
-    )
-    assert "sciencedirect.com" not in excluded
-    assert "youtube.com" in excluded
-
-
-def test_build_exclude_domain_set_from_include_domains_unblocks_hosts():
-    excluded = _build_exclude_domain_set(include_domains=["https://www.reddit.com", "iccat.int"])
-    assert "reddit.com" not in excluded
-    assert "iccat.int" not in excluded
-    assert "youtube.com" in excluded
-
-
-def test_build_exclude_domain_set_custom_list_minus_include_and_direct():
-    excluded = _build_exclude_domain_set(
-        exclude_domains=["reddit.com", "youtube.com", "sciencedirect.com"],
+        exclude_domains=["reddit.com", "youtube.com"],
         include_domains=["www.nature.com"],
         direct_url="https://www.sciencedirect.com/science/article/pii/S2214581825005567",
     )
@@ -73,6 +80,16 @@ def test_build_exclude_domain_set_custom_list_minus_include_and_direct():
 
 def test_build_exclude_domain_set_empty_list_blocks_nothing():
     assert _build_exclude_domain_set(exclude_domains=[]) == frozenset()
+
+
+def test_recommended_exclude_domains_exported():
+    """The curated list survives as an explicit opt-in constant."""
+    from web_scout import RECOMMENDED_EXCLUDE_DOMAINS as public
+    from web_scout.scraping.constants import RECOMMENDED_EXCLUDE_DOMAINS as internal
+
+    assert public is internal
+    assert "youtube.com" in public
+    assert "jstor.org" in public
 
 
 def test_is_promising_followup_url_rejects_homepage():
@@ -305,29 +322,21 @@ def test_normalize_url_trailing_slash_stripped():
     assert ResearchTracker.normalize_url("https://example.com/page/") == "https://example.com/page"
 
 
-def testis_blocked_domain_reddit_blocked_by_default():
-    assert is_blocked_domain("https://reddit.com/r/MachineLearning") is True
+def testis_blocked_domain_nothing_blocked_by_default():
+    """No implicit blocklist: with exclude_domains=None nothing is blocked."""
+    assert is_blocked_domain("https://reddit.com/r/MachineLearning") is False
+    assert is_blocked_domain("https://www.youtube.com/watch?v=abc") is False
 
 
-def testis_blocked_domain_reddit_unblocked_when_dropped_from_exclude_set():
-    excluded = BLOCKED_DOMAINS - {"reddit.com"}
-    assert is_blocked_domain("https://reddit.com/r/MachineLearning", exclude_domains=excluded) is False
+def testis_blocked_domain_explicit_set_blocks():
+    excluded = frozenset({"reddit.com"})
+    assert is_blocked_domain("https://www.reddit.com/r/science", exclude_domains=excluded) is True
+    assert is_blocked_domain("https://wocat.net/en/database/", exclude_domains=excluded) is False
 
 
-def testis_blocked_domain_unrelated_domain_not_blocked():
-    assert is_blocked_domain("https://wocat.net/en/database/") is False
-
-
-def testis_blocked_domain_arxiv_not_blocked():
-    assert is_blocked_domain("https://arxiv.org/abs/1706.03762") is False
-
-
-def testis_blocked_domain_subdomain_blocked():
-    assert is_blocked_domain("https://m.youtube.com/watch?v=abc") is True
-
-
-def testis_blocked_domain_www_reddit_blocked_by_default():
-    assert is_blocked_domain("https://www.reddit.com/r/science") is True
+def testis_blocked_domain_subdomain_blocked_with_explicit_set():
+    excluded = frozenset({"youtube.com"})
+    assert is_blocked_domain("https://m.youtube.com/watch?v=abc", exclude_domains=excluded) is True
 
 
 def testis_blocked_domain_empty_exclude_set_blocks_nothing():
@@ -358,17 +367,18 @@ def test_normalize_url_fragment_stripped():
 # --- Additional is_blocked_domain coverage ---
 
 
-def testis_blocked_domain_linkedin_blocked():
-    assert is_blocked_domain("https://linkedin.com/in/someone") is True
+def testis_blocked_domain_recommended_list_blocks_linkedin_and_jstor():
+    from web_scout import RECOMMENDED_EXCLUDE_DOMAINS
+
+    assert is_blocked_domain("https://linkedin.com/in/someone", RECOMMENDED_EXCLUDE_DOMAINS) is True
+    assert is_blocked_domain("https://www.jstor.org/stable/10.2307/48726899", RECOMMENDED_EXCLUDE_DOMAINS) is True
 
 
-def testis_blocked_domain_jstor_blocked():
-    assert is_blocked_domain("https://www.jstor.org/stable/10.2307/48726899") is True
+def testis_blocked_domain_nature_not_in_recommended_list():
+    # nature.com is abstract-available and intentionally NOT in the curated list
+    from web_scout import RECOMMENDED_EXCLUDE_DOMAINS
 
-
-def testis_blocked_domain_nature_not_blocked():
-    # nature.com is abstract-available and intentionally NOT blocked
-    assert is_blocked_domain("https://www.nature.com/articles/s41598-024-63786-2") is False
+    assert is_blocked_domain("https://www.nature.com/articles/s41598-024-63786-2", RECOMMENDED_EXCLUDE_DOMAINS) is False
 
 
 def testis_blocked_domain_publisher_unblocked_when_not_in_exclude_set():
