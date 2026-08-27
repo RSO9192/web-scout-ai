@@ -12,7 +12,7 @@ from web_scout.scraping._download import download_pdf
 from web_scout.scraping._fetcher import _is_download_navigation_error
 from web_scout.scraping._markdown import append_links
 from web_scout.scraping._parser import _classify_fetch_result
-from web_scout.scraping.constants import BLOCKED_DOMAINS
+from web_scout.scraping.constants import RECOMMENDED_EXCLUDE_DOMAINS
 from web_scout.scraping.page_classifier import looks_like_document_resource
 from web_scout.scraping.utils import trim_json_value
 
@@ -440,7 +440,7 @@ def test_open_access_publishers_not_blocked():
         "journals.plos.org",
     ]
     for domain in open_access:
-        assert domain not in BLOCKED_DOMAINS, f"{domain} is open-access and should not be blocked"
+        assert domain not in RECOMMENDED_EXCLUDE_DOMAINS, f"{domain} is open-access and should not be blocked"
 
 
 def test_abstract_available_publishers_not_blocked():
@@ -451,7 +451,7 @@ def test_abstract_available_publishers_not_blocked():
         "academic.oup.com",
     ]
     for domain in abstract_available:
-        assert domain not in BLOCKED_DOMAINS, f"{domain} has accessible content and should not be blocked"
+        assert domain not in RECOMMENDED_EXCLUDE_DOMAINS, f"{domain} has accessible content and should not be blocked"
 
 
 def test_paywalled_publishers_remain_blocked():
@@ -460,7 +460,7 @@ def test_paywalled_publishers_remain_blocked():
         "jstor.org",
     ]
     for domain in paywalled:
-        assert domain in BLOCKED_DOMAINS, f"{domain} is paywalled and should stay blocked"
+        assert domain in RECOMMENDED_EXCLUDE_DOMAINS, f"{domain} is paywalled and should stay blocked"
 
 
 def test_cloudflare_publishers_unblocked():
@@ -476,4 +476,4 @@ def test_cloudflare_publishers_unblocked():
         "cambridge.org",
     ]
     for domain in unblocked:
-        assert domain not in BLOCKED_DOMAINS, f"{domain} is scrapeable and should not be blocked"
+        assert domain not in RECOMMENDED_EXCLUDE_DOMAINS, f"{domain} is scrapeable and should not be blocked"

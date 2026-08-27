@@ -5,7 +5,6 @@ from typing import Optional
 from urllib.parse import parse_qsl, urljoin, urlparse
 
 from web_scout.config import FOLLOWUP_HEURISTICS
-from web_scout.scraping.constants import BLOCKED_DOMAINS
 
 from .tools import ResearchTracker
 
@@ -447,21 +446,27 @@ def _build_exclude_domain_set(
     include_domains: Optional[list[str]] = None,
     direct_url: Optional[str] = None,
 ) -> frozenset[str]:
-    """Build the effective exclude/block list for URL exploration.
+    """Normalize and validate the caller-supplied exclude list.
 
-    Starts from ``BLOCKED_DOMAINS`` when *exclude_domains* is ``None``, otherwise
-    from the caller-supplied list. Hostnames from *include_domains* and
-    *direct_url* are subtracted so those targets remain reachable.
+    Nothing is blocked implicitly: ``None`` (or ``[]``) means no domains are
+    excluded. Pass ``RECOMMENDED_EXCLUDE_DOMAINS`` explicitly to opt into the
+    curated list. Contradictions raise ``ValueError``: a domain present in
+    both *exclude_domains* and *include_domains*, or a *direct_url* whose
+    host is excluded.
     """
-    if exclude_domains is None:
-        effective: set[str] = set(BLOCKED_DOMAINS)
-    else:
-        effective = {_normalize_domain(domain) for domain in exclude_domains}
+    if not exclude_domains:
+        return frozenset()
+
+    effective = frozenset(_normalize_domain(domain) for domain in exclude_domains)
     if include_domains:
-        effective -= {_normalize_domain(domain) for domain in include_domains}
-    if direct_url:
-        effective.discard(_normalize_domain(direct_url))
-    return frozenset(effective)
+        overlap = effective & {_normalize_domain(domain) for domain in include_domains}
+        if overlap:
+            raise ValueError(
+                f"Domain(s) present in both include_domains and exclude_domains: {sorted(overlap)}"
+            )
+    if direct_url and _normalize_domain(direct_url) in effective:
+        raise ValueError(f"direct_url host {_normalize_domain(direct_url)!r} is in exclude_domains")
+    return effective
 
 
 def _is_domain_mode_candidate(url: str, include_domains: list[str], query: str) -> bool:

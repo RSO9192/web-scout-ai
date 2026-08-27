@@ -28,9 +28,9 @@ def test_fao_org_is_not_blocked():
 
 
 def test_reddit_unblocked_when_dropped_from_exclude_domains():
-    from web_scout.scraping.constants import BLOCKED_DOMAINS
+    from web_scout.scraping.constants import RECOMMENDED_EXCLUDE_DOMAINS
 
-    excluded = BLOCKED_DOMAINS - {"reddit.com"}
+    excluded = RECOMMENDED_EXCLUDE_DOMAINS - {"reddit.com"}
     assert is_blocked_domain("https://reddit.com/r/science", exclude_domains=excluded) is False
 
 

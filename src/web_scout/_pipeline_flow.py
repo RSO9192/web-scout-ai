@@ -146,7 +146,7 @@ async def _rerank_followup_urls(
 
 
 def _build_search_backend(search_backend: str):
-    from .search_backends import SerperBackend
+    from .search_backends import ExaBackend, SerperBackend
 
     if search_backend == "serper":
         key = os.getenv("SERPER_API_KEY", "")
@@ -154,9 +154,15 @@ def _build_search_backend(search_backend: str):
             raise ValueError("search_backend='serper' requires SERPER_API_KEY env var")
         return SerperBackend(key)
 
+    if search_backend == "exa":
+        key = os.getenv("EXA_API_KEY", "")
+        if not key:
+            raise ValueError("search_backend='exa' requires EXA_API_KEY env var")
+        return ExaBackend(key)
+
     raise ValueError(
         f"Unknown search_backend={search_backend!r}. "
-        "Currently supported: 'serper'. "
+        "Currently supported: 'serper', 'exa'. "
         "See SearchBackend in search_backends.py to add a new backend."
     )
 
@@ -257,11 +263,17 @@ async def _execute_searches(
     backend: Any,
     search_queries: list[str],
     include_domains: Optional[list[str]],
+    exclude_domains: Optional[list[str]] = None,
     tracker: ResearchTracker,
 ) -> list[Any]:
     async def do_search(query: str):
         try:
-            response = await backend.search(query, max_results=10, include_domains=include_domains)
+            response = await backend.search(
+                query,
+                max_results=10,
+                include_domains=include_domains,
+                exclude_domains=exclude_domains,
+            )
             tracker.record_search(query, len(response.results), include_domains, response.results)
             return response
         except Exception as exc:
@@ -309,6 +321,7 @@ async def _search_and_scrape_iteration(
     *,
     query: str,
     include_domains: Optional[list[str]],
+    exclude_domains: Optional[list[str]] = None,
     depth: dict[str, int],
     iteration: int,
     missing_info: str,
@@ -329,6 +342,7 @@ async def _search_and_scrape_iteration(
         backend=backend,
         search_queries=search_queries,
         include_domains=include_domains,
+        exclude_domains=exclude_domains,
         tracker=tracker,
     )
     urls_to_scrape = _select_search_urls(
@@ -812,6 +826,9 @@ async def _run_search_mode_impl(
             iteration_result = await search_and_scrape_iteration(
                 query=query,
                 include_domains=include_domains,
+                # Sorted for determinism; backends without native exclusion
+                # ignore this and the post-search URL filter covers them.
+                exclude_domains=sorted(exclude_domains) if exclude_domains else None,
                 depth=depth,
                 iteration=iteration,
                 missing_info=state.missing_info,

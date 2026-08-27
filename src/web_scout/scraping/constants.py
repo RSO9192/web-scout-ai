@@ -1,6 +1,9 @@
-BLOCKED_DOMAINS = frozenset(
+# Curated opt-in exclude list. Nothing is blocked by default — pass this
+# (or your own list) as ``exclude_domains`` to block domains that waste the
+# scrape budget. Re-exported from the package root.
+RECOMMENDED_EXCLUDE_DOMAINS = frozenset(
     {
-        # Social media and video platforms
+        # Social media and video platforms: no scrapeable text content
         "youtube.com",
         "youtu.be",
         "twitter.com",
@@ -10,16 +13,16 @@ BLOCKED_DOMAINS = frozenset(
         "linkedin.com",
         "tiktok.com",
         "reddit.com",
-        # Search engines
+        # Search engines that bot-block scrapers
         "scholar.google.com",
         # Hard-paywalled publishers (login required even for abstracts)
         "jstor.org",
         # NOTE: open-access publishers (frontiersin.org, mdpi.com, journals.plos.org) and
         # abstract-available publishers (researchgate.net, nature.com, academic.oup.com)
-        # are intentionally NOT blocked — they yield useful content for research queries.
+        # are intentionally NOT listed — they yield useful content for research queries.
         # Cloudflare-protected publishers (wiley, sciencedirect, cambridge, tandfonline,
-        # springer, sagepub) were unblocked 2026-08-21: shared stealth sessions
-        # (_stealth_session.py) scrape them reliably, validated under parallel load.
+        # springer, sagepub) were dropped from the list 2026-08-21: shared stealth
+        # sessions (_stealth_session.py) scrape them reliably, validated under parallel load.
     }
 )
 

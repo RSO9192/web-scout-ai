@@ -5,7 +5,6 @@ from typing import Any, Optional
 from urllib.parse import urlparse
 
 from .constants import (
-    BLOCKED_DOMAINS,
     DOC_EXTENSIONS,
     PDF_MAGIC_BYTES,
     SUPPORTED_DOC_CONTENT_TYPES,
@@ -50,16 +49,14 @@ def is_network_error(value: object) -> bool:
 
 
 def is_blocked_domain(url: str, exclude_domains: Optional[frozenset] = None) -> bool:
-    """Return True when *url*'s host is in the effective exclude/block list.
+    """Return True when *url*'s host is in the caller-supplied exclude list.
 
-    ``exclude_domains is None`` uses the built-in ``BLOCKED_DOMAINS`` list.
-    An empty frozenset means block nothing.
+    Nothing is blocked implicitly: ``None`` or an empty set blocks nothing.
     """
     netloc = urlparse(url).netloc.lower()
     if netloc.startswith("www."):
         netloc = netloc[4:]
-    blocked = BLOCKED_DOMAINS if exclude_domains is None else exclude_domains
-    return any(netloc == d or netloc.endswith("." + d) for d in blocked)
+    return any(netloc == d or netloc.endswith("." + d) for d in exclude_domains or ())
 
 
 def is_json(text: str) -> bool:

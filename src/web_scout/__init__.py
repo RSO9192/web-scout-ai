@@ -36,7 +36,7 @@ Public API
 - ``ResearchTracker`` — URL/query bookkeeping
 """
 
-__version__ = "1.5.0"
+__version__ = "1.6.0"
 
 import logging as _logging
 import os as _os
@@ -105,12 +105,14 @@ from .models import (  # noqa: E402
     WebResearchResult,
     WebResearchResultRaw,
 )
+from .scraping.constants import RECOMMENDED_EXCLUDE_DOMAINS  # noqa: E402
 from .tools import ResearchTracker  # noqa: E402
 
 __all__ = [
     "__version__",
     "configure_logging",
     "DEFAULT_WEB_RESEARCH_MODELS",
+    "RECOMMENDED_EXCLUDE_DOMAINS",
     "run_web_research",
     "ResearchTracker",
     "SearchQuery",

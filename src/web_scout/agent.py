@@ -134,6 +134,7 @@ async def _search_and_scrape_iteration(
     *,
     query: str,
     include_domains: Optional[list[str]],
+    exclude_domains: Optional[list[str]] = None,
     depth: dict[str, int],
     iteration: int,
     missing_info: str,
@@ -146,6 +147,7 @@ async def _search_and_scrape_iteration(
     return await _search_and_scrape_iteration_impl(
         query=query,
         include_domains=include_domains,
+        exclude_domains=exclude_domains,
         depth=depth,
         iteration=iteration,
         missing_info=missing_info,
