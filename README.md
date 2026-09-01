@@ -13,7 +13,7 @@ Give it a question or a URL. Get back a cited answer, the extracted evidence beh
 from web_scout import run_web_research
 
 result = await run_web_research(
-    "What are the main climate risks for Kenya's agricultural sector?"
+    "Indonesia biodiversity hotspots current status and recent trend"
 )
 
 print(result.synthesis)
@@ -21,26 +21,42 @@ print(f"Read {len(result.scraped)} sources across {len(result.queries)} searches
 ```
 
 <details open>
-<summary><strong>Example output</strong> (abridged from a recorded project run)</summary>
+<summary><strong>Example output</strong> (excerpt)</summary>
 
-> Kenya's agricultural sector is highly exposed because it is approximately
-> 98% rain-fed and most farmers lack irrigation. The evidence identifies five
-> recurring risks:
->
-> - **Heat stress:** temperatures have risen by about 0.21°C per decade since
->   the 1960s and are projected to rise further by 2050.
-> - **Less predictable rainfall:** regional drying and greater variability
->   disrupt planting and crop growth.
-> - **More frequent droughts and floods:** poor rainy seasons have occurred
->   every 2–3 years since 1999, compared with every 5–6 years previously.
-> - **Water insecurity:** glacier retreat and repeated dry periods threaten
->   agricultural water supplies.
-> - **Crop and livestock losses:** heat and water stress reduce suitable
->   production areas and increase food-security risk.
->
-> Sources: [World Bank climate profile](https://climateknowledgeportal.worldbank.org/sites/default/files/country-profiles/15724-WB_Kenya%20Country%20Profile-WEB.pdf), [Kenya Climate Smart Agriculture Strategy](https://www.adaptation-undp.org/sites/default/files/resources/kenya_climate_smart_agriculture_strategy.pdf), [ILRI](https://www.ilri.org/news/climate-change-africa-what-will-it-mean-agriculture-and-food-security), and four more sources.
+Query: `Indonesia biodiversity hotspots current status and recent trend`
 
-That run took 95.2 seconds, executed 3 targeted searches, read 7 sources—including 3 PDFs—and returned a 4,471-character synthesis. Results and timing vary with the query, sources, model, and network.
+> Indonesia remains one of the world's most important centres of biodiversity,
+> but the available evidence indicates a negative overall status and trend. The
+> UNEP country fiche describes Indonesia as one of 17 megadiverse countries,
+> containing two globally recognised biodiversity hotspots; it reports
+> approximately 31,750 plant species, 732 mammals, 1,711 birds, 750 reptiles,
+> 403 amphibians and 1,236 freshwater fish.
+> [Biodiversity / Indonesia | Interactive Country Fiches](https://dicf.unepgrid.ch/indonesia/biodiversity)
+>
+> A 2024 review reports that, according to Ministry of Environment and Forestry
+> data for 2020, Indonesia retained 86.9 million hectares of forest, including
+> 45.3 million hectares of primary forest. In Sundaland, 70.6% of the region
+> had an intense human-footprint score (2009 dataset); among 308 lowland-forest
+> bird species assessed, 273, or 88.6%, experienced a reduction in suitable
+> range between 2000 and 2015.
+> [Forest fragmentation in Indonesia](https://www.sciencedirect.com/science/article/pii/S2351989424001227),
+> [Severe human pressures in the Sundaland biodiversity hotspot](https://conbio.onlinelibrary.wiley.com/doi/10.1111/csp2.169)
+>
+> The most recent forest-loss signal is mixed but concerning. WRI/University of
+> Maryland analysis reports that Indonesia's tropical primary-forest loss
+> increased 14% from 2024 to 2025, although it remained below the high levels
+> of the mid-2010s. A global land-use analysis covering 1995–2022 found that
+> Indonesia accounted for 22% of global biodiversity losses attributed to
+> land-use change, the largest national share in the study.
+> [Tropical rainforest loss slowed in 2025](https://gfr.wri.org/latest-analysis-deforestation-trends),
+> [Biodiversity impacts of recent land-use change](https://www.nature.com/articles/s41893-024-01433-4)
+>
+> Comparisons should be made cautiously because the sources use different
+> indicators and years: human-footprint data end in 2009, bird-range data in
+> 2015, several forest assessments in 2020–2022, and primary-forest-loss data
+> in 2025.
+
+This is a fraction of what that call returned. The full synthesis was 10,055 characters; `result.scraped` also held extracted evidence from all 9 sources (~34,000 characters)—including a ScienceDirect review, a Conservation Biology paper, a Nature paper, a CEPF ecosystem profile, an interactive UNEP country fiche, and WRI's 2025 forest-loss analysis—plus an audit trail of the 3 searches, 1 irrelevant fetch, and 13 snippet-only hits that were not used as citations. The run took 188.7 seconds. Results and timing vary with the query, sources, model, and network.
 
 </details>
 
