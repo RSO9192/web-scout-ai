@@ -7,7 +7,11 @@
 [![Python Versions](https://img.shields.io/pypi/pyversions/web-scout-ai)](https://pypi.org/project/web-scout-ai/)
 [![License](https://img.shields.io/github/license/RSO9192/web-scout-ai)](LICENSE)
 
-Give it a question or a URL. Get back a cited answer, the extracted evidence behind it, and an audit trail of every source the pipeline could—or could not—read.
+**Web research that actually reads the sources.**
+
+`web-scout-ai` is an agentic Python research pipeline that searches the web, opens and extracts the sources it finds, follows up when evidence is incomplete, and returns a cited answer together with a full audit trail of what it could — and could not — read.
+
+Give it a question or a URL:
 
 ```python
 from web_scout import run_web_research
@@ -19,6 +23,8 @@ result = await run_web_research(
 print(result.synthesis)
 print(f"Read {len(result.scraped)} sources across {len(result.queries)} searches")
 ```
+
+Instead of treating search snippets as evidence, `web-scout-ai` tries to **read the underlying source itself** before allowing it to support the final answer.
 
 <details open>
 <summary><strong>Example output</strong> (excerpt)</summary>
