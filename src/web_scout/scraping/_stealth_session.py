@@ -35,7 +35,7 @@ MAX_CONCURRENT_BROWSER_FETCHES = 4
 SESSION_MAX_PAGES = 3
 
 # Keys accepted only by the AsyncStealthySession constructor, not by
-# session.fetch() (scrapling 0.4.14 StealthSession vs StealthFetchParams).
+# session.fetch() (scrapling 0.4.15 StealthSession vs StealthFetchParams).
 _SESSION_ONLY_KEYS = frozenset({"headless", "max_pages"})
 
 # retries/retry_delay are constructor-only in scrapling and call sites
