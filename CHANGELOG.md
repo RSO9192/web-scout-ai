@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [1.6.1] - 2026-09-22
+
 ### Changed
 
 - **Scrapling minimum raised to `>=0.4.15`**: guarantees the Cloudflare Turnstile/Interstitial solver works in headless mode and regardless of browser locale (0.4.14 could loop forever on interactive challenges when `headless=True`, and could miss localized challenge pages after the locale stopped being forced to `en-US`). Browser tabs in a stealth session are now reused across requests, which compounds the existing per-host session pool. After updating, run `scrapling install --force` once in existing environments to refresh browsers.
