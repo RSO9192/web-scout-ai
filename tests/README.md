@@ -115,8 +115,8 @@ Local `pytest` coverage does not require live API access for most files.
 Live probes typically require some combination of:
 
 - `SERPER_API_KEY`
-- `OPENAI_API_KEY`
-- `GEMINI_API_KEY`
+- `AWS_BEARER_TOKEN_BEDROCK` (or `BEDROCK_MANTLE_API_KEY`) for the default GPT-6 Luna models
+- `GEMINI_API_KEY` for vision fallback
 
 If you prefer not to export them in your shell, pass `--env-file /path/to/.env` to `tests/run_checks.py`.
 

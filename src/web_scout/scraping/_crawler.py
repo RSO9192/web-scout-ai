@@ -34,9 +34,10 @@ def _build_default_llm_config() -> Optional[object]:
     except ImportError:
         return None
 
-    from web_scout.utils import _detect_provider, _find_api_key
+    from web_scout.utils import _detect_provider, _find_api_key, _prepare_bedrock_mantle_openai
 
     model = DEFAULT_WEB_RESEARCH_MODELS["followup_selector"]
+    _prepare_bedrock_mantle_openai(model)
     provider = _detect_provider(model)
     if provider == "ollama":
         return LLMConfig(provider=model, temperature=0)
@@ -44,6 +45,10 @@ def _build_default_llm_config() -> Optional[object]:
     api_key = _find_api_key(provider) if provider else None
     if not api_key:
         return None
+
+    # GPT-5/6 reject temperature=0. Leave it unset so the provider default applies.
+    if model.startswith("bedrock_mantle/openai.gpt-"):
+        return LLMConfig(provider=model, api_token=api_key, temperature=None)
 
     return LLMConfig(provider=model, api_token=api_key, temperature=0)
 

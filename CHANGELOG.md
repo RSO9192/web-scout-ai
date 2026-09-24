@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.7.0] - 2026-09-24
+
+### Changed
+
+- **Default text models are Bedrock Mantle GPT-6 Luna.** `web_researcher`, `content_extractor`, and `followup_selector` now use `bedrock_mantle/openai.gpt-6-luna`. `vision_fallback` stays `gemini/gemini-3.7-flash`. Set `AWS_BEARER_TOKEN_BEDROCK` (or `BEDROCK_MANTLE_API_KEY`) plus `GEMINI_API_KEY`. GPT-5.6 and GPT-6 Luna share LiteLLM's Mantle route in `us-east-1`. GPT-6 is registered from the GPT-5.6 capability entry when the bundled price map omits it, so both stay on `/openai/v1`.
+- **PDF extraction requires a strict JSON object.** Prompts now include a full output contract for evidence and no-evidence results, including exact `has_evidence`, `relevant_content`, and `evidence` fields. Calls use strict JSON Schema and retry up to three times with the validation error when the model returns null, a renamed field, or a non-object.
+- **Synthesis may not treat search snippets as evidence.** Snippet-only and inaccessible sources are routing and audit metadata. The synthesiser must not use them for factual claims or supporting context.
+
 ## [1.6.1] - 2026-09-22
 
 ### Changed

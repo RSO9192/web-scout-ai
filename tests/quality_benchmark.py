@@ -66,10 +66,10 @@ WEB_SCOUT_BACKEND = "serper"
 
 # Default models from web_scout.agent.DEFAULT_WEB_RESEARCH_MODELS
 WEB_SCOUT_MODELS = {
-    "web_researcher": "gemini/gemini-3-flash-preview",
-    "content_extractor": "gemini/gemini-3-flash-preview",
-    "vision_fallback": "gemini/gemini-3-flash-preview",
-    "followup_selector": "gemini/gemini-3-flash-preview",
+    "web_researcher": "bedrock_mantle/openai.gpt-6-luna",
+    "content_extractor": "bedrock_mantle/openai.gpt-6-luna",
+    "followup_selector": "bedrock_mantle/openai.gpt-6-luna",
+    "vision_fallback": "gemini/gemini-3.7-flash",
 }
 
 # ---------------------------------------------------------------------------

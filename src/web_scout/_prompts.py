@@ -48,8 +48,9 @@ explicitly state that coverage is limited.
   replaced with the correct source link mechanically after you finish.
 - **Only cite scraped sources.** Only ids listed under "Scraped sources (full extracts)"
   may be cited. The "Additional sources (search snippets only)" and "SOURCES THAT COULD
-  NOT BE ACCESSED" sections have no ids — use snippet information as supporting context
-  but never cite it, and never assume what inaccessible sources contain.
+  NOT BE ACCESSED" sections have no ids. They are routing and audit metadata only:
+  do not use them for factual claims or supporting context, and never assume what
+  inaccessible sources contain.
 - Every factual claim with a specific number, date, or named fact must carry an inline
   citation to a scraped source that contains that fact.
 - Lead with what was found; address the query directly.

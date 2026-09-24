@@ -96,12 +96,15 @@ web-scout-setup
 
 ### 2. Configure keys
 
-The default models use Gemini and open-web discovery uses Serper:
+The default research models run on Amazon Bedrock Mantle. Vision fallback still uses Gemini, and open-web discovery uses Serper:
 
 ```bash
+export AWS_BEARER_TOKEN_BEDROCK="your-bedrock-api-key"
 export GEMINI_API_KEY="your-gemini-api-key"
 export SERPER_API_KEY="your-serper-api-key"
 ```
+
+`BEDROCK_MANTLE_API_KEY` is accepted as an alias for the bearer token. OpenAI models on Mantle, including GPT-5.6 and GPT-6 Luna, use LiteLLM's route in `us-east-1`.
 
 To use the Exa search backend instead (`search_backend="exa"`):
 
@@ -266,7 +269,7 @@ fields, page-type handling, and the exact no-evidence sentinel.
 
 ## Configuration
 
-The defaults use `gemini/gemini-3-flash-preview`. Model IDs follow [LiteLLM provider naming](https://docs.litellm.ai/docs/providers), so the research and extraction stages can use different providers or models.
+The defaults are Bedrock Mantle GPT-6 Luna for research, extraction, and follow-up selection, and `gemini/gemini-3.7-flash` for vision. Model IDs follow [LiteLLM provider naming](https://docs.litellm.ai/docs/providers), so each stage can use a different provider or model.
 
 ```python
 models = {
@@ -294,7 +297,7 @@ Provider credentials are read from their standard environment variables, such as
 ```python
 result = await run_web_research(
     query="latest IPCC findings on sea-level rise",
-    models=None,                       # optional; Gemini defaults
+    models=None,                       # optional; GPT-6 Luna defaults, Gemini vision
     search_backend="serper",          # "serper" (Google via serper.dev) or "exa" (exa.ai)
     research_depth="standard",        # "standard", "deep", or a custom dict
     include_domains=["ipcc.ch"],       # optional discovery restriction

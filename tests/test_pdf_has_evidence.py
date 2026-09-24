@@ -89,3 +89,76 @@ async def test_extractor_guidance_reaches_pdf_prompt(monkeypatch):
         extractor_guidance="Country of interest: Somalia — keep findings explicitly about Somalia.",
     )
     assert any("Country of interest: Somalia" in p for p in prompts)
+
+
+def _assert_pdf_result_contract(prompt: str) -> None:
+    assert "Output contract (required in both evidence and no-evidence cases)" in prompt
+    assert "Never return null, omit or rename a field" in prompt
+    assert "Valid evidence output:" in prompt
+    assert '"has_evidence":true' in prompt
+    assert "Valid no-evidence output:" in prompt
+    no_evidence_example = (
+        '"has_evidence":false,"relevant_content":"[No relevant content found for this query]",'
+        '"evidence":[]'
+    )
+    assert "".join(no_evidence_example) in prompt
+
+
+@pytest.mark.asyncio
+async def test_short_pdf_prompt_includes_complete_output_contract(monkeypatch):
+    prompts = _patch_llm(
+        monkeypatch,
+        PdfExtractResult(
+            has_evidence=False,
+            relevant_content=_NO_RELEVANT,
+            evidence=[],
+        ),
+    )
+    await pdf_mod._short_path_extract(
+        model="dummy",
+        query="Somalia livestock services status",
+        document_title="Guidelines",
+        markdown=_MARKDOWN,
+    )
+    _assert_pdf_result_contract(prompts[0])
+
+
+@pytest.mark.asyncio
+async def test_final_pdf_prompt_includes_complete_output_contract(monkeypatch):
+    prompts = _patch_llm(
+        monkeypatch,
+        PdfExtractResult(
+            has_evidence=False,
+            relevant_content=_NO_RELEVANT,
+            evidence=[],
+        ),
+    )
+    await pdf_mod._final_answer_from_evidence(
+        model="dummy",
+        query="Somalia livestock services status",
+        document_title="Guidelines",
+        evidence=[],
+    )
+    _assert_pdf_result_contract(prompts[0])
+
+
+@pytest.mark.asyncio
+async def test_chunk_prompt_requires_object_and_exact_evidence_fields(monkeypatch):
+    prompts: list[str] = []
+
+    async def _fake_llm_json(model, prompt, schema):
+        prompts.append(prompt)
+        return schema(evidence=[])
+
+    monkeypatch.setattr(pdf_mod, "_llm_json", _fake_llm_json)
+    result = await pdf_mod._extract_chunk_evidence(
+        model="dummy",
+        query="Somalia livestock services status",
+        document_summary="Generic livestock guidance.",
+        heading_path="Assessment methods",
+        chunk_markdown=_MARKDOWN,
+    )
+    assert result == []
+    assert "Return exactly one JSON object with the `evidence` field" in prompts[0]
+    assert "Each evidence item must have exactly `text`, `page_start`, and `page_end`" in prompts[0]
+    assert 'When there is no evidence, return exactly {"evidence":[]}' in prompts[0]

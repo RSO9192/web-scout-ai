@@ -7,10 +7,10 @@ from pydantic import BaseModel, Field
 from ._extractor_contract import ExtractorOutcome
 
 DEFAULT_WEB_RESEARCH_MODELS = {
-    "web_researcher": "gemini/gemini-3-flash-preview",
-    "content_extractor": "gemini/gemini-3-flash-preview",
+    "web_researcher": "bedrock_mantle/openai.gpt-6-luna",
+    "content_extractor": "bedrock_mantle/openai.gpt-6-luna",
+    "followup_selector": "bedrock_mantle/openai.gpt-6-luna",
     "vision_fallback": "gemini/gemini-3.7-flash",
-    "followup_selector": "gemini/gemini-3-flash-preview",
 }
 
 

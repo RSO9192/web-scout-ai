@@ -15,14 +15,16 @@ import re
 from typing import Any, Optional
 
 import litellm
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from web_scout.config import ROUTING_HEURISTICS
 from web_scout.scraping.types import PdfDocumentLayout, SourceArtifact
+from web_scout.utils import get_litellm_base_url
 
 logger = logging.getLogger(__name__)
 
 _EVIDENCE_CONCURRENCY = 3
+_JSON_SCHEMA_ATTEMPTS = 3
 _NO_RELEVANT = "[No relevant content found for this query]"
 _PAGE_START_RE = re.compile(r"^========== page (\d+) start ==========$")
 
@@ -31,6 +33,29 @@ _NO_EVIDENCE_RULE = (
     "including when the query asks about a specific country or region the "
     "document does not cover — set has_evidence to false. Generic guidance, "
     "methodology, definitions, or 'how to assess' content is not evidence. "
+)
+
+_PDF_RESULT_OUTPUT_CONTRACT = (
+    "Output contract (required in both evidence and no-evidence cases):\n"
+    "- Return one JSON object with exactly `has_evidence`, `relevant_content`, "
+    "and `evidence`.\n"
+    "- Never return null, omit or rename a field, or return a top-level array.\n"
+    "- Every evidence item has exactly `text`, `page_start`, and `page_end`; "
+    "`text` is a string and page bounds are integers.\n\n"
+    "Valid evidence output:\n"
+    '{"has_evidence":true,"relevant_content":"The value was 2.3 units [p. 2].",'
+    '"evidence":[{"text":"The value was 2.3 units.","page_start":2,"page_end":2}]}\n\n'
+    "Valid no-evidence output:\n"
+    '{"has_evidence":false,"relevant_content":"[No relevant content found for this query]",'
+    '"evidence":[]}\n'
+)
+
+_CHUNK_OUTPUT_CONTRACT = (
+    "Return exactly one JSON object with the `evidence` field. Never return "
+    "null, omit or rename the field, or return a top-level array. Each evidence "
+    "item must have exactly `text`, `page_start`, and `page_end`. "
+    'Valid output: {"evidence":[{"text":"...","page_start":1,"page_end":1}]}. '
+    'When there is no evidence, return exactly {"evidence":[]}. '
 )
 
 
@@ -236,17 +261,90 @@ def pack_section_chunks(
     return packed
 
 
+def _strict_response_schema(schema: type[BaseModel]) -> dict[str, Any]:
+    """Build the strict JSON Schema accepted by Structured Outputs."""
+    payload = schema.model_json_schema()
+
+    def _require_all_fields(node: Any) -> None:
+        if isinstance(node, dict):
+            properties = node.get("properties")
+            if node.get("type") == "object" and isinstance(properties, dict):
+                node["required"] = list(properties)
+                node["additionalProperties"] = False
+            for value in node.values():
+                _require_all_fields(value)
+        elif isinstance(node, list):
+            for value in node:
+                _require_all_fields(value)
+
+    _require_all_fields(payload)
+    return payload
+
+
+def _structured_response_format(schema: type[BaseModel]) -> dict[str, Any]:
+    name = re.sub(r"[^A-Za-z0-9_-]", "_", schema.__name__).strip("_") or "response"
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": name,
+            "strict": True,
+            "schema": _strict_response_schema(schema),
+        },
+    }
+
+
 async def _llm_json(model: Any, prompt: str, schema: type[BaseModel]) -> BaseModel:
-    response = await litellm.acompletion(
-        model=model if isinstance(model, str) else getattr(model, "model", None) or str(model),
-        messages=[{"role": "user", "content": prompt}],
-        response_format={"type": "json_object"},
+    model_name = model if isinstance(model, str) else getattr(model, "model", None) or str(model)
+    api_base = (
+        get_litellm_base_url(model_name)
+        if isinstance(model, str)
+        else getattr(model, "base_url", None) or get_litellm_base_url(model_name)
     )
-    raw = (response.choices[0].message.content or "").strip()
-    if raw.startswith("```"):
-        raw = re.sub(r"^```(?:json)?\s*", "", raw)
-        raw = re.sub(r"\s*```$", "", raw)
-    return schema.model_validate(json.loads(raw))
+    messages: list[dict[str, str]] = [{"role": "user", "content": prompt}]
+    response_format = _structured_response_format(schema)
+    last_error: Exception = RuntimeError("Structured output validation did not run")
+
+    for attempt in range(1, _JSON_SCHEMA_ATTEMPTS + 1):
+        response = await litellm.acompletion(
+            model=model_name,
+            messages=messages,
+            response_format=response_format,
+            api_base=api_base,
+        )
+        content = response.choices[0].message.content
+        raw = content.strip() if isinstance(content, str) else json.dumps(content)
+        if raw.startswith("```"):
+            raw = re.sub(r"^```(?:json)?\s*", "", raw)
+            raw = re.sub(r"\s*```$", "", raw)
+        try:
+            return schema.model_validate(json.loads(raw))
+        except (json.JSONDecodeError, TypeError, ValidationError) as exc:
+            last_error = exc
+            if attempt == _JSON_SCHEMA_ATTEMPTS:
+                raise
+            logger.warning(
+                "[pdf-extract] structured output validation failed for %s "
+                "(attempt %d/%d): %s",
+                schema.__name__,
+                attempt,
+                _JSON_SCHEMA_ATTEMPTS,
+                type(exc).__name__,
+            )
+            messages = [
+                {"role": "user", "content": prompt},
+                {"role": "assistant", "content": raw},
+                {
+                    "role": "user",
+                    "content": (
+                        "The previous JSON did not match the required schema. "
+                        f"Validation error: {str(exc)[:800]}\n"
+                        "Return one corrected JSON object only. Do not omit fields, "
+                        "return null, rename fields, or add prose outside JSON."
+                    ),
+                },
+            ]
+
+    raise last_error
 
 
 def _model_name(model: Any) -> str:
@@ -306,7 +404,7 @@ async def _extract_chunk_evidence(
         "Return an empty evidence list when the section holds no facts that "
         "answer the query; generic guidance or methodology is not evidence. "
         f"{_guidance_block(extractor_guidance)}"
-        'Return JSON: {"evidence":[{"text":"...","page_start":1,"page_end":1}]}'
+        f"{_CHUNK_OUTPUT_CONTRACT}"
     )
 
     class _ChunkEvidence(BaseModel):
@@ -341,9 +439,8 @@ async def _final_answer_from_evidence(
         "Tag each fact with [pp. X–Y] or [p. X] matching the evidence pages. "
         f"{_NO_EVIDENCE_RULE}"
         f"{_guidance_block(extractor_guidance)}"
-        "Return JSON matching "
-        '{"has_evidence":true,"relevant_content":"...","evidence":[{"text":"...","page_start":1,"page_end":1}]} '
-        "where evidence is the subset you relied on."
+        "The evidence field must contain only the subset you relied on.\n"
+        f"{_PDF_RESULT_OUTPUT_CONTRACT}"
     )
     result = await _llm_json(model, prompt, PdfExtractResult)
     assert isinstance(result, PdfExtractResult)
@@ -369,8 +466,7 @@ async def _short_path_extract(
         "[pp. X–Y] or [p. X]. Do not invent pages. "
         f"{_NO_EVIDENCE_RULE}"
         f"{_guidance_block(extractor_guidance)}"
-        "Return JSON matching "
-        '{"has_evidence":true,"relevant_content":"...","evidence":[{"text":"...","page_start":1,"page_end":1}]}'
+        f"{_PDF_RESULT_OUTPUT_CONTRACT}"
     )
     result = await _llm_json(model, prompt, PdfExtractResult)
     assert isinstance(result, PdfExtractResult)

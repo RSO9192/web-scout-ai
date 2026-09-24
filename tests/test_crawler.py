@@ -44,6 +44,8 @@ def test_prefetched_crawl_input_builds_synthetic_html_without_raw_html():
 
 def test_build_default_llm_config_without_api_key_returns_none(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("BEDROCK_MANTLE_API_KEY", raising=False)
+    monkeypatch.delenv("AWS_BEARER_TOKEN_BEDROCK", raising=False)
     assert _build_default_llm_config() is None
 
 
@@ -61,13 +63,13 @@ def _patch_crawl4ai_llm_config():
 
 
 def test_build_default_llm_config_uses_followup_selector_model(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("BEDROCK_MANTLE_API_KEY", "test-key")
     with _patch_crawl4ai_llm_config():
         config = _build_default_llm_config()
     assert config is not None
-    assert config.provider == "gemini/gemini-3-flash-preview"
+    assert config.provider == "bedrock_mantle/openai.gpt-6-luna"
     assert config.api_token == "test-key"
-    assert config.temperature == 0
+    assert config.temperature is None
 
 
 def test_crawl4ai_crawler_uses_heuristics_when_llm_config_is_none():
@@ -76,11 +78,11 @@ def test_crawl4ai_crawler_uses_heuristics_when_llm_config_is_none():
 
 
 def test_crawl4ai_crawler_resolves_default_llm_config_when_api_key_present(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("BEDROCK_MANTLE_API_KEY", "test-key")
     with _patch_crawl4ai_llm_config():
         crawler = Crawl4AICrawler()
     assert crawler._llm_config is not None
-    assert crawler._llm_config.provider == "gemini/gemini-3-flash-preview"
+    assert crawler._llm_config.provider == "bedrock_mantle/openai.gpt-6-luna"
 
 
 @pytest.mark.asyncio

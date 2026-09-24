@@ -39,6 +39,12 @@ def test_instructions_restrict_citations_to_scraped_sources():
     assert "only cite scraped" in lower or "only permitted for" in lower or "scraped sources" in lower
 
 
+def test_instructions_forbid_snippets_as_factual_context():
+    lower = SYNTHESISER_INSTRUCTIONS.lower()
+    assert "routing and audit metadata only" in lower
+    assert "do not use them for factual claims or supporting context" in lower
+
+
 def test_synth_prompt_includes_source_count():
     scraped = [_make_entry("https://a.com", "content a")]
     prompt = _build_synth_prompt(
