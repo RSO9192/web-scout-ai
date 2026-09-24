@@ -35,3 +35,4 @@ htmlcov/
 .superpowers/
 
 vendor/
+tmp/
