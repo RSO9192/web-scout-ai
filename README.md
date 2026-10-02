@@ -294,6 +294,33 @@ Provider credentials are read from their standard environment variables, such as
 
 ### Public API
 
+Fetch one URL and get a `FetchResult`. This uses the same Scrapling fetcher as the research pipeline (fast HTTP, then a stealth browser when the page looks blocked or JavaScript-rendered):
+
+```python
+from web_scout import PDF_MAGIC_BYTES, fetch
+
+result = await fetch("https://example.org/report.pdf")
+page = await fetch("https://example.org/article", wait_for="article")
+```
+
+`result.body` is the raw response bytes for binary payloads such as PDFs and images. HTML and other text responses leave `body` as `None` and put the decoded page in `result.html_content`. Failures do not raise: `result.error` is set when the URL is rejected or the fetch fails, and `result.status` is outside the 2xx range for HTTP errors. Pass `exclude_domains` to skip hosts before any network call.
+
+`PDF_MAGIC_BYTES` is `b"%PDF"`, the four-byte header every PDF file starts with. Check the body against it when you need to know whether the fetch returned a PDF. That is more reliable than `result.content_type`, which download URLs often report as `application/octet-stream`:
+
+```python
+is_pdf = bool(result.body and result.body.startswith(PDF_MAGIC_BYTES))
+if is_pdf:
+    pdf_bytes = result.body
+```
+
+`fetch_pdf` is a thin wrapper around `fetch` that does this check and returns the PDF bytes. It raises `RuntimeError` when the fetch fails or the body does not start with `PDF_MAGIC_BYTES`:
+
+```python
+from web_scout import fetch_pdf
+
+pdf_bytes = await fetch_pdf("https://example.org/report.pdf")
+```
+
 ```python
 result = await run_web_research(
     query="latest IPCC findings on sea-level rise",
