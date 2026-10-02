@@ -31,7 +31,7 @@ packages = [{ include = "web_scout", from = "src" }]
 web-scout-setup = "web_scout._setup:main"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.14"
+python = ">=3.13,<3.14"
 pydantic = ">=2.0"
 httpx = ">=0.24"
 openai-agents = ">=0.13"
@@ -39,6 +39,7 @@ scrapling = {version = ">=0.4.15", extras = ["fetchers"]}
 markdownify = ">=0.11"
 docling = ">=2.0"
 docling-core = ">=2.0"
+pdf-extractor-ai = ">=0.1.0"
 litellm = ">=1.30"
 pydantic-settings = ">=2.0"
 boto3 = "^1.43.61"
@@ -55,7 +56,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 120
-target-version = "py310"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]

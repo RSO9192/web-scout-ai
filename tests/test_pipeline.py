@@ -74,58 +74,29 @@ def _patch_runner(monkeypatch, output):
 
 
 # ---------------------------------------------------------------------------
-# PDF converter locking
+# PDF extraction
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_pdf_converter_creation_and_use_share_one_lock(monkeypatch):
-    """Converter initialization and use happen within one lock acquisition."""
+async def test_pdf_conversion_uses_shared_extractor(monkeypatch):
+    """PDF bytes are extracted by the shared pdf-extractor-ai worker."""
+    document = object()
+    calls = []
 
-    class TrackingLock:
-        def __init__(self):
-            self.acquisitions = 0
-            self.held = False
+    class FakeExtractor:
+        async def extract_async(self, pdf_bytes, **kwargs):
+            calls.append((pdf_bytes, kwargs))
+            return document
 
-        def __enter__(self):
-            assert not self.held, "PDF lock must not be acquired recursively"
-            self.acquisitions += 1
-            self.held = True
-            return self
-
-        def __exit__(self, exc_type, exc_value, traceback):
-            self.held = False
-
-    lock = TrackingLock()
-
-    class FakeDocument:
-        def iterate_items(self, **kwargs):
-            return iter([])
-
-        def export_to_markdown(self, **kwargs):
-            return "converted"
-
-    class FakeConverter:
-        def __init__(self, **kwargs):
-            assert lock.held
-
-        def convert(self, source, page_range):
-            assert lock.held
-            return type("FakeResult", (), {"document": FakeDocument()})()
-
-    class FakePdfFormatOption:
-        def __init__(self, pipeline_options):
-            self.pipeline_options = pipeline_options
-
-    class FakePdfPipelineOptions:
-        def __init__(self, **kwargs):
-            self.kwargs = kwargs
-
-    monkeypatch.setattr(_document_module, "_PDF_LOCK", lock)
-    monkeypatch.setattr(_document_module, "_PDF_CONVERTER", None)
-    monkeypatch.setattr("docling.document_converter.DocumentConverter", FakeConverter)
-    monkeypatch.setattr("docling.document_converter.PdfFormatOption", FakePdfFormatOption)
-    monkeypatch.setattr("docling.datamodel.pipeline_options.PdfPipelineOptions", FakePdfPipelineOptions)
+    monkeypatch.setattr(_document_module, "_get_pdf_extractor", lambda: FakeExtractor())
+    monkeypatch.setattr(_document_module, "to_markdown", lambda doc: "converted")
+    monkeypatch.setattr(_document_module, "document_title", lambda doc, fallback: fallback)
+    monkeypatch.setattr(
+        _document_module,
+        "layout_from_markdown",
+        lambda markdown, doc: type("Layout", (), {"pages": (), "sections": ()})(),
+    )
 
     result, layout = await _document_module._convert_pdf_to_markdown(
         b"%PDF-1.4 fake",
@@ -134,9 +105,8 @@ async def test_pdf_converter_creation_and_use_share_one_lock(monkeypatch):
     )
 
     assert result == "converted"
-    assert layout.document_title  # inferred or fallback
-    assert lock.acquisitions == 1
-    assert not lock.held
+    assert layout.document_title == "report.pdf"
+    assert calls == [(b"%PDF-1.4 fake", {"do_ocr": False, "max_pages": 1, "name": "report.pdf"})]
 
 
 # ---------------------------------------------------------------------------
