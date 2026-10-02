@@ -32,6 +32,10 @@ Quick start::
 Public API
 ----------
 - ``run_web_research(query, models, ...)`` — full pipeline
+- ``fetch(url, ...)`` — fetch one URL and return a ``FetchResult``
+- ``fetch_pdf(url, ...)`` — fetch one URL and return PDF bytes
+- ``FetchResult`` — raw fetch payload (``body`` bytes for PDFs, ``html_content`` for pages)
+- ``PDF_MAGIC_BYTES`` — ``b"%PDF"`` header used to detect a PDF body
 - ``WebResearchResult``, ``WebResearchResultRaw``, etc. — output models
 - ``ResearchTracker`` — URL/query bookkeeping
 """
@@ -105,13 +109,19 @@ from .models import (  # noqa: E402
     WebResearchResult,
     WebResearchResultRaw,
 )
-from .scraping.constants import RECOMMENDED_EXCLUDE_DOMAINS  # noqa: E402
+from .scraping._fetcher import fetch, fetch_pdf  # noqa: E402
+from .scraping.constants import PDF_MAGIC_BYTES, RECOMMENDED_EXCLUDE_DOMAINS  # noqa: E402
+from .scraping.types import FetchResult  # noqa: E402
 from .tools import ResearchTracker  # noqa: E402
 
 __all__ = [
     "__version__",
     "configure_logging",
     "DEFAULT_WEB_RESEARCH_MODELS",
+    "fetch",
+    "fetch_pdf",
+    "FetchResult",
+    "PDF_MAGIC_BYTES",
     "RECOMMENDED_EXCLUDE_DOMAINS",
     "run_web_research",
     "ResearchTracker",

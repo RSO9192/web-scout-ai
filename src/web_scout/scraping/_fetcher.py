@@ -9,11 +9,12 @@ selector access without an additional round-trip.
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from typing import Optional
 
 from web_scout.config import ROUTING_HEURISTICS
 
-from .constants import BINARY_CONTENT_TYPES, IMAGE_CONTENT_TYPES
+from .constants import BINARY_CONTENT_TYPES, IMAGE_CONTENT_TYPES, PDF_MAGIC_BYTES
 from .context import URLContext
 from .page_classifier import looks_like_pdf_resource
 from .types import FetchResult
@@ -30,6 +31,19 @@ from .utils import (
 logger = logging.getLogger(__name__)
 
 _BOT_STATUS_CODES = frozenset({403, 429, 503})
+_DOWNLOAD_SIGNAL = "__DOWNLOAD_REDIRECT__"
+
+
+def _as_bytes(value: object) -> bytes | None:
+    """Coerce a Scrapling response body to ``bytes``."""
+    if value is None or isinstance(value, bytes):
+        return value
+    if isinstance(value, str):
+        return value.encode()
+    try:
+        return bytes(value)  # type: ignore[arg-type]
+    except Exception:
+        return None
 
 
 def _is_download_navigation_error(value: object) -> bool:
@@ -172,7 +186,7 @@ class ScraplingFetcher(Fetcher):
                     return self._empty(url).model_copy(update={
                         "used_browser": True,
                         "status": 200,
-                        "error": "__DOWNLOAD_REDIRECT__",
+                        "error": _DOWNLOAD_SIGNAL,
                     })
                 error_prefix = "source_http_error: " if is_network_error(e) else ""
                 return self._empty(url).model_copy(update={
@@ -186,14 +200,7 @@ class ScraplingFetcher(Fetcher):
         ct = normalize_content_type(resp.headers.get("content-type", ""))
         cd = resp.headers.get("content-disposition", "")
 
-        raw_body = getattr(resp, "body", None)
-        if isinstance(raw_body, str):
-            raw_body = raw_body.encode()
-        elif raw_body is not None and not isinstance(raw_body, bytes):
-            try:
-                raw_body = bytes(raw_body)
-            except Exception:
-                raw_body = None
+        raw_body = _as_bytes(getattr(resp, "body", None))
 
         # Classify as binary or text
         is_binary = (
@@ -222,3 +229,51 @@ class ScraplingFetcher(Fetcher):
             used_browser=used_browser,
             page=resp,
         )
+
+
+async def fetch(
+    url: str,
+    *,
+    exclude_domains: Optional[Iterable[str]] = None,
+    wait_for: Optional[str] = None,
+) -> FetchResult:
+    """Fetch *url* with :class:`ScraplingFetcher` and return the :class:`FetchResult`.
+
+    Fast HTTP is tried first. A stealth browser retry runs for bot walls,
+    timeouts, and thin HTML shells. PDF URLs are downloaded as raw bytes on
+    ``FetchResult.body``. HTML and other text responses use
+    ``FetchResult.html_content`` and leave ``body`` as ``None``.
+
+    ``exclude_domains`` blocks matching hosts before any network call.
+    ``wait_for`` is a CSS selector passed to the browser fallback.
+
+    Failures do not raise. ``FetchResult.error`` is set when the URL is
+    rejected or the fetch fails, and ``FetchResult.status`` is non-2xx for
+    HTTP errors.
+    """
+    fetcher = ScraplingFetcher(
+        exclude_domains=frozenset(exclude_domains) if exclude_domains else None,
+    )
+    return await fetcher.fetch(url, URLContext(url=url, depth=0, wait_for=wait_for))
+
+
+async def fetch_pdf(
+    url: str,
+    *,
+    exclude_domains: Optional[Iterable[str]] = None,
+    wait_for: Optional[str] = None,
+) -> bytes:
+    """Fetch *url* and return the PDF bytes.
+
+    Thin wrapper around :func:`fetch`. The body must start with
+    :data:`PDF_MAGIC_BYTES` (``b"%PDF"``).
+
+    Raises:
+        RuntimeError: The fetch failed, or the response body is not a PDF.
+    """
+    result = await fetch(url, exclude_domains=exclude_domains, wait_for=wait_for)
+    if result.error:
+        raise RuntimeError(result.error)
+    if result.body and result.body.startswith(PDF_MAGIC_BYTES):
+        return result.body
+    raise RuntimeError(f"response is not a PDF: {url}")
