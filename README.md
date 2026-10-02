@@ -371,7 +371,7 @@ It is intentionally a bounded research component. If you only need search links,
 
 ## Requirements
 
-- Python 3.10–3.13
+- Python 3.13
 - An API key for the configured LLM provider
 - A Serper or Exa API key for search mode
 - Chromium setup for rendered pages, interactive sites, and browser fallbacks

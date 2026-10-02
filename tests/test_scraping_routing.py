@@ -423,6 +423,33 @@ async def test_scrape_document_reuses_prefetched_pdf_bytes(monkeypatch):
     assert "Extracted PDF content" in artifact.text_content
 
 
+@pytest.mark.asyncio
+async def test_scrape_document_returns_binary_for_low_text_pdf(monkeypatch):
+    from web_scout.scraping import _document as doc_module
+
+    pdf_bytes = b"%PDF-1.7 scanned"
+
+    async def _fake_convert(received_bytes, url, max_pages, *, vision_model=None):
+        from web_scout.scraping.types import PdfDocumentLayout
+
+        markdown = "========== page 1 start ==========\n\n<!-- image -->\n\n========== page 1 end =========="
+        return markdown, PdfDocumentLayout(document_title="scan.pdf")
+
+    monkeypatch.setattr(doc_module, "_convert_pdf_to_markdown", _fake_convert)
+
+    artifact, error = await doc_module.scrape_document(
+        "https://example.org/scan.pdf",
+        known_content_type="application/pdf",
+        prefetched_bytes=pdf_bytes,
+    )
+
+    assert error is None
+    assert artifact.kind == "binary"
+    assert artifact.mime_type == "application/pdf"
+    assert artifact.binary_bytes == pdf_bytes
+    assert artifact.title == "scan.pdf"
+
+
 async def _async_return(value):
     return value
 

@@ -2,8 +2,6 @@
 
 import asyncio
 import os
-import threading
-import time
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -14,7 +12,7 @@ from web_scout import _configure_third_party_runtime
 from web_scout import agent as _agent_module
 from web_scout.agent import SearchIterationResult, _run_search_mode
 from web_scout.scraping import DefaultParser, FetchResult, ParseResult, ScraplingFetcher, SourceArtifact
-from web_scout.scraping._document import _convert_pdf_to_markdown, _get_pdf_converter
+from web_scout.scraping._document import _get_pdf_extractor
 from web_scout.tools import ResearchTracker
 from web_scout.tools.extractor import build_extractor_agent as _build_extractor_agent
 
@@ -355,74 +353,22 @@ async def test_run_search_mode_runs_coverage_eval_when_less_than_four_sources_sc
     coverage_mock.assert_awaited_once()
 
 
-def test_pdf_docling_converter_is_reused(monkeypatch):
-    """The fast PDF Docling converter should be initialized once and reused."""
+def test_pdf_extractor_is_reused(monkeypatch):
+    """One single-worker extractor is created and reused across PDF conversions."""
     created = []
 
-    class FakeConverter:
-        def __init__(self, **kwargs):
-            created.append(kwargs)
+    class FakeExtractor:
+        def __init__(self, num_workers: int = 1) -> None:
+            created.append(num_workers)
 
-    class FakePdfFormatOption:
-        def __init__(self, pipeline_options):
-            self.pipeline_options = pipeline_options
+    monkeypatch.setattr(_scraping_document_module, "PdfExtractor", FakeExtractor)
+    monkeypatch.setattr(_scraping_document_module, "_PDF_EXTRACTOR", None)
 
-    class FakePdfPipelineOptions:
-        def __init__(self, **kwargs):
-            self.kwargs = kwargs
+    extractor1 = _get_pdf_extractor()
+    extractor2 = _get_pdf_extractor()
 
-    monkeypatch.setattr("docling.document_converter.DocumentConverter", FakeConverter)
-    monkeypatch.setattr("docling.document_converter.PdfFormatOption", FakePdfFormatOption)
-    monkeypatch.setattr("docling.datamodel.pipeline_options.PdfPipelineOptions", FakePdfPipelineOptions)
-    monkeypatch.setattr(_scraping_document_module, "_PDF_CONVERTER", None)
-
-    converter1 = _get_pdf_converter()
-    converter2 = _get_pdf_converter()
-
-    assert converter1 is converter2
-    assert len(created) == 1
-
-
-async def test_pdf_docling_conversions_do_not_overlap(monkeypatch):
-    """Concurrent callers must serialize use of Docling's native PDF pipeline."""
-    state_lock = threading.Lock()
-    active_calls = 0
-    max_active_calls = 0
-
-    class FakeDocument:
-        def iterate_items(self, **kwargs):
-            return iter([])
-
-        def export_to_markdown(self, **kwargs):
-            return "converted"
-
-    class FakeResult:
-        document = FakeDocument()
-
-    class FakeConverter:
-        def convert(self, source, page_range):
-            nonlocal active_calls, max_active_calls
-            with state_lock:
-                active_calls += 1
-                max_active_calls = max(max_active_calls, active_calls)
-            try:
-                time.sleep(0.02)
-                return FakeResult()
-            finally:
-                with state_lock:
-                    active_calls -= 1
-
-    monkeypatch.setattr(_scraping_document_module, "_PDF_CONVERTER", FakeConverter())
-
-    results = await asyncio.gather(
-        *[
-            _convert_pdf_to_markdown(b"%PDF-1.4 fake", f"https://example.org/{index}.pdf", 1)
-            for index in range(5)
-        ]
-    )
-
-    assert [markdown for markdown, _layout in results] == ["converted"] * 5
-    assert max_active_calls == 1
+    assert extractor1 is extractor2
+    assert created == [1]
 
 
 def test_configure_third_party_runtime_disables_hf_progress(monkeypatch):

@@ -1,17 +1,8 @@
-"""Unit tests for PDF page banners, layout metadata, extraction helpers, and citations."""
+"""Unit tests for PDF page spans, layout metadata, and citations."""
 
 from __future__ import annotations
 
 from web_scout._pipeline_rules import _build_citation_slots, _resolve_slot_citations
-from web_scout.scraping._document import (
-    PdfSection,
-    _infer_document_title,
-    _layout_from_markdown,
-    _page_end_banner,
-    _page_start_banner,
-    _PageBannerState,
-    _text_without_image_placeholders,
-)
 from web_scout.scraping.types import PdfDocumentLayout, PdfPageSpan, PdfSectionSpan
 from web_scout.tools.pdf_extractor import (
     PdfEvidenceItem,
@@ -22,58 +13,12 @@ from web_scout.tools.pdf_extractor import (
 )
 
 
-def test_page_banner_state_transitions():
-    state = _PageBannerState()
-    assert state.transition(1) == [_page_start_banner(1)]
-    assert state.transition(1) == []
-    assert state.transition(2) == [_page_end_banner(1), _page_start_banner(2)]
-    assert state.close() == [_page_end_banner(2)]
-    assert state.close() == []
+def _page_start_banner(page: int) -> str:
+    return f"========== page {page} start =========="
 
 
-def test_text_without_placeholders_strips_page_banners():
-    md = (
-        f"{_page_start_banner(1)}\n\nHello\n\n{_page_end_banner(1)}\n\n"
-        "<!-- visual:s0-v0 -->\n"
-    )
-    assert _text_without_image_placeholders(md) == "Hello"
-
-
-def test_infer_document_title_uses_highest_heading():
-    sections = [
-        PdfSection(0, "Subtitle", 2, 1, 1, "body", []),
-        PdfSection(1, "Main Title", 1, 1, 2, "body", []),
-        PdfSection(2, "Other", 1, 2, 2, "body", []),
-    ]
-    assert _infer_document_title(sections, "fallback.pdf") == "Main Title"
-    assert _infer_document_title([], "fallback.pdf") == "fallback.pdf"
-
-
-def test_layout_from_markdown_maps_pages_and_sections():
-    s0 = (
-        f"{_page_start_banner(1)}\n\n"
-        "## Main Title\n\nIntro text\n\n"
-        f"{_page_end_banner(1)}\n\n"
-        f"{_page_start_banner(2)}\n\n"
-        "More on page 2"
-    )
-    s1 = f"## Methods\n\nDetails\n\n{_page_end_banner(2)}"
-    sections = [
-        PdfSection(0, "Main Title", 1, 1, 2, s0, []),
-        PdfSection(1, "Methods", 2, 2, 2, s1, []),
-    ]
-    joined = f"{s0}\n\n{s1}"
-    layout = _layout_from_markdown(joined, sections, document_title="Main Title")
-    assert layout.document_title == "Main Title"
-    assert [p.page for p in layout.pages] == [1, 2]
-    assert layout.pages[0].start_line == 1
-    assert len(layout.sections) == 2
-    assert layout.sections[0].title == "Main Title"
-    assert layout.sections[0].level == 1
-    assert layout.sections[0].heading_path == ("Main Title",)
-    assert layout.sections[1].heading_path == ("Main Title", "Methods")
-    assert layout.sections[0].page_start == 1
-    assert layout.sections[1].page_end == 2
+def _page_end_banner(page: int) -> str:
+    return f"========== page {page} end =========="
 
 
 def test_format_reference_and_page_spans():
@@ -116,8 +61,7 @@ def test_pack_section_chunks_packs_and_splits():
             _page_end_banner(3),
         ]
     )
-    # Build artificial section spans covering the whole markdown.
-    lines = markdown.splitlines()
+    # Artificial section spans covering the whole markdown.
     layout = PdfDocumentLayout(
         document_title="Doc",
         pages=(
