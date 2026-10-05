@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Follow-up link selection defaults to TypeSafe Jev**, with Luna still available.
+  Pass `followup_backend="jev"` (default) or `followup_backend="luna"`. Jev needs
+  `TYPESAFE_API_KEY`. Luna uses `models["followup_selector"]` (default GPT-6 Luna).
+
 
 ## [1.7.0] - 2026-09-24
 

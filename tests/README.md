@@ -85,6 +85,8 @@ The live presets skip cleanly when required API keys are missing.
 - `benchmark.py`: benchmark runner writing JSON and Markdown reports
 - `quality_benchmark.py`: quality comparison benchmark with saved reports
 - `test_quality_benchmark.py`: unit tests for pure helper/report logic in `quality_benchmark.py`
+- `link_selection_benchmark.py`: fetches three parent pages and scores Luna and Jev on the hand-picked relevant URLs. Extra selections count as false positives. Reports each selector's precision, recall, and selection time
+- `test_link_selection_benchmark.py`: unit tests for that benchmark's scoring and case set
 
 ## Which One To Run
 
@@ -126,6 +128,6 @@ Generated artifacts in this folder:
 
 - `run_results/`: timestamped runs from `run_checks.py`
 - `probe_results/`: saved outputs from ad hoc live probes
-- `benchmark_results/`: benchmark JSON/Markdown reports
+- `benchmark_results/`: benchmark JSON/Markdown reports (gitignored)
 
 These are useful when you want to compare runs over time or inspect a failure after the fact.

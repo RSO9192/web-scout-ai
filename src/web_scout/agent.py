@@ -66,7 +66,9 @@ from ._pipeline_rules import (
     _score_followup_candidate,
 )
 from ._pipeline_types import (
+    DEFAULT_FOLLOWUP_BACKEND,
     DEFAULT_WEB_RESEARCH_MODELS,
+    FOLLOWUP_BACKENDS,
     CoverageEvaluation,
     FollowupSelection,
     SearchIterationResult,
@@ -190,6 +192,7 @@ async def _run_search_mode(
     query_gen_model: Any,
     evaluator_model: Any,
     followup_model: Any,
+    followup_backend: str = DEFAULT_FOLLOWUP_BACKEND,
     tracker: ResearchTracker,
     scrape_tool: Any,
     exclude_domains: Optional[frozenset[str]],
@@ -209,6 +212,7 @@ async def _run_search_mode(
         query_gen_model=query_gen_model,
         evaluator_model=evaluator_model,
         followup_model=followup_model,
+        followup_backend=followup_backend,
         tracker=tracker,
         scrape_tool=scrape_tool,
         exclude_domains=exclude_domains,
@@ -226,6 +230,7 @@ async def run_web_research(
     include_domains: Optional[List[str]] = None,
     direct_url: Optional[str] = None,
     search_backend: str = "serper",
+    followup_backend: str = DEFAULT_FOLLOWUP_BACKEND,
     domain_expertise: Optional[str] = None,
     research_depth: str | dict = "standard",
     exclude_domains: Optional[List[str]] = None,
@@ -238,6 +243,10 @@ async def run_web_research(
     extractor_guidance: Optional[str] = None,
 ) -> WebResearchResult:
     """Run deterministic web research pipeline.
+
+    ``followup_backend`` chooses how follow-up links are ranked: ``"jev"``
+    (default, TypeSafe Jev) or ``"luna"`` (Agents SDK model from
+    ``models["followup_selector"]``).
 
     ``extractor_guidance`` augments only the per-source content extractor.
     The base extraction contract takes precedence over conflicting guidance.
@@ -253,6 +262,12 @@ async def run_web_research(
 
     if models is None:
         models = DEFAULT_WEB_RESEARCH_MODELS
+
+    if followup_backend not in FOLLOWUP_BACKENDS:
+        raise ValueError(
+            f"Unknown followup_backend={followup_backend!r}. "
+            f"Supported: {', '.join(sorted(FOLLOWUP_BACKENDS))}."
+        )
 
     if short_pdf_max_chars is None:
         short_pdf_max_chars = ROUTING_HEURISTICS.short_pdf_max_chars
@@ -296,12 +311,14 @@ async def run_web_research(
     query_gen_model = get_model(models.get("query_generator", fallback_model))
     evaluator_model = get_model(models.get("coverage_evaluator", fallback_model))
     synth_model = get_model(models.get("synthesiser", fallback_model))
-    followup_model = get_model(
-        models.get(
-            "followup_selector",
-            DEFAULT_WEB_RESEARCH_MODELS["followup_selector"],
+    followup_model = None
+    if followup_backend == "luna":
+        followup_model = get_model(
+            models.get(
+                "followup_selector",
+                DEFAULT_WEB_RESEARCH_MODELS["followup_selector"],
+            )
         )
-    )
     extractor_model = get_model(
         models.get(
             "content_extractor",
@@ -329,11 +346,12 @@ async def run_web_research(
     )
 
     logger.info(
-        "[pipeline] start  query=%r  backend=%s mode=%s depth=%s",
+        "[pipeline] start  query=%r  backend=%s mode=%s depth=%s followup=%s",
         query[:80],
         search_backend,
         "direct" if direct_url else "domain" if include_domains else "open",
         research_depth,
+        followup_backend,
     )
 
     from web_scout.scraping._stealth_session import (
@@ -351,6 +369,7 @@ async def run_web_research(
                 scrape_tool=scrape_tool,
                 depth=depth,
                 followup_model=followup_model,
+                followup_backend=followup_backend,
             )
         else:
             await _run_search_mode(
@@ -362,6 +381,7 @@ async def run_web_research(
                 query_gen_model=query_gen_model,
                 evaluator_model=evaluator_model,
                 followup_model=followup_model,
+                followup_backend=followup_backend,
                 tracker=tracker,
                 scrape_tool=scrape_tool,
                 exclude_domains=_excluded,
@@ -380,7 +400,9 @@ async def run_web_research(
 
 __all__ = [
     "COVERAGE_EVALUATOR_INSTRUCTIONS",
+    "DEFAULT_FOLLOWUP_BACKEND",
     "DEFAULT_WEB_RESEARCH_MODELS",
+    "FOLLOWUP_BACKENDS",
     "CoverageEvaluation",
     "FollowupSelection",
     "QUERY_GENERATOR_INSTRUCTIONS",
