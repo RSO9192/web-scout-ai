@@ -126,6 +126,17 @@ async def test_run_web_research_raises_for_invalid_research_depth():
 
 
 @pytest.mark.asyncio
+async def test_run_web_research_raises_for_unknown_followup_backend():
+    """`followup_backend` must be 'jev' or 'luna'."""
+    with pytest.raises(ValueError, match="Unknown followup_backend"):
+        await run_web_research(
+            query="fish",
+            models={"web_researcher": "dummy"},
+            followup_backend="gpt",
+        )
+
+
+@pytest.mark.asyncio
 async def test_run_web_research_raises_for_unknown_search_backend(monkeypatch):
     """`search_backend` must be 'serper'; anything else raises ValueError."""
     _patch_scrape_tool(monkeypatch)
@@ -361,6 +372,7 @@ async def test_direct_url_mode_can_deepen_cross_domain_document_followup(monkeyp
         query="Kenya forestry law",
         models={"web_researcher": "dummy", "content_extractor": "dummy"},
         direct_url=direct_url,
+        followup_backend="luna",
     )
 
     assert scrape_calls == [direct_url, followup_url]
@@ -410,6 +422,7 @@ async def test_direct_url_hub_page_triggers_deepening(monkeypatch):
         query="FAO fish production reports",
         models={"web_researcher": "dummy", "content_extractor": "dummy"},
         direct_url="https://fao.org/fishery/hub",
+        followup_backend="luna",
     )
 
     # At least the hub URL AND one follow-up URL were scraped
@@ -671,14 +684,14 @@ async def test_evaluate_search_coverage_filters_bot_blocked_backlog_domains(
 
 @pytest.mark.asyncio
 async def test_rerank_followup_urls_skips_llm_when_candidates_lte_cap(monkeypatch):
-    """When candidates count ≤ cap, the LLM is never called."""
+    """When candidates count ≤ cap, Jev is never called."""
     run_called = []
 
-    async def _fake_run(*args, **kwargs):
+    async def _fake_jev(**_kwargs):
         run_called.append(True)
-        return _FakeRunResult(FollowupSelection(selected_urls=[]))
+        return ([], None)
 
-    monkeypatch.setattr(_agent_module.Runner, "run", _fake_run)
+    monkeypatch.setattr("web_scout._pipeline_flow.select_links_with_jev", _fake_jev)
 
     await _rerank_followup_urls(
         query="fish production report",
@@ -699,12 +712,12 @@ async def test_rerank_followup_urls_skips_llm_when_candidates_lte_cap(monkeypatc
 async def test_rerank_followup_urls_falls_back_to_heuristic_on_llm_exception(
     monkeypatch,
 ):
-    """When Runner.run raises an exception, heuristic ranking is used as fallback."""
+    """When Jev fails, heuristic ranking is used as fallback."""
 
-    async def _fake_run(*args, **kwargs):
-        raise RuntimeError("LLM unavailable")
+    async def _fake_jev(**_kwargs):
+        return ([], "LLM unavailable")
 
-    monkeypatch.setattr(_agent_module.Runner, "run", _fake_run)
+    monkeypatch.setattr("web_scout._pipeline_flow.select_links_with_jev", _fake_jev)
 
     candidates = [
         "https://fao.org/fishery/annual-report-2023",
@@ -731,17 +744,16 @@ async def test_rerank_followup_urls_falls_back_to_heuristic_on_llm_exception(
 async def test_rerank_followup_urls_deduplicates_by_normalized_url(monkeypatch):
     """Duplicate URLs (differing only by tracking params) appear only once in output."""
 
-    async def _fake_run(agent_obj, prompt, **kwargs):
-        return _FakeRunResult(
-            FollowupSelection(
-                selected_urls=[
-                    "https://fao.org/fishery/report-2023",
-                    "https://fao.org/fishery/report-2022",
-                ]
-            )
+    async def _fake_jev(**_kwargs):
+        return (
+            [
+                "https://fao.org/fishery/report-2023",
+                "https://fao.org/fishery/report-2022",
+            ],
+            None,
         )
 
-    monkeypatch.setattr(_agent_module.Runner, "run", _fake_run)
+    monkeypatch.setattr("web_scout._pipeline_flow.select_links_with_jev", _fake_jev)
 
     candidates = [
         "https://fao.org/fishery/report-2023",

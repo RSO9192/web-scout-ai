@@ -28,6 +28,8 @@ from ._pipeline_rules import (
     _resolve_slot_citations,
 )
 from ._pipeline_types import (
+    DEFAULT_FOLLOWUP_BACKEND,
+    FOLLOWUP_BACKENDS,
     CoverageEvaluation,
     FollowupSelection,
     SearchIterationResult,
@@ -39,6 +41,7 @@ from ._prompts import (
     QUERY_GENERATOR_INSTRUCTIONS,
     SYNTHESISER_INSTRUCTIONS,
 )
+from .jev_link_selector import select_links_with_jev
 from .models import WebResearchResult, WebResearchResultRaw
 from .scraping.page_classifier import looks_like_document_resource
 from .scraping.utils import is_blocked_domain, looks_like_document_link
@@ -75,24 +78,45 @@ def _looks_like_document_followup(url: str) -> bool:
     )
 
 
-async def _rerank_followup_urls(
+def _finalize_followup_selection(
+    selected: list[str],
+    *,
+    shortlist: list[str],
+    cap: int,
+    parent_url: str,
+) -> list[str]:
+    """Keep selected URLs that appear in the shortlist, capped and in order."""
+    candidate_norm_map = OrderedDict((ResearchTracker.normalize_url(url), url) for url in shortlist)
+    chosen: list[str] = []
+    for url in selected:
+        original = candidate_norm_map.get(ResearchTracker.normalize_url(url))
+        if original and original not in chosen:
+            chosen.append(original)
+        if len(chosen) >= cap:
+            break
+
+    if not chosen:
+        return shortlist[:cap]
+
+    logger.info(
+        "[pipeline] reranked %d follow-up candidates for %s → %d selected",
+        len(shortlist),
+        parent_url,
+        len(chosen),
+    )
+    return chosen
+
+
+async def _select_followup_urls_with_luna(
     *,
     query: str,
     parent_url: str,
     parent_content: str,
-    candidates: list[str],
+    shortlist: list[str],
     cap: int,
     model: Any,
 ) -> list[str]:
-    """Use a small LLM to choose the most promising follow-up URLs."""
-    ranked_candidates = _rank_followup_candidates(query, candidates)
-    if not ranked_candidates:
-        return []
-    shortlist = ranked_candidates[: max(cap * FOLLOWUP_HEURISTICS.shortlist_multiplier, cap)]
-    if len(candidates) <= cap or len(shortlist) == 1:
-        return shortlist[:cap]
-
-    candidate_norm_map = OrderedDict((ResearchTracker.normalize_url(url), url) for url in shortlist)
+    """Ask the Luna Agents SDK model which shortlisted URLs to follow."""
     parent_excerpt = " ".join(parent_content.split())[:1800]
     prompt = (
         f"Research query: {query}\n"
@@ -124,25 +148,88 @@ async def _rerank_followup_urls(
         logger.warning("[pipeline] follow-up URL reranker failed for %s: %s", parent_url, exc)
         return shortlist[:cap]
 
-    selected: list[str] = []
-    for url in raw_selected:
-        norm = ResearchTracker.normalize_url(url)
-        original = candidate_norm_map.get(norm)
-        if original and original not in selected:
-            selected.append(original)
-        if len(selected) >= cap:
-            break
+    return _finalize_followup_selection(
+        raw_selected,
+        shortlist=shortlist,
+        cap=cap,
+        parent_url=parent_url,
+    )
 
-    if not selected:
+
+async def _select_followup_urls_with_jev(
+    *,
+    query: str,
+    parent_url: str,
+    parent_content: str,
+    shortlist: list[str],
+    cap: int,
+) -> list[str]:
+    """Ask TypeSafe Jev which shortlisted URLs to follow."""
+    selected, error = await select_links_with_jev(
+        query=query,
+        parent_url=parent_url,
+        parent_content=parent_content,
+        candidates=shortlist,
+    )
+    if error:
+        logger.warning("[pipeline] follow-up URL reranker failed for %s: %s", parent_url, error)
         return shortlist[:cap]
 
-    logger.info(
-        "[pipeline] reranked %d follow-up candidates for %s → %d selected",
-        len(shortlist),
-        parent_url,
-        len(selected),
+    return _finalize_followup_selection(
+        selected,
+        shortlist=shortlist,
+        cap=cap,
+        parent_url=parent_url,
     )
-    return selected
+
+
+async def _rerank_followup_urls(
+    *,
+    query: str,
+    parent_url: str,
+    parent_content: str,
+    candidates: list[str],
+    cap: int,
+    model: Any = None,
+    selector: str = DEFAULT_FOLLOWUP_BACKEND,
+) -> list[str]:
+    """Choose follow-up URLs with Jev or Luna, falling back to the heuristic shortlist."""
+    if selector not in FOLLOWUP_BACKENDS:
+        raise ValueError(
+            f"Unknown followup_backend={selector!r}. "
+            f"Supported: {', '.join(sorted(FOLLOWUP_BACKENDS))}."
+        )
+
+    ranked_candidates = _rank_followup_candidates(query, candidates)
+    if not ranked_candidates:
+        return []
+    shortlist = ranked_candidates[: max(cap * FOLLOWUP_HEURISTICS.shortlist_multiplier, cap)]
+    if len(candidates) <= cap or len(shortlist) == 1:
+        return shortlist[:cap]
+
+    if selector == "luna":
+        if model is None:
+            logger.warning(
+                "[pipeline] followup_backend='luna' needs a model; using heuristic shortlist for %s",
+                parent_url,
+            )
+            return shortlist[:cap]
+        return await _select_followup_urls_with_luna(
+            query=query,
+            parent_url=parent_url,
+            parent_content=parent_content,
+            shortlist=shortlist,
+            cap=cap,
+            model=model,
+        )
+
+    return await _select_followup_urls_with_jev(
+        query=query,
+        parent_url=parent_url,
+        parent_content=parent_content,
+        shortlist=shortlist,
+        cap=cap,
+    )
 
 
 def _build_search_backend(search_backend: str):
@@ -451,6 +538,7 @@ async def _deepen_hub_results(
     include_domains: list[str],
     depth: dict[str, int],
     followup_model: Any,
+    followup_backend: str,
     tracker: ResearchTracker,
     scrape_tool: Any,
     hub_results: list[tuple[str, ExtractorOutcome]],
@@ -473,6 +561,7 @@ async def _deepen_hub_results(
         candidates=candidates,
         cap=hub_cap,
         model=followup_model,
+        selector=followup_backend,
     )
     logger.info(
         "[pipeline] hub deepening (domain mode) on %d candidates (cap=%d)",
@@ -506,6 +595,7 @@ async def _deepen_non_hub_results(
     query: str,
     include_domains: list[str],
     followup_model: Any,
+    followup_backend: str,
     tracker: ResearchTracker,
     scrape_tool: Any,
     iteration_result: SearchIterationResult,
@@ -532,6 +622,7 @@ async def _deepen_non_hub_results(
         candidates=links_to_deepen,
         cap=min(3, len(links_to_deepen)),
         model=followup_model,
+        selector=followup_backend,
     )
     logger.info(
         "[pipeline] domain restricted deepening on %d links: %s",
@@ -547,6 +638,7 @@ async def _deepen_domain_iteration(
     include_domains: list[str],
     depth: dict[str, int],
     followup_model: Any,
+    followup_backend: str,
     tracker: ResearchTracker,
     scrape_tool: Any,
     iteration_result: SearchIterationResult,
@@ -561,6 +653,7 @@ async def _deepen_domain_iteration(
             include_domains=include_domains,
             depth=depth,
             followup_model=followup_model,
+            followup_backend=followup_backend,
             tracker=tracker,
             scrape_tool=scrape_tool,
             hub_results=hub_results,
@@ -574,6 +667,7 @@ async def _deepen_domain_iteration(
         query=query,
         include_domains=include_domains,
         followup_model=followup_model,
+        followup_backend=followup_backend,
         tracker=tracker,
         scrape_tool=scrape_tool,
         iteration_result=iteration_result,
@@ -705,6 +799,7 @@ async def _run_direct_url_mode(
     scrape_tool: Any,
     depth: dict[str, int],
     followup_model: Any,
+    followup_backend: str = DEFAULT_FOLLOWUP_BACKEND,
 ) -> None:
     """Handle direct-URL mode, including optional hub or same-domain deepening."""
     logger.info("[pipeline] scraping direct URL: %s", direct_url)
@@ -743,6 +838,7 @@ async def _run_direct_url_mode(
                 candidates=candidates,
                 cap=hub_cap,
                 model=followup_model,
+                selector=followup_backend,
             )
             logger.info(
                 "[pipeline] hub deepening on %d candidate links (cap=%d)",
@@ -781,6 +877,7 @@ async def _run_direct_url_mode(
         candidates=candidate_links,
         cap=min(3, len(candidate_links)),
         model=followup_model,
+        selector=followup_backend,
     )
     logger.info("[pipeline] deepening on %d links from direct URL", len(chosen))
     await _gather_scrapes([scrape_tool(link) for link in chosen])
@@ -796,6 +893,7 @@ async def _run_search_mode_impl(
     query_gen_model: Any,
     evaluator_model: Any,
     followup_model: Any,
+    followup_backend: str = DEFAULT_FOLLOWUP_BACKEND,
     tracker: ResearchTracker,
     scrape_tool: Any,
     exclude_domains: Optional[frozenset[str]],
@@ -844,6 +942,7 @@ async def _run_search_mode_impl(
                 include_domains=include_domains,
                 depth=depth,
                 followup_model=followup_model,
+                followup_backend=followup_backend,
                 tracker=tracker,
                 scrape_tool=scrape_tool,
                 iteration_result=iteration_result,
@@ -980,6 +1079,8 @@ __all__ = [
     "_run_direct_url_mode",
     "_run_search_mode_impl",
     "_search_and_scrape_iteration",
+    "_select_followup_urls_with_jev",
+    "_select_followup_urls_with_luna",
     "_select_search_urls",
     "_synthesise_result",
 ]

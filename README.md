@@ -269,7 +269,7 @@ fields, page-type handling, and the exact no-evidence sentinel.
 
 ## Configuration
 
-The defaults are Bedrock Mantle GPT-6 Luna for research, extraction, and follow-up selection, and `gemini/gemini-3.7-flash` for vision. Model IDs follow [LiteLLM provider naming](https://docs.litellm.ai/docs/providers), so each stage can use a different provider or model.
+The defaults are Bedrock Mantle GPT-6 Luna for research and extraction, TypeSafe Jev for follow-up link selection, and `gemini/gemini-3.7-flash` for vision. Model IDs follow [LiteLLM provider naming](https://docs.litellm.ai/docs/providers), so each stage can use a different provider or model. Pass `followup_backend="luna"` to use the Agents SDK model in `models["followup_selector"]` instead of Jev. Jev reads `TYPESAFE_API_KEY`.
 
 ```python
 models = {
@@ -283,14 +283,16 @@ models = {
     "query_generator": "openai/gpt-4o-mini",
     "coverage_evaluator": "openai/gpt-4o-mini",
     "synthesiser": "openai/gpt-4o-mini",
-    "followup_selector": "openai/gpt-4o-mini",
+    "followup_selector": "openai/gpt-4o-mini",  # used when followup_backend="luna"
     "vision_fallback": "gemini/gemini-2.0-flash",
 }
 
 result = await run_web_research(query="...", models=models)
+# Or keep Luna for link selection:
+# result = await run_web_research(query="...", followup_backend="luna", models=models)
 ```
 
-Provider credentials are read from their standard environment variables, such as `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, or AWS credentials for Bedrock.
+Provider credentials are read from their standard environment variables, such as `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `TYPESAFE_API_KEY`, or AWS credentials for Bedrock.
 
 ### Public API
 

@@ -13,6 +13,11 @@ DEFAULT_WEB_RESEARCH_MODELS = {
     "vision_fallback": "gemini/gemini-3.7-flash",
 }
 
+# Backend that chooses which follow-up links to open. "jev" is the default;
+# "luna" uses the Agents SDK model named in models["followup_selector"].
+DEFAULT_FOLLOWUP_BACKEND = "jev"
+FOLLOWUP_BACKENDS = frozenset({"jev", "luna"})
+
 
 class SearchQueryGeneration(BaseModel):
     """LLM output for generating diverse search queries."""
@@ -65,7 +70,9 @@ class SearchIterationResult:
 
 
 __all__ = [
+    "DEFAULT_FOLLOWUP_BACKEND",
     "DEFAULT_WEB_RESEARCH_MODELS",
+    "FOLLOWUP_BACKENDS",
     "CoverageEvaluation",
     "FollowupSelection",
     "SearchIterationResult",
