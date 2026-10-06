@@ -42,6 +42,8 @@ def resources():
 async def http_get(url, **kwargs):
     from scrapling.fetchers import FetcherSession
 
+    from .utils import log_fetch
+
     state = resources()
     async with state.http_limit:
         async with state.http_lock:
@@ -49,7 +51,17 @@ async def http_get(url, **kwargs):
                 session = FetcherSession(retries=1)
                 state.http_session = await session.__aenter__()
                 state.http_manager = session
-        return await state.http_session.get(url, **kwargs)
+        try:
+            response = await state.http_session.get(url, **kwargs)
+        except Exception as exc:
+            log_fetch(url, status="error", via="http", error=f"{type(exc).__name__}: {exc}")
+            raise
+        status = getattr(response, "status", None) or getattr(response, "status_code", "?")
+        body = getattr(response, "body", None)
+        html = getattr(response, "html_content", None) or ""
+        size = len(body) if isinstance(body, (bytes, bytearray)) else len(html)
+        log_fetch(url, status=status, via="http", bytes_=size)
+        return response
 
 
 def search_client():

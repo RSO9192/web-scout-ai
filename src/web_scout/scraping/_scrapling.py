@@ -21,6 +21,8 @@ async def stealthy_fetch(url: str, **kwargs: Any):
     Raises ``RuntimeError`` when the installed Scrapling version does not
     support ``solve_cloudflare`` (requires >= 0.4.9).
     """
+    from .utils import log_fetch
+
     kwargs.setdefault("solve_cloudflare", True)
     kwargs["network_idle"] = False
     kwargs["wait"] = 0
@@ -39,11 +41,22 @@ async def stealthy_fetch(url: str, **kwargs: Any):
     kwargs["page_action"] = ready
 
     try:
-        return await fetch_via_session(url, **kwargs)
+        response = await fetch_via_session(url, **kwargs)
     except TypeError as exc:
         if "solve_cloudflare" in str(exc):
             raise RuntimeError(
                 "Scrapling >= 0.4.9 is required for solve_cloudflare support. "
                 "Run: pip install 'scrapling[fetchers]>=0.4.9'"
             ) from exc
+        log_fetch(url, status="error", via="browser", error=f"{type(exc).__name__}: {exc}")
         raise
+    except Exception as exc:
+        log_fetch(url, status="error", via="browser", error=f"{type(exc).__name__}: {exc}")
+        raise
+
+    status = getattr(response, "status", None) or getattr(response, "status_code", "?")
+    body = getattr(response, "body", None)
+    html = getattr(response, "html_content", None) or ""
+    size = len(body) if isinstance(body, (bytes, bytearray)) else len(html)
+    log_fetch(url, status=status, via="browser", bytes_=size)
+    return response

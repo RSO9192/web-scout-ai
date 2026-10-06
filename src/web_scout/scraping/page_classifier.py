@@ -12,7 +12,12 @@ from typing import Literal
 from web_scout.config import EXTRACTOR_HEURISTICS, ROUTING_HEURISTICS
 
 from .constants import DOC_CONTENT_TYPES, DOC_EXTENSIONS
-from .utils import filename_from_content_disposition, looks_like_document_link, normalize_content_type
+from .utils import (
+    extract_citation_pdf_urls,
+    filename_from_content_disposition,
+    looks_like_document_link,
+    normalize_content_type,
+)
 
 PageType = Literal["content_page", "record_page", "interactive_shell", "uncertain"]
 
@@ -230,12 +235,14 @@ def classify_html_page_shape(html: str) -> PageShapeAssessment:
     text_blocks = _text_blocks_from_html(html)
     text = re.sub(r"\s+", " ", _strip_html(html)).strip()
     hrefs = [m.group(1).strip() for m in _HTML_HREF_RE.finditer(html)]
-    document_link_count = sum(1 for href in hrefs if looks_like_document_link(href))
+    citation_pdfs = extract_citation_pdf_urls(html)
+    document_candidates = hrefs + citation_pdfs
+    document_link_count = sum(1 for href in document_candidates if looks_like_document_link(href))
     return _classify_page_shape(
         text=text,
         paragraph_blocks=sum(1 for block in text_blocks if len(block) >= 80),
         sentence_count=_count_sentence_endings(text),
-        href_count=len(hrefs),
+        href_count=len(hrefs) + len(citation_pdfs),
         document_link_count=document_link_count,
         metadata_marker_count=_count_metadata_markers(text),
         list_line_ratio=0.0,

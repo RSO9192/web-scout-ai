@@ -194,7 +194,7 @@ def test_rich_content_with_reference_pdf_does_not_expose_linked_document_tool():
     assert "click_element" not in names
 
 
-def test_publication_landing_page_with_download_and_abstract_stays_tool_free():
+def test_publication_landing_page_with_download_exposes_linked_document_tool():
     agent, cleanup = _build_extractor_agent(
         model="dummy",
         query="Kenya climate trends precipitation",
@@ -218,9 +218,33 @@ def test_publication_landing_page_with_download_and_abstract_stays_tool_free():
     )
 
     names = _tool_names(agent)
-    assert "scrape_linked_document" not in names
+    assert "scrape_linked_document" in names
     assert "list_interactive_elements" not in names
     assert "click_element" not in names
+
+
+def test_openknowledge_item_landing_exposes_linked_document_for_bitstream():
+    agent, cleanup = _build_extractor_agent(
+        model="dummy",
+        query="Which regions will observe dry conditions in the 2027 El Niño event?",
+        url="https://openknowledge.fao.org/items/e7477e51-6001-4144-bd18-7a002b54ef79",
+        wait_for=None,
+        pre_fetched_content=(
+            "# El Niño: FAO–WFP Joint Anticipatory Action Appeal\n"
+            "Source: https://openknowledge.fao.org/items/e7477e51-6001-4144-bd18-7a002b54ef79\n\n"
+            "Year of publication 2026\n"
+            "Place of publication Rome, Italy\n"
+            "Author FAO; WFP;\n"
+            "Abstract: Developing strong El Niño conditions are set to intensify droughts "
+            "and floods across Africa, Asia and the Pacific and Latin America.\n\n"
+            "### Links on Page:\n"
+            "- [Download PDF](https://openknowledge.fao.org/bitstreams/"
+            "c1caede2-ea98-46b0-b663-4cae429e05d3/download)\n"
+        ),
+    )
+
+    names = _tool_names(agent)
+    assert "scrape_linked_document" in names
 
 
 # ---------------------------------------------------------------------------

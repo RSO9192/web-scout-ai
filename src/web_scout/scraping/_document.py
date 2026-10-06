@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
+import time
 from typing import Optional, Tuple
 
 from pdf_extractor_ai import PdfExtractor, document_title, is_low_text, summarize_images, to_markdown
@@ -171,6 +172,13 @@ async def _convert_pdf_to_markdown(
     vision_model: str | None = None,
 ) -> tuple[str, PdfDocumentLayout]:
     """Convert PDF bytes to markdown plus layout metadata."""
+    fetch_logger = logging.getLogger("web_scout.fetch")
+    fetch_logger.info(
+        "[pdf-extractor] parsing PDF bytes=%d url=%s",
+        len(pdf_bytes),
+        url,
+    )
+    started = time.perf_counter()
     filename = _filename_title(url)
     extractor = _get_pdf_extractor()
     if vision_model:
@@ -197,6 +205,12 @@ async def _convert_pdf_to_markdown(
     title = document_title(document, fallback=filename) or filename
     package_layout = await asyncio.to_thread(layout_from_markdown, markdown, document)
     layout = _to_pdf_document_layout(package_layout, document_title=title)
+    fetch_logger.info(
+        "[pdf-extractor] finished PDF bytes=%d elapsed=%.1fs url=%s",
+        len(pdf_bytes),
+        time.perf_counter() - started,
+        url,
+    )
     return markdown, layout
 
 

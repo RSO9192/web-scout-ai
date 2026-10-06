@@ -4,6 +4,7 @@ from web_scout.scraping.page_classifier import (
     classify_html_page_shape,
     classify_prefetched_page_shape,
 )
+from web_scout.scraping.utils import extract_citation_pdf_urls
 
 
 def test_classify_html_rich_publication_page_with_download_is_content():
@@ -77,3 +78,38 @@ def test_classify_prefetched_article_with_reference_pdf_stays_content():
 
     assert shape.page_type == "content_page"
     assert shape.content_score > shape.record_score
+
+
+def test_extract_citation_pdf_urls_rewrites_dspace_download_to_api_content():
+    html = (
+        '<meta name="citation_pdf_url" '
+        'content="http://openknowledge.fao.org/bitstreams/'
+        'c1caede2-ea98-46b0-b663-4cae429e05d3/download">'
+    )
+    assert extract_citation_pdf_urls(html) == [
+        "https://openknowledge.fao.org/server/api/core/bitstreams/"
+        "c1caede2-ea98-46b0-b663-4cae429e05d3/content"
+    ]
+
+
+def test_classify_html_counts_citation_pdf_meta_as_document_link():
+    html = """
+    <html>
+      <head>
+        <meta name="citation_pdf_url"
+              content="https://openknowledge.fao.org/bitstreams/c1caede2-ea98-46b0-b663-4cae429e05d3/download">
+      </head>
+      <body>
+        <h1>Repository record</h1>
+        <p>Authors: Example Author.</p>
+        <p>Published: 2024.</p>
+        <p>Abstract: Summary page only.</p>
+        <p>Citation: Example Journal.</p>
+      </body>
+    </html>
+    """
+
+    shape = classify_html_page_shape(html)
+
+    assert shape.document_link_count >= 1
+    assert shape.page_type == "record_page"

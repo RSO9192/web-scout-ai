@@ -8,7 +8,7 @@ import re
 from urllib.parse import unquote, urlparse
 
 from .constants import LINKS_SECTION_HEADING
-from .utils import looks_like_document_link
+from .utils import extract_citation_pdf_urls, looks_like_document_link
 
 _NOISE_LABELS = frozenset({"read more", "click here", "learn more"})
 
@@ -63,12 +63,13 @@ def _extract_links_from_page(result) -> dict:
         return {}
 
 
-def append_links(content: str, result, *, limit: int = 50) -> str:
+def append_links(content: str, result, *, limit: int = 50, html: str | None = None) -> str:
     """Append a deduplicated section of useful page links to the markdown.
 
-    Collects links from two sources:
+    Collects links from three sources:
     - Markdown hyperlinks already embedded in ``content``.
     - The ``result.links`` dict (crawl4ai) or ``result.css('a')`` (Scrapling).
+    - ``citation_pdf_url`` meta tags from ``html`` / ``result.html_content``.
 
     Icon-only document links (no anchor text) are kept because repository
     pages often expose their primary documents only via file-icon anchors.
@@ -78,12 +79,19 @@ def append_links(content: str, result, *, limit: int = 50) -> str:
     if result is not None and hasattr(result, "css"):
         links_data = _extract_links_from_page(result)
     else:
-        links_data = getattr(result, "links", {})
+        links_data = getattr(result, "links", {}) if result is not None else {}
 
     if isinstance(links_data, dict):
         raw_links = list(links_data.get("internal", [])) + list(links_data.get("external", []))
     else:
         raw_links = list(getattr(links_data, "internal", [])) + list(getattr(links_data, "external", []))
+
+    if html is not None:
+        html_text = html
+    elif result is not None:
+        html_text = getattr(result, "html_content", None) or ""
+    else:
+        html_text = ""
 
     lines: list[str] = []
 
@@ -101,6 +109,9 @@ def append_links(content: str, result, *, limit: int = 50) -> str:
             lines.append(f"- [{text}]({href})")
         elif looks_like_document_link(href):
             lines.append(f"- [{_link_label(href)}]({href})")
+
+    for pdf_url in extract_citation_pdf_urls(html_text):
+        lines.append(f"- [Download PDF]({pdf_url})")
 
     if not lines:
         return content

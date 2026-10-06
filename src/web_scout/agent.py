@@ -256,6 +256,12 @@ async def run_web_research(
     ``verify_pdf_claims`` enables an optional extra LLM claim-support check
     for PDF extracts (default False).
     """
+    # Ensure ``web_scout.*`` INFO lines (including ``[fetch]`` / ``[pdf-extractor]``)
+    # are visible even when the host app never called ``configure_logging()``.
+    from web_scout import configure_logging
+
+    configure_logging()
+
     from ._classification import backend as classification_backend
     from ._classification import require_credentials
 
