@@ -100,8 +100,10 @@ def _classify_fetch_result(result: FetchResult) -> str:
     return "html"
 
 
-def _extract_absolute_links(base_url: str, page, content: str) -> list[str]:
+def _extract_absolute_links(base_url: str, page, content: str, *, html: str = "") -> list[str]:
     """Collect absolute URLs from a Scrapling page object and the markdown content."""
+    from .utils import extract_citation_pdf_urls
+
     seen: set[str] = set()
     links: list[str] = []
 
@@ -131,6 +133,10 @@ def _extract_absolute_links(base_url: str, page, content: str) -> list[str]:
     # From markdown hyperlinks already embedded in content
     for match in re.finditer(r"\[([^\]]+)\]\((https?://[^\)]+)\)", content):
         _add(match.group(2))
+
+    html_text = html or (getattr(page, "html_content", None) or "")
+    for pdf_url in extract_citation_pdf_urls(html_text):
+        _add(pdf_url)
 
     return links
 
@@ -234,7 +240,7 @@ class DefaultParser(Parser):
             html = result.html_content or ""
             content = _html_to_markdown(html)
             title = _extract_title(html)
-            content = append_links(content, None)
+            content = append_links(content, None, html=html)
 
         if _is_404_content(content):
             return ParseResult(
@@ -246,7 +252,7 @@ class DefaultParser(Parser):
                 error="soft 404 detected in content",
             )
 
-        links = _extract_absolute_links(result.url, page, content)
+        links = _extract_absolute_links(result.url, page, content, html=html)
         artifact = SourceArtifact(kind="text", title=title, text_content=content)
 
         # Vision fallback for pages that rendered empty (SPA race condition, etc.)

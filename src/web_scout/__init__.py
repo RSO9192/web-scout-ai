@@ -40,7 +40,7 @@ Public API
 - ``ResearchTracker`` — URL/query bookkeeping
 """
 
-__version__ = "1.8.0"
+__version__ = "1.8.1"
 
 import logging as _logging
 import os as _os
@@ -52,20 +52,39 @@ _os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "true")
 # before litellm is pulled in transitively by .agent.
 _logging.getLogger("LiteLLM").setLevel(_logging.ERROR)
 _logging.getLogger("litellm").setLevel(_logging.ERROR)
+# openai-agents traces export to OpenAI by default; without OPENAI_API_KEY this
+# emits a noisy WARNING on every run. Disable tracing and silence the logger.
+_logging.getLogger("agents.tracing.processors").setLevel(_logging.ERROR)
 
 
 def _configure_third_party_runtime() -> None:
-    """Silence third-party progress bars that leak into CLI output."""
+    """Silence third-party progress bars and debug spam that leak into CLI output."""
     # Docling pulls in Hugging Face / Transformers models whose first-load path
     # emits tqdm bars like "Loading weights: 100%|...|". Treat those as noise.
     _os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
     try:
         from transformers.utils import logging as _transformers_logging
     except Exception:
-        return
+        pass
+    else:
+        try:
+            _transformers_logging.disable_progress_bar()
+        except Exception:
+            pass
 
     try:
-        _transformers_logging.disable_progress_bar()
+        from agents import set_tracing_disabled
+
+        set_tracing_disabled(True)
+    except Exception:
+        pass
+
+    try:
+        import litellm
+
+        # Prevents the printed "Give Feedback / Get Help" + turn_on_debug banner
+        # on mapped provider exceptions.
+        litellm.suppress_debug_info = True
     except Exception:
         pass
 
@@ -77,7 +96,8 @@ def configure_logging(level: int = _logging.INFO) -> None:
     """Configure clean logging for web_scout.
 
     Call this once at application startup to get structured log output from
-    the ``web_scout.*`` loggers with timestamps and level names.
+    the ``web_scout.*`` loggers with timestamps and level names. Safe to call
+    repeatedly; handlers are only attached once.
 
     Third-party loggers (httpx, crawl4ai, litellm, docling) are kept at
     WARNING regardless of the requested level.
@@ -85,16 +105,17 @@ def configure_logging(level: int = _logging.INFO) -> None:
     Args:
         level: Log level for ``web_scout.*`` loggers (default ``INFO``).
     """
-    handler = _logging.StreamHandler()
-    handler.setFormatter(
-        _logging.Formatter(
-            fmt="%(asctime)s  %(levelname)-8s  %(name)s: %(message)s",
-            datefmt="%H:%M:%S",
-        )
-    )
     pkg_logger = _logging.getLogger("web_scout")
     pkg_logger.setLevel(level)
     if not pkg_logger.handlers:
+        handler = _logging.StreamHandler()
+        # Match scrapling's shell-friendly format so notebook / CLI output lines up.
+        handler.setFormatter(
+            _logging.Formatter(
+                fmt="[%(asctime)s] %(levelname)s: %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+            )
+        )
         pkg_logger.addHandler(handler)
     pkg_logger.propagate = False
 

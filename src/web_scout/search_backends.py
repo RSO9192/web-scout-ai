@@ -110,6 +110,9 @@ async def _post_with_retries(url: str, headers: Dict[str, str], payload: dict, l
                 await asyncio.sleep(delay)
                 continue
             resp.raise_for_status()
+            from .scraping.utils import log_fetch
+
+            log_fetch(url, status=resp.status_code, via=f"search:{label}", bytes_=len(resp.content))
             logger.debug("[search-timing] backend=%s seconds=%.3f", label, time.perf_counter() - started)
             return resp.json()
     return {}

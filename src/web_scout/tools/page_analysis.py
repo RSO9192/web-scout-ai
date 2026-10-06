@@ -1,10 +1,12 @@
 """Page content analysis — thin/rich detection, SPA/form signals, cached text rendering."""
 
+import re
 from typing import Optional
 from urllib.parse import urlparse
 
 from web_scout.config import EXTRACTOR_HEURISTICS
 from web_scout.scraping.page_classifier import PageShapeAssessment
+from web_scout.scraping.utils import looks_like_document_link
 
 _FORM_TOKENS = (
     "strongly agree",
@@ -13,6 +15,18 @@ _FORM_TOKENS = (
     "kindly provide",
     "please provide",
     "select an option",
+)
+
+_DOC_URL_RE = re.compile(r"https?://[^\s)\]\"'>]+", re.IGNORECASE)
+_PRIMARY_DOCUMENT_CUES = (
+    "download pdf",
+    "full text pdf",
+    "full-text pdf",
+    "full text:",
+    "full-text:",
+    "[download pdf]",
+    "download the pdf",
+    "download the full",
 )
 
 
@@ -82,6 +96,49 @@ def prefetched_has_strong_content(
         and page_shape.content_score >= page_shape.interactive_score + 1
         and page_shape.text_chars >= 3_000
     )
+
+
+def _has_primary_document_download_cue(content: str) -> bool:
+    """True when the page advertises a primary PDF/document download."""
+    if not content:
+        return False
+    lower = content.lower()
+    urls = _DOC_URL_RE.findall(content)
+    document_urls = [url for url in urls if looks_like_document_link(url)]
+    if not document_urls:
+        return False
+    if any(cue in lower for cue in _PRIMARY_DOCUMENT_CUES):
+        return True
+    # Extensionless repository downloads (DSpace bitstreams, /download endpoints)
+    # are themselves a strong primary-document signal.
+    return any(
+        any(marker in url.lower() for marker in ("/bitstreams/", "/bitstream/", "/download"))
+        for url in document_urls
+    )
+
+
+def prefetched_allows_linked_document(
+    content: str,
+    page_shape: Optional[PageShapeAssessment],
+) -> bool:
+    """True when the extractor may fetch one primary linked document.
+
+    Strong ``record_page`` shapes keep the existing path. Publication /
+    repository landing pages with a primary Download PDF (or bitstream
+    download) are also allowed even when the abstract looks content-rich —
+    the landing page itself often lacks the evidence the query needs.
+    """
+    if page_shape is None:
+        return False
+    if (
+        page_shape.page_type == "record_page"
+        and page_shape.record_score >= 5
+        and page_shape.record_score >= page_shape.content_score + 2
+    ):
+        return True
+    if page_shape.document_link_count < 1 or page_shape.metadata_marker_count < 2:
+        return False
+    return _has_primary_document_download_cue(content)
 
 
 def prefetched_allows_interaction(

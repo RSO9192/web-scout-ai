@@ -120,6 +120,7 @@ def create_scrape_and_extract_tool(
                 page_rendered = ""
                 is_failure = False
                 pdf_artifact = None
+                source_url = url
 
                 if use_session_cache:
                     cached_artifact, cache_error = await get_or_fetch_session_source_artifact(
@@ -171,14 +172,16 @@ def create_scrape_and_extract_tool(
                         else:
                             page_rendered = render_cached_page_text(url, title, content)
                 else:
-                    _, parse_result = await fetch_and_parse_url(
+                    from web_scout.scraping.utils import resolve_primary_pdf_url
+
+                    fetch_result, parse_result = await fetch_and_parse_url(
                         url,
                         wait_for=_wait_for,
                         exclude_domains=exclude_domains,
                         vision_model=vision_model,
                         max_pdf_pages=max_pdf_pages,
                     )
-                    del _  # The parser has consumed the transport response.
+                    del fetch_result  # The parser has consumed the transport response.
                     content, error = await materialize_parse_result(
                         parse_result,
                         query=query,
@@ -186,17 +189,60 @@ def create_scrape_and_extract_tool(
                         max_content_chars=max_content_chars,
                     )
                     title = parse_result.title
+                    source_url = parse_result.url or url
                     if error or parse_result.error:
                         page_rendered = f"[Scrape failed: {error or parse_result.error}]"
                         is_failure = True
                     elif parse_result.artifact.kind == "text" and parse_result.artifact.layout is not None:
                         pdf_artifact = parse_result.artifact
-                        page_rendered = render_cached_page_text(url, title, content)
+                        page_rendered = render_cached_page_text(source_url, title, content)
                     elif not content.strip():
                         page_rendered = "[Page returned empty content]"
                         is_failure = True
                     else:
-                        page_rendered = render_cached_page_text(url, title, content)
+                        # Repository landings (DSpace / Open Knowledge): follow the
+                        # primary PDF deterministically via citation_pdf_url or the
+                        # item REST API — do not rely on the extractor LLM.
+                        doc_url = await asyncio.to_thread(
+                            resolve_primary_pdf_url,
+                            url,
+                            parse_result.raw_html or "",
+                        )
+                        if doc_url and ResearchTracker.normalize_url(doc_url) != norm:
+                            logger.info(
+                                "[extract] auto-following primary PDF %s from %s",
+                                doc_url,
+                                url,
+                            )
+                            _, doc_parse = await fetch_and_parse_url(
+                                doc_url,
+                                exclude_domains=exclude_domains,
+                                vision_model=vision_model,
+                                max_pdf_pages=max_pdf_pages,
+                            )
+                            if (
+                                not doc_parse.error
+                                and doc_parse.artifact.kind == "text"
+                                and doc_parse.artifact.layout is not None
+                            ):
+                                doc_content, doc_error = await materialize_parse_result(
+                                    doc_parse,
+                                    query=query,
+                                    vision_model=vision_model,
+                                    max_content_chars=max_content_chars,
+                                )
+                                if not doc_error and doc_content.strip():
+                                    pdf_artifact = doc_parse.artifact
+                                    content = doc_content
+                                    title = doc_parse.title or title
+                                    source_url = doc_url
+                                    page_rendered = render_cached_page_text(source_url, title, content)
+                                else:
+                                    page_rendered = render_cached_page_text(url, title, content)
+                            else:
+                                page_rendered = render_cached_page_text(url, title, content)
+                        else:
+                            page_rendered = render_cached_page_text(url, title, content)
                     del parse_result  # No crawler consumes raw HTML in this tool.
 
                 if is_failure:
@@ -224,14 +270,14 @@ def create_scrape_and_extract_tool(
                         or pdf_content.startswith("Scrape failed")
                     )
                     if is_pdf_failure:
-                        outcome = _handle_failure(url, pdf_content or "", tracker, outcome_cache, norm)
+                        outcome = _handle_failure(source_url, pdf_content or "", tracker, outcome_cache, norm)
                         future.set_result(outcome.rendered_text)
                         return outcome.rendered_text
                     if tracker is not None:
-                        tracker.record_scrape(url, pdf_title, pdf_content, reference=reference)
+                        tracker.record_scrape(source_url, pdf_title, pdf_content, reference=reference)
                     count_scraped = tracker.count_for_action("scraped") if tracker is not None else None
                     outcome = build_success_outcome(
-                        url=url,
+                        url=source_url,
                         title=pdf_title,
                         content=pdf_content,
                         page_type="content",
@@ -244,7 +290,7 @@ def create_scrape_and_extract_tool(
                     logger.info(
                         "[extract] pdf_extractor_outcome status=success pages=%s url=%s",
                         list(used_pages),
-                        url,
+                        source_url,
                     )
                     future.set_result(outcome.rendered_text)
                     return outcome.rendered_text

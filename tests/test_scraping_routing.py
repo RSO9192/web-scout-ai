@@ -200,6 +200,98 @@ def test_append_links_keeps_icon_only_external_document_links():
     assert "https://cdn.example.org/laws/kenya-forestry-law.pdf" in enriched
 
 
+def test_append_links_surfaces_citation_pdf_url_meta():
+    content = "Repository abstract only"
+    html = """
+    <html><head>
+      <meta name="citation_pdf_url"
+            content="http://openknowledge.fao.org/bitstreams/c1caede2-ea98-46b0-b663-4cae429e05d3/download">
+    </head><body><p>Abstract</p></body></html>
+    """
+
+    enriched = append_links(content, None, html=html)
+
+    assert "### Links on Page:" in enriched
+    assert (
+        "[Download PDF](https://openknowledge.fao.org/server/api/core/bitstreams/"
+        "c1caede2-ea98-46b0-b663-4cae429e05d3/content)"
+    ) in enriched
+
+
+def test_resolve_document_download_url_rewrites_dspace_frontend_route():
+    from web_scout.scraping.utils import resolve_document_download_url
+
+    frontend = (
+        "https://openknowledge.fao.org/bitstreams/"
+        "c1caede2-ea98-46b0-b663-4cae429e05d3/download"
+    )
+    assert resolve_document_download_url(frontend) == (
+        "https://openknowledge.fao.org/server/api/core/bitstreams/"
+        "c1caede2-ea98-46b0-b663-4cae429e05d3/content"
+    )
+    assert resolve_document_download_url("https://example.org/report.pdf") == (
+        "https://example.org/report.pdf"
+    )
+
+
+def test_primary_pdf_url_from_dspace_item_payload_prefers_original_pdf():
+    from web_scout.scraping.utils import primary_pdf_url_from_dspace_item_payload
+
+    payload = {
+        "_embedded": {
+            "bundles": {
+                "_embedded": {
+                    "bundles": [
+                        {
+                            "name": "THUMBNAIL",
+                            "_embedded": {
+                                "bitstreams": {
+                                    "_embedded": {
+                                        "bitstreams": [
+                                            {
+                                                "name": "thumb.jpg",
+                                                "_links": {
+                                                    "content": {
+                                                        "href": "https://openknowledge.fao.org/server/api/core/bitstreams/thumb/content"
+                                                    }
+                                                },
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
+                        },
+                        {
+                            "name": "ORIGINAL",
+                            "_embedded": {
+                                "bitstreams": {
+                                    "_embedded": {
+                                        "bitstreams": [
+                                            {
+                                                "name": "ce0220en.pdf",
+                                                "_links": {
+                                                    "content": {
+                                                        "href": "https://openknowledge.fao.org/server/api/core/bitstreams/c1caede2-ea98-46b0-b663-4cae429e05d3/content"
+                                                    }
+                                                },
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
+                        },
+                    ]
+                }
+            }
+        }
+    }
+
+    assert primary_pdf_url_from_dspace_item_payload(payload) == (
+        "https://openknowledge.fao.org/server/api/core/bitstreams/"
+        "c1caede2-ea98-46b0-b663-4cae429e05d3/content"
+    )
+
+
 # ---------------------------------------------------------------------------
 # download_pdf fallback chain
 # ---------------------------------------------------------------------------

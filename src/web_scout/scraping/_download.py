@@ -163,6 +163,9 @@ async def download_pdf(url: str, *, needs_browser: bool = False) -> tuple[Option
 
     Returns ``(pdf_bytes, None)`` on success or ``(None, error_message)`` on failure.
     """
+    from .utils import log_fetch, resolve_document_download_url
+
+    url = resolve_document_download_url(url)
     chain = _BROWSER_PDF_CHAIN if needs_browser else _PDF_CHAIN
     from ._resources import pdf_admission
 
@@ -171,10 +174,15 @@ async def download_pdf(url: str, *, needs_browser: bool = False) -> tuple[Option
         async with asyncio.timeout(75), pdf_admission():
             pdf_bytes = await chain.download(url)
     except TimeoutError:
-        return None, f"source_http_error: PDF download deadline exceeded: {url}"
+        error = f"source_http_error: PDF download deadline exceeded: {url}"
+        log_fetch(url, status="timeout", via="pdf", error=error)
+        return None, error
     finally:
         logger.debug("[download-timing] seconds=%.3f url=%s", time.perf_counter() - started, url)
     if pdf_bytes is None:
         methods = "StealthyBrowser → Scrapling → urllib" if needs_browser else "Scrapling → urllib → StealthyBrowser"
-        return None, f"source_http_error: PDF download failed after all fallback methods ({methods}): {url}"
+        error = f"source_http_error: PDF download failed after all fallback methods ({methods}): {url}"
+        log_fetch(url, status="error", via="pdf", error=error)
+        return None, error
+    log_fetch(url, status=200, via="pdf", bytes_=len(pdf_bytes))
     return pdf_bytes, None

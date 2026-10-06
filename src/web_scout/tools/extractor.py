@@ -18,7 +18,11 @@ from agents import Agent, ModelSettings, Runner, function_tool
 
 from web_scout.config import EXTRACTOR_HEURISTICS
 
-from .page_analysis import prefetched_allows_interaction, render_cached_document_text
+from .page_analysis import (
+    prefetched_allows_interaction,
+    prefetched_allows_linked_document,
+    render_cached_document_text,
+)
 from .session_cache import get_or_fetch_session_source_artifact
 from .types import ExtractorOutput
 
@@ -258,18 +262,19 @@ def build_extractor_agent(
         looks_like_document_resource,
         looks_like_pdf_resource,
     )
-    from web_scout.scraping.utils import is_blocked_domain
+    from web_scout.scraping.utils import (
+        is_blocked_domain,
+        looks_like_document_link,
+        resolve_document_download_url,
+    )
 
     from .pdf_extractor import extract_pdf_for_query, format_reference
 
     legacy_direct_agent = not pre_fetched_content
     page_shape = classify_prefetched_page_shape(pre_fetched_content) if pre_fetched_content else None
     allow_interaction = legacy_direct_agent or prefetched_allows_interaction(pre_fetched_content, page_shape)
-    allow_linked_document = legacy_direct_agent or (
-        page_shape is not None
-        and page_shape.page_type == "record_page"
-        and page_shape.record_score >= 5
-        and page_shape.record_score >= page_shape.content_score + 2
+    allow_linked_document = legacy_direct_agent or prefetched_allows_linked_document(
+        pre_fetched_content, page_shape
     )
     linked_document_called = False
 
@@ -326,6 +331,7 @@ def build_extractor_agent(
             document_url: Absolute URL of the primary source document to fetch.
         """
         nonlocal linked_document_called
+        document_url = resolve_document_download_url(document_url)
         logger.info("[extract-tool] sub-agent calling scrape_linked_document for %s", document_url)
         if not allow_linked_document:
             return (
@@ -340,7 +346,7 @@ def build_extractor_agent(
             )
         linked_document_called = True
 
-        if not looks_like_document_resource(document_url):
+        if not looks_like_document_resource(document_url) and not looks_like_document_link(document_url):
             return f"[scrape_linked_document rejected: URL does not look like a primary document: {document_url}]"
 
         if use_session_cache:

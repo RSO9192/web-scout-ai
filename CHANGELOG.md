@@ -8,6 +8,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-06
+
+### Added
+
+- **Fetch and PDF parse visibility**: every network URL is logged at INFO under
+  ``[fetch]`` (``via=http|pdf|browser|api|search``) with status and byte size.
+  PDF conversion logs start/finish with byte size and elapsed seconds.
+  ``run_web_research`` calls ``configure_logging()`` so these lines appear in
+  notebooks without a separate setup step.
+
+### Fixed
+
+- **Repository landing pages now reach the primary PDF**: HTML parsing surfaces
+  `citation_pdf_url` meta tags (DSpace / Open Knowledge) into page links, and the
+  content extractor may call `scrape_linked_document` on publication/repository
+  landings that advertise a primary Download PDF or bitstream download — even
+  when the abstract looks content-rich. Extensionless `/bitstreams/.../download`
+  URLs are accepted by the linked-document gate.
+- **DSpace / Open Knowledge item pages fetch the primary PDF**: frontend
+  `/bitstreams/{uuid}/download` URLs are rewritten to
+  `/server/api/core/bitstreams/{uuid}/content`. Thin SPA shells resolve the PDF
+  via `citation_pdf_url` or the DSpace item REST API (`/server/api/core/items/{uuid}`),
+  and the scraper auto-follows that primary PDF so research no longer depends on
+  the extractor LLM clicking Download PDF.
+- **Quieter third-party noise**: disable openai-agents trace export (avoids
+  ``OPENAI_API_KEY is not set, skipping trace export``) and set
+  ``litellm.suppress_debug_info`` so the printed LiteLLM feedback / debug banner
+  no longer appears on mapped provider errors.
+
 ## [1.8.0] - 2026-10-06
 
 ### Added

@@ -27,6 +27,8 @@ from .utils import (
     is_blocked_domain,
     is_network_error,
     normalize_content_type,
+    resolve_document_download_url,
+    resolve_primary_pdf_url,
     sniff_document_payload,
     unsupported_legacy_document_reason,
 )
@@ -130,14 +132,17 @@ class ScraplingFetcher(Fetcher):
 
         # Direct PDF URLs belong to the binary download chain. Browser page
         # navigation is both slower and unreliable for attachment responses.
-        if looks_like_pdf_resource(url):
+        # Also rewrite DSpace /bitstreams/{uuid}/download frontend routes.
+        resolved_document_url = resolve_document_download_url(url)
+        if looks_like_pdf_resource(url) or resolved_document_url != url:
             from ._download import download_pdf
 
-            pdf_bytes, error = await download_pdf(url)
+            pdf_url = resolved_document_url
+            pdf_bytes, error = await download_pdf(pdf_url)
             if error or not pdf_bytes:
                 return self._empty(url).model_copy(update={"error": error or "PDF download returned empty bytes"})
             return FetchResult(
-                url=url,
+                url=pdf_url,
                 status=200,
                 content_type="application/pdf",
                 content_disposition="",
@@ -183,6 +188,30 @@ class ScraplingFetcher(Fetcher):
                     and len(extract_text_from_html(html)) < ROUTING_HEURISTICS.html_fast_thin_content_chars
                     and "<script" in html.lower()
                 ):
+                    # Repository SPA shells often expose the primary PDF via
+                    # citation_pdf_url or the DSpace item API. Prefer that binary
+                    # over a browser render of the landing page.
+                    pdf_url = await asyncio.to_thread(resolve_primary_pdf_url, url, html)
+                    if pdf_url:
+                        from ._download import download_pdf
+
+                        pdf_bytes, pdf_error = await download_pdf(pdf_url)
+                        if pdf_bytes and not pdf_error:
+                            logger.info(
+                                "[fetcher] thin SPA shell → primary PDF %s from %s",
+                                pdf_url,
+                                url,
+                            )
+                            return FetchResult(
+                                url=pdf_url,
+                                status=200,
+                                content_type="application/pdf",
+                                content_disposition="",
+                                html_content=None,
+                                body=pdf_bytes,
+                                headers={"content-type": "application/pdf"},
+                                used_browser=False,
+                            )
                     needs_browser_retry = True
         except _KnownBrowserHost:
             needs_browser_retry = True
