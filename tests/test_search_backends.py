@@ -11,6 +11,7 @@ def _mock_http_response(json_data: dict, status_code: int = 200):
     """Build a minimal httpx-like response mock."""
     resp = MagicMock()
     resp.status_code = status_code
+    resp.headers = {}
     resp.json = MagicMock(return_value=json_data)
     resp.raise_for_status = MagicMock()
     return resp
@@ -38,7 +39,7 @@ async def test_include_domains_builds_site_clause():
     resp = _mock_http_response({"organic": [], "relatedSearches": []})
     cm, client = _make_client_mock(resp)
 
-    with patch("httpx.AsyncClient", return_value=cm):
+    with patch("web_scout.scraping._resources.search_client", return_value=client):
         await backend.search("fish production", include_domains=["fao.org", "worldbank.org"])
 
     _, kwargs = client.post.call_args
@@ -57,7 +58,7 @@ async def test_exclude_domains_ignored_by_serper():
     resp = _mock_http_response({"organic": [], "relatedSearches": []})
     cm, client = _make_client_mock(resp)
 
-    with patch("httpx.AsyncClient", return_value=cm):
+    with patch("web_scout.scraping._resources.search_client", return_value=client):
         await backend.search("fish production", exclude_domains=["youtube.com", "reddit.com"])
 
     _, kwargs = client.post.call_args
@@ -71,7 +72,7 @@ async def test_no_include_domains_sends_query_unchanged():
     resp = _mock_http_response({"organic": [], "relatedSearches": []})
     cm, client = _make_client_mock(resp)
 
-    with patch("httpx.AsyncClient", return_value=cm):
+    with patch("web_scout.scraping._resources.search_client", return_value=client):
         await backend.search("fish production")
 
     _, kwargs = client.post.call_args
@@ -99,9 +100,9 @@ async def test_parses_organic_results():
         ],
         "relatedSearches": [],
     }
-    cm, _ = _make_client_mock(_mock_http_response(payload))
+    cm, client = _make_client_mock(_mock_http_response(payload))
 
-    with patch("httpx.AsyncClient", return_value=cm):
+    with patch("web_scout.scraping._resources.search_client", return_value=client):
         result = await backend.search("fish")
 
     assert len(result.results) == 1
@@ -129,9 +130,9 @@ async def test_skips_organic_results_without_link():
         ],
         "relatedSearches": [],
     }
-    cm, _ = _make_client_mock(_mock_http_response(payload))
+    cm, client = _make_client_mock(_mock_http_response(payload))
 
-    with patch("httpx.AsyncClient", return_value=cm):
+    with patch("web_scout.scraping._resources.search_client", return_value=client):
         result = await backend.search("fish")
 
     assert len(result.results) == 1
@@ -153,9 +154,9 @@ async def test_respects_max_results_cap():
         ],
         "relatedSearches": [],
     }
-    cm, _ = _make_client_mock(_mock_http_response(payload))
+    cm, client = _make_client_mock(_mock_http_response(payload))
 
-    with patch("httpx.AsyncClient", return_value=cm):
+    with patch("web_scout.scraping._resources.search_client", return_value=client):
         result = await backend.search("fish", max_results=3)
 
     assert len(result.results) == 3
@@ -187,7 +188,7 @@ async def test_retries_on_429_then_succeeds():
     cm.__aexit__ = AsyncMock(return_value=False)
 
     with (
-        patch("httpx.AsyncClient", return_value=cm),
+        patch("web_scout.scraping._resources.search_client", return_value=client),
         patch("asyncio.sleep", new_callable=AsyncMock),
     ):
         result = await backend.search("fish")
@@ -217,7 +218,7 @@ async def test_retries_on_5xx_then_succeeds():
     cm.__aexit__ = AsyncMock(return_value=False)
 
     with (
-        patch("httpx.AsyncClient", return_value=cm),
+        patch("web_scout.scraping._resources.search_client", return_value=client),
         patch("asyncio.sleep", new_callable=AsyncMock),
     ):
         result = await backend.search("fish")
@@ -383,7 +384,7 @@ async def test_exa_request_shape():
     backend = ExaBackend(api_key="exa-key")
     cm, client = _make_client_mock(_mock_http_response(_exa_payload([])))
 
-    with patch("httpx.AsyncClient", return_value=cm):
+    with patch("web_scout.scraping._resources.search_client", return_value=client):
         await backend.search("fish production", max_results=7)
 
     args, kwargs = client.post.call_args
@@ -404,7 +405,7 @@ async def test_exa_passes_native_domain_filters():
     backend = ExaBackend(api_key="exa-key")
     cm, client = _make_client_mock(_mock_http_response(_exa_payload([])))
 
-    with patch("httpx.AsyncClient", return_value=cm):
+    with patch("web_scout.scraping._resources.search_client", return_value=client):
         await backend.search(
             "fish production",
             include_domains=["fao.org"],
@@ -436,9 +437,9 @@ async def test_exa_parses_results_into_contract():
             },
         ]
     )
-    cm, _ = _make_client_mock(_mock_http_response(payload))
+    cm, client = _make_client_mock(_mock_http_response(payload))
 
-    with patch("httpx.AsyncClient", return_value=cm):
+    with patch("web_scout.scraping._resources.search_client", return_value=client):
         result = await backend.search("fish")
 
     assert len(result.results) == 1
@@ -455,9 +456,9 @@ async def test_exa_handles_missing_highlights():
     """Results without highlights still map cleanly."""
     backend = ExaBackend(api_key="exa-key")
     payload = _exa_payload([{"title": "Bare", "url": "https://example.org"}])
-    cm, _ = _make_client_mock(_mock_http_response(payload))
+    cm, client = _make_client_mock(_mock_http_response(payload))
 
-    with patch("httpx.AsyncClient", return_value=cm):
+    with patch("web_scout.scraping._resources.search_client", return_value=client):
         result = await backend.search("fish")
 
     assert result.results[0].snippet == ""
@@ -473,9 +474,9 @@ async def test_exa_skips_results_without_url():
             {"title": "Good", "url": "https://fao.org/x"},
         ]
     )
-    cm, _ = _make_client_mock(_mock_http_response(payload))
+    cm, client = _make_client_mock(_mock_http_response(payload))
 
-    with patch("httpx.AsyncClient", return_value=cm):
+    with patch("web_scout.scraping._resources.search_client", return_value=client):
         result = await backend.search("fish")
 
     assert [r.title for r in result.results] == ["Good"]
@@ -486,9 +487,9 @@ async def test_exa_respects_max_results_cap():
     """Results list is truncated to max_results even if API returns more."""
     backend = ExaBackend(api_key="exa-key")
     payload = _exa_payload([{"title": f"R{i}", "url": f"https://example.com/{i}"} for i in range(10)])
-    cm, _ = _make_client_mock(_mock_http_response(payload))
+    cm, client = _make_client_mock(_mock_http_response(payload))
 
-    with patch("httpx.AsyncClient", return_value=cm):
+    with patch("web_scout.scraping._resources.search_client", return_value=client):
         result = await backend.search("fish", max_results=3)
 
     assert len(result.results) == 3
@@ -514,7 +515,7 @@ async def test_exa_retries_on_429_then_succeeds():
     cm.__aexit__ = AsyncMock(return_value=False)
 
     with (
-        patch("httpx.AsyncClient", return_value=cm),
+        patch("web_scout.scraping._resources.search_client", return_value=client),
         patch("asyncio.sleep", new_callable=AsyncMock),
     ):
         result = await backend.search("fish")

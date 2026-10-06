@@ -9,7 +9,10 @@ Each handler returns ``None`` to pass control to the next, or ``bytes`` on succe
 """
 
 import asyncio
+import io
 import logging
+import os
+import time
 from abc import ABC, abstractmethod
 from typing import Optional
 from urllib.request import Request, urlopen
@@ -56,36 +59,45 @@ class _ScraplingFetcher(_Downloader):
     """Download via Scrapling's AsyncFetcher with stealth headers and TLS fingerprint spoofing."""
 
     async def _attempt(self, url: str) -> Optional[bytes]:
-        from scrapling.fetchers import AsyncFetcher
+        from ._resources import binary_session, resources
 
         try:
-            resp = await AsyncFetcher.get(
-                url,
-                stealthy_headers=True,
-                follow_redirects=True,
-                timeout=ROUTING_HEURISTICS.document_download_timeout,
-                retries=3,
-                retry_delay=2,
-            )
-            if resp.status >= 400:
-                logger.debug("[download] scrapling: HTTP %d", resp.status)
-                return None
-            data = resp.body
-            if not isinstance(data, bytes):
-                data = data.encode() if isinstance(data, str) else bytes(data)
-            if data[:4] != PDF_MAGIC_BYTES:
-                logger.debug("[download] scrapling: server returned non-PDF (ct=%s)", resp.headers.get("content-type"))
-                return None
-            return data
+            async with resources().http_limit:
+                async with binary_session().stream(
+                    "GET",
+                    url,
+                    impersonate="chrome",
+                    headers={"referer": "https://www.google.com/"},
+                    allow_redirects=True,
+                    timeout=ROUTING_HEURISTICS.document_download_timeout,
+                ) as response:
+                    if response.status_code >= 400:
+                        return None
+                    with io.BytesIO() as buffer:
+                        async for chunk in response.aiter_content():
+                            if buffer.tell() + len(chunk) > _max_document_bytes():
+                                raise ValueError("PDF exceeds download memory budget")
+                            buffer.write(chunk)
+                        data = buffer.getvalue()
+                    return data if data.startswith(PDF_MAGIC_BYTES) else None
         except Exception as exc:
-            logger.debug("[download] scrapling failed: %s", exc)
+            logger.debug("[download] pooled HTTP failed: %s", exc)
             return None
+
+
+def _max_document_bytes():
+    return int(os.getenv("WEB_SCOUT_MAX_PDF_BYTES", str(128 * 1024 * 1024)))
 
 
 def _urllib_download_sync(url: str) -> tuple[bytes, str]:
     req = Request(url, headers=FETCH_HEADERS)
     with urlopen(req, timeout=ROUTING_HEURISTICS.urllib_download_timeout) as resp:
-        return resp.read(), resp.headers.get("content-type", "")
+        with io.BytesIO() as buffer:
+            while chunk := resp.read(64 * 1024):
+                if buffer.tell() + len(chunk) > _max_document_bytes():
+                    raise ValueError("PDF exceeds download memory budget")
+                buffer.write(chunk)
+            return buffer.getvalue(), resp.headers.get("content-type", "")
 
 
 class _UrllibDownloader(_Downloader):
@@ -152,12 +164,17 @@ async def download_pdf(url: str, *, needs_browser: bool = False) -> tuple[Option
     Returns ``(pdf_bytes, None)`` on success or ``(None, error_message)`` on failure.
     """
     chain = _BROWSER_PDF_CHAIN if needs_browser else _PDF_CHAIN
-    pdf_bytes = await chain.download(url)
+    from ._resources import pdf_admission
+
+    started = time.perf_counter()
+    try:
+        async with asyncio.timeout(75), pdf_admission():
+            pdf_bytes = await chain.download(url)
+    except TimeoutError:
+        return None, f"source_http_error: PDF download deadline exceeded: {url}"
+    finally:
+        logger.debug("[download-timing] seconds=%.3f url=%s", time.perf_counter() - started, url)
     if pdf_bytes is None:
-        methods = (
-            "StealthyBrowser → Scrapling → urllib"
-            if needs_browser
-            else "Scrapling → urllib → StealthyBrowser"
-        )
+        methods = "StealthyBrowser → Scrapling → urllib" if needs_browser else "Scrapling → urllib → StealthyBrowser"
         return None, f"source_http_error: PDF download failed after all fallback methods ({methods}): {url}"
     return pdf_bytes, None

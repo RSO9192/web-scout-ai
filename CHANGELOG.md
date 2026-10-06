@@ -8,12 +8,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-06
+
+### Added
+
+- **Jev semantic classification**, pinned to `jev-1.13.0`, for requirement coverage,
+  gap completion, candidate relevance, crawler link selection and optional PDF
+  evidence verification. `WEB_SCOUT_CLASSIFICATION_BACKEND=jev` is the default and
+  requires `TYPESAFE_API_KEY`; set it to `gpt` to retain the existing GPT
+  classification prompts, models and verification behavior. Query generation,
+  factual extraction, visual descriptions and synthesis retain their configured
+  generative models.
+- **Grounded coverage and verification**: generate a requirement checklist once
+  alongside queries, judge coverage against scraped source text rather than
+  generated summaries, and verify PDF evidence against its actual cited pages.
+  Verbatim quotations are checked deterministically before semantic verification.
+  Support and completion require probability >= 0.8; uncertain results remain
+  unverified or unfilled. Search snippets only guide candidate selection.
+- **Resource shutdown and diagnostics**: `await web_scout.scraping.close_resources()`
+  closes resources for the current event loop after active requests finish.
+  Monotonic stage timings, pytest duration reporting, repeatable browser fixtures,
+  labeled Jev evaluation cases and local performance results are included in
+  `docs/performance.md` and the benchmark scripts.
+- **Exposed ScraplingFetcher.fetch() as public API**: `web_scout.fetch()` and `web_scout.fetch_pdf()` are now available as public API to download web resources using web-scout's robust fetching mechanism.
+
 ### Changed
 
-- **Follow-up link selection defaults to TypeSafe Jev**, with Luna still available.
-  Pass `followup_backend="jev"` (default) or `followup_backend="luna"`. Jev needs
-  `TYPESAFE_API_KEY`. Luna uses `models["followup_selector"]` (default GPT-6 Luna).
+- **Updated to pdf-extractor-ai==0.2.0**, which contains important optimizations.
+- **Follow-up link selection defaults to TypeSafe Jev**, with Luna still available
+  through the separate `followup_backend="luna"` option. Luna continues to use
+  `models["followup_selector"]`. Default crawler link selection no longer executes
+  crawl4ai; exported crawler names, constructor compatibility, explicit heuristic
+  mode and custom configuration retain their optional compatibility path.
+- **Reusable browser sessions**: retain bounded per-host stealth sessions on the
+  same event loop, evict idle sessions after 120 seconds, prewarm known included
+  hosts during search, and share the interactive browser process through isolated
+  contexts. Active requests are protected from eviction and failed-request cleanup.
+- **Content readiness replaces network-idle and fixed-delay waits**: require DOM
+  readiness, resolved challenges and a visible requested selector or stable useful
+  content/controls before reading. Never-ready pages return readiness errors.
+  Screenshots additionally await fonts and visible images; text extraction blocks
+  unnecessary resources while visual paths retain them.
+- **Bounded transport work**: reuse HTTP, binary-download and search clients;
+  apply 75-second overall fetch/download deadlines and a 45-second search retry
+  budget, honoring Retry-After. Restrict browser escalation to plausible JavaScript
+  or challenge pages and cache short-lived host routing decisions.
+- **Separate admission limits and bounded caches**: independently limit HTTP,
+  browser, PDF and model work. Admit known PDFs before streaming downloads, allow
+  two PDF operations at a time, and cap each download at 128 MiB by default
+  (`WEB_SCOUT_MAX_PDF_BYTES`). Source caches retain at most 128 items / 32 MiB for
+  five minutes; keys include output-shaping options. Release consumed transport
+  responses and raw HTML when internal consumers no longer need them.
+- **PDF integration uses one lazy, process-wide CPU extractor**. When supported by
+  the companion `pdf-extractor-ai`, the internal text-only path incrementally
+  produces Markdown/layout without unused raster images; older package versions
+  retain the public extraction fallback. Physical page references and public
+  signatures/return types are preserved.
+- **Companion PDF optimizations** (provided by the updated `pdf-extractor-ai`, not
+  bundled in this wheel): initialize and reuse the non-OCR Docling pipeline on
+  first PDF; initialize OCR only on explicit request; bound conversion queues and
+  page chunks; reuse source streams and one render per page for figure crops;
+  release native/PIL resources; and bound visual-summary batches while preserving
+  the non-mutating API. The accepted page-chunk default is one: four/eight pages
+  increased peak memory in local trials. No temporary-file RAM workaround is used.
+- **Reusable asynchronous TypeSafe clients** use bounded retries for transient
+  failures, rate limits and unavailable models. Missing credentials, authentication
+  failures and exhausted errors propagate without silently falling back to GPT.
 
+### Fixed
+
+- **Large coverage inputs exceeding Jev's context limit**: split scraped sources
+  into overlapping, byte-bounded evidence batches, retain URLs and examine sources
+  through their ends. A requirement is filled only when a batch fully supports it;
+  partial support across separate batches does not accumulate into completion.
+- **Mantle synthesis rejecting `reasoning_effort`**: explicitly allow the OpenAI
+  parameter through LiteLLM for Mantle synthesis while retaining high reasoning.
+- **Mantle GPT models selecting an unsupported route**: register the `/openai/v1`
+  routing flag when LiteLLM's bundled model metadata is missing or stale, without
+  relying on a GPT-5.6 template or overwriting existing pricing. GPT-OSS retains
+  its standard `/v1` route.
+
+Local eight-page PDF trials measured warm conversion at 4.24 s versus 6.64 s
+baseline, or 2.84 s using the internal text-only path. A continuously active
+analytics fixture reached content readiness in 0.65 s while network-idle timed out
+at 2.05 s. These are local measurements, not Cloud Run performance claims; see
+`docs/performance.md` for environments, memory results and evaluation limitations.
 
 ## [1.7.0] - 2026-09-24
 

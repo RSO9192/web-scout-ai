@@ -25,6 +25,17 @@ class SearchQueryGeneration(BaseModel):
     queries: list[str] = Field(description="List of search queries")
 
 
+class SearchQueryChecklist(SearchQueryGeneration):
+    """Query generation with an explicit evidence checklist for Jev coverage."""
+
+    requirements: list[str] = Field(
+        description=(
+            "Atomic facts needed to answer the original query; preserve geography, dates, "
+            "requested numbers and explicit coverage criteria."
+        )
+    )
+
+
 class CoverageEvaluation(BaseModel):
     """LLM output for evaluating coverage and routing the next pipeline step."""
 
@@ -60,6 +71,7 @@ class SearchLoopState:
     needs_new_searches: bool = True
     promising_urls_from_evaluator: list[str] = field(default_factory=list)
     missing_info: str = ""
+    requirements: list[str] = field(default_factory=list)
 
 
 @dataclass

@@ -1,0 +1,634 @@
+{
+  "pdf_before": {
+    "platform": "macOS-15.7.3-arm64-arm-64bit-Mach-O",
+    "cpu_count": 16,
+    "docling": "2.130.0",
+    "pages": 8,
+    "runs": [
+      {
+        "label": "cold",
+        "seconds": 15.329164208000293,
+        "maxrss": 1954791424,
+        "chars": 17759,
+        "pictures": 11,
+        "pages": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sha256": "65e369d8247ed4b8a9f48ef256e8028ef1e659c8658ca3e1304cc531468f987e"
+      },
+      {
+        "label": "warm",
+        "seconds": 6.640700999996625,
+        "maxrss": 1999798272,
+        "chars": 17759,
+        "pictures": 11,
+        "pages": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sha256": "65e369d8247ed4b8a9f48ef256e8028ef1e659c8658ca3e1304cc531468f987e"
+      }
+    ]
+  },
+  "pdf_chunk_1": {
+    "platform": "macOS-15.7.3-arm64-arm-64bit-Mach-O",
+    "cpu_count": 16,
+    "docling": "2.130.0",
+    "pages": 8,
+    "runs": [
+      {
+        "label": "cold",
+        "seconds": 7.362362915999256,
+        "maxrss": 1906163712,
+        "chars": 17759,
+        "pictures": 11,
+        "pages": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sha256": "65e369d8247ed4b8a9f48ef256e8028ef1e659c8658ca3e1304cc531468f987e"
+      },
+      {
+        "label": "warm",
+        "seconds": 4.2415929160197265,
+        "maxrss": 1995784192,
+        "chars": 17759,
+        "pictures": 11,
+        "pages": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sha256": "65e369d8247ed4b8a9f48ef256e8028ef1e659c8658ca3e1304cc531468f987e"
+      }
+    ]
+  },
+  "pdf_chunk_4": {
+    "platform": "macOS-15.7.3-arm64-arm-64bit-Mach-O",
+    "cpu_count": 16,
+    "docling": "2.130.0",
+    "pages": 8,
+    "runs": [
+      {
+        "label": "cold",
+        "seconds": 7.697713375004241,
+        "maxrss": 2948448256,
+        "chars": 17758,
+        "pictures": 11,
+        "pages": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sha256": "af8ed402865ee35d14f65ad6b7beac99d362ee730221c34b796fa335ba2d930d"
+      },
+      {
+        "label": "warm",
+        "seconds": 3.843352416995913,
+        "maxrss": 3104849920,
+        "chars": 17758,
+        "pictures": 11,
+        "pages": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sha256": "af8ed402865ee35d14f65ad6b7beac99d362ee730221c34b796fa335ba2d930d"
+      }
+    ]
+  },
+  "pdf_chunk_8": {
+    "platform": "macOS-15.7.3-arm64-arm-64bit-Mach-O",
+    "cpu_count": 16,
+    "docling": "2.130.0",
+    "pages": 8,
+    "runs": [
+      {
+        "label": "cold",
+        "seconds": 6.440218792005908,
+        "maxrss": 3361816576,
+        "chars": 17758,
+        "pictures": 11,
+        "pages": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sha256": "af8ed402865ee35d14f65ad6b7beac99d362ee730221c34b796fa335ba2d930d"
+      },
+      {
+        "label": "warm",
+        "seconds": 3.4474457910109777,
+        "maxrss": 3494690816,
+        "chars": 17758,
+        "pictures": 11,
+        "pages": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sha256": "af8ed402865ee35d14f65ad6b7beac99d362ee730221c34b796fa335ba2d930d"
+      }
+    ]
+  },
+  "pdf_text_only": {
+    "platform": "macOS-15.7.3-arm64-arm-64bit-Mach-O",
+    "cpu_count": 16,
+    "chunk_size": 1,
+    "mode": "text",
+    "workers": 1,
+    "versions": {
+      "docling": "2.130.0",
+      "docling-core": "2.99.0",
+      "torch": "2.14.0",
+      "pillow": "12.3.0",
+      "pypdfium2": "5.13.0"
+    },
+    "runs": [
+      {
+        "phase": "cold",
+        "seconds": 6.665418334014248,
+        "peak_rss_bytes": 1776730112,
+        "child_peak_rss_bytes": 5914624,
+        "chars": 17759,
+        "pictures": 0,
+        "pages": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sha256": "65e369d8247ed4b8a9f48ef256e8028ef1e659c8658ca3e1304cc531468f987e"
+      },
+      {
+        "phase": "warm",
+        "seconds": 2.8371959579817485,
+        "peak_rss_bytes": 1955692544,
+        "child_peak_rss_bytes": 5914624,
+        "chars": 17759,
+        "pictures": 0,
+        "pages": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sha256": "65e369d8247ed4b8a9f48ef256e8028ef1e659c8658ca3e1304cc531468f987e"
+      }
+    ],
+    "pipeline_initialization_seconds": [
+      3.872476041986374
+    ]
+  },
+  "browser": {
+    "launch_seconds": 0.31429587499587797,
+    "runs": [
+      {
+        "mode": "network_idle",
+        "seconds": 2.830428249988472,
+        "ready_seconds": 2.0475315839867108,
+        "timed_out": true,
+        "ready_text": true,
+        "child_rss_bytes": 820264960
+      },
+      {
+        "mode": "readiness",
+        "seconds": 0.7623297910031397,
+        "ready_seconds": 0.6542489170096815,
+        "timed_out": false,
+        "ready_text": true,
+        "child_rss_bytes": 836173824
+      },
+      {
+        "mode": "readiness",
+        "seconds": 0.7447748330014292,
+        "ready_seconds": 0.6493335829873104,
+        "timed_out": false,
+        "ready_text": true,
+        "child_rss_bytes": 845987840
+      }
+    ],
+    "parent_peak_rss": 365199360
+  },
+  "classification": [
+    {
+      "task": "evidence",
+      "case": 0,
+      "backend": "jev",
+      "expected": true,
+      "actual": true,
+      "correct": true,
+      "seconds": 0.27976045801187865
+    },
+    {
+      "task": "evidence",
+      "case": 0,
+      "backend": "gpt",
+      "expected": true,
+      "error": "RuntimeError",
+      "seconds": 0.6167596659797709
+    },
+    {
+      "task": "evidence",
+      "case": 1,
+      "backend": "jev",
+      "expected": false,
+      "actual": false,
+      "correct": true,
+      "seconds": 0.2329217910009902
+    },
+    {
+      "task": "evidence",
+      "case": 1,
+      "backend": "gpt",
+      "expected": false,
+      "error": "RuntimeError",
+      "seconds": 0.3333845410088543
+    },
+    {
+      "task": "evidence",
+      "case": 2,
+      "backend": "jev",
+      "expected": false,
+      "actual": false,
+      "correct": true,
+      "seconds": 0.2804990829899907
+    },
+    {
+      "task": "evidence",
+      "case": 2,
+      "backend": "gpt",
+      "expected": false,
+      "error": "RuntimeError",
+      "seconds": 0.3158458749821875
+    },
+    {
+      "task": "evidence",
+      "case": 3,
+      "backend": "jev",
+      "expected": true,
+      "actual": true,
+      "correct": true,
+      "seconds": 0.26686420798068866
+    },
+    {
+      "task": "evidence",
+      "case": 3,
+      "backend": "gpt",
+      "expected": true,
+      "error": "RuntimeError",
+      "seconds": 0.3292986669985112
+    },
+    {
+      "task": "evidence",
+      "case": 4,
+      "backend": "jev",
+      "expected": false,
+      "actual": false,
+      "correct": true,
+      "seconds": 0.22341008301009424
+    },
+    {
+      "task": "evidence",
+      "case": 4,
+      "backend": "gpt",
+      "expected": false,
+      "error": "RuntimeError",
+      "seconds": 0.31053741701180115
+    },
+    {
+      "task": "evidence",
+      "case": 5,
+      "backend": "jev",
+      "expected": true,
+      "actual": true,
+      "correct": true,
+      "seconds": 0.23662774998228997
+    },
+    {
+      "task": "evidence",
+      "case": 5,
+      "backend": "gpt",
+      "expected": true,
+      "error": "RuntimeError",
+      "seconds": 0.3061899589956738
+    },
+    {
+      "task": "evidence",
+      "case": 6,
+      "backend": "jev",
+      "expected": false,
+      "actual": false,
+      "correct": true,
+      "seconds": 0.24350083302124403
+    },
+    {
+      "task": "evidence",
+      "case": 6,
+      "backend": "gpt",
+      "expected": false,
+      "error": "RuntimeError",
+      "seconds": 0.2960682090197224
+    },
+    {
+      "task": "evidence",
+      "case": 7,
+      "backend": "jev",
+      "expected": true,
+      "actual": true,
+      "correct": true,
+      "seconds": 0.22769212498678826
+    },
+    {
+      "task": "evidence",
+      "case": 7,
+      "backend": "gpt",
+      "expected": true,
+      "error": "RuntimeError",
+      "seconds": 0.31454229200608097
+    },
+    {
+      "task": "evidence",
+      "case": 8,
+      "backend": "jev",
+      "expected": false,
+      "actual": false,
+      "correct": true,
+      "seconds": 0.2434047079877928
+    },
+    {
+      "task": "evidence",
+      "case": 8,
+      "backend": "gpt",
+      "expected": false,
+      "error": "RuntimeError",
+      "seconds": 0.33524354198016226
+    },
+    {
+      "task": "evidence",
+      "case": 9,
+      "backend": "jev",
+      "expected": true,
+      "actual": true,
+      "correct": true,
+      "seconds": 0.2429075000109151
+    },
+    {
+      "task": "evidence",
+      "case": 9,
+      "backend": "gpt",
+      "expected": true,
+      "error": "RuntimeError",
+      "seconds": 0.3283197080017999
+    },
+    {
+      "task": "evidence",
+      "case": 10,
+      "backend": "jev",
+      "expected": false,
+      "actual": false,
+      "correct": true,
+      "seconds": 3.091699909418821e-05
+    },
+    {
+      "task": "evidence",
+      "case": 10,
+      "backend": "gpt",
+      "expected": false,
+      "error": "RuntimeError",
+      "seconds": 0.3138918750046287
+    },
+    {
+      "task": "evidence",
+      "case": 11,
+      "backend": "jev",
+      "expected": true,
+      "actual": true,
+      "correct": true,
+      "seconds": 0.22354945799452253
+    },
+    {
+      "task": "evidence",
+      "case": 11,
+      "backend": "gpt",
+      "expected": true,
+      "error": "RuntimeError",
+      "seconds": 0.3275157090101857
+    },
+    {
+      "task": "coverage",
+      "case": 0,
+      "backend": "jev",
+      "expected": true,
+      "actual": true,
+      "correct": true,
+      "seconds": 0.23980037498404272
+    },
+    {
+      "task": "coverage",
+      "case": 0,
+      "backend": "gpt",
+      "expected": true,
+      "error": "APIConnectionError",
+      "seconds": 0.35732062501483597
+    },
+    {
+      "task": "coverage",
+      "case": 1,
+      "backend": "jev",
+      "expected": false,
+      "actual": false,
+      "correct": true,
+      "seconds": 0.28273816700675525
+    },
+    {
+      "task": "coverage",
+      "case": 1,
+      "backend": "gpt",
+      "expected": false,
+      "error": "APIConnectionError",
+      "seconds": 0.3552077080239542
+    },
+    {
+      "task": "coverage",
+      "case": 2,
+      "backend": "jev",
+      "expected": false,
+      "actual": false,
+      "correct": true,
+      "seconds": 0.3364836670225486
+    },
+    {
+      "task": "coverage",
+      "case": 2,
+      "backend": "gpt",
+      "expected": false,
+      "error": "APIConnectionError",
+      "seconds": 0.30460895801661536
+    },
+    {
+      "task": "coverage",
+      "case": 3,
+      "backend": "jev",
+      "expected": true,
+      "actual": true,
+      "correct": true,
+      "seconds": 0.23559245801880024
+    },
+    {
+      "task": "coverage",
+      "case": 3,
+      "backend": "gpt",
+      "expected": true,
+      "error": "APIConnectionError",
+      "seconds": 0.31267020900850184
+    },
+    {
+      "task": "coverage",
+      "case": 4,
+      "backend": "jev",
+      "expected": false,
+      "actual": false,
+      "correct": true,
+      "seconds": 0.24078904098132625
+    },
+    {
+      "task": "coverage",
+      "case": 4,
+      "backend": "gpt",
+      "expected": false,
+      "error": "APIConnectionError",
+      "seconds": 0.3524652079795487
+    },
+    {
+      "task": "coverage",
+      "case": 5,
+      "backend": "jev",
+      "expected": true,
+      "actual": true,
+      "correct": true,
+      "seconds": 0.21898441700614057
+    },
+    {
+      "task": "coverage",
+      "case": 5,
+      "backend": "gpt",
+      "expected": true,
+      "error": "APIConnectionError",
+      "seconds": 0.31119979100185446
+    },
+    {
+      "task": "coverage",
+      "case": 6,
+      "backend": "jev",
+      "expected": false,
+      "actual": false,
+      "correct": true,
+      "seconds": 0.27477787499083206
+    },
+    {
+      "task": "coverage",
+      "case": 6,
+      "backend": "gpt",
+      "expected": false,
+      "error": "APIConnectionError",
+      "seconds": 0.37117391600622796
+    },
+    {
+      "task": "coverage",
+      "case": 7,
+      "backend": "jev",
+      "expected": false,
+      "actual": false,
+      "correct": true,
+      "seconds": 0.2627208750054706
+    },
+    {
+      "task": "coverage",
+      "case": 7,
+      "backend": "gpt",
+      "expected": false,
+      "error": "APIConnectionError",
+      "seconds": 0.4057086250104476
+    }
+  ],
+  "verification": {
+    "web": {
+      "passed": 421,
+      "skipped": 1,
+      "seconds": 95.21
+    },
+    "pdf_live": {
+      "passed": 40,
+      "seconds": 145.5
+    },
+    "pdf_without_credentials": {
+      "passed": 39,
+      "skipped": 1,
+      "seconds": 2.94
+    },
+    "optional_citations_gemini": {
+      "passed": 1,
+      "seconds": 13.47,
+      "process_only_overrides": [
+        "configured Gemini generative model",
+        "litellm.drop_params=True"
+      ]
+    },
+    "optional_citations_default_gpt": "Unavailable model route and unsupported reasoning_effort",
+    "public_signatures": "unchanged",
+    "cloud_run": "not measured"
+  }
+}

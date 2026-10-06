@@ -15,7 +15,6 @@ from typing import Any, Dict, Optional
 
 import litellm
 from agents import Agent, ModelSettings, Runner, function_tool
-from playwright.async_api import async_playwright
 
 from web_scout.config import EXTRACTOR_HEURISTICS
 
@@ -214,7 +213,10 @@ async def run_with_retry(agent: Agent, input_text: str, max_turns: int = 30) -> 
     last_exc: Exception = RuntimeError("unreachable")
     for delay in (*_RETRY_DELAYS, None):
         try:
-            return await Runner.run(agent, input_text, max_turns=max_turns)
+            from web_scout.scraping._resources import model_admission
+
+            async with model_admission():
+                return await Runner.run(agent, input_text, max_turns=max_turns)
         except _TRANSIENT_LLM_ERRORS as e:
             last_exc = e
             if delay is None:
@@ -339,10 +341,7 @@ def build_extractor_agent(
         linked_document_called = True
 
         if not looks_like_document_resource(document_url):
-            return (
-                "[scrape_linked_document rejected: URL does not look like a primary "
-                f"document: {document_url}]"
-            )
+            return f"[scrape_linked_document rejected: URL does not look like a primary document: {document_url}]"
 
         if use_session_cache:
             cached_artifact, cache_error = await get_or_fetch_session_source_artifact(
@@ -356,6 +355,7 @@ def build_extractor_agent(
             if cache_error or cached_artifact is None:
                 return f"[Document scrape failed: {cache_error}]"
             from web_scout.scraping.types import SourceArtifact
+
             artifact = SourceArtifact(
                 kind=cached_artifact.artifact_kind,
                 title=cached_artifact.title,
@@ -412,9 +412,7 @@ def build_extractor_agent(
         return result
 
     # --- interactive browser session ---
-    _browser_holder: list = [None]
-    _context_holder: list = [None]
-    _pw_holder: list = [None]
+    _context_manager: list = [None]
     _page_holder: list = [None]
     _click_count: list = [0]
 
@@ -425,47 +423,35 @@ def build_extractor_agent(
         return url
 
     async def _close_interactive_session() -> None:
-        for holder, method in (
-            (_page_holder, "close"),
-            (_context_holder, "close"),
-            (_browser_holder, "close"),
-        ):
+        for holder, method in ((_page_holder, "close"),):
             if holder[0] is not None:
                 try:
                     await getattr(holder[0], method)()
                 except Exception:
                     pass
                 holder[0] = None
-        if _pw_holder[0] is not None:
-            try:
-                await _pw_holder[0].__aexit__(None, None, None)
-            except Exception:
-                pass
-            _pw_holder[0] = None
+        if _context_manager[0] is not None:
+            await _context_manager[0].__aexit__(None, None, None)
+            _context_manager[0] = None
 
     async def _ensure_interactive_page() -> Any:
         if _page_holder[0] is not None:
             return _page_holder[0]
         try:
-            pw_cm = async_playwright()
-            pw = await pw_cm.__aenter__()
-            _pw_holder[0] = pw_cm
-            browser = await pw.chromium.launch(headless=True)
-            _browser_holder[0] = browser
-            context = await browser.new_context(
-                user_agent=(
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/124.0.0.0 Safari/537.36"
-                )
-            )
-            _context_holder[0] = context
+            from web_scout.scraping._resources import interactive_context
+
+            manager = interactive_context()
+            context = await manager.__aenter__()
+            _context_manager[0] = manager
             page = await context.new_page()
             await page.goto(
                 url,
-                wait_until="networkidle",
+                wait_until="domcontentloaded",
                 timeout=EXTRACTOR_HEURISTICS.interactive_page_goto_timeout_ms,
             )
+            from web_scout.scraping._readiness import wait_for_content
+
+            await wait_for_content(page, timeout_ms=EXTRACTOR_HEURISTICS.interactive_page_goto_timeout_ms)
             _page_holder[0] = page
             return page
         except Exception:
@@ -540,13 +526,9 @@ def build_extractor_agent(
 
             _click_count[0] += 1
 
-            try:
-                await page.wait_for_load_state(
-                    "networkidle",
-                    timeout=EXTRACTOR_HEURISTICS.interactive_wait_timeout_ms,
-                )
-            except Exception:
-                pass  # timeout is acceptable — page may not trigger a network event
+            from web_scout.scraping._readiness import wait_for_content
+
+            await wait_for_content(page, timeout_ms=EXTRACTOR_HEURISTICS.interactive_wait_timeout_ms)
 
             post_click_url = _current_page_url()
             if is_blocked_domain(post_click_url, exclude_domains=exclude_domains):

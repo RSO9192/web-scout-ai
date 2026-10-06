@@ -12,8 +12,11 @@
 import asyncio
 import logging
 import re
+from contextlib import nullcontext
 from typing import Any, Dict, Optional
 
+from web_scout._classification import ClassificationError
+from web_scout._classification import backend as classification_backend
 from web_scout._extractor_contract import ExtractorOutcome
 from web_scout.config import EXTRACTOR_HEURISTICS, ROUTING_HEURISTICS
 
@@ -47,7 +50,9 @@ def create_scrape_and_extract_tool(
     extractor_guidance: Optional[str] = None,
 ):
     """Create a scrape_and_extract function."""
-    semaphore = asyncio.Semaphore(max_concurrent)
+    if max_concurrent < 1:
+        raise ValueError("max_concurrent must be at least 1")
+    model_semaphore = asyncio.Semaphore(max_concurrent)
     _doc_cache: dict = {}
     _doc_in_flight: Dict[str, asyncio.Future[str]] = {}
     in_flight: Dict[str, asyncio.Future[str]] = {}
@@ -91,6 +96,8 @@ def create_scrape_and_extract_tool(
         if existing is not None:
             try:
                 return await asyncio.shield(existing)
+            except ClassificationError:
+                raise
             except Exception as e:
                 return f"Failed to extract content from {url}: {e}"
 
@@ -99,7 +106,7 @@ def create_scrape_and_extract_tool(
         in_flight[norm] = future
 
         try:
-            async with semaphore:
+            async with nullcontext():
                 if tracker is not None:
                     tracker.scrape_count += 1
 
@@ -171,6 +178,7 @@ def create_scrape_and_extract_tool(
                         vision_model=vision_model,
                         max_pdf_pages=max_pdf_pages,
                     )
+                    del _  # The parser has consumed the transport response.
                     content, error = await materialize_parse_result(
                         parse_result,
                         query=query,
@@ -181,10 +189,7 @@ def create_scrape_and_extract_tool(
                     if error or parse_result.error:
                         page_rendered = f"[Scrape failed: {error or parse_result.error}]"
                         is_failure = True
-                    elif (
-                        parse_result.artifact.kind == "text"
-                        and parse_result.artifact.layout is not None
-                    ):
+                    elif parse_result.artifact.kind == "text" and parse_result.artifact.layout is not None:
                         pdf_artifact = parse_result.artifact
                         page_rendered = render_cached_page_text(url, title, content)
                     elif not content.strip():
@@ -192,11 +197,15 @@ def create_scrape_and_extract_tool(
                         is_failure = True
                     else:
                         page_rendered = render_cached_page_text(url, title, content)
+                    del parse_result  # No crawler consumes raw HTML in this tool.
 
                 if is_failure:
                     outcome = _handle_failure(url, page_rendered, tracker, outcome_cache, norm)
                     future.set_result(outcome.rendered_text)
                     return outcome.rendered_text
+
+                if tracker is not None and classification_backend() == "jev":
+                    tracker._source_text[norm] = content
 
                 if pdf_artifact is not None:
                     pdf_title, pdf_content, used_pages = await extract_pdf_for_query(
@@ -271,12 +280,15 @@ def create_scrape_and_extract_tool(
                 )
 
                 try:
-                    result = await run_with_retry(
-                        extractor_agent,
-                        input_text,
-                        max_turns=EXTRACTOR_HEURISTICS.max_extractor_turns,
-                    )
+                    async with model_semaphore:
+                        result = await run_with_retry(
+                            extractor_agent,
+                            input_text,
+                            max_turns=EXTRACTOR_HEURISTICS.max_extractor_turns,
+                        )
                     output = result.final_output_as(ExtractorOutput)
+                except ClassificationError:
+                    raise
                 except Exception as e:
                     logger.error(
                         "[extract] sub-agent failed for %s (type=%s): %s",
@@ -390,6 +402,8 @@ def create_scrape_and_extract_tool(
                 future.set_result(outcome.rendered_text)
                 return outcome.rendered_text
 
+        except ClassificationError:
+            raise
         except Exception as exc:
             logger.error(
                 "[extract] unexpected scrape failure for %s (type=%s): %s",

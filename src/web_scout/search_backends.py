@@ -20,7 +20,10 @@ Adding a new backend
 import abc
 import asyncio
 import logging
+import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -75,13 +78,26 @@ async def _post_with_retries(url: str, headers: Dict[str, str], payload: dict, l
     Retries up to ``_MAX_RETRIES`` times on HTTP 429 or 5xx, raises on any
     other error status, and returns the decoded JSON body.
     """
-    import httpx
 
-    async with httpx.AsyncClient(timeout=15) as client:
+    from .scraping._resources import search_client
+
+    started = time.perf_counter()
+    client = search_client()
+    async with asyncio.timeout(45):
         for attempt in range(_MAX_RETRIES):
             resp = await client.post(url, headers=headers, json=payload)
             if resp.status_code in _RETRY_STATUSES and attempt < _MAX_RETRIES - 1:
                 delay = _BASE_DELAY * (2**attempt)
+                retry_after = resp.headers.get("retry-after", "")
+                if retry_after:
+                    try:
+                        seconds = float(retry_after)
+                    except ValueError:
+                        try:
+                            seconds = (parsedate_to_datetime(retry_after) - datetime.now(timezone.utc)).total_seconds()
+                        except (ValueError, TypeError, OverflowError):
+                            seconds = 0
+                    delay = max(delay, seconds)
                 reason = "rate-limited" if resp.status_code == 429 else f"server error {resp.status_code}"
                 logger.warning(
                     "[%s] %s (attempt %d/%d), retrying in %.1fs",
@@ -94,6 +110,7 @@ async def _post_with_retries(url: str, headers: Dict[str, str], payload: dict, l
                 await asyncio.sleep(delay)
                 continue
             resp.raise_for_status()
+            logger.debug("[search-timing] backend=%s seconds=%.3f", label, time.perf_counter() - started)
             return resp.json()
     return {}
 

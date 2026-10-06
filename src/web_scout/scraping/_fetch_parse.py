@@ -1,5 +1,6 @@
 """Single-URL fetch-and-parse helper for direct callers outside the Orchestrator."""
 
+from contextlib import nullcontext
 from typing import Optional
 
 from web_scout.config import ROUTING_HEURISTICS
@@ -32,6 +33,10 @@ async def fetch_and_parse_url(
     fetcher = fetcher or ScraplingFetcher(exclude_domains=exclude_domains)
     parser = parser or DefaultParser(vision_model=vision_model, max_pdf_pages=max_pdf_pages)
     context = URLContext(url=url, depth=0, wait_for=wait_for)
-    fetch_result = await fetcher.fetch(url, context)
-    parse_result = await parser.dispatch(fetch_result, context)
+    from ._resources import pdf_admission
+    from .page_classifier import looks_like_pdf_resource
+
+    async with pdf_admission() if looks_like_pdf_resource(url) else nullcontext():
+        fetch_result = await fetcher.fetch(url, context)
+        parse_result = await parser.dispatch(fetch_result, context)
     return fetch_result, parse_result

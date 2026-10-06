@@ -256,6 +256,12 @@ async def run_web_research(
     ``verify_pdf_claims`` enables an optional extra LLM claim-support check
     for PDF extracts (default False).
     """
+    from ._classification import backend as classification_backend
+    from ._classification import require_credentials
+
+    if classification_backend() == "jev":
+        require_credentials()
+
     from web_scout.config import ROUTING_HEURISTICS
 
     from .utils import get_model
@@ -265,8 +271,7 @@ async def run_web_research(
 
     if followup_backend not in FOLLOWUP_BACKENDS:
         raise ValueError(
-            f"Unknown followup_backend={followup_backend!r}. "
-            f"Supported: {', '.join(sorted(FOLLOWUP_BACKENDS))}."
+            f"Unknown followup_backend={followup_backend!r}. Supported: {', '.join(sorted(FOLLOWUP_BACKENDS))}."
         )
 
     if short_pdf_max_chars is None:

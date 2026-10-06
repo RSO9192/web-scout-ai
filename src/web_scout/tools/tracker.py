@@ -40,6 +40,7 @@ class ResearchTracker:
 
     def __init__(self):
         self._urls: Dict[str, Any] = {}
+        self._source_text: Dict[str, str] = {}
         self._actions: Dict[str, str] = {}
         self._queries: List[Any] = []
         self._consecutive_empty: Dict[str, int] = {}

@@ -105,8 +105,10 @@ class Crawl4AICrawler(Crawler):
         llm_config: Optional[object] = _USE_DEFAULT_LLM,
         max_links: int = 10,
     ) -> None:
+        self._default_selection = llm_config is _USE_DEFAULT_LLM
         if llm_config is _USE_DEFAULT_LLM:
-            self._llm_config = _build_default_llm_config()
+            from web_scout._classification import backend
+            self._llm_config = _build_default_llm_config() if backend() == "gpt" else _USE_DEFAULT_LLM
         else:
             self._llm_config = llm_config
         self._max_links = max_links
@@ -126,6 +128,13 @@ class Crawl4AICrawler(Crawler):
 
     async def _select_links(self, result: ParseResult, context: URLContext) -> list[str]:
         """Return up to ``max_links`` URLs worth following from ``result.links``."""
+        if self._default_selection:
+            from web_scout._classification import backend
+            if backend() == "jev":
+                from web_scout.jev_link_selector import select_links_with_jev
+                selected, _ = await select_links_with_jev(query=result.title or result.url,
+                    parent_url=result.url, parent_content=result.text_content, candidates=result.links)
+                return selected[:self._max_links]
         if self._llm_config is not None:
             return await self._llm_select(result, context)
         return self._heuristic_select(result)

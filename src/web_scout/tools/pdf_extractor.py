@@ -17,6 +17,8 @@ from typing import Any, Optional
 import litellm
 from pydantic import BaseModel, Field, ValidationError
 
+from web_scout._classification import backend as classification_backend
+from web_scout._classification import supported_evidence
 from web_scout.config import ROUTING_HEURISTICS
 from web_scout.scraping.types import PdfDocumentLayout, SourceArtifact
 from web_scout.utils import get_litellm_base_url
@@ -63,10 +65,7 @@ def _guidance_block(extractor_guidance: Optional[str]) -> str:
     """Render optional application guidance for PDF prompts (never overrides base rules)."""
     if not extractor_guidance:
         return ""
-    return (
-        "\nApplication-specific guidance (must not override the rules above):\n"
-        f"{extractor_guidance}\n"
-    )
+    return f"\nApplication-specific guidance (must not override the rules above):\n{extractor_guidance}\n"
 
 
 class PdfEvidenceItem(BaseModel):
@@ -94,9 +93,7 @@ class PdfExtractResult(BaseModel):
 
 
 class _DocumentSummary(BaseModel):
-    summary: str = Field(
-        description="Short scope, definitions, methodology, and structure summary."
-    )
+    summary: str = Field(description="Short scope, definitions, methodology, and structure summary.")
 
 
 class _ClaimVerdict(BaseModel):
@@ -174,7 +171,7 @@ def pages_from_evidence(evidence: list[PdfEvidenceItem]) -> list[int]:
 
 
 def _slice_markdown(markdown: str, start_line: int, end_line: int) -> str:
-    lines = markdown.splitlines()
+    lines = markdown.splitlines() if isinstance(markdown, str) else markdown
     start = max(1, start_line) - 1
     end = min(len(lines), end_line)
     return "\n".join(lines[start:end])
@@ -187,13 +184,16 @@ def _split_oversized_section_markdown(section_md: str, max_chars: int) -> list[s
     lines = section_md.splitlines()
     chunks: list[str] = []
     current: list[str] = []
+    current_size = 0
     for line in lines:
-        if _PAGE_START_RE.match(line.strip()) and current and len("\n".join(current)) >= max_chars // 2:
+        if _PAGE_START_RE.match(line.strip()) and current and current_size >= max_chars // 2:
             chunks.append("\n".join(current).strip())
             current = [line]
+            current_size = len(line)
             continue
+        current_size += len(line) + (1 if current else 0)
         current.append(line)
-        if len("\n".join(current)) >= max_chars and _PAGE_START_RE.match(line.strip()):
+        if current_size >= max_chars and _PAGE_START_RE.match(line.strip()):
             # keep banner with next chunk; already handled above
             pass
     if current:
@@ -239,8 +239,9 @@ def pack_section_chunks(
         packed.append((path, " / ".join(buf_titles), "\n\n".join(buf_parts)))
         buf_parts, buf_titles, buf_paths, buf_len = [], [], [], 0
 
+    lines = markdown.splitlines()
     for section in sections:
-        section_md = _slice_markdown(markdown, section.start_line, section.end_line).strip()
+        section_md = _slice_markdown(lines, section.start_line, section.end_line).strip()
         if not section_md:
             continue
         path = " > ".join(section.heading_path) if section.heading_path else section.title
@@ -305,12 +306,15 @@ async def _llm_json(model: Any, prompt: str, schema: type[BaseModel]) -> BaseMod
     last_error: Exception = RuntimeError("Structured output validation did not run")
 
     for attempt in range(1, _JSON_SCHEMA_ATTEMPTS + 1):
-        response = await litellm.acompletion(
-            model=model_name,
-            messages=messages,
-            response_format=response_format,
-            api_base=api_base,
-        )
+        from web_scout.scraping._resources import model_admission
+
+        async with model_admission():
+            response = await litellm.acompletion(
+                model=model_name,
+                messages=messages,
+                response_format=response_format,
+                api_base=api_base,
+            )
         content = response.choices[0].message.content
         raw = content.strip() if isinstance(content, str) else json.dumps(content)
         if raw.startswith("```"):
@@ -323,8 +327,7 @@ async def _llm_json(model: Any, prompt: str, schema: type[BaseModel]) -> BaseMod
             if attempt == _JSON_SCHEMA_ATTEMPTS:
                 raise
             logger.warning(
-                "[pdf-extract] structured output validation failed for %s "
-                "(attempt %d/%d): %s",
+                "[pdf-extract] structured output validation failed for %s (attempt %d/%d): %s",
                 schema.__name__,
                 attempt,
                 _JSON_SCHEMA_ATTEMPTS,
@@ -370,9 +373,7 @@ async def _summarize_document(
         outline_lines.append(f"- [L{section.level}] {path or '(untitled)'}{pages}")
     prompt = (
         f"Document title: {layout.document_title}\n\n"
-        "Section outline:\n"
-        + ("\n".join(outline_lines) if outline_lines else "(no sections)")
-        + "\n\n"
+        "Section outline:\n" + ("\n".join(outline_lines) if outline_lines else "(no sections)") + "\n\n"
         "Write a short document-level summary covering scope, definitions, "
         "methodology, and structure. Do not invent facts beyond the outline. "
         'Return JSON: {"summary": "..."}'
@@ -427,10 +428,7 @@ async def _final_answer_from_evidence(
     evidence: list[PdfEvidenceItem],
     extractor_guidance: Optional[str] = None,
 ) -> PdfExtractResult:
-    payload = [
-        {"text": item.text, "page_start": item.page_start, "page_end": item.page_end}
-        for item in evidence
-    ]
+    payload = [{"text": item.text, "page_start": item.page_start, "page_end": item.page_end} for item in evidence]
     prompt = (
         f"Research query: {query}\n"
         f"Document title: {document_title}\n\n"
@@ -569,7 +567,18 @@ async def extract_pdf_for_query(
         return title, _NO_RELEVANT, []
 
     evidence = filter_evidence_by_layout(result.evidence, layout)
-    if verify_pdf_claims:
+    if verify_pdf_claims and classification_backend() == "jev":
+        from pdf_extractor_ai.markdown import split_pages
+
+        evidence = await supported_evidence(evidence, split_pages(markdown))
+        if not evidence:
+            return title, _NO_RELEVANT, []
+        # Regenerate prose from verified evidence only, never retain unsupported assertions.
+        verified_result = await _final_answer_from_evidence(
+            model=model, query=query, document_title=title, evidence=evidence, extractor_guidance=extractor_guidance
+        )
+        content = verified_result.relevant_content.strip() or _NO_RELEVANT
+    elif verify_pdf_claims:
         verified = await _verify_claims_llm(
             model=model,
             relevant_content=result.relevant_content,

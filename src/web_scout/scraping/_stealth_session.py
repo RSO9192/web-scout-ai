@@ -6,7 +6,7 @@ bot wall; subsequent fetches for the same host reuse pooled pages inside
 that browser, where the fingerprint/cookies that satisfied Cloudflare live.
 
 Design (see docs/superpowers/specs/2026-08-21-cf-session-reuse-design.md):
-- single-flight: a per-host lock guards session *creation* only
+- single-flight: a per-loop lock guards session creation and eviction
 - a global semaphore caps concurrent browser fetches; it is acquired
   before ``session.fetch`` so queue wait never consumes the page timeout
 - at most MAX_SESSIONS idle sessions per event loop (LRU-evicted);
@@ -20,6 +20,7 @@ Design (see docs/superpowers/specs/2026-08-21-cf-session-reuse-design.md):
 import asyncio
 import itertools
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any, Dict
 from urllib.parse import urlparse
@@ -46,7 +47,7 @@ _IGNORED_KEYS = frozenset({"retries", "retry_delay"})
 
 def _session_factory(**kwargs):
     """Construct an AsyncStealthySession. Indirection point for tests."""
-    from scrapling.engines._browsers._stealth import AsyncStealthySession
+    from scrapling.fetchers import AsyncStealthySession
 
     return AsyncStealthySession(**kwargs)
 
@@ -56,17 +57,19 @@ class _Entry:
     session: Any
     last_used: int
     in_flight: int = 0
+    broken: bool = False
+    touched: float = field(default_factory=time.monotonic)
 
 
 @dataclass
 class _LoopState:
     sessions: Dict[str, _Entry] = field(default_factory=dict)
-    locks: Dict[str, asyncio.Lock] = field(default_factory=dict)
-    semaphore: asyncio.Semaphore = field(
-        default_factory=lambda: asyncio.Semaphore(MAX_CONCURRENT_BROWSER_FETCHES)
-    )
+    semaphore: asyncio.Semaphore = field(default_factory=lambda: asyncio.Semaphore(MAX_CONCURRENT_BROWSER_FETCHES))
     counter: Any = field(default_factory=itertools.count)
     active_pipelines: int = 0
+    creation_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    idle_handle: Any = None
+    closed: bool = False
 
 
 _registry: "WeakKeyDictionary[asyncio.AbstractEventLoop, _LoopState]" = WeakKeyDictionary()
@@ -100,19 +103,21 @@ async def _evict_idle_lru(state: _LoopState) -> None:
 
 
 async def _get_or_create(state: _LoopState, host: str, session_kwargs: dict) -> _Entry:
-    lock = state.locks.setdefault(host, asyncio.Lock())
-    async with lock:
+    async with state.creation_lock:
+        if state.closed:
+            raise RuntimeError("Browser session pool is shut down")
         entry = state.sessions.get(host)
+        if entry is not None and entry.broken:
+            raise RuntimeError("Browser session is draining after a failed fetch")
         if entry is None:
             while len(state.sessions) >= MAX_SESSIONS:
                 before = len(state.sessions)
                 await _evict_idle_lru(state)
                 if len(state.sessions) == before:
                     break  # all busy — accept overshoot
-            session = _session_factory(max_pages=SESSION_MAX_PAGES, **session_kwargs)
+            session = _session_factory(max_pages=SESSION_MAX_PAGES, retries=1, **session_kwargs)
             try:
-                async with state.semaphore:  # a launch is browser work too
-                    await session.start()
+                await session.start()
             except Exception:
                 # Launch failed: nothing was registered yet, so close the
                 # partially-constructed session directly to avoid leaking it.
@@ -122,6 +127,7 @@ async def _get_or_create(state: _LoopState, host: str, session_kwargs: dict) -> 
             state.sessions[host] = entry
             logger.info("[stealth-session] new browser session for %s", host)
         entry.last_used = next(state.counter)
+        entry.in_flight += 1  # reserve while creation/eviction is locked
         return entry
 
 
@@ -139,20 +145,53 @@ async def fetch_via_session(url: str, **kwargs: Any):
     session_kwargs = {k: v for k, v in kwargs.items() if k in _SESSION_ONLY_KEYS}
     fetch_kwargs = {k: v for k, v in kwargs.items() if k not in _SESSION_ONLY_KEYS}
 
-    entry = await _get_or_create(state, host, session_kwargs)
-    entry.in_flight += 1
-    try:
-        async with state.semaphore:
-            result = await entry.session.fetch(url, **fetch_kwargs)
-    except Exception:
-        if state.sessions.get(host) is entry:
-            state.sessions.pop(host, None)
-            await _close_entry(host, entry)
-        raise
-    finally:
+    async with state.semaphore:
+        entry = await _get_or_create(state, host, session_kwargs)
+        try:
+            return await entry.session.fetch(url, **fetch_kwargs)
+        except Exception:
+            entry.broken = True
+            raise
+        finally:
+            entry.in_flight -= 1
+            entry.last_used = next(state.counter)
+            entry.touched = time.monotonic()
+            if entry.broken and entry.in_flight == 0:
+                if state.sessions.get(host) is entry:
+                    state.sessions.pop(host, None)
+                await _close_entry(host, entry)
+            while len(state.sessions) > MAX_SESSIONS:
+                before = len(state.sessions)
+                await _evict_idle_lru(state)
+                if len(state.sessions) == before:
+                    break
+            _schedule_idle_close(state)
+
+
+def _schedule_idle_close(state):
+    if state.idle_handle is not None:
+        state.idle_handle.cancel()
+    loop = asyncio.get_running_loop()
+    state.idle_handle = loop.call_later(120, lambda: loop.create_task(_close_idle(state)))
+
+
+async def _close_idle(state):
+    async with state.creation_lock:
+        for host, entry in list(state.sessions.items()):
+            if not entry.in_flight and time.monotonic() - entry.touched >= 120:
+                state.sessions.pop(host, None)
+                await _close_entry(host, entry)
+    if state.sessions:
+        _schedule_idle_close(state)
+
+
+async def prewarm_host(url):
+    state = _loop_state()
+    async with state.semaphore:
+        entry = await _get_or_create(state, urlparse(url).netloc.lower(), {"headless": True})
         entry.in_flight -= 1
-    entry.last_used = next(state.counter)
-    return result
+        entry.touched = time.monotonic()
+        _schedule_idle_close(state)
 
 
 async def close_stealthy_sessions() -> None:
@@ -162,28 +201,36 @@ async def close_stealthy_sessions() -> None:
     loop should use acquire/release instead; no fetches may be in flight.
     """
     loop = asyncio.get_running_loop()
-    state = _registry.pop(loop, None)
+    state = _registry.get(loop)
     if state is None:
         return
-    for host, entry in list(state.sessions.items()):
+    async with state.creation_lock:
+        if any(entry.in_flight for entry in state.sessions.values()):
+            raise RuntimeError("Cannot shut down browser sessions with active fetches")
+        state.closed = True
+        _registry.pop(loop, None)
+        if state.idle_handle is not None:
+            state.idle_handle.cancel()
+        entries = list(state.sessions.items())
+        state.sessions.clear()
+    for host, entry in entries:
         await _close_entry(host, entry)
-    state.sessions.clear()
 
 
 def acquire_stealth_sessions() -> None:
     """Register a pipeline as a user of this loop's shared sessions.
 
-    Must be paired with ``release_stealth_sessions()``; sessions are only
-    closed when the last registered pipeline releases.
+    Must be paired with ``release_stealth_sessions()``; idle sessions remain
+    reusable across pipelines until eviction or explicit shutdown.
     """
     _loop_state().active_pipelines += 1
 
 
 async def release_stealth_sessions() -> None:
-    """Release one pipeline's claim; close all sessions when none remain."""
+    """Release one pipeline's claim and schedule idle eviction."""
     state = _registry.get(asyncio.get_running_loop())
     if state is None:
         return
     state.active_pipelines = max(0, state.active_pipelines - 1)
     if state.active_pipelines == 0:
-        await close_stealthy_sessions()
+        _schedule_idle_close(state)

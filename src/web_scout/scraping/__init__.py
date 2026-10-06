@@ -34,6 +34,7 @@ from ._crawler import Crawl4AICrawler, Crawler
 from ._fetch_parse import fetch_and_parse_url
 from ._fetcher import Fetcher, ScraplingFetcher
 from ._parser import DefaultParser, Parser, materialize_parse_result
+from ._resources import close_resources
 from .context import URLContext
 from .orchestrator import Orchestrator, OrchestratorConfig
 from .page_classifier import PageShapeAssessment, classify_html_page_shape, classify_prefetched_page_shape
@@ -66,4 +67,5 @@ __all__ = [
     # Utilities
     "fetch_and_parse_url",
     "materialize_parse_result",
+    "close_resources",
 ]
