@@ -405,6 +405,12 @@ It is intentionally a bounded research component. If you only need search links,
 - A Serper or Exa API key for search mode
 - Chromium setup for rendered pages, interactive sites, and browser fallbacks
 
+## Classification and resource reuse
+
+Semantic classification defaults to TypeSafe Jev and requires `TYPESAFE_API_KEY`. Set `WEB_SCOUT_CLASSIFICATION_BACKEND=gpt` to use the existing GPT classifiers instead. Query generation, factual extraction, visual descriptions and synthesis continue to use your configured generative models. Existing follow-up backend selection remains available.
+
+CPU PDF pipelines initialize on the first document and are reused. Browser and HTTP resources are reused on the same event loop; after requests finish, call `await web_scout.scraping.close_resources()` at application shutdown. See the [performance report](docs/performance.md) for measurements, limits, benchmark commands and compatibility details.
+
 ## Contributing
 
 The main extension point is [`SearchBackend`](src/web_scout/search_backends.py). New backends should implement the async `search()` contract and return normalized results (title, url, snippet).

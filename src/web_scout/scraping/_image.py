@@ -31,9 +31,9 @@ async def scrape_image(url: str, *, needs_browser: bool = False) -> Tuple[Source
                 timeout=ROUTING_HEURISTICS.browser_page_timeout_ms,
             )
         else:
-            from scrapling.fetchers import AsyncFetcher
+            from ._resources import http_get
 
-            resp = await AsyncFetcher.get(
+            resp = await http_get(
                 url,
                 stealthy_headers=True,
                 follow_redirects=True,

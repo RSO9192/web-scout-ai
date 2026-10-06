@@ -111,7 +111,9 @@ def _to_pdf_document_layout(layout, *, document_title: str) -> PdfDocumentLayout
     )
 
 
-async def _resolve_is_pdf(url: str, content_type: str, content_disposition: str, *, needs_browser: bool = False) -> bool:
+async def _resolve_is_pdf(
+    url: str, content_type: str, content_disposition: str, *, needs_browser: bool = False
+) -> bool:
     """Return True when the URL is confirmed to serve a PDF.
 
     Uses known content-type / content-disposition metadata when available;
@@ -135,9 +137,9 @@ async def _resolve_is_pdf(url: str, content_type: str, content_disposition: str,
                 timeout=ROUTING_HEURISTICS.browser_page_timeout_ms,
             )
         else:
-            from scrapling.fetchers import AsyncFetcher
+            from ._resources import http_get
 
-            resp = await AsyncFetcher.get(
+            resp = await http_get(
                 url,
                 stealthy_headers=True,
                 follow_redirects=True,
@@ -170,21 +172,31 @@ async def _convert_pdf_to_markdown(
 ) -> tuple[str, PdfDocumentLayout]:
     """Convert PDF bytes to markdown plus layout metadata."""
     filename = _filename_title(url)
-    document = await _get_pdf_extractor().extract_async(
-        pdf_bytes,
-        do_ocr=False,
-        max_pages=max_pages,
-        name=_pdf_stream_name(url),
-    )
+    extractor = _get_pdf_extractor()
     if vision_model:
-        document = await summarize_images(
-            document,
-            _SectionVisionModel(vision_model),
-            model_name=vision_model,
+        document = await extractor.extract_async(
+            pdf_bytes,
+            do_ocr=False,
+            max_pages=max_pages,
+            name=_pdf_stream_name(url),
         )
-    markdown = to_markdown(document)
+        document = await summarize_images(document, _SectionVisionModel(vision_model), model_name=vision_model)
+        markdown = await asyncio.to_thread(to_markdown, document)
+    elif hasattr(extractor, "_extract_markdown_async"):
+        markdown, document = await extractor._extract_markdown_async(
+            pdf_bytes,
+            max_pages=max_pages,
+            name=_pdf_stream_name(url),
+        )
+    else:
+        # Older installed pdf-extractor-ai releases retain their public API.
+        document = await extractor.extract_async(
+            pdf_bytes, do_ocr=False, max_pages=max_pages, name=_pdf_stream_name(url)
+        )
+        markdown = await asyncio.to_thread(to_markdown, document)
     title = document_title(document, fallback=filename) or filename
-    layout = _to_pdf_document_layout(layout_from_markdown(markdown, document), document_title=title)
+    package_layout = await asyncio.to_thread(layout_from_markdown, markdown, document)
+    layout = _to_pdf_document_layout(package_layout, document_title=title)
     return markdown, layout
 
 

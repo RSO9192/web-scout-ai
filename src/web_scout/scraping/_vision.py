@@ -12,6 +12,7 @@ scraping package ``__init__``.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import io
 import json
@@ -24,6 +25,7 @@ from pydantic import BaseModel, Field
 
 from web_scout.config import ROUTING_HEURISTICS
 
+from ._resources import model_admission
 from ._scrapling import stealthy_fetch
 from .types import SourceArtifact
 
@@ -58,7 +60,6 @@ async def _capture_screenshot(url: str) -> bytes:
     screenshot_holder: dict = {}
 
     async def _take_screenshot(page) -> None:
-        await page.wait_for_timeout(ROUTING_HEURISTICS.vision_settle_wait_ms)
         screenshot_holder["data"] = await page.screenshot(type="png", full_page=False)
 
     await stealthy_fetch(
@@ -68,6 +69,7 @@ async def _capture_screenshot(url: str) -> bytes:
         solve_cloudflare=True,
         timeout=ROUTING_HEURISTICS.vision_goto_timeout_ms,
         page_action=_take_screenshot,
+        disable_resources=False,
     )
 
     data = screenshot_holder.get("data")
@@ -91,18 +93,19 @@ async def _call_vision_model(
     query_clause = f" relevant to: {query}" if query else ""
     prompt = prompt_prefix.format(query_clause=query_clause)
     try:
-        response = await litellm.acompletion(
-            model=vision_model,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{image_b64}"}},
-                    ],
-                }
-            ],
-        )
+        async with model_admission():
+            response = await litellm.acompletion(
+                model=vision_model,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{image_b64}"}},
+                        ],
+                    }
+                ],
+            )
         content = (response.choices[0].message.content or "").strip()
         return (content, None) if content else ("", "Vision extraction returned empty content")
     except Exception as exc:
@@ -116,25 +119,34 @@ async def extract_pdf_via_vision(
     vision_model: str,
 ) -> Tuple[str, Optional[str]]:
     """Rasterize the first PDF page and extract its text via a vision model."""
-    import pypdfium2 as pdfium
 
-    pdf = pdfium.PdfDocument(pdf_bytes)
-    try:
-        if len(pdf) == 0:
-            return "", "PDF has no pages"
-        page = pdf[0]
+    def render() -> bytes:
+        import pypdfium2 as pdfium
+
+        pdf = pdfium.PdfDocument(pdf_bytes)
         try:
-            bitmap = page.render(scale=2)
-            pil_image = bitmap.to_pil()
+            if len(pdf) == 0:
+                raise ValueError("PDF has no pages")
+            page = pdf[0]
+            try:
+                bitmap = page.render(scale=2)
+                try:
+                    with bitmap.to_pil() as image, io.BytesIO() as buffer:
+                        image.save(buffer, format="PNG")
+                        return buffer.getvalue()
+                finally:
+                    bitmap.close()
+            finally:
+                page.close()
         finally:
-            page.close()
-    finally:
-        pdf.close()
+            pdf.close()
 
-    buf = io.BytesIO()
-    pil_image.save(buf, format="PNG")
+    try:
+        image_bytes = await asyncio.to_thread(render)
+    except ValueError as exc:
+        return "", str(exc)
     return await _call_vision_model(
-        image_bytes=buf.getvalue(),
+        image_bytes=image_bytes,
         mime_type="image/png",
         query=query,
         vision_model=vision_model,
@@ -297,19 +309,19 @@ async def describe_section_visuals(
         )
 
     try:
-        response = await litellm.acompletion(
-            model=vision_model,
-            messages=[{"role": "user", "content": content}],
-            response_format={"type": "json_object"},
-        )
+        async with model_admission():
+            response = await litellm.acompletion(
+                model=vision_model,
+                messages=[{"role": "user", "content": content}],
+                response_format={"type": "json_object"},
+            )
         raw = (response.choices[0].message.content or "").strip()
         if not raw:
             return {}, "Section visual description returned empty content"
         parsed = SectionVisualSummaries.model_validate(_extract_json_object(raw))
         if parsed.request_id and parsed.request_id != request_id:
             return {}, (
-                f"Section visual description request_id mismatch "
-                f"(expected {request_id}, got {parsed.request_id})"
+                f"Section visual description request_id mismatch (expected {request_id}, got {parsed.request_id})"
             )
         return {item.visual_id: item.summary for item in parsed.visuals if item.visual_id}, None
     except Exception as exc:

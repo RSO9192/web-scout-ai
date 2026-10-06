@@ -58,24 +58,23 @@ def _find_api_key(provider: str) -> str | None:
 
 
 def _prepare_bedrock_mantle_openai(model_name: str) -> None:
-    """Put OpenAI Mantle models on LiteLLM's normal us-east-1 route.
+    """Route proprietary OpenAI GPT models to Mantle's /openai/v1 API.
 
-    GPT-5.6 and GPT-6 Luna share that route. The bundled price map lists
-    GPT-5.6 and not GPT-6; a missing entry would send GPT-6 to ``/v1`` and
-    reject ``reasoning_effort``. Registering the GPT-5.6 capability template
-    keeps both models on ``/openai/v1``.
+    LiteLLM derives the path from model metadata, which can be absent or stale
+    in its bundled map. Register only the route flag, preserving existing
+    pricing/capabilities and avoiding dependency on another model's metadata.
+    GPT-OSS uses the standard /v1 route.
     """
-    if not model_name.startswith(_BEDROCK_MANTLE_OPENAI_PREFIX):
+    if not model_name.startswith(_BEDROCK_MANTLE_OPENAI_PREFIX) or model_name.startswith(
+        "bedrock_mantle/openai.gpt-oss"
+    ):
         return
     os.environ["BEDROCK_MANTLE_REGION"] = _BEDROCK_MANTLE_OPENAI_REGION
     import litellm
 
-    if model_name in litellm.model_cost:
+    if litellm.model_cost.get(model_name, {}).get("use_openai_responses_path") is True:
         return
-    template = litellm.model_cost.get("bedrock_mantle/openai.gpt-5.6-luna")
-    if not template:
-        return
-    litellm.register_model({model_name: dict(template)})
+    litellm.register_model({model_name: {"use_openai_responses_path": True}})
 
 
 def get_litellm_base_url(model_name: str) -> str | None:

@@ -15,7 +15,7 @@ pulls every yes-probability down.
 import re
 from urllib.parse import unquote, urlparse
 
-from typesafe_sdk import AsyncTypeSafeClient, Noul
+from typesafe_sdk import Noul
 
 # Pin the model. The jev-latest alias can move, and a new version would change
 # these probabilities without a code change.
@@ -302,19 +302,15 @@ async def select_links_with_jev(
     if not links:
         return [], None
 
-    selected: list[str] = []
-    try:
-        async with AsyncTypeSafeClient(model=model, timeout=JEV_TIMEOUT_SECONDS) as client:
-            for start in range(0, len(links), JEV_BATCH_SIZE):
-                batch = links[start : start + JEV_BATCH_SIZE]
-                response = await client.system_one(
-                    build_jev_state(query, parent_url, parent_content, batch),
-                    build_jev_questions(len(batch)),
-                    timeout=JEV_TIMEOUT_SECONDS,
-                )
-                probabilities = {name: answer.noul for name, answer in response.nouls.items()}
-                selected.extend(urls_above_threshold(batch, probabilities, threshold))
-    except Exception as exc:
-        return [], str(exc)
+    from ._classification import judge
 
+    selected: list[str] = []
+    for start in range(0, len(links), JEV_BATCH_SIZE):
+        batch = links[start : start + JEV_BATCH_SIZE]
+        probabilities = await judge(
+            build_jev_state(query, parent_url, parent_content, batch),
+            build_jev_questions(len(batch)),
+            model=model,
+        )
+        selected.extend(urls_above_threshold(batch, probabilities, threshold))
     return selected, None

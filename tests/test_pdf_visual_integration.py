@@ -40,7 +40,7 @@ _MISSING_KEY = not bool(os.getenv("GEMINI_API_KEY"))
 
 @pytest.mark.skipif(_MISSING_KEY, reason="GEMINI_API_KEY not set")
 @pytest.mark.asyncio
-async def test_cd9804en_pdf_visual_enrichment_preserves_semantics():
+async def test_cd9804en_pdf_visual_enrichment_preserves_semantics(tmp_path):
     # import litellm
 
     assert PDF_PATH.is_file(), f"Missing fixture PDF: {PDF_PATH}"
@@ -65,7 +65,7 @@ async def test_cd9804en_pdf_visual_enrichment_preserves_semantics():
         f"Expected visual placeholders to be replaced; found {leftover_placeholders} remaining"
     )
 
-    with open(PDF_PATH.with_suffix(".md"), "w") as f:
+    with open(tmp_path / "extracted.md", "w") as f:
         f.write(content)
 
     # # Cheap smoke checks on stable text-layer facts.

@@ -20,12 +20,15 @@ from typing import Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from web_scout._classification import ClassificationError
 from web_scout.config import ROUTING_HEURISTICS
 
 from ._crawler import Crawl4AICrawler, Crawler
 from ._fetcher import Fetcher, ScraplingFetcher
 from ._parser import DefaultParser, Parser
+from ._resources import pdf_admission
 from .context import URLContext
+from .page_classifier import looks_like_pdf_resource
 from .types import ParseResult
 from .utils import is_blocked_domain, unsupported_legacy_document_reason
 
@@ -51,9 +54,9 @@ class OrchestratorConfig(BaseSettings):
     exclude_domains: Optional[frozenset[str]] = None
     vision_model: Optional[str] = None
     # Defaults sourced from ROUTING_HEURISTICS in config.py
-    max_pdf_pages: int = ROUTING_HEURISTICS.pdf_max_pages_default        # 50
-    fetch_timeout: float = ROUTING_HEURISTICS.validation_timeout         # 20.0 s
-    browser_timeout_ms: int = ROUTING_HEURISTICS.browser_page_timeout_ms # 60_000 ms
+    max_pdf_pages: int = ROUTING_HEURISTICS.pdf_max_pages_default  # 50
+    fetch_timeout: float = ROUTING_HEURISTICS.validation_timeout  # 20.0 s
+    browser_timeout_ms: int = ROUTING_HEURISTICS.browser_page_timeout_ms  # 60_000 ms
 
 
 class Orchestrator:
@@ -90,9 +93,11 @@ class Orchestrator:
         )
         self._crawler: Crawler = crawler or Crawl4AICrawler()
 
-        self._fetch_queue: asyncio.Queue[URLContext] = asyncio.Queue()
-        self._parse_queue: asyncio.Queue[tuple[URLContext, object]] = asyncio.Queue()
-        self._crawl_queue: asyncio.Queue[tuple[URLContext, ParseResult]] = asyncio.Queue()
+        self._fetch_queue: asyncio.Queue[URLContext] = asyncio.Queue(maxsize=config.max_urls)
+        self._parse_queue: asyncio.Queue[tuple[URLContext, object]] = asyncio.Queue(
+            maxsize=config.max_concurrent_fetches * 2
+        )
+        self._crawl_queue: asyncio.Queue[tuple[URLContext, ParseResult]] = asyncio.Queue(maxsize=config.max_urls)
 
         self._visited: set[str] = set()
         self._results: list[ParseResult] = []
@@ -152,21 +157,25 @@ class Orchestrator:
         fetch_sem = asyncio.Semaphore(self.config.max_concurrent_fetches)
         parse_sem = asyncio.Semaphore(self.config.max_concurrent_parses)
 
-        workers = [
-            asyncio.create_task(self._fetch_worker(fetch_sem))
-            for _ in range(self.config.max_concurrent_fetches)
-        ] + [
-            asyncio.create_task(self._parse_worker(parse_sem))
-            for _ in range(self.config.max_concurrent_parses)
-        ] + [
-            asyncio.create_task(self._crawl_worker())
-        ]
+        workers = (
+            [
+                asyncio.create_task(self._fetch_worker(fetch_sem, parse_sem))
+                for _ in range(self.config.max_concurrent_fetches)
+            ]
+            + [asyncio.create_task(self._parse_worker(parse_sem)) for _ in range(self.config.max_concurrent_parses)]
+            + [asyncio.create_task(self._crawl_worker())]
+        )
 
-        await self._done_event.wait()
-
-        for task in workers:
-            task.cancel()
-        await asyncio.gather(*workers, return_exceptions=True)
+        done = asyncio.create_task(self._done_event.wait())
+        try:
+            completed, _ = await asyncio.wait([done, *workers], return_when=asyncio.FIRST_COMPLETED)
+            for task in completed:
+                task.result()  # surface fatal worker errors, including Jev failures
+        finally:
+            done.cancel()
+            for task in workers:
+                task.cancel()
+            await asyncio.gather(done, *workers, return_exceptions=True)
 
         return list(self._results)
 
@@ -174,7 +183,7 @@ class Orchestrator:
     # Internal workers
     # ------------------------------------------------------------------
 
-    async def _fetch_worker(self, sem: asyncio.Semaphore) -> None:
+    async def _fetch_worker(self, sem: asyncio.Semaphore, parse_sem: asyncio.Semaphore) -> None:
         while True:
             context = await self._fetch_queue.get()
             try:
@@ -184,7 +193,16 @@ class Orchestrator:
 
                 async with sem:
                     try:
+                        if looks_like_pdf_resource(context.url):
+                            # Keep admission through conversion; do not retain a queue
+                            # of downloaded PDFs while the native worker is busy.
+                            async with pdf_admission():
+                                fetch_result = await self._fetcher.fetch(context.url, context)
+                                await self._parse_fetched(context, fetch_result, parse_sem)
+                            continue
                         fetch_result = await self._fetcher.fetch(context.url, context)
+                    except ClassificationError:
+                        raise
                     except Exception as exc:
                         logger.error("[orchestrator] fetch error for %s: %s", context.url, exc)
                         self._complete()
@@ -202,23 +220,25 @@ class Orchestrator:
                     self._complete()
                     continue
 
-                async with sem:
-                    try:
-                        parse_result = await self._parser.dispatch(fetch_result, context)
-                    except Exception as exc:
-                        logger.error("[orchestrator] parse error for %s: %s", context.url, exc)
-                        self._complete()
-                        continue
-
-                self._results.append(parse_result)
-
-                if context.depth >= self.config.max_depth:
-                    # Terminal: depth limit reached — do not crawl
-                    self._complete()
-                else:
-                    await self._crawl_queue.put((context, parse_result))
+                await self._parse_fetched(context, fetch_result, sem)
             finally:
                 self._parse_queue.task_done()
+
+    async def _parse_fetched(self, context, fetch_result, sem):
+        async with sem:
+            try:
+                parse_result = await self._parser.dispatch(fetch_result, context)
+            except ClassificationError:
+                raise
+            except Exception as exc:
+                logger.error("[orchestrator] parse error for %s: %s", context.url, exc)
+                self._complete()
+                return
+        self._results.append(parse_result)
+        if context.depth >= self.config.max_depth:
+            self._complete()
+        else:
+            await self._crawl_queue.put((context, parse_result))
 
     async def _crawl_worker(self) -> None:
         while True:
@@ -237,6 +257,8 @@ class Orchestrator:
 
                 try:
                     await self._crawler.crawl(parse_result, context, _queue_child)
+                except ClassificationError:
+                    raise
                 except Exception as exc:
                     logger.error("[orchestrator] crawl error for %s: %s", context.url, exc)
 

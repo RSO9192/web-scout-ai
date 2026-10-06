@@ -6,13 +6,43 @@ network round-trip.
 """
 
 import asyncio
+import time
 from typing import Optional
 
 from .tracker import ResearchTracker
 from .types import CachedSourceArtifact, SourceCacheKey
 
 _SESSION_SOURCE_CACHE: dict[SourceCacheKey, CachedSourceArtifact] = {}
-_SESSION_SOURCE_IN_FLIGHT: dict[SourceCacheKey, asyncio.Future[CachedSourceArtifact]] = {}
+_SESSION_SOURCE_IN_FLIGHT: dict = {}
+_CACHE_TIMES = {}
+CACHE_MAX_BYTES = 32 * 1024 * 1024
+CACHE_MAX_ITEMS = 128
+CACHE_TTL_SECONDS = 300
+
+
+def _artifact_bytes(value):
+    layout = value.layout
+    layout_bytes = 0
+    if layout is not None:
+        layout_bytes = len(layout.document_title.encode()) + 128 * len(layout.pages)
+        layout_bytes += sum(
+            256 + len(section.title.encode()) + sum(len(title.encode()) for title in section.heading_path)
+            for section in layout.sections
+        )
+    return len(value.text_content.encode()) + len(value.binary_bytes) + len(value.title.encode()) + layout_bytes + 512
+
+
+def _trim_cache():
+    now = time.monotonic()
+    for key in list(_CACHE_TIMES):
+        if key not in _SESSION_SOURCE_CACHE or now - _CACHE_TIMES[key] > CACHE_TTL_SECONDS:
+            _SESSION_SOURCE_CACHE.pop(key, None)
+            _CACHE_TIMES.pop(key, None)
+    size = sum(_artifact_bytes(value) for value in _SESSION_SOURCE_CACHE.values())
+    while _SESSION_SOURCE_CACHE and (size > CACHE_MAX_BYTES or len(_SESSION_SOURCE_CACHE) > CACHE_MAX_ITEMS):
+        key = next(iter(_SESSION_SOURCE_CACHE))
+        size -= _artifact_bytes(_SESSION_SOURCE_CACHE.pop(key))
+        _CACHE_TIMES.pop(key, None)
 
 
 def make_source_cache_key(
@@ -65,11 +95,14 @@ async def get_or_fetch_session_source_artifact(
         max_pdf_pages=max_pdf_pages,
         cache_pdf_pages=cache_pdf_pages,
     )
+    key = (key, max_pdf_pages, vision_model or "", tuple(sorted(exclude_domains or [])))
+    _trim_cache()
     cached = _SESSION_SOURCE_CACHE.get(key)
     if cached is not None:
         return cached, None
 
-    existing = _SESSION_SOURCE_IN_FLIGHT.get(key)
+    flight_key = (asyncio.get_running_loop(), key)
+    existing = _SESSION_SOURCE_IN_FLIGHT.get(flight_key)
     if existing is not None:
         try:
             return await asyncio.shield(existing), None
@@ -77,7 +110,7 @@ async def get_or_fetch_session_source_artifact(
             return None, str(exc)
 
     future: asyncio.Future[CachedSourceArtifact] = asyncio.get_running_loop().create_future()
-    _SESSION_SOURCE_IN_FLIGHT[key] = future
+    _SESSION_SOURCE_IN_FLIGHT[flight_key] = future
     try:
         fetch_result, parse_result = await fetch_and_parse_url(
             url,
@@ -106,7 +139,11 @@ async def get_or_fetch_session_source_artifact(
 
         cached = cacheable_from_parse_result(url, parse_result)
         _SESSION_SOURCE_CACHE[key] = cached
+        _CACHE_TIMES[key] = time.monotonic()
+        _trim_cache()
         future.set_result(cached)
         return cached, None
     finally:
-        _SESSION_SOURCE_IN_FLIGHT.pop(key, None)
+        if not future.done():
+            future.cancel()
+        _SESSION_SOURCE_IN_FLIGHT.pop(flight_key, None)

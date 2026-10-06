@@ -254,30 +254,25 @@ async def test_browser_preferred_pdf_download_retains_http_fallbacks(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_pdf_scrapling_attempt_passes_retry_settings(monkeypatch):
-    """Scrapling PDF downloads use AsyncFetcher retries with a fixed delay."""
-    from scrapling.fetchers import AsyncFetcher
-
+async def test_pdf_download_streams_from_pooled_session(monkeypatch):
+    from contextlib import asynccontextmanager
     from web_scout.scraping import _download as dl
 
-    captured_kwargs = {}
+    class Response:
+        status_code = 200
+        async def aiter_content(self):
+            yield b"%PDF-1.7 "
+            yield b"mock data"
 
-    class _Response:
-        status = 200
-        body = b"%PDF-1.7 mock data"
-        headers = {"content-type": "application/pdf"}
+    class Session:
+        @asynccontextmanager
+        async def stream(self, method, url, **kwargs):
+            assert method == "GET"
+            assert kwargs["impersonate"] == "chrome"
+            yield Response()
 
-    async def _fake_get(url, **kwargs):
-        captured_kwargs.update(kwargs)
-        return _Response()
-
-    monkeypatch.setattr(AsyncFetcher, "get", _fake_get)
-
-    pdf_bytes = await dl._ScraplingFetcher()._attempt("https://example.org/report.pdf")
-
-    assert pdf_bytes == b"%PDF-1.7 mock data"
-    assert captured_kwargs["retries"] == 3
-    assert captured_kwargs["retry_delay"] == 2
+    monkeypatch.setattr("web_scout.scraping._resources.binary_session", lambda: Session())
+    assert await dl._ScraplingFetcher()._attempt("https://example.org/report.pdf") == b"%PDF-1.7 mock data"
 
 
 # ---------------------------------------------------------------------------
@@ -336,12 +331,12 @@ async def test_files_url_timeout_is_not_misclassified_as_download(monkeypatch):
     async def _browser_timeout(*args, **kwargs):
         raise RuntimeError(f"Page.goto: net::ERR_CONNECTION_TIMED_OUT at {url}")
 
-    monkeypatch.setattr(AsyncFetcher, "get", _fast_timeout)
+    monkeypatch.setattr("web_scout.scraping._resources.http_get", _fast_timeout)
     monkeypatch.setattr(_scrapling, "stealthy_fetch", _browser_timeout)
 
     result = await ScraplingFetcher().fetch(url, URLContext(url=url, depth=0))
 
-    assert result.error.startswith("source_http_error: browser fetch failed:")
+    assert result.error.startswith("source_http_error: HTTP fetch failed:")
     assert result.error != "__DOWNLOAD_REDIRECT__"
 
 

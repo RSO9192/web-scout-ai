@@ -19,8 +19,9 @@ from web_scout.scraping.utils import is_blocked_domain
 # ---------------------------------------------------------------------------
 
 
-def test_youtube_is_blocked_by_default():
-    assert is_blocked_domain("https://www.youtube.com/watch?v=abc") is True
+def test_youtube_is_blocked_by_recommended_policy():
+    from web_scout.scraping.constants import RECOMMENDED_EXCLUDE_DOMAINS
+    assert is_blocked_domain("https://www.youtube.com/watch?v=abc", exclude_domains=RECOMMENDED_EXCLUDE_DOMAINS) is True
 
 
 def test_fao_org_is_not_blocked():

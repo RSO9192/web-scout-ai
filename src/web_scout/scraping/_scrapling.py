@@ -22,6 +22,21 @@ async def stealthy_fetch(url: str, **kwargs: Any):
     support ``solve_cloudflare`` (requires >= 0.4.9).
     """
     kwargs.setdefault("solve_cloudflare", True)
+    kwargs["network_idle"] = False
+    kwargs["wait"] = 0
+    kwargs.setdefault("disable_resources", True)
+    selector = kwargs.pop("wait_selector", None)
+    action = kwargs.get("page_action")
+    from ._readiness import wait_for_content
+
+    async def ready(page):
+        await wait_for_content(page, selector=selector,
+                               timeout_ms=kwargs.get("timeout", 15_000),
+                               visual=not kwargs.get("disable_resources", True))
+        if action is not None:
+            await action(page)
+
+    kwargs["page_action"] = ready
 
     try:
         return await fetch_via_session(url, **kwargs)

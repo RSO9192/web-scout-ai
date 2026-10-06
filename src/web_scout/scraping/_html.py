@@ -92,10 +92,10 @@ async def scrape_html(
         file download; never returns ``(None, None)``.
     """
     if not needs_browser:
-        from scrapling.fetchers import AsyncFetcher
+        from ._resources import http_get
 
         try:
-            page = await AsyncFetcher.get(
+            page = await http_get(
                 url,
                 stealthy_headers=True,
                 follow_redirects=True,

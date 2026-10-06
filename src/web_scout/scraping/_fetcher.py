@@ -7,10 +7,13 @@ is preserved in ``FetchResult.page`` so the Parser can re-use it for CSS
 selector access without an additional round-trip.
 """
 
+import asyncio
 import logging
+import time
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from typing import Optional
+from urllib.parse import urlparse
 
 from web_scout.config import ROUTING_HEURISTICS
 
@@ -29,8 +32,13 @@ from .utils import (
 )
 
 logger = logging.getLogger(__name__)
+_BROWSER_HOSTS = {}
 
-_BOT_STATUS_CODES = frozenset({403, 429, 503})
+
+class _KnownBrowserHost(Exception):
+    pass
+
+
 _DOWNLOAD_SIGNAL = "__DOWNLOAD_REDIRECT__"
 
 
@@ -95,8 +103,17 @@ class ScraplingFetcher(Fetcher):
         )
 
     async def fetch(self, url: str, context: URLContext) -> FetchResult:
-        from scrapling.fetchers import AsyncFetcher
+        started = time.perf_counter()
+        try:
+            async with asyncio.timeout(75):
+                return await self._fetch(url, context)
+        except TimeoutError:
+            return self._empty(url).model_copy(update={"error": "source_http_error: fetch deadline exceeded"})
+        finally:
+            logger.debug("[fetch-timing] seconds=%.3f url=%s", time.perf_counter() - started, url)
 
+    async def _fetch(self, url: str, context: URLContext) -> FetchResult:
+        from ._resources import http_get
         from ._scrapling import stealthy_fetch
 
         # Pre-fetch URL screening — return early without touching the network
@@ -134,25 +151,45 @@ class ScraplingFetcher(Fetcher):
         used_browser = False
         needs_browser_retry = False
 
+        host = urlparse(url).netloc.lower()
+        cached_browser = _BROWSER_HOSTS.get(host, 0) > time.monotonic()
         # Step 1: fast HTTP with TLS fingerprint spoofing
         try:
-            resp = await AsyncFetcher.get(
+            if cached_browser:
+                raise _KnownBrowserHost()
+            resp = await http_get(
                 url,
                 stealthy_headers=True,
                 follow_redirects=True,
                 timeout=ROUTING_HEURISTICS.validation_timeout,
             )
-            if resp.status in _BOT_STATUS_CODES:
-                needs_browser_retry = True
+            if resp.status == 429:
+                return self._empty(url).model_copy(
+                    update={"status": 429, "headers": dict(resp.headers), "error": "source_http_error: rate limited"}
+                )
+            if resp.status in {403, 503}:
+                html = resp.html_content or ""
+                needs_browser_retry = any(
+                    token in html.lower()
+                    for token in ("cloudflare", "captcha", "challenge", "javascript", "just a moment")
+                )
             elif resp is not None:
                 # Thin-content heuristic: if the fast HTTP response has very few
                 # visible text chars it is likely a SPA shell → use the browser.
                 html = resp.html_content or ""
-                if html and len(extract_text_from_html(html)) < ROUTING_HEURISTICS.html_fast_thin_content_chars:
+                if (
+                    normalize_content_type(resp.headers.get("content-type", "")).startswith("text/html")
+                    and html
+                    and len(extract_text_from_html(html)) < ROUTING_HEURISTICS.html_fast_thin_content_chars
+                    and "<script" in html.lower()
+                ):
                     needs_browser_retry = True
-        except Exception as e:
-            logger.debug("[fetcher] AsyncFetcher failed (%s), trying browser: %s", type(e).__name__, url)
+        except _KnownBrowserHost:
             needs_browser_retry = True
+        except Exception as e:
+            return self._empty(url).model_copy(
+                update={"error": f"source_http_error: HTTP fetch failed: {type(e).__name__}: {e}"}
+            )
 
         # Step 2: browser fallback (Cloudflare bypass)
         if needs_browser_retry:
@@ -171,6 +208,10 @@ class ScraplingFetcher(Fetcher):
                     kwargs["wait_selector"] = context.wait_for
                 try:
                     resp = await stealthy_fetch(url, **kwargs)
+                    if resp.status < 400:
+                        if len(_BROWSER_HOSTS) >= 128:
+                            _BROWSER_HOSTS.pop(next(iter(_BROWSER_HOSTS)))
+                        _BROWSER_HOSTS[host] = time.monotonic() + 300
                 except Exception as e:
                     logger.debug(
                         "[fetcher] StealthyFetcher failed (%s), trying AsyncFetcher: %s",
@@ -183,16 +224,20 @@ class ScraplingFetcher(Fetcher):
                 # Check for download signal (browser navigating to a file download)
                 if _is_download_navigation_error(exc_str):
                     # Return a minimal FetchResult that triggers parse_document
-                    return self._empty(url).model_copy(update={
-                        "used_browser": True,
-                        "status": 200,
-                        "error": _DOWNLOAD_SIGNAL,
-                    })
+                    return self._empty(url).model_copy(
+                        update={
+                            "used_browser": True,
+                            "status": 200,
+                            "error": _DOWNLOAD_SIGNAL,
+                        }
+                    )
                 error_prefix = "source_http_error: " if is_network_error(e) else ""
-                return self._empty(url).model_copy(update={
-                    "used_browser": True,
-                    "error": f"{error_prefix}browser fetch failed: {type(e).__name__}: {exc_str}",
-                })
+                return self._empty(url).model_copy(
+                    update={
+                        "used_browser": True,
+                        "error": f"{error_prefix}browser fetch failed: {type(e).__name__}: {exc_str}",
+                    }
+                )
 
         if resp is None:
             return self._empty(url).model_copy(update={"error": "fetch returned no response"})
@@ -203,9 +248,8 @@ class ScraplingFetcher(Fetcher):
         raw_body = _as_bytes(getattr(resp, "body", None))
 
         # Classify as binary or text
-        is_binary = (
-            any(ct.startswith(t) for t in BINARY_CONTENT_TYPES + IMAGE_CONTENT_TYPES)
-            or (raw_body and sniff_document_payload(raw_body, content_type=ct, content_disposition=cd))
+        is_binary = any(ct.startswith(t) for t in BINARY_CONTENT_TYPES + IMAGE_CONTENT_TYPES) or (
+            raw_body and sniff_document_payload(raw_body, content_type=ct, content_disposition=cd)
         )
 
         html_content = (resp.html_content or None) if not is_binary else None

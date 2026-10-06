@@ -8,10 +8,14 @@ from typing import Any, Optional
 from urllib.parse import urlparse
 
 from agents import Agent, ModelSettings, Runner
+from agents.extensions.models.litellm_model import LitellmModel
 from openai.types.shared.reasoning import Reasoning
 
 from web_scout.config import FOLLOWUP_HEURISTICS
 
+from ._classification import ClassificationError
+from ._classification import backend as classification_backend
+from ._classification import coverage as jev_coverage
 from ._extractor_contract import ExtractorOutcome
 from ._pipeline_rules import (
     _build_citation_slots,
@@ -34,6 +38,7 @@ from ._pipeline_types import (
     FollowupSelection,
     SearchIterationResult,
     SearchLoopState,
+    SearchQueryChecklist,
     SearchQueryGeneration,
 )
 from ._prompts import (
@@ -43,6 +48,7 @@ from ._prompts import (
 )
 from .jev_link_selector import select_links_with_jev
 from .models import WebResearchResult, WebResearchResultRaw
+from .scraping._resources import model_admission
 from .scraping.page_classifier import looks_like_document_resource
 from .scraping.utils import is_blocked_domain, looks_like_document_link
 from .tools import (
@@ -142,7 +148,8 @@ async def _select_followup_urls_with_luna(
         ),
     )
     try:
-        result = await Runner.run(selector, prompt)
+        async with model_admission():
+            result = await Runner.run(selector, prompt)
         raw_selected = result.final_output_as(FollowupSelection).selected_urls
     except Exception as exc:
         logger.warning("[pipeline] follow-up URL reranker failed for %s: %s", parent_url, exc)
@@ -195,10 +202,7 @@ async def _rerank_followup_urls(
 ) -> list[str]:
     """Choose follow-up URLs with Jev or Luna, falling back to the heuristic shortlist."""
     if selector not in FOLLOWUP_BACKENDS:
-        raise ValueError(
-            f"Unknown followup_backend={selector!r}. "
-            f"Supported: {', '.join(sorted(FOLLOWUP_BACKENDS))}."
-        )
+        raise ValueError(f"Unknown followup_backend={selector!r}. Supported: {', '.join(sorted(FOLLOWUP_BACKENDS))}.")
 
     ranked_candidates = _rank_followup_candidates(query, candidates)
     if not ranked_candidates:
@@ -270,8 +274,19 @@ def _build_query_agents(
     query_gen_agent = Agent(
         name="query_generator",
         model=query_gen_model,
-        output_type=SearchQueryGeneration,
-        instructions=QUERY_GENERATOR_INSTRUCTIONS + suffix,
+        output_type=SearchQueryChecklist if classification_backend() == "jev" else SearchQueryGeneration,
+        instructions=QUERY_GENERATOR_INSTRUCTIONS
+        + suffix
+        + (
+            (
+                "\nAlso list every atomic requirement needed to answer the ORIGINAL query. Preserve all "
+                "requested geography, dates, units, entities, comparisons and numerical details; do not "
+                "invent extra requirements."
+            )
+            + ("\nCoverage criteria: " + evaluator_extra_prompt if evaluator_extra_prompt else "")
+            if classification_backend() == "jev"
+            else ""
+        ),
     )
     evaluator_agent = Agent(
         name="coverage_evaluator",
@@ -332,8 +347,14 @@ async def _generate_search_queries(
         missing_info=missing_info if iteration > 0 else "",
     )
     try:
-        gen_res = await Runner.run(query_gen_agent, prompt)
-        search_queries = gen_res.final_output_as(SearchQueryGeneration).queries
+        async with model_admission():
+            gen_res = await Runner.run(query_gen_agent, prompt)
+        generated = gen_res.final_output_as(SearchQueryGeneration)
+        search_queries = generated.queries
+        if iteration == 0 and classification_backend() == "jev":
+            query_gen_agent._research_requirements = list(getattr(generated, "requirements", []) or [query])
+            query_gen_agent.output_type = SearchQueryGeneration
+            query_gen_agent.instructions = query_gen_agent.instructions.split("\nAlso list", 1)[0]
     except Exception as exc:
         logger.error("[pipeline] query generation failed: %s", exc)
         search_queries = []
@@ -695,8 +716,24 @@ async def _evaluate_search_coverage(
     eval_prompt = _build_coverage_prompt(query, tracker)
     snippet_only_entries = tracker.entries_for_action("snippet_only")
     try:
-        eval_res = await Runner.run(evaluator_agent, eval_prompt)
-        evaluation = eval_res.final_output_as(CoverageEvaluation)
+        if classification_backend() == "jev":
+            sources = [
+                {"url": item.url, "text": tracker._source_text.get(tracker.normalize_url(item.url), item.content)}
+                for item in scraped_entries
+            ]
+            candidates = [
+                {"url": item.url, "title": item.title, "snippet": item.content} for item in snippet_only_entries
+            ]
+            answered, gaps, promising = await jev_coverage(query, state.requirements or [query], sources, candidates)
+            evaluation = CoverageEvaluation(
+                fully_answered=answered, gaps=gaps, promising_unscraped_urls=promising, needs_new_searches=not promising
+            )
+        else:
+            async with model_admission():
+                eval_res = await Runner.run(evaluator_agent, eval_prompt)
+            evaluation = eval_res.final_output_as(CoverageEvaluation)
+    except ClassificationError:
+        raise
     except Exception as exc:
         logger.error("[pipeline] coverage evaluation failed: %s", exc)
         evaluation = CoverageEvaluation(
@@ -911,6 +948,13 @@ async def _run_search_mode_impl(
         evaluator_extra_prompt=evaluator_extra_prompt,
     )
     state = SearchLoopState()
+    from .scraping._stealth_session import prewarm_host
+
+    warmups = [
+        asyncio.create_task(prewarm_host("https://" + _normalize_domain(host))) for host in (include_domains or [])[:3]
+    ]
+    for task in warmups:
+        task.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
 
     for iteration in range(depth["max_iterations"]):
         logger.info("[pipeline] starting search iteration %d", iteration + 1)
@@ -936,6 +980,8 @@ async def _run_search_mode_impl(
                 scrape_tool=scrape_tool,
             )
 
+        if classification_backend() == "jev":
+            state.requirements = getattr(query_gen_agent, "_research_requirements", None) or [query]
         if include_domains:
             await _deepen_domain_iteration(
                 query=query,
@@ -995,7 +1041,14 @@ async def _synthesise_result(
         model=synth_model,
         output_type=WebResearchResultRaw,
         instructions=SYNTHESISER_INSTRUCTIONS,
-        model_settings=ModelSettings(reasoning=Reasoning(effort="high")),
+        model_settings=ModelSettings(
+            reasoning=Reasoning(effort="high"),
+            # Mantle supports this parameter even when LiteLLM
+            # does not yet advertise it for the selected model.
+            extra_args={"allowed_openai_params": ["reasoning_effort"]}
+            if isinstance(synth_model, LitellmModel) and synth_model.model.startswith("bedrock_mantle/")
+            else None,
+        ),
     )
     slots = _build_citation_slots(scraped)
 
@@ -1013,7 +1066,8 @@ async def _synthesise_result(
         )
 
     try:
-        synth_res = await Runner.run(synth_agent, synth_prompt)
+        async with model_admission():
+            synth_res = await Runner.run(synth_agent, synth_prompt)
         output = synth_res.final_output_as(WebResearchResultRaw)
     except Exception as exc:
         logger.error("[pipeline] synthesis failed: %s", exc)
@@ -1030,7 +1084,8 @@ async def _synthesise_result(
         )
         retry_prompt = synth_prompt + f"\n\nPrevious attempt:\n{output.synthesis}\n\n{feedback}"
         try:
-            synth_res2 = await Runner.run(synth_agent, retry_prompt)
+            async with model_admission():
+                synth_res2 = await Runner.run(synth_agent, retry_prompt)
             output = synth_res2.final_output_as(WebResearchResultRaw)
         except Exception as exc:
             logger.error("[pipeline] synthesis retry failed: %s", exc)

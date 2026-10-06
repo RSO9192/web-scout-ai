@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "web-scout-ai"
-version = "1.7.0"
+version = "1.8.0"
 description = "Agentic web research tool — smarter than search, faster than deep research. Search, scrape, and synthesize web content using LLMs."
 authors = ["Riccardo Soldan"]
 license = "MIT"
@@ -26,6 +26,7 @@ classifiers = [
     "Framework :: Pydantic :: 2",
 ]
 packages = [{ include = "web_scout", from = "src" }]
+include = [{ path = "CHANGELOG.md", format = ["sdist", "wheel"] }]
 
 [tool.poetry.scripts]
 web-scout-setup = "web_scout._setup:main"
@@ -39,7 +40,7 @@ scrapling = {version = ">=0.4.15", extras = ["fetchers"]}
 markdownify = ">=0.11"
 docling = ">=2.0"
 docling-core = ">=2.0"
-pdf-extractor-ai = ">=0.1.0"
+pdf-extractor-ai = ">=0.2.0"
 litellm = ">=1.30"
 pydantic-settings = ">=2.0"
 boto3 = "^1.43.61"
@@ -78,5 +79,6 @@ select = ["E", "F", "I", "W"]
 "src/web_scout/scraping/_document.py" = ["E501"]
 
 [tool.pytest.ini_options]
+addopts = "--durations=15"
 asyncio_mode = "auto"
 pythonpath = ["src"]

@@ -80,7 +80,7 @@ async def test_kwarg_split_session_vs_fetch():
     session = FakeSession.instances[0]
     # constructor got session-level keys plus the pool size
     assert session.kwargs["headless"] is True
-    assert "retries" not in session.kwargs
+    assert session.kwargs["retries"] == 1
     assert session.kwargs["max_pages"] == ss.SESSION_MAX_PAGES
     assert "wait_selector" not in session.kwargs
     # fetch got only per-fetch keys
@@ -250,4 +250,6 @@ async def test_release_closes_only_when_last_pipeline_exits():
     await ss.release_stealth_sessions()
     assert not FakeSession.instances[0].closed  # sibling still active
     await ss.release_stealth_sessions()
-    assert FakeSession.instances[0].closed  # last one out closes
+    assert not FakeSession.instances[0].closed  # retained for the next research call
+    await ss.close_stealthy_sessions()
+    assert FakeSession.instances[0].closed
