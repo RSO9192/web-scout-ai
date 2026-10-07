@@ -40,7 +40,7 @@ scrapling = {version = ">=0.4.15", extras = ["fetchers"]}
 markdownify = ">=0.11"
 docling = ">=2.0"
 docling-core = ">=2.0"
-pdf-extractor-ai = ">=0.2.0"
+pdf-extractor-ai = ">=0.2.1"
 litellm = ">=1.30"
 pydantic-settings = ">=2.0"
 boto3 = "^1.43.61"
