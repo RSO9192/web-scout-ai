@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.2] - 2026-10-07
+
+### Added
+
+- `DISABLE_JEV=true` forces every Jev-backed feature onto its retained GPT implementation without requiring a TypeSafe token. Unset or `false` preserves Jev defaults.
+- Independent `jev|gpt` environment settings for crawler classification, coverage evaluation, follow-up selection and PDF claim verification: `WEB_SCOUT_CRAWLER_BACKEND`, `WEB_SCOUT_COVERAGE_BACKEND`, `WEB_SCOUT_FOLLOWUP_BACKEND` and `WEB_SCOUT_PDF_CLAIMS_BACKEND`.
+
+### Changed
+
+- Replace the public `followup_backend` parameter with `WEB_SCOUT_FOLLOWUP_BACKEND`. Migrate `followup_backend="luna"` to `WEB_SCOUT_FOLLOWUP_BACKEND=gpt`; the configured GPT models and providers remain unchanged.
+- Require `pdf-extractor-ai>=0.2.1`, including PDFium recovery for failed PDF conversion chunks.
+
+### Fixed
+
+- Propagate source-fetch and parsing failures to shared-cache waiters as source errors rather than cancelling concurrent research tasks. Genuine task cancellation still propagates.
+
 ## [1.8.1] - 2026-10-06
 
 ### Added
