@@ -436,3 +436,10 @@ Set `DISABLE_JEV=true` to use the retained GPT implementations for every Jev-bac
 Each feature defaults to `jev`. The existing `WEB_SCOUT_CLASSIFICATION_BACKEND` remains a shared default for features without a specific setting. Invalid backend values raise an error; missing Jev credentials remain an error when an active feature selects Jev. GPT paths use the existing configured models and provider credentials; disabling Jev does not change model IDs or switch Bedrock models to the OpenAI endpoint.
 
 The `followup_backend` argument has been removed from `run_web_research()`. Replace `followup_backend="luna"` with `WEB_SCOUT_FOLLOWUP_BACKEND=gpt`, or `followup_backend="jev"` with `WEB_SCOUT_FOLLOWUP_BACKEND=jev`.
+
+
+### Orchestrator link selection
+
+`Orchestrator` uses `DefaultCrawler`, which selects links from already-parsed content using the same Jev/GPT selectors as the research pipeline. Select the backend with `WEB_SCOUT_CRAWLER_BACKEND=jev|gpt`; `DISABLE_JEV=true` forces GPT. `WEB_SCOUT_FOLLOWUP_BACKEND` independently controls follow-ups in `run_web_research()`.
+
+`Crawl4AICrawler` remains an alias for `DefaultCrawler` to preserve existing imports. `llm_config=None` still requests heuristic-only selection. Existing config objects with `provider`, `api_token` and `base_url` are accepted for custom GPT connections; third-party extraction-strategy options are no longer used. No Crawl4AI package, browser or setup is required.

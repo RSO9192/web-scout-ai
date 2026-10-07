@@ -10,7 +10,7 @@ Components (ABCs + default implementations)::
 
     Fetcher, ScraplingFetcher
     Parser, DefaultParser
-    Crawler, Crawl4AICrawler
+    Crawler, DefaultCrawler (Crawl4AICrawler remains an alias)
 
 Per-URL context::
 
@@ -30,7 +30,7 @@ Utilities::
     materialize_parse_result — convert ParseResult → (text, error)
 """
 
-from ._crawler import Crawl4AICrawler, Crawler
+from ._crawler import Crawl4AICrawler, Crawler, DefaultCrawler
 from ._fetch_parse import fetch_and_parse_url
 from ._fetcher import Fetcher, ScraplingFetcher
 from ._parser import DefaultParser, Parser, materialize_parse_result
@@ -50,6 +50,7 @@ __all__ = [
     "Parser",
     "DefaultParser",
     "Crawler",
+    "DefaultCrawler",
     "Crawl4AICrawler",
     # Context
     "URLContext",

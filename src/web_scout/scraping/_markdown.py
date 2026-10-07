@@ -13,21 +13,6 @@ from .utils import extract_citation_pdf_urls, looks_like_document_link
 _NOISE_LABELS = frozenset({"read more", "click here", "learn more"})
 
 
-def pick_markdown(md, query: str) -> str:
-    """Return markdown content as a plain string.
-
-    Accepts either a plain string (from markdownify) or a legacy crawl4ai
-    markdown object (kept for backward compatibility).
-    """
-    if isinstance(md, str):
-        return md
-    if query and hasattr(md, "fit_markdown") and md.fit_markdown and len(md.fit_markdown.strip()) > 20:
-        return md.fit_markdown
-    if hasattr(md, "raw_markdown"):
-        return getattr(md, "markdown_with_citations", None) or md.raw_markdown
-    return str(md) if md else ""
-
-
 def _link_label(href: str) -> str:
     """Derive a human-readable label from a bare URL (path tail or hostname)."""
     parsed = urlparse(href)
@@ -68,23 +53,15 @@ def append_links(content: str, result, *, limit: int = 50, html: str | None = No
 
     Collects links from three sources:
     - Markdown hyperlinks already embedded in ``content``.
-    - The ``result.links`` dict (crawl4ai) or ``result.css('a')`` (Scrapling).
+    - The fetched Scrapling page's ``result.css('a')`` links.
     - ``citation_pdf_url`` meta tags from ``html`` / ``result.html_content``.
 
     Icon-only document links (no anchor text) are kept because repository
     pages often expose their primary documents only via file-icon anchors.
     Generic noise labels ("read more", "click here", …) are dropped.
     """
-    # Determine link source: Scrapling page, crawl4ai result dict, or None
-    if result is not None and hasattr(result, "css"):
-        links_data = _extract_links_from_page(result)
-    else:
-        links_data = getattr(result, "links", {}) if result is not None else {}
-
-    if isinstance(links_data, dict):
-        raw_links = list(links_data.get("internal", [])) + list(links_data.get("external", []))
-    else:
-        raw_links = list(getattr(links_data, "internal", [])) + list(getattr(links_data, "external", []))
+    links_data = _extract_links_from_page(result)
+    raw_links = links_data.get("internal", []) + links_data.get("external", [])
 
     if html is not None:
         html_text = html

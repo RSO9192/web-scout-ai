@@ -94,8 +94,6 @@ async def test_disable_jev_uses_gpt_followup_ranker(monkeypatch):
 @pytest.mark.asyncio
 async def test_disable_jev_uses_gpt_crawler(monkeypatch):
     monkeypatch.setenv("DISABLE_JEV", "true")
-    config = object()
-    monkeypatch.setattr(_crawler, "_build_default_llm_config", lambda: config)
     crawler = _crawler.Crawl4AICrawler()
     gpt = AsyncMock(return_value=["https://example.org/report.pdf"])
     monkeypatch.setattr(crawler, "_llm_select", gpt)

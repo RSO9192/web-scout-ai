@@ -1,7 +1,7 @@
 """Web researcher deterministic pipeline facade.
 
 Uses pluggable search backends (Serper, and community-contributed backends). A dedicated
-content extractor sub-agent (crawl4ai / docling) scrapes and summarises
+content extractor sub-agent (Scrapling / Docling) scrapes and summarises
 each URL so the main researcher only sees focused excerpts.
 
 Three input modes — all share a single linear pipeline:
@@ -276,7 +276,7 @@ async def run_web_research(
     if verify_pdf_claims is None:
         verify_pdf_claims = ROUTING_HEURISTICS.verify_pdf_claims
 
-    active_features = ["crawler", "followup"]
+    active_features = ["followup"]
     if not direct_url:
         active_features.append("coverage")
     if verify_pdf_claims:

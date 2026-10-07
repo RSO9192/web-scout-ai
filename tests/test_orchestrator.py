@@ -3,14 +3,14 @@
 import pytest
 
 from web_scout.scraping import (
-    Crawler,
     Crawl4AICrawler,
+    Crawler,
     Fetcher,
     FetchResult,
     Orchestrator,
     OrchestratorConfig,
-    ParseResult,
     Parser,
+    ParseResult,
     SourceArtifact,
     URLContext,
 )
@@ -123,7 +123,7 @@ async def test_orchestrator_live_full_pipeline_starts_search():
         max_concurrent_fetches=2,
         max_concurrent_parses=2,
     )
-    orch = Orchestrator(config, crawler=Crawl4AICrawler(max_links=2))
+    orch = Orchestrator(config, crawler=Crawl4AICrawler(llm_config=None, max_links=2))
 
     seed_url = "https://www.iana.org/domains/example"
     await orch.queue_url(seed_url)
@@ -136,3 +136,29 @@ async def test_orchestrator_live_full_pipeline_starts_search():
     assert seed_results[0].error is None
     assert len(seed_results[0].text_content) > 50
     assert "example" in seed_results[0].text_content.lower() or "example" in seed_results[0].title.lower()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("backend", ["jev", "gpt"])
+async def test_default_crawler_follows_shared_selector_without_refetching(monkeypatch, backend):
+    from unittest.mock import AsyncMock
+
+    from web_scout import _pipeline_flow as flow
+
+    monkeypatch.setenv("WEB_SCOUT_CRAWLER_BACKEND", backend)
+    selector = AsyncMock(return_value=[_CHILD_URL])
+    monkeypatch.setattr(flow, "_select_followup_urls_with_jev", selector)
+    monkeypatch.setattr(flow, "_select_followup_urls_with_luna", selector)
+    monkeypatch.setattr("web_scout.utils.get_model", lambda _: "dummy")
+    fetcher = _RecordingFetcher({
+        _SEED_URL: _make_fetch_result(_SEED_URL), _CHILD_URL: _make_fetch_result(_CHILD_URL),
+    })
+    orch = Orchestrator(
+        OrchestratorConfig(max_depth=1, max_urls=5), fetcher=fetcher,
+        parser=_FakeParser({_SEED_URL: [_CHILD_URL]}),
+    )
+    await orch.queue_url(_SEED_URL)
+    results = await orch.run()
+    assert fetcher.fetched == [_SEED_URL, _CHILD_URL]
+    assert {result.url for result in results} == {_SEED_URL, _CHILD_URL}
+    selector.assert_awaited_once()

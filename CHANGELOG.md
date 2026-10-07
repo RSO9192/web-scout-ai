@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replace Orchestrator's third-party crawler implementation with the shared Jev/GPT follow-up selectors, respecting `WEB_SCOUT_CRAWLER_BACKEND` and `DISABLE_JEV`.
+- Keep `Crawl4AICrawler` as a compatibility alias for `DefaultCrawler`, including heuristic-only and custom GPT connection configuration.
+
+### Removed
+
+- Crawl4AI integration and setup, unused Markdown conversion helpers, and legacy Crawl4AI result handling.
+- Unused crawler credential validation in `run_web_research()`.
+
 ## [1.8.2] - 2026-10-07
 
 ### Added

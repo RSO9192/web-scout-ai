@@ -5,6 +5,8 @@ function in ``_parser.py``) and ``FetchResult`` instead of the removed
 ``plan._validate_url`` / ``ScrapeStrategy`` API.
 """
 
+from types import SimpleNamespace
+
 import pytest
 
 from web_scout.scraping import DefaultParser, FetchResult, ScraplingFetcher, SourceArtifact, URLContext
@@ -33,23 +35,6 @@ def _make_result(url: str, **kwargs) -> FetchResult:
     )
     defaults.update(kwargs)
     return FetchResult(url=url, **defaults)
-
-
-class _MockLink:
-    def __init__(self, href: str, text: str = ""):
-        self.href = href
-        self.text = text
-
-
-class _MockResultLinks:
-    def __init__(self, internal=None, external=None):
-        self.internal = internal or []
-        self.external = external or []
-
-
-class _MockCrawlerResult:
-    def __init__(self, internal=None, external=None):
-        self.links = _MockResultLinks(internal=internal, external=external)
 
 
 # ---------------------------------------------------------------------------
@@ -192,7 +177,9 @@ def test_trim_json_value_limits_large_collections():
 
 def test_append_links_keeps_icon_only_external_document_links():
     content = "Repository record content"
-    result = _MockCrawlerResult(external=[_MockLink("https://cdn.example.org/laws/kenya-forestry-law.pdf", "")])
+    result = SimpleNamespace(css=lambda _: [SimpleNamespace(
+        attrib={"href": "https://cdn.example.org/laws/kenya-forestry-law.pdf"}, get_all_text=lambda: "",
+    )])
 
     enriched = append_links(content, result)
 
@@ -348,6 +335,7 @@ async def test_browser_preferred_pdf_download_retains_http_fallbacks(monkeypatch
 @pytest.mark.asyncio
 async def test_pdf_download_streams_from_pooled_session(monkeypatch):
     from contextlib import asynccontextmanager
+
     from web_scout.scraping import _download as dl
 
     class Response:

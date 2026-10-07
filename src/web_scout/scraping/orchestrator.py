@@ -23,7 +23,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from web_scout._classification import ClassificationError
 from web_scout.config import ROUTING_HEURISTICS
 
-from ._crawler import Crawl4AICrawler, Crawler
+from ._crawler import Crawler, DefaultCrawler
 from ._fetcher import Fetcher, ScraplingFetcher
 from ._parser import DefaultParser, Parser
 from ._resources import pdf_admission
@@ -91,7 +91,7 @@ class Orchestrator:
             vision_model=config.vision_model,
             max_pdf_pages=config.max_pdf_pages,
         )
-        self._crawler: Crawler = crawler or Crawl4AICrawler()
+        self._crawler: Crawler = crawler or DefaultCrawler()
 
         self._fetch_queue: asyncio.Queue[URLContext] = asyncio.Queue(maxsize=config.max_urls)
         self._parse_queue: asyncio.Queue[tuple[URLContext, object]] = asyncio.Queue(

@@ -771,3 +771,13 @@ async def test_rerank_followup_urls_deduplicates_by_normalized_url(monkeypatch):
 
     result_normalized = [url.split("?")[0] for url in result]
     assert result_normalized.count("https://fao.org/fishery/report-2023") == 1
+
+
+@pytest.mark.asyncio
+async def test_research_does_not_require_unused_crawler_jev_credentials(monkeypatch):
+    monkeypatch.setenv("WEB_SCOUT_CRAWLER_BACKEND", "jev")
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    _patch_scrape_tool(monkeypatch)
+    _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Done"))
+    result = await run_web_research("report", models={"web_researcher": "dummy"}, direct_url="https://example.org/report")
+    assert result.synthesis == "Done"

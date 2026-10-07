@@ -1,127 +1,140 @@
-"""Unit tests for Crawl4AICrawler — ensures no duplicate network fetches."""
+"""Shared crawler selectors preserve URL boundaries without fetching pages."""
 
-import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+import builtins
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
-from web_scout.scraping import Crawl4AICrawler, ParseResult, SourceArtifact, URLContext
-from web_scout.scraping._crawler import _build_default_llm_config
+from web_scout import _pipeline_flow as flow
+from web_scout._classification import ClassificationError
+from web_scout.agent import FollowupSelection
+from web_scout.scraping import Crawl4AICrawler, DefaultCrawler, ParseResult, SourceArtifact, URLContext
 
 
-def _make_parse_result(*, raw_html: str | None = "<html><body><a href='/doc.pdf'>PDF</a></body></html>") -> ParseResult:
-    artifact = SourceArtifact(kind="text", title="Example", text_content="Example page")
+def _page():
     return ParseResult(
         url="https://example.org/page",
-        title="Example",
-        text_content="Example page",
-        links=["https://example.org/doc.pdf"],
-        artifact=artifact,
-        raw_html=raw_html,
+        title="Climate reports",
+        text_content="Available climate reports",
+        links=[f"https://example.org/reports/report-{i}.pdf" for i in range(3)],
+        artifact=SourceArtifact(kind="text", title="Climate reports", text_content="Available climate reports"),
+        raw_html="<html>already fetched</html>",
     )
 
 
-def test_prefetched_crawl_input_uses_raw_prefix_with_fetched_html():
-    crawler = Crawl4AICrawler()
-    result = _make_parse_result()
-
-    crawl_input = crawler._prefetched_crawl_input(result)
-
-    assert crawl_input.startswith("raw:")
-    assert "<html>" in crawl_input
-    assert "https://example.org/page" not in crawl_input
-
-
-def test_prefetched_crawl_input_builds_synthetic_html_without_raw_html():
-    crawler = Crawl4AICrawler()
-    result = _make_parse_result(raw_html=None)
-
-    crawl_input = crawler._prefetched_crawl_input(result)
-
-    assert crawl_input.startswith("raw:")
-    assert "https://example.org/doc.pdf" in crawl_input
-
-
-def test_build_default_llm_config_without_api_key_returns_none(monkeypatch):
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    monkeypatch.delenv("BEDROCK_MANTLE_API_KEY", raising=False)
-    monkeypatch.delenv("AWS_BEARER_TOKEN_BEDROCK", raising=False)
-    assert _build_default_llm_config() is None
-
-
-class _FakeLLMConfig:
-    def __init__(self, provider, api_token=None, temperature=0):
-        self.provider = provider
-        self.api_token = api_token
-        self.temperature = temperature
-
-
-def _patch_crawl4ai_llm_config():
-    mock_crawl4ai = MagicMock()
-    mock_crawl4ai.LLMConfig = _FakeLLMConfig
-    return patch.dict(sys.modules, {"crawl4ai": mock_crawl4ai})
-
-
-def test_build_default_llm_config_uses_followup_selector_model(monkeypatch):
-    monkeypatch.setenv("BEDROCK_MANTLE_API_KEY", "test-key")
-    with _patch_crawl4ai_llm_config():
-        config = _build_default_llm_config()
-    assert config is not None
-    assert config.provider == "bedrock_mantle/openai.gpt-6-luna"
-    assert config.api_token == "test-key"
-    assert config.temperature is None
-
-
-def test_crawl4ai_crawler_uses_heuristics_when_llm_config_is_none():
-    crawler = Crawl4AICrawler(llm_config=None)
-    assert crawler._llm_config is None
-
-
-def test_crawl4ai_crawler_resolves_default_llm_config_when_api_key_present(monkeypatch):
-    monkeypatch.setenv("BEDROCK_MANTLE_API_KEY", "test-key")
-    with _patch_crawl4ai_llm_config():
-        crawler = Crawl4AICrawler()
-    assert crawler._llm_config is not None
-    assert crawler._llm_config.provider == "bedrock_mantle/openai.gpt-6-luna"
+def test_legacy_public_class_alias_is_preserved():
+    assert Crawl4AICrawler is DefaultCrawler
 
 
 @pytest.mark.asyncio
-async def test_llm_select_passes_prefetched_html_to_crawl4ai():
-    crawler = Crawl4AICrawler(llm_config=object())
-    result = _make_parse_result()
-    context = URLContext(url=result.url, depth=0)
+async def test_gpt_selects_using_existing_runner_and_never_imports_crawl4ai(monkeypatch):
+    original_import = builtins.__import__
 
-    mock_crawl_result = MagicMock()
-    mock_crawl_result.extracted_content = '{"relevant_urls": ["https://example.org/doc.pdf"]}'
+    def guarded_import(name, *args, **kwargs):
+        assert not name.startswith("crawl4ai")
+        return original_import(name, *args, **kwargs)
 
-    mock_arun = AsyncMock(return_value=mock_crawl_result)
-    mock_crawler_instance = MagicMock()
-    mock_crawler_instance.arun = mock_arun
-    mock_crawler_instance.__aenter__ = AsyncMock(return_value=mock_crawler_instance)
-    mock_crawler_instance.__aexit__ = AsyncMock(return_value=False)
+    monkeypatch.setattr(builtins, "__import__", guarded_import)
+    monkeypatch.setenv("WEB_SCOUT_CRAWLER_BACKEND", "gpt")
+    page = _page()
+    output = SimpleNamespace(
+        final_output_as=lambda _: FollowupSelection(
+            selected_urls=["https://invented.org/", page.links[1], page.links[1]],
+        )
+    )
+    runner = AsyncMock(return_value=output)
+    monkeypatch.setattr(flow.Runner, "run", runner)
+    monkeypatch.setattr("web_scout.utils.get_model", lambda name: "dummy")
+    selected = await DefaultCrawler(max_links=1)._select_links(page, URLContext(url=page.url, depth=0))
+    assert selected == [page.links[1]]
+    runner.assert_awaited_once()
+    assert "Available climate reports" in runner.await_args.args[1]
+    assert page.url in runner.await_args.args[1]
 
-    mock_crawl4ai = MagicMock()
-    mock_crawl4ai.AsyncWebCrawler = MagicMock(return_value=mock_crawler_instance)
-    mock_crawl4ai.CrawlerRunConfig = MagicMock(side_effect=lambda **kwargs: kwargs)
-    mock_crawl4ai.CacheMode = MagicMock(BYPASS="bypass")
 
-    mock_extraction_strategy = MagicMock()
-    mock_extraction_strategy.LLMExtractionStrategy = MagicMock(return_value=MagicMock())
+@pytest.mark.asyncio
+async def test_jev_selects_using_shared_followup_selector(monkeypatch):
+    monkeypatch.setenv("WEB_SCOUT_CRAWLER_BACKEND", "jev")
+    page = _page()
+    jev = AsyncMock(return_value=([page.links[2]], None))
+    monkeypatch.setattr(flow, "select_links_with_jev", jev)
+    selected = await DefaultCrawler(max_links=1)._select_links(page, URLContext(url=page.url, depth=0))
+    assert selected == [page.links[2]]
+    assert jev.await_args.kwargs["candidates"] == page.links
+    assert jev.await_args.kwargs["parent_content"] == page.text_content
 
-    with patch.dict(
-        sys.modules,
-        {
-            "crawl4ai": mock_crawl4ai,
-            "crawl4ai.extraction_strategy": mock_extraction_strategy,
-        },
-    ):
-        selected = await crawler._llm_select(result, context)
 
-    assert selected == ["https://example.org/doc.pdf"]
-    mock_arun.assert_awaited_once()
-    crawl_input = mock_arun.await_args.args[0]
-    assert crawl_input.startswith("raw:")
-    assert crawl_input != result.url
-    assert not crawl_input.startswith("http")
-    config = mock_arun.await_args.kwargs["config"]
-    assert config["base_url"] == result.url
+@pytest.mark.asyncio
+async def test_disable_jev_overrides_crawler_setting(monkeypatch):
+    monkeypatch.setenv("DISABLE_JEV", "true")
+    monkeypatch.setenv("WEB_SCOUT_CRAWLER_BACKEND", "jev")
+    crawler = DefaultCrawler()
+    gpt = AsyncMock(return_value=[_page().links[0]])
+    jev = AsyncMock(side_effect=AssertionError("Jev must not run"))
+    monkeypatch.setattr(crawler, "_llm_select", gpt)
+    monkeypatch.setattr(flow, "select_links_with_jev", jev)
+    assert await crawler._select_links(_page(), URLContext(url=_page().url, depth=0)) == [_page().links[0]]
+    gpt.assert_awaited_once()
+    jev.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_explicit_none_keeps_heuristics_without_ai(monkeypatch):
+    crawler = Crawl4AICrawler(llm_config=None, max_links=1)
+    gpt = AsyncMock(side_effect=AssertionError("AI must not run"))
+    monkeypatch.setattr(crawler, "_llm_select", gpt)
+    page = _page()
+    assert await crawler._select_links(page, URLContext(url=page.url, depth=0)) == page.links[:1]
+    gpt.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_legacy_custom_connection_is_preserved(monkeypatch):
+    config = SimpleNamespace(provider="openai/gpt-4o-mini", api_token="custom-key", base_url="https://custom.test")
+    captured = {}
+
+    def model(**kwargs):
+        captured.update(kwargs)
+        return "custom-model"
+
+    monkeypatch.setattr("agents.extensions.models.litellm_model.LitellmModel", model)
+    selector = AsyncMock(return_value=_page().links[:1])
+    monkeypatch.setattr(flow, "_select_followup_urls_with_luna", selector)
+    crawler = Crawl4AICrawler(llm_config=config, max_links=1)
+    await crawler._select_links(_page(), URLContext(url=_page().url, depth=0))
+    assert captured == {"model": config.provider, "api_key": config.api_token, "base_url": config.base_url}
+    assert selector.await_args.kwargs["model"] == "custom-model"
+
+
+@pytest.mark.asyncio
+async def test_gpt_failure_keeps_existing_shortlist_fallback(monkeypatch):
+    monkeypatch.setenv("WEB_SCOUT_CRAWLER_BACKEND", "gpt")
+    monkeypatch.setattr("web_scout.utils.get_model", lambda name: "dummy")
+    monkeypatch.setattr(flow.Runner, "run", AsyncMock(side_effect=TimeoutError()))
+    assert (
+        await DefaultCrawler(max_links=1)._select_links(_page(), URLContext(url=_page().url, depth=0))
+        == _page().links[:1]
+    )
+
+
+@pytest.mark.asyncio
+async def test_jev_failure_remains_a_hard_error(monkeypatch):
+    monkeypatch.setenv("WEB_SCOUT_CRAWLER_BACKEND", "jev")
+    monkeypatch.setattr(flow, "select_links_with_jev", AsyncMock(side_effect=ClassificationError("missing token")))
+    with pytest.raises(ClassificationError):
+        await DefaultCrawler()._select_links(_page(), URLContext(url=_page().url, depth=0))
+
+
+@pytest.mark.asyncio
+async def test_crawl_queues_selected_links_and_skips_empty_pages(monkeypatch):
+    crawler = DefaultCrawler()
+    page = _page()
+    selector = AsyncMock(return_value=[page.links[2]])
+    queue = AsyncMock()
+    monkeypatch.setattr(crawler, "_select_links", selector)
+    await crawler.crawl(page, URLContext(url=page.url, depth=0), queue)
+    queue.assert_awaited_once_with(page.links[2])
+    page.links.clear()
+    await crawler.crawl(page, URLContext(url=page.url, depth=0), queue)
+    selector.assert_awaited_once()

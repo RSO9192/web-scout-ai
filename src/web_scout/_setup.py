@@ -28,21 +28,9 @@ def _install_chromium_deps() -> None:
     _run([sys.executable, "-m", "patchright", "install-deps", "chromium"])
 
 
-def _setup_crawl4ai() -> None:
-    """Run crawl4ai's own post-install setup (optional dependency)."""
-    try:
-        subprocess.run([sys.executable, "-m", "crawl4ai.install"], check=True)
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        try:
-            subprocess.run(["crawl4ai-setup"], check=True)
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            print("web-scout-ai: crawl4ai not found, skipping crawl4ai setup.")
-
-
 def main() -> None:
-    """Install Patchright Chromium, its system dependencies, and run crawl4ai setup."""
+    """Install Patchright Chromium and its system dependencies."""
     print("web-scout-ai: setting up browser for web scraping...")
-    _setup_crawl4ai()
     _install_chromium()
     _install_chromium_deps()
     print("web-scout-ai: browser setup complete.")

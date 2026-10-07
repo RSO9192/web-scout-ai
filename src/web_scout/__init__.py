@@ -1,7 +1,7 @@
 """Agentic web research — smarter than search, faster than deep research.
 
 Uses pluggable search backends (Serper, and community-contributed backends). A dedicated
-content extractor sub-agent (crawl4ai / docling) scrapes and summarises
+content extractor sub-agent (Scrapling / Docling) scrapes and summarises
 each URL so the main researcher only sees focused excerpts.
 
 The pipeline generates search queries, evaluates coverage, iterates if
@@ -99,7 +99,7 @@ def configure_logging(level: int = _logging.INFO) -> None:
     the ``web_scout.*`` loggers with timestamps and level names. Safe to call
     repeatedly; handlers are only attached once.
 
-    Third-party loggers (httpx, crawl4ai, litellm, docling) are kept at
+    Third-party loggers (httpx, litellm, docling) are kept at
     WARNING regardless of the requested level.
 
     Args:
