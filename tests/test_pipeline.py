@@ -9,6 +9,7 @@ All LLM and network calls are replaced with synchronous fakes via monkeypatch.
 import pytest
 
 from web_scout import agent as _agent_module
+from web_scout._classification import ClassificationError
 from web_scout.agent import (
     CoverageEvaluation,
     FollowupSelection,
@@ -126,13 +127,13 @@ async def test_run_web_research_raises_for_invalid_research_depth():
 
 
 @pytest.mark.asyncio
-async def test_run_web_research_raises_for_unknown_followup_backend():
-    """`followup_backend` must be 'jev' or 'luna'."""
-    with pytest.raises(ValueError, match="Unknown followup_backend"):
+async def test_run_web_research_raises_for_unknown_followup_backend(monkeypatch):
+    """The follow-up environment setting must be jev or gpt."""
+    monkeypatch.setenv("WEB_SCOUT_FOLLOWUP_BACKEND", "unknown")
+    with pytest.raises(ClassificationError, match="WEB_SCOUT_FOLLOWUP_BACKEND"):
         await run_web_research(
             query="fish",
             models={"web_researcher": "dummy"},
-            followup_backend="gpt",
         )
 
 
@@ -372,7 +373,6 @@ async def test_direct_url_mode_can_deepen_cross_domain_document_followup(monkeyp
         query="Kenya forestry law",
         models={"web_researcher": "dummy", "content_extractor": "dummy"},
         direct_url=direct_url,
-        followup_backend="luna",
     )
 
     assert scrape_calls == [direct_url, followup_url]
@@ -422,7 +422,6 @@ async def test_direct_url_hub_page_triggers_deepening(monkeypatch):
         query="FAO fish production reports",
         models={"web_researcher": "dummy", "content_extractor": "dummy"},
         direct_url="https://fao.org/fishery/hub",
-        followup_backend="luna",
     )
 
     # At least the hub URL AND one follow-up URL were scraped

@@ -21,10 +21,13 @@ class ClassificationError(RuntimeError):
     """Configuration, authentication, or exhausted classification request failure."""
 
 
-def backend():
-    value = os.getenv("WEB_SCOUT_CLASSIFICATION_BACKEND", "jev").lower()
+def backend(feature=None):
+    if os.getenv("DISABLE_JEV", "false").strip().lower() == "true":
+        return "gpt"
+    variable = f"WEB_SCOUT_{feature.upper()}_BACKEND" if feature else "WEB_SCOUT_CLASSIFICATION_BACKEND"
+    value = os.getenv(variable, os.getenv("WEB_SCOUT_CLASSIFICATION_BACKEND", "jev")).strip().lower()
     if value not in {"jev", "gpt"}:
-        raise ClassificationError("WEB_SCOUT_CLASSIFICATION_BACKEND must be jev or gpt")
+        raise ClassificationError(f"{variable} must be jev or gpt")
     return value
 
 

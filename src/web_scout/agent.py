@@ -230,7 +230,6 @@ async def run_web_research(
     include_domains: Optional[List[str]] = None,
     direct_url: Optional[str] = None,
     search_backend: str = "serper",
-    followup_backend: str = DEFAULT_FOLLOWUP_BACKEND,
     domain_expertise: Optional[str] = None,
     research_depth: str | dict = "standard",
     exclude_domains: Optional[List[str]] = None,
@@ -244,9 +243,8 @@ async def run_web_research(
 ) -> WebResearchResult:
     """Run deterministic web research pipeline.
 
-    ``followup_backend`` chooses how follow-up links are ranked: ``"jev"``
-    (default, TypeSafe Jev) or ``"luna"`` (Agents SDK model from
-    ``models["followup_selector"]``).
+    ``WEB_SCOUT_FOLLOWUP_BACKEND=jev|gpt`` selects follow-up link ranking.
+    ``DISABLE_JEV=true`` forces all Jev-backed features onto their GPT paths.
 
     ``extractor_guidance`` augments only the per-source content extractor.
     The base extraction contract takes precedence over conflicting guidance.
@@ -262,28 +260,29 @@ async def run_web_research(
 
     configure_logging()
 
-    from ._classification import backend as classification_backend
-    from ._classification import require_credentials
-
-    if classification_backend() == "jev":
-        require_credentials()
-
     from web_scout.config import ROUTING_HEURISTICS
 
+    from ._classification import backend as classification_backend
+    from ._classification import require_credentials
     from .utils import get_model
 
     if models is None:
         models = DEFAULT_WEB_RESEARCH_MODELS
 
-    if followup_backend not in FOLLOWUP_BACKENDS:
-        raise ValueError(
-            f"Unknown followup_backend={followup_backend!r}. Supported: {', '.join(sorted(FOLLOWUP_BACKENDS))}."
-        )
+    followup_backend = classification_backend("followup")
 
     if short_pdf_max_chars is None:
         short_pdf_max_chars = ROUTING_HEURISTICS.short_pdf_max_chars
     if verify_pdf_claims is None:
         verify_pdf_claims = ROUTING_HEURISTICS.verify_pdf_claims
+
+    active_features = ["crawler", "followup"]
+    if not direct_url:
+        active_features.append("coverage")
+    if verify_pdf_claims:
+        active_features.append("pdf_claims")
+    if any(classification_backend(feature) == "jev" for feature in active_features):
+        require_credentials()
 
     if isinstance(research_depth, str):
         if research_depth not in _DEPTH_PRESETS:
@@ -323,7 +322,7 @@ async def run_web_research(
     evaluator_model = get_model(models.get("coverage_evaluator", fallback_model))
     synth_model = get_model(models.get("synthesiser", fallback_model))
     followup_model = None
-    if followup_backend == "luna":
+    if followup_backend == "gpt":
         followup_model = get_model(
             models.get(
                 "followup_selector",

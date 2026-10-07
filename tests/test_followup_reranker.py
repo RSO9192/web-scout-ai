@@ -71,7 +71,7 @@ async def test_rerank_followup_urls_uses_luna_when_selected(monkeypatch):
         ],
         cap=2,
         model="dummy",
-        selector="luna",
+        selector="gpt",
     )
 
     assert result == [

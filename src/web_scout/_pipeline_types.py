@@ -14,9 +14,9 @@ DEFAULT_WEB_RESEARCH_MODELS = {
 }
 
 # Backend that chooses which follow-up links to open. "jev" is the default;
-# "luna" uses the Agents SDK model named in models["followup_selector"].
+# "gpt" uses the Agents SDK model named in models["followup_selector"].
 DEFAULT_FOLLOWUP_BACKEND = "jev"
-FOLLOWUP_BACKENDS = frozenset({"jev", "luna"})
+FOLLOWUP_BACKENDS = frozenset({"jev", "gpt"})
 
 
 class SearchQueryGeneration(BaseModel):

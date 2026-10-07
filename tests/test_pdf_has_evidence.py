@@ -162,3 +162,27 @@ async def test_chunk_prompt_requires_object_and_exact_evidence_fields(monkeypatc
     assert "Return exactly one JSON object with the `evidence` field" in prompts[0]
     assert "Each evidence item must have exactly `text`, `page_start`, and `page_end`" in prompts[0]
     assert 'When there is no evidence, return exactly {"evidence":[]}' in prompts[0]
+
+
+@pytest.mark.asyncio
+async def test_disable_jev_uses_gpt_pdf_claim_verification(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    monkeypatch.setenv("DISABLE_JEV", "true")
+    monkeypatch.setenv("WEB_SCOUT_PDF_CLAIMS_BACKEND", "jev")
+    extracted = PdfExtractResult(
+        relevant_content="Guidance [p. 1].",
+        evidence=[PdfEvidenceItem(text="guidance", page_start=1, page_end=1)],
+    )
+    _patch_llm(monkeypatch, extracted)
+    jev = AsyncMock(side_effect=AssertionError("Jev must not run"))
+    gpt = AsyncMock(return_value=extracted)
+    monkeypatch.setattr(pdf_mod, "supported_evidence", jev)
+    monkeypatch.setattr(pdf_mod, "_verify_claims_llm", gpt)
+    _, content, pages = await extract_pdf_for_query(
+        artifact=_ARTIFACT, query="guidance", model="dummy", verify_pdf_claims=True,
+    )
+    assert content == "Guidance [p. 1]."
+    assert pages == [1]
+    gpt.assert_awaited_once()
+    jev.assert_not_awaited()

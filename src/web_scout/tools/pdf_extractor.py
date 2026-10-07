@@ -567,7 +567,7 @@ async def extract_pdf_for_query(
         return title, _NO_RELEVANT, []
 
     evidence = filter_evidence_by_layout(result.evidence, layout)
-    if verify_pdf_claims and classification_backend() == "jev":
+    if verify_pdf_claims and classification_backend("pdf_claims") == "jev":
         from pdf_extractor_ai.markdown import split_pages
 
         evidence = await supported_evidence(evidence, split_pages(markdown))

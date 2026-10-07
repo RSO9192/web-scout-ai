@@ -200,7 +200,7 @@ async def _rerank_followup_urls(
     model: Any = None,
     selector: str = DEFAULT_FOLLOWUP_BACKEND,
 ) -> list[str]:
-    """Choose follow-up URLs with Jev or Luna, falling back to the heuristic shortlist."""
+    """Choose follow-up URLs with Jev or GPT, falling back to the heuristic shortlist."""
     if selector not in FOLLOWUP_BACKENDS:
         raise ValueError(f"Unknown followup_backend={selector!r}. Supported: {', '.join(sorted(FOLLOWUP_BACKENDS))}.")
 
@@ -211,10 +211,10 @@ async def _rerank_followup_urls(
     if len(candidates) <= cap or len(shortlist) == 1:
         return shortlist[:cap]
 
-    if selector == "luna":
+    if selector == "gpt":
         if model is None:
             logger.warning(
-                "[pipeline] followup_backend='luna' needs a model; using heuristic shortlist for %s",
+                "[pipeline] followup_backend='gpt' needs a model; using heuristic shortlist for %s",
                 parent_url,
             )
             return shortlist[:cap]
@@ -274,7 +274,7 @@ def _build_query_agents(
     query_gen_agent = Agent(
         name="query_generator",
         model=query_gen_model,
-        output_type=SearchQueryChecklist if classification_backend() == "jev" else SearchQueryGeneration,
+        output_type=SearchQueryChecklist if classification_backend("coverage") == "jev" else SearchQueryGeneration,
         instructions=QUERY_GENERATOR_INSTRUCTIONS
         + suffix
         + (
@@ -284,7 +284,7 @@ def _build_query_agents(
                 "invent extra requirements."
             )
             + ("\nCoverage criteria: " + evaluator_extra_prompt if evaluator_extra_prompt else "")
-            if classification_backend() == "jev"
+            if classification_backend("coverage") == "jev"
             else ""
         ),
     )
@@ -351,7 +351,7 @@ async def _generate_search_queries(
             gen_res = await Runner.run(query_gen_agent, prompt)
         generated = gen_res.final_output_as(SearchQueryGeneration)
         search_queries = generated.queries
-        if iteration == 0 and classification_backend() == "jev":
+        if iteration == 0 and classification_backend("coverage") == "jev":
             query_gen_agent._research_requirements = list(getattr(generated, "requirements", []) or [query])
             query_gen_agent.output_type = SearchQueryGeneration
             query_gen_agent.instructions = query_gen_agent.instructions.split("\nAlso list", 1)[0]
@@ -716,7 +716,7 @@ async def _evaluate_search_coverage(
     eval_prompt = _build_coverage_prompt(query, tracker)
     snippet_only_entries = tracker.entries_for_action("snippet_only")
     try:
-        if classification_backend() == "jev":
+        if classification_backend("coverage") == "jev":
             sources = [
                 {"url": item.url, "text": tracker._source_text.get(tracker.normalize_url(item.url), item.content)}
                 for item in scraped_entries
@@ -980,7 +980,7 @@ async def _run_search_mode_impl(
                 scrape_tool=scrape_tool,
             )
 
-        if classification_backend() == "jev":
+        if classification_backend("coverage") == "jev":
             state.requirements = getattr(query_gen_agent, "_research_requirements", None) or [query]
         if include_domains:
             await _deepen_domain_iteration(

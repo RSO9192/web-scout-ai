@@ -143,6 +143,10 @@ async def get_or_fetch_session_source_artifact(
         _trim_cache()
         future.set_result(cached)
         return cached, None
+    except Exception as exc:
+        future.set_exception(exc)
+        future.exception()
+        raise
     finally:
         if not future.done():
             future.cancel()

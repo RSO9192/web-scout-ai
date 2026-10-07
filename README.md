@@ -269,7 +269,7 @@ fields, page-type handling, and the exact no-evidence sentinel.
 
 ## Configuration
 
-The defaults are Bedrock Mantle GPT-6 Luna for research and extraction, TypeSafe Jev for follow-up link selection, and `gemini/gemini-3.7-flash` for vision. Model IDs follow [LiteLLM provider naming](https://docs.litellm.ai/docs/providers), so each stage can use a different provider or model. Pass `followup_backend="luna"` to use the Agents SDK model in `models["followup_selector"]` instead of Jev. Jev reads `TYPESAFE_API_KEY`.
+The defaults are Bedrock Mantle GPT-6 Luna for research and extraction, TypeSafe Jev for follow-up link selection, and `gemini/gemini-3.7-flash` for vision. Model IDs follow [LiteLLM provider naming](https://docs.litellm.ai/docs/providers), so each stage can use a different provider or model. Set `WEB_SCOUT_FOLLOWUP_BACKEND=gpt` to use the Agents SDK model in `models["followup_selector"]` instead of Jev. Jev reads `TYPESAFE_API_KEY`.
 
 ```python
 models = {
@@ -283,13 +283,13 @@ models = {
     "query_generator": "openai/gpt-4o-mini",
     "coverage_evaluator": "openai/gpt-4o-mini",
     "synthesiser": "openai/gpt-4o-mini",
-    "followup_selector": "openai/gpt-4o-mini",  # used when followup_backend="luna"
+    "followup_selector": "openai/gpt-4o-mini",  # used when WEB_SCOUT_FOLLOWUP_BACKEND=gpt
     "vision_fallback": "gemini/gemini-2.0-flash",
 }
 
 result = await run_web_research(query="...", models=models)
 # Or keep Luna for link selection:
-# result = await run_web_research(query="...", followup_backend="luna", models=models)
+# Set WEB_SCOUT_FOLLOWUP_BACKEND=gpt in the environment, then pass models as usual.
 ```
 
 Provider credentials are read from their standard environment variables, such as `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `TYPESAFE_API_KEY`, or AWS credentials for Bedrock.
@@ -320,7 +320,7 @@ if is_pdf:
 ```python
 from web_scout import fetch_pdf
 
-pdf_bytes = await fetch_pdf("https://example.org/report.pdf")
+pdf_bytes = await fetch_pdf("https://openknowledge.fao.org/bitstreams/c1caede2-ea98-46b0-b663-4cae429e05d3/download")
 ```
 
 ```python
@@ -407,7 +407,7 @@ It is intentionally a bounded research component. If you only need search links,
 
 ## Classification and resource reuse
 
-Semantic classification defaults to TypeSafe Jev and requires `TYPESAFE_API_KEY`. Set `WEB_SCOUT_CLASSIFICATION_BACKEND=gpt` to use the existing GPT classifiers instead. Query generation, factual extraction, visual descriptions and synthesis continue to use your configured generative models. Existing follow-up backend selection remains available.
+Semantic classification defaults to TypeSafe Jev and requires `TYPESAFE_API_KEY`. Set `WEB_SCOUT_CLASSIFICATION_BACKEND=gpt` to use the existing GPT classifiers instead. Query generation, factual extraction, visual descriptions and synthesis continue to use your configured generative models. Feature-specific switches and the global override are described below.
 
 CPU PDF pipelines initialize on the first document and are reused. Browser and HTTP resources are reused on the same event loop; after requests finish, call `await web_scout.scraping.close_resources()` at application shutdown. See the [performance report](docs/performance.md) for measurements, limits, benchmark commands and compatibility details.
 
@@ -420,3 +420,19 @@ Bug reports and focused pull requests are welcome at [github.com/RSO9192/web-sco
 ## License
 
 [MIT](LICENSE)
+
+
+### Jev / GPT selection
+
+Set `DISABLE_JEV=true` to use the retained GPT implementations for every Jev-backed feature. It overrides all feature settings and does not require `TYPESAFE_API_KEY`. Unset or `DISABLE_JEV=false` preserves Jev defaults. Values are case-insensitive and surrounding whitespace is ignored.
+
+| Environment variable | Feature | Values |
+| --- | --- | --- |
+| `WEB_SCOUT_CRAWLER_BACKEND` | Crawler link classification | `jev`, `gpt` |
+| `WEB_SCOUT_COVERAGE_BACKEND` | Search coverage evaluation | `jev`, `gpt` |
+| `WEB_SCOUT_FOLLOWUP_BACKEND` | Follow-up link selection | `jev`, `gpt` |
+| `WEB_SCOUT_PDF_CLAIMS_BACKEND` | PDF claim verification when enabled | `jev`, `gpt` |
+
+Each feature defaults to `jev`. The existing `WEB_SCOUT_CLASSIFICATION_BACKEND` remains a shared default for features without a specific setting. Invalid backend values raise an error; missing Jev credentials remain an error when an active feature selects Jev. GPT paths use the existing configured models and provider credentials; disabling Jev does not change model IDs or switch Bedrock models to the OpenAI endpoint.
+
+The `followup_backend` argument has been removed from `run_web_research()`. Replace `followup_backend="luna"` with `WEB_SCOUT_FOLLOWUP_BACKEND=gpt`, or `followup_backend="jev"` with `WEB_SCOUT_FOLLOWUP_BACKEND=jev`.

@@ -571,3 +571,53 @@ async def test_scrape_tool_skips_new_urls_from_bot_blocked_domain(monkeypatch):
     assert "domain blocked by bot protection" in result
     assert "example.org" in result
     assert tracker.bot_blocked_domains() == {"example.org"}
+
+
+@pytest.mark.asyncio
+async def test_session_source_parse_exception_does_not_cancel_waiters(monkeypatch):
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def failing_fetch(*args, **kwargs):
+        started.set()
+        await release.wait()
+        raise RuntimeError("Page 12 failed to parse")
+
+    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_CACHE", {})
+    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_IN_FLIGHT", {})
+    monkeypatch.setattr("web_scout.scraping.fetch_and_parse_url", failing_fetch)
+    kwargs = dict(url="https://example.org/failed.pdf", wait_for=None,
+                  vision_model=None, exclude_domains=None, max_pdf_pages=50)
+    owner = asyncio.create_task(get_or_fetch_session_source_artifact(**kwargs))
+    await started.wait()
+    waiter = asyncio.create_task(get_or_fetch_session_source_artifact(**kwargs))
+    await asyncio.sleep(0)
+    release.set()
+    results = await asyncio.gather(owner, waiter, return_exceptions=True)
+
+    assert isinstance(results[0], RuntimeError)
+    assert results[1] == (None, "Page 12 failed to parse")
+    assert not _tools_session_cache._SESSION_SOURCE_IN_FLIGHT
+    assert not _tools_session_cache._SESSION_SOURCE_CACHE
+
+
+@pytest.mark.asyncio
+async def test_session_source_owner_cancellation_still_cancels_waiters(monkeypatch):
+    started = asyncio.Event()
+
+    async def pending_fetch(*args, **kwargs):
+        started.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_IN_FLIGHT", {})
+    monkeypatch.setattr("web_scout.scraping.fetch_and_parse_url", pending_fetch)
+    kwargs = dict(url="https://example.org/cancelled.pdf", wait_for=None,
+                  vision_model=None, exclude_domains=None, max_pdf_pages=50)
+    owner = asyncio.create_task(get_or_fetch_session_source_artifact(**kwargs))
+    await started.wait()
+    waiter = asyncio.create_task(get_or_fetch_session_source_artifact(**kwargs))
+    await asyncio.sleep(0)
+    owner.cancel()
+    results = await asyncio.gather(owner, waiter, return_exceptions=True)
+    assert all(isinstance(result, asyncio.CancelledError) for result in results)
+    assert not _tools_session_cache._SESSION_SOURCE_IN_FLIGHT

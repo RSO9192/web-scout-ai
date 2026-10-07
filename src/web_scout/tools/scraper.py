@@ -250,7 +250,7 @@ def create_scrape_and_extract_tool(
                     future.set_result(outcome.rendered_text)
                     return outcome.rendered_text
 
-                if tracker is not None and classification_backend() == "jev":
+                if tracker is not None and classification_backend("coverage") == "jev":
                     tracker._source_text[norm] = content
 
                 if pdf_artifact is not None:
