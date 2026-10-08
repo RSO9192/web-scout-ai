@@ -29,6 +29,7 @@ class CachedSourceArtifact:
     mime_type: str = ""
     layout: Optional[PdfDocumentLayout] = None
     raw_html: str = ""
+    error: str = ""
 
 
 class ExtractorOutput(BaseModel):

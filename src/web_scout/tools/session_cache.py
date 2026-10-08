@@ -2,7 +2,8 @@
 
 Successful page and document fetches are stored with Prefect. The same URL is
 not fetched twice at the same time, and a later process reuses the stored
-artifact. Failures are not stored.
+artifact. A blocked domain is stored as a policy skip so it does not fail this
+task. Other failures are not stored.
 """
 
 from typing import Optional
@@ -66,6 +67,13 @@ async def _url_fetch_task(
         vision_model=vision_model or None,
         max_pdf_pages=fetch_max_pdf_pages,
     )
+    if fetch_result.error == "blocked domain":
+        return CachedSourceArtifact(
+            url=url,
+            title="",
+            artifact_kind="text",
+            error="skipped: blocked domain",
+        )
     if fetch_result.error and fetch_result.error != "__DOWNLOAD_REDIRECT__":
         raise RuntimeError(fetch_result.error)
     if parse_result.error:
@@ -108,4 +116,6 @@ async def get_or_fetch_session_source_artifact(
         )
     except Exception as exc:
         return None, str(exc)
+    if cached.error:
+        return None, cached.error
     return cached, None

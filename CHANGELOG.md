@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A blocked-domain URL completes `web-scout-url-fetch` and is cached as `skipped: blocked domain`. Other fetch failures still raise and stay uncached, so one excluded URL no longer rolls back the caller's Prefect result.
+
 ## [1.9.0] - 2026-10-08
 
 ### Added

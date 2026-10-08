@@ -13,6 +13,20 @@ from web_scout.tools.session_cache import get_or_fetch_session_source_artifact
 from web_scout.tools.types import CachedSourceArtifact
 
 
+def _fetch_result(url: str, *, status: int, error: str) -> FetchResult:
+    return FetchResult(
+        url=url,
+        status=status,
+        content_type="",
+        content_disposition="",
+        html_content=None,
+        body=None,
+        headers={},
+        used_browser=False,
+        error=error,
+    )
+
+
 def _parse_result(url: str, content: str) -> ParseResult:
     artifact = SourceArtifact(kind="text", title="Report", text_content=content)
     return ParseResult(url=url, title="Report", text_content=content, links=[], artifact=artifact)
@@ -99,6 +113,49 @@ async def test_same_url_is_fetched_once(monkeypatch):
         refreshed, error = await get_or_fetch_session_source_artifact(**kwargs)
     assert error is None
     assert refreshed == first[0]
+    assert calls["n"] == 2
+
+
+@pytest.mark.asyncio
+async def test_blocked_domain_is_cached_as_policy_skip(monkeypatch):
+    calls = {"n": 0}
+    url = "https://www.youtube.com/watch?v=abc"
+
+    async def _blocked_fetch(url, **kwargs):
+        calls["n"] += 1
+        return _fetch_result(url, status=403, error="blocked domain"), None
+
+    monkeypatch.setattr("web_scout.scraping.fetch_and_parse_url", _blocked_fetch)
+    kwargs = dict(
+        url=url,
+        wait_for=None,
+        vision_model=None,
+        exclude_domains=frozenset({"youtube.com"}),
+        max_pdf_pages=50,
+    )
+    first = await get_or_fetch_session_source_artifact(**kwargs)
+    second = await get_or_fetch_session_source_artifact(**kwargs)
+
+    assert first == (None, "skipped: blocked domain")
+    assert second == first
+    assert calls["n"] == 1
+
+    calls["n"] = 0
+    other = "https://example.org/down"
+
+    async def _failing_fetch(url, **kwargs):
+        calls["n"] += 1
+        return _fetch_result(url, status=503, error="connection timed out"), None
+
+    monkeypatch.setattr("web_scout.scraping.fetch_and_parse_url", _failing_fetch)
+    fail_kwargs = dict(kwargs, url=other)
+    first_fail = await get_or_fetch_session_source_artifact(**fail_kwargs)
+    second_fail = await get_or_fetch_session_source_artifact(**fail_kwargs)
+
+    assert first_fail[0] is None
+    assert first_fail[1] is not None
+    assert "connection timed out" in first_fail[1]
+    assert second_fail == first_fail
     assert calls["n"] == 2
 
 
