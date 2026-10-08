@@ -5,16 +5,20 @@ not, records are stored under ``~/.cache/web-scout`` and survive a new process.
 Cache records and result payloads use separate folders so they do not overwrite
 each other. A process-wide lock makes concurrent workers wait for the same PDF
 or URL instead of doing the work twice.
+
+These cache tasks commit on their own. They do not join the caller's Prefect
+transaction, so a failed fetch or PDF parse cannot roll back or abort the
+caller's commit.
 """
 
 from __future__ import annotations
 
 import os
 import uuid
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, AsyncIterator, Iterator
 
 os.environ.setdefault("PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW", "ignore")
 
@@ -123,6 +127,23 @@ def cache_locations(kind: str) -> tuple[Any, Any]:
     return _with_prefix(root, "records"), _with_prefix(root, "results")
 
 
+@asynccontextmanager
+async def _outside_caller_transaction() -> AsyncIterator[None]:
+    """Hide the caller's Prefect transaction for one cache task.
+
+    A failed task rolls its transaction back, and ``reset()`` attaches that
+    child to the parent. The parent commit then commits the child, which
+    releases the same lock again and discards the caller's persisted result.
+    """
+    from prefect.transactions import BaseTransaction
+
+    token = BaseTransaction.__var__.set(None)
+    try:
+        yield
+    finally:
+        BaseTransaction.__var__.reset(token)
+
+
 async def call_cached_task(task: Any, *, kind: str, refresh: bool, exclude: tuple[str, ...] = (), **kwargs: Any):
     """Run a Prefect task with this process's lock and the resolved storage."""
     from prefect.cache_policies import INPUTS
@@ -143,4 +164,5 @@ async def call_cached_task(task: Any, *, kind: str, refresh: bool, exclude: tupl
         persist_result=True,
         refresh_cache=refresh,
     )
-    return await bound(**kwargs)
+    async with _outside_caller_transaction():
+        return await bound(**kwargs)

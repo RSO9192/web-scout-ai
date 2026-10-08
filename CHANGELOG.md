@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- A blocked-domain URL completes `web-scout-url-fetch` and is cached as `skipped: blocked domain`. Other fetch failures still raise and stay uncached, so one excluded URL no longer rolls back the caller's Prefect result.
+- A blocked-domain URL completes `web-scout-url-fetch` and is cached as `skipped: blocked domain`. Other fetch and PDF-parse failures still raise and stay uncached.
+- URL and PDF cache tasks do not join the caller's Prefect transaction. A web-scout failure cannot roll that transaction back or discard the caller's persisted result.
 
 ## [1.9.0] - 2026-10-08
 

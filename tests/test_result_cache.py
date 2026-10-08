@@ -160,6 +160,59 @@ async def test_blocked_domain_is_cached_as_policy_skip(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_fetch_error_does_not_abort_caller_transaction(monkeypatch, tmp_path):
+    """A failed URL fetch or PDF parse must not discard the caller's persisted result."""
+    from prefect import task
+    from prefect.cache_policies import INPUTS
+
+    calls = {"fetch": 0, "pdf": 0}
+    url = "https://example.org/caller-transaction"
+
+    async def _failing_fetch(url, **kwargs):
+        calls["fetch"] += 1
+        return _fetch_result(url, status=503, error="connection timed out"), None
+
+    async def _failing_pdf(*args, **kwargs):
+        calls["pdf"] += 1
+        raise RuntimeError("pdf parse failed")
+
+    monkeypatch.setattr("web_scout.scraping.fetch_and_parse_url", _failing_fetch)
+    monkeypatch.setattr(document_module, "_convert_pdf_bytes", _failing_pdf)
+
+    @task(
+        name="caller-evidence-collection",
+        persist_result=True,
+        result_storage=tmp_path / "caller-results",
+        cache_policy=INPUTS.configure(key_storage=tmp_path / "caller-keys"),
+    )
+    async def collect(marker: str):
+        _artifact, error = await get_or_fetch_session_source_artifact(
+            url=url,
+            wait_for=None,
+            vision_model=None,
+            exclude_domains=None,
+            max_pdf_pages=5,
+        )
+        try:
+            await _convert_pdf_to_markdown(b"%PDF-1.7 caller", "https://example.org/caller.pdf", 1)
+            pdf_error = None
+        except Exception as exc:
+            pdf_error = str(exc)
+        return {"marker": marker, "error": error, "pdf_error": pdf_error}
+
+    first = await collect("kept")
+    second = await collect("kept")
+
+    assert first["marker"] == "kept"
+    assert first["error"] is not None
+    assert "connection timed out" in first["error"]
+    assert first["pdf_error"] is not None
+    assert "pdf parse failed" in first["pdf_error"]
+    assert second == first
+    assert calls == {"fetch": 1, "pdf": 1}
+
+
+@pytest.mark.asyncio
 async def test_caller_storage_is_used_for_url_fetches(monkeypatch, tmp_path):
     url = "https://example.org/stored"
 
