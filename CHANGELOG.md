@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-10-08
+
 ### Changed
 
 - Per-URL `[fetch]`, `[fetcher]`, `[extract]`, `[extract-tool]`, `[pdf-extract]`, and `[pdf-extractor]` traces are DEBUG. Extraction and scrape failures stay at ERROR.
