@@ -1,7 +1,6 @@
 """Correctness checks for readiness, resource ownership and Jev decisions."""
 
 import asyncio
-import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -132,24 +131,6 @@ async def test_judgment_failure_propagates_and_client_is_reused(monkeypatch):
     assert len(calls) == 1
     assert 404 in calls[0]["retry"].http_statuses
     assert calls[0]["retry"].max_retries == 2
-
-
-@pytest.mark.asyncio
-async def test_cache_budget_and_expiration(monkeypatch):
-    from web_scout.tools import session_cache as cache
-    from web_scout.tools.types import CachedSourceArtifact
-
-    monkeypatch.setattr(cache, "_SESSION_SOURCE_CACHE", {})
-    monkeypatch.setattr(cache, "_CACHE_TIMES", {})
-    monkeypatch.setattr(cache, "CACHE_MAX_BYTES", 1100)
-    for key in (1, 2, 3):
-        cache._SESSION_SOURCE_CACHE[key] = CachedSourceArtifact(str(key), "", "text", text_content="x" * 300)
-        cache._CACHE_TIMES[key] = time.monotonic()
-    cache._trim_cache()
-    assert list(cache._SESSION_SOURCE_CACHE) == [3]
-    cache._CACHE_TIMES[3] -= 301
-    cache._trim_cache()
-    assert not cache._SESSION_SOURCE_CACHE
 
 
 @pytest.mark.asyncio
@@ -315,21 +296,6 @@ async def test_coverage_reads_scraped_source_instead_of_generated_summary(monkey
         state=SearchLoopState(requirements=["fact"]),
     )
     assert captured == [{"url": url, "text": "Actual page facts"}]
-
-
-def test_cache_byte_budget_includes_pdf_layout():
-    from web_scout.scraping.types import PdfDocumentLayout, PdfPageSpan, PdfSectionSpan
-    from web_scout.tools.session_cache import _artifact_bytes
-    from web_scout.tools.types import CachedSourceArtifact
-
-    base = CachedSourceArtifact("url", "title", "text")
-    layout = PdfDocumentLayout(
-        "Report",
-        pages=(PdfPageSpan(1, 1, 10),),
-        sections=(PdfSectionSpan("x" * 2000, 1, 1, 10, 1, 1, ("Parent",)),),
-    )
-    artifact = CachedSourceArtifact("url", "title", "text", layout=layout)
-    assert _artifact_bytes(artifact) > _artifact_bytes(base) + 2000
 
 
 @pytest.mark.asyncio

@@ -255,7 +255,6 @@ def build_extractor_agent(
     essential for metadata/catalogue pages (e.g. FAOLEX law records) where
     the page itself only contains a summary and the full text is in a document.
     """
-    from web_scout.scraping import fetch_and_parse_url
     from web_scout.scraping._parser import materialize_parse_result
     from web_scout.scraping.page_classifier import (
         classify_prefetched_page_shape,
@@ -349,73 +348,27 @@ def build_extractor_agent(
         if not looks_like_document_resource(document_url) and not looks_like_document_link(document_url):
             return f"[scrape_linked_document rejected: URL does not look like a primary document: {document_url}]"
 
-        if use_session_cache:
-            cached_artifact, cache_error = await get_or_fetch_session_source_artifact(
-                url=document_url,
-                wait_for=None,
-                vision_model=vision_model,
-                exclude_domains=exclude_domains,
-                max_pdf_pages=max_pdf_pages,
-                cache_pdf_pages=looks_like_pdf_resource(document_url),
-            )
-            if cache_error or cached_artifact is None:
-                return f"[Document scrape failed: {cache_error}]"
-            from web_scout.scraping.types import SourceArtifact
-
-            artifact = SourceArtifact(
-                kind=cached_artifact.artifact_kind,
-                title=cached_artifact.title,
-                text_content=cached_artifact.text_content,
-                binary_bytes=cached_artifact.binary_bytes,
-                mime_type=cached_artifact.mime_type,
-                layout=cached_artifact.layout,
-            )
-            return await _render_linked_artifact(artifact, document_url, cached_artifact.title)
-
-        from .tracker import ResearchTracker
-
-        norm = ResearchTracker.normalize_url(document_url)
-        if doc_cache is not None and norm in doc_cache:
-            return doc_cache[norm]
-
-        existing = doc_in_flight.get(norm) if doc_in_flight is not None else None
-        if existing is not None:
-            return await asyncio.shield(existing)
-
-        future: Optional[asyncio.Future[str]] = None
-        if doc_in_flight is not None:
-            future = asyncio.get_running_loop().create_future()
-            doc_in_flight[norm] = future
-
-        try:
-            result = await _scrape_linked_document_uncached(document_url, norm)
-        except Exception as exc:
-            if future is not None and not future.done():
-                future.set_exception(exc)
-                future.exception()
-            raise
-        else:
-            if future is not None and not future.done():
-                future.set_result(result)
-            return result
-        finally:
-            if doc_in_flight is not None:
-                doc_in_flight.pop(norm, None)
-
-    async def _scrape_linked_document_uncached(document_url: str, norm: str) -> str:
-        _, parse_result = await fetch_and_parse_url(
-            document_url,
-            exclude_domains=exclude_domains,
+        cached_artifact, cache_error = await get_or_fetch_session_source_artifact(
+            url=document_url,
+            wait_for=None,
             vision_model=vision_model,
+            exclude_domains=exclude_domains,
             max_pdf_pages=max_pdf_pages,
+            cache_pdf_pages=looks_like_pdf_resource(document_url),
         )
-        title = parse_result.title
-        if parse_result.error:
-            return f"[Document scrape failed: {parse_result.error}]"
-        result = await _render_linked_artifact(parse_result.artifact, document_url, title)
-        if doc_cache is not None and not result.startswith("[Document scrape failed"):
-            doc_cache[norm] = result
-        return result
+        if cache_error or cached_artifact is None:
+            return f"[Document scrape failed: {cache_error}]"
+        from web_scout.scraping.types import SourceArtifact
+
+        artifact = SourceArtifact(
+            kind=cached_artifact.artifact_kind,
+            title=cached_artifact.title,
+            text_content=cached_artifact.text_content,
+            binary_bytes=cached_artifact.binary_bytes,
+            mime_type=cached_artifact.mime_type,
+            layout=cached_artifact.layout,
+        )
+        return await _render_linked_artifact(artifact, document_url, cached_artifact.title)
 
     # --- interactive browser session ---
     _context_manager: list = [None]

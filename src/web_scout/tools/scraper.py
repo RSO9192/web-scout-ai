@@ -53,8 +53,6 @@ def create_scrape_and_extract_tool(
     if max_concurrent < 1:
         raise ValueError("max_concurrent must be at least 1")
     model_semaphore = asyncio.Semaphore(max_concurrent)
-    _doc_cache: dict = {}
-    _doc_in_flight: Dict[str, asyncio.Future[str]] = {}
     in_flight: Dict[str, asyncio.Future[str]] = {}
     outcome_cache: Dict[str, ExtractorOutcome] = {}
 
@@ -112,7 +110,6 @@ def create_scrape_and_extract_tool(
 
                 _wait_for = wait_for if wait_for and wait_for.lower() not in ("null", "none", "") else None
 
-                from web_scout.scraping import fetch_and_parse_url
                 from web_scout.scraping._parser import materialize_parse_result
                 from web_scout.scraping.page_classifier import looks_like_pdf_resource
                 from web_scout.scraping.types import ParseResult, SourceArtifact
@@ -122,80 +119,53 @@ def create_scrape_and_extract_tool(
                 pdf_artifact = None
                 source_url = url
 
-                if use_session_cache:
-                    cached_artifact, cache_error = await get_or_fetch_session_source_artifact(
-                        url=url,
-                        wait_for=_wait_for,
-                        vision_model=vision_model,
-                        exclude_domains=exclude_domains,
-                        max_pdf_pages=max_pdf_pages,
-                        cache_pdf_pages=looks_like_pdf_resource(url),
-                    )
-                    if cache_error or cached_artifact is None:
-                        page_rendered = f"[Scrape failed: {cache_error}]"
-                        is_failure = True
-                    else:
-                        artifact = SourceArtifact(
-                            kind=cached_artifact.artifact_kind,
-                            title=cached_artifact.title,
-                            text_content=cached_artifact.text_content,
-                            binary_bytes=cached_artifact.binary_bytes,
-                            mime_type=cached_artifact.mime_type,
-                            layout=cached_artifact.layout,
-                        )
-                        tmp_result = ParseResult(
-                            url=url,
-                            title=cached_artifact.title,
-                            text_content=cached_artifact.text_content,
-                            links=[],
-                            artifact=artifact,
-                        )
-                        content, error = await materialize_parse_result(
-                            tmp_result,
-                            query=query,
-                            vision_model=vision_model,
-                            max_content_chars=max_content_chars,
-                        )
-                        title = cached_artifact.title
-                        if error:
-                            page_rendered = f"[Scrape failed: {error}]"
-                            is_failure = True
-                        elif not content.strip() and artifact.kind == "text" and artifact.layout is None:
-                            page_rendered = "[Page returned empty content]"
-                            is_failure = True
-                        elif artifact.kind == "text" and artifact.layout is not None:
-                            pdf_artifact = artifact
-                            page_rendered = render_cached_page_text(url, title, content)
-                        elif not content.strip():
-                            page_rendered = "[Page returned empty content]"
-                            is_failure = True
-                        else:
-                            page_rendered = render_cached_page_text(url, title, content)
-                else:
-                    from web_scout.scraping.utils import resolve_primary_pdf_url
+                from web_scout.scraping.utils import resolve_primary_pdf_url
 
-                    fetch_result, parse_result = await fetch_and_parse_url(
-                        url,
-                        wait_for=_wait_for,
-                        exclude_domains=exclude_domains,
-                        vision_model=vision_model,
-                        max_pdf_pages=max_pdf_pages,
+                cached_artifact, cache_error = await get_or_fetch_session_source_artifact(
+                    url=url,
+                    wait_for=_wait_for,
+                    vision_model=vision_model,
+                    exclude_domains=exclude_domains,
+                    max_pdf_pages=max_pdf_pages,
+                    cache_pdf_pages=looks_like_pdf_resource(url),
+                )
+                if cache_error or cached_artifact is None:
+                    page_rendered = f"[Scrape failed: {cache_error}]"
+                    is_failure = True
+                    content = ""
+                    title = ""
+                else:
+                    artifact = SourceArtifact(
+                        kind=cached_artifact.artifact_kind,
+                        title=cached_artifact.title,
+                        text_content=cached_artifact.text_content,
+                        binary_bytes=cached_artifact.binary_bytes,
+                        mime_type=cached_artifact.mime_type,
+                        layout=cached_artifact.layout,
                     )
-                    del fetch_result  # The parser has consumed the transport response.
+                    tmp_result = ParseResult(
+                        url=url,
+                        title=cached_artifact.title,
+                        text_content=cached_artifact.text_content,
+                        links=[],
+                        artifact=artifact,
+                    )
                     content, error = await materialize_parse_result(
-                        parse_result,
+                        tmp_result,
                         query=query,
                         vision_model=vision_model,
                         max_content_chars=max_content_chars,
                     )
-                    title = parse_result.title
-                    source_url = parse_result.url or url
-                    if error or parse_result.error:
-                        page_rendered = f"[Scrape failed: {error or parse_result.error}]"
+                    title = cached_artifact.title
+                    if error:
+                        page_rendered = f"[Scrape failed: {error}]"
                         is_failure = True
-                    elif parse_result.artifact.kind == "text" and parse_result.artifact.layout is not None:
-                        pdf_artifact = parse_result.artifact
-                        page_rendered = render_cached_page_text(source_url, title, content)
+                    elif not content.strip() and artifact.kind == "text" and artifact.layout is None:
+                        page_rendered = "[Page returned empty content]"
+                        is_failure = True
+                    elif artifact.kind == "text" and artifact.layout is not None:
+                        pdf_artifact = artifact
+                        page_rendered = render_cached_page_text(url, title, content)
                     elif not content.strip():
                         page_rendered = "[Page returned empty content]"
                         is_failure = True
@@ -206,7 +176,7 @@ def create_scrape_and_extract_tool(
                         doc_url = await asyncio.to_thread(
                             resolve_primary_pdf_url,
                             url,
-                            parse_result.raw_html or "",
+                            cached_artifact.raw_html or "",
                         )
                         if doc_url and ResearchTracker.normalize_url(doc_url) != norm:
                             logger.info(
@@ -214,27 +184,44 @@ def create_scrape_and_extract_tool(
                                 doc_url,
                                 url,
                             )
-                            _, doc_parse = await fetch_and_parse_url(
-                                doc_url,
-                                exclude_domains=exclude_domains,
+                            pdf_cached, pdf_error = await get_or_fetch_session_source_artifact(
+                                url=doc_url,
+                                wait_for=None,
                                 vision_model=vision_model,
+                                exclude_domains=exclude_domains,
                                 max_pdf_pages=max_pdf_pages,
+                                cache_pdf_pages=True,
                             )
                             if (
-                                not doc_parse.error
-                                and doc_parse.artifact.kind == "text"
-                                and doc_parse.artifact.layout is not None
+                                not pdf_error
+                                and pdf_cached is not None
+                                and pdf_cached.artifact_kind == "text"
+                                and pdf_cached.layout is not None
                             ):
+                                pdf_source = SourceArtifact(
+                                    kind=pdf_cached.artifact_kind,
+                                    title=pdf_cached.title,
+                                    text_content=pdf_cached.text_content,
+                                    binary_bytes=pdf_cached.binary_bytes,
+                                    mime_type=pdf_cached.mime_type,
+                                    layout=pdf_cached.layout,
+                                )
                                 doc_content, doc_error = await materialize_parse_result(
-                                    doc_parse,
+                                    ParseResult(
+                                        url=doc_url,
+                                        title=pdf_cached.title,
+                                        text_content=pdf_cached.text_content,
+                                        links=[],
+                                        artifact=pdf_source,
+                                    ),
                                     query=query,
                                     vision_model=vision_model,
                                     max_content_chars=max_content_chars,
                                 )
                                 if not doc_error and doc_content.strip():
-                                    pdf_artifact = doc_parse.artifact
+                                    pdf_artifact = pdf_source
                                     content = doc_content
-                                    title = doc_parse.title or title
+                                    title = pdf_cached.title or title
                                     source_url = doc_url
                                     page_rendered = render_cached_page_text(source_url, title, content)
                                 else:
@@ -243,7 +230,6 @@ def create_scrape_and_extract_tool(
                                 page_rendered = render_cached_page_text(url, title, content)
                         else:
                             page_rendered = render_cached_page_text(url, title, content)
-                    del parse_result  # No crawler consumes raw HTML in this tool.
 
                 if is_failure:
                     outcome = _handle_failure(url, page_rendered, tracker, outcome_cache, norm)
@@ -304,8 +290,6 @@ def create_scrape_and_extract_tool(
                     exclude_domains=exclude_domains,
                     max_pdf_pages=max_pdf_pages,
                     max_content_chars=max_content_chars,
-                    doc_cache=_doc_cache,
-                    doc_in_flight=_doc_in_flight,
                     use_session_cache=use_session_cache,
                     max_interactive_clicks=max_interactive_clicks,
                     domain_expertise=domain_expertise,

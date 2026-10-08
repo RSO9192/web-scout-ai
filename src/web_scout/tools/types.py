@@ -19,7 +19,7 @@ class SourceCacheKey:
 
 @dataclass(frozen=True)
 class CachedSourceArtifact:
-    """Query-agnostic source artifact stored for the current Python process."""
+    """Query-agnostic source artifact persisted by the URL cache."""
 
     url: str
     title: str
@@ -28,6 +28,7 @@ class CachedSourceArtifact:
     binary_bytes: bytes = b""
     mime_type: str = ""
     layout: Optional[PdfDocumentLayout] = None
+    raw_html: str = ""
 
 
 class ExtractorOutput(BaseModel):

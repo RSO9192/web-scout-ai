@@ -8,8 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-10-08
+
+### Added
+
+- Prefect caches for PDF parses and URL fetches. PDF parses are keyed by SHA-256, page limit, and vision model, so the same PDF is parsed once across URLs. URL fetches are cached for every run.
+- `cache_storage`, `refresh_pdf_cache`, and `refresh_url_cache` on `run_web_research`. Storage defaults to `~/.cache/web-scout` and can be a caller-supplied Prefect block, such as a GCS bucket. The refresh flags recompute those entries.
+- `prefect>=3.4,<4`.
+
 ### Changed
 
+- Replace the in-memory URL session cache with the durable Prefect URL cache. `cache=True` is still accepted and does not turn caching off. Failed fetches are not stored. Concurrent callers wait instead of fetching or parsing the same URL or PDF twice.
+- PDF stream names and title fallbacks still come from the URL filename. The filename is not part of the PDF cache key.
 - Replace Orchestrator's third-party crawler implementation with the shared Jev/GPT follow-up selectors, respecting `WEB_SCOUT_CRAWLER_BACKEND` and `DISABLE_JEV`.
 - Keep `Crawl4AICrawler` as a compatibility alias for `DefaultCrawler`, including heuristic-only and custom GPT connection configuration.
 
@@ -17,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Crawl4AI integration and setup, unused Markdown conversion helpers, and legacy Crawl4AI result handling.
 - Unused crawler credential validation in `run_web_research()`.
+- The in-run linked-document cache. Linked documents use the URL cache.
 
 ## [1.8.2] - 2026-10-07
 

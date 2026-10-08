@@ -240,6 +240,9 @@ async def run_web_research(
     cache: bool = False,
     coverage_criteria: Optional[str] = None,
     extractor_guidance: Optional[str] = None,
+    cache_storage: Any | None = None,
+    refresh_pdf_cache: bool = False,
+    refresh_url_cache: bool = False,
 ) -> WebResearchResult:
     """Run deterministic web research pipeline.
 
@@ -253,6 +256,13 @@ async def run_web_research(
     (default from ``ROUTING_HEURISTICS.short_pdf_max_chars``).
     ``verify_pdf_claims`` enables an optional extra LLM claim-support check
     for PDF extracts (default False).
+
+    ``cache`` is accepted for existing callers and does not disable caching.
+    URL fetches and PDF parses are cached with Prefect. ``cache_storage`` is an
+    optional writable block (for example a GCS bucket) used for both caches.
+    When it is omitted, results are stored under ``~/.cache/web-scout`` and
+    survive a new process. ``refresh_pdf_cache`` and ``refresh_url_cache``
+    recompute those caches.
     """
     # Ensure ``web_scout.*`` INFO lines (including ``[fetch]`` / ``[pdf-extractor]``)
     # are visible even when the host app never called ``configure_logging()``.
@@ -364,6 +374,7 @@ async def run_web_research(
         followup_backend,
     )
 
+    from web_scout.result_cache import use_result_cache
     from web_scout.scraping._stealth_session import (
         acquire_stealth_sessions,
         release_stealth_sessions,
@@ -371,32 +382,37 @@ async def run_web_research(
 
     acquire_stealth_sessions()
     try:
-        if direct_url:
-            await _run_direct_url_mode(
-                query=query,
-                direct_url=direct_url,
-                tracker=tracker,
-                scrape_tool=scrape_tool,
-                depth=depth,
-                followup_model=followup_model,
-                followup_backend=followup_backend,
-            )
-        else:
-            await _run_search_mode(
-                query=query,
-                include_domains=include_domains,
-                search_backend=search_backend,
-                domain_expertise=domain_expertise,
-                depth=depth,
-                query_gen_model=query_gen_model,
-                evaluator_model=evaluator_model,
-                followup_model=followup_model,
-                followup_backend=followup_backend,
-                tracker=tracker,
-                scrape_tool=scrape_tool,
-                exclude_domains=_excluded,
-                evaluator_extra_prompt=evaluator_extra_prompt,
-            )
+        with use_result_cache(
+            cache_storage,
+            refresh_pdf_cache=refresh_pdf_cache,
+            refresh_url_cache=refresh_url_cache,
+        ):
+            if direct_url:
+                await _run_direct_url_mode(
+                    query=query,
+                    direct_url=direct_url,
+                    tracker=tracker,
+                    scrape_tool=scrape_tool,
+                    depth=depth,
+                    followup_model=followup_model,
+                    followup_backend=followup_backend,
+                )
+            else:
+                await _run_search_mode(
+                    query=query,
+                    include_domains=include_domains,
+                    search_backend=search_backend,
+                    domain_expertise=domain_expertise,
+                    depth=depth,
+                    query_gen_model=query_gen_model,
+                    evaluator_model=evaluator_model,
+                    followup_model=followup_model,
+                    followup_backend=followup_backend,
+                    tracker=tracker,
+                    scrape_tool=scrape_tool,
+                    exclude_domains=_excluded,
+                    evaluator_extra_prompt=evaluator_extra_prompt,
+                )
     finally:
         await release_stealth_sessions()
 

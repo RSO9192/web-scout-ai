@@ -336,7 +336,10 @@ result = await run_web_research(
                                        # by default. See "Domain policy" below.
     max_pdf_pages=50,                  # pages converted from each PDF
     max_content_chars=30_000,          # characters passed to the extractor per source
-    cache=False,                       # process-local source cache
+    cache=False,                       # accepted; URL and PDF caches stay on
+    cache_storage=None,               # Prefect block, e.g. a GCS bucket
+    refresh_pdf_cache=False,          # recompute cached PDF parses
+    refresh_url_cache=False,          # recompute cached URL fetches
     coverage_criteria=None,            # extra evidence requirements
     extractor_guidance=None,           # optional per-source extraction guidance
 )
@@ -366,9 +369,22 @@ Exclusions are applied natively by search backends that support them (Exa's `exc
 
 ### Source caching
 
-With `cache=True`, successful raw source artifacts are reused by later `run_web_research()` calls in the same Python process. Pages and documents are not fetched or converted again, but query-specific extraction and synthesis still run each time.
+URL fetches and PDF parses are cached with Prefect. A second request for the same URL reuses the stored page or document. A second request for the same PDF bytes reuses the parse even when the URL is different. Query-specific extraction and synthesis still run each time.
 
-The cache is in-memory only. Failed scrapes, final answers, query-specific summaries, and click-driven browser sessions are not cached.
+By default the cache is on disk at `~/.cache/web-scout` and survives a new process. Pass `cache_storage` to store both caches in a caller-supplied Prefect block, such as a GCS bucket:
+
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+result = await run_web_research(
+    query="...",
+    cache_storage=GcsBucket(bucket="my-cache"),
+    refresh_pdf_cache=False,
+    refresh_url_cache=False,
+)
+```
+
+`refresh_pdf_cache=True` and `refresh_url_cache=True` recompute those entries. `cache=True` is still accepted and does not turn the cache off. Failed scrapes, final answers, query-specific summaries, and click-driven browser sessions are not cached. Concurrent workers wait rather than fetching or parsing the same URL or PDF at the same time.
 
 ## Pipeline, in one view
 

@@ -5,7 +5,6 @@ import pytest
 from agents import Runner
 
 import web_scout.tools.scraper as _tools_scraper
-import web_scout.tools.session_cache as _tools_session_cache
 from web_scout.config import (
     EXTRACTOR_HEURISTICS,
     FOLLOWUP_HEURISTICS,
@@ -28,8 +27,6 @@ from web_scout.tools.outcomes import (
     render_successful_extractor_output,
 )
 from web_scout.tools.session_cache import (
-    _SESSION_SOURCE_CACHE,
-    _SESSION_SOURCE_IN_FLIGHT,
     get_or_fetch_session_source_artifact,
     make_source_cache_key,
 )
@@ -42,15 +39,6 @@ class _FakeRunResult:
 
     def final_output_as(self, _output_type):
         return self._output
-
-
-@pytest.fixture(autouse=True)
-def _clear_session_source_cache():
-    _SESSION_SOURCE_CACHE.clear()
-    _SESSION_SOURCE_IN_FLIGHT.clear()
-    yield
-    _SESSION_SOURCE_CACHE.clear()
-    _SESSION_SOURCE_IN_FLIGHT.clear()
 
 
 @pytest.mark.asyncio
@@ -204,8 +192,6 @@ async def test_session_source_cache_reuses_successful_fetches(monkeypatch):
         call_count += 1
         return _make_parse_result(url)
 
-    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_CACHE", {})
-    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_IN_FLIGHT", {})
     monkeypatch.setattr(DefaultParser, "dispatch", _fake_dispatch)
     monkeypatch.setattr(ScraplingFetcher, "fetch", AsyncMock(return_value=FetchResult(
         url=url, status=200, content_type="text/html", content_disposition="",
@@ -254,8 +240,6 @@ async def test_session_source_cache_dedupes_concurrent_misses(monkeypatch):
         await asyncio.sleep(0.05)
         return _make_parse_result(url)
 
-    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_CACHE", {})
-    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_IN_FLIGHT", {})
     monkeypatch.setattr(DefaultParser, "dispatch", _fake_dispatch)
     monkeypatch.setattr(ScraplingFetcher, "fetch", AsyncMock(return_value=FetchResult(
         url=url, status=200, content_type="text/html", content_disposition="",
@@ -298,8 +282,6 @@ async def test_session_source_cache_does_not_store_failures(monkeypatch):
             error="HTTP 503",
         )
 
-    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_CACHE", {})
-    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_IN_FLIGHT", {})
     monkeypatch.setattr(ScraplingFetcher, "fetch", _fake_fetch)
 
     first, first_error = await get_or_fetch_session_source_artifact(
@@ -583,8 +565,6 @@ async def test_session_source_parse_exception_does_not_cancel_waiters(monkeypatc
         await release.wait()
         raise RuntimeError("Page 12 failed to parse")
 
-    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_CACHE", {})
-    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_IN_FLIGHT", {})
     monkeypatch.setattr("web_scout.scraping.fetch_and_parse_url", failing_fetch)
     kwargs = dict(url="https://example.org/failed.pdf", wait_for=None,
                   vision_model=None, exclude_domains=None, max_pdf_pages=50)
@@ -595,29 +575,34 @@ async def test_session_source_parse_exception_does_not_cancel_waiters(monkeypatc
     release.set()
     results = await asyncio.gather(owner, waiter, return_exceptions=True)
 
-    assert isinstance(results[0], RuntimeError)
-    assert results[1] == (None, "Page 12 failed to parse")
-    assert not _tools_session_cache._SESSION_SOURCE_IN_FLIGHT
-    assert not _tools_session_cache._SESSION_SOURCE_CACHE
+    assert results[0][0] is None
+    assert "Page 12 failed to parse" in results[0][1]
+    assert results[1][0] is None
+    assert "Page 12 failed to parse" in results[1][1]
 
 
 @pytest.mark.asyncio
-async def test_session_source_owner_cancellation_still_cancels_waiters(monkeypatch):
+async def test_session_source_cancellation_releases_the_url_lock(monkeypatch):
     started = asyncio.Event()
 
     async def pending_fetch(*args, **kwargs):
         started.set()
         await asyncio.Event().wait()
 
-    monkeypatch.setattr(_tools_session_cache, "_SESSION_SOURCE_IN_FLIGHT", {})
     monkeypatch.setattr("web_scout.scraping.fetch_and_parse_url", pending_fetch)
     kwargs = dict(url="https://example.org/cancelled.pdf", wait_for=None,
                   vision_model=None, exclude_domains=None, max_pdf_pages=50)
     owner = asyncio.create_task(get_or_fetch_session_source_artifact(**kwargs))
     await started.wait()
     waiter = asyncio.create_task(get_or_fetch_session_source_artifact(**kwargs))
-    await asyncio.sleep(0)
+    await asyncio.sleep(0.05)
     owner.cancel()
+    waiter.cancel()
     results = await asyncio.gather(owner, waiter, return_exceptions=True)
     assert all(isinstance(result, asyncio.CancelledError) for result in results)
-    assert not _tools_session_cache._SESSION_SOURCE_IN_FLIGHT
+
+    started.clear()
+    follow = asyncio.create_task(get_or_fetch_session_source_artifact(**kwargs))
+    await asyncio.wait_for(started.wait(), timeout=2)
+    follow.cancel()
+    await asyncio.gather(follow, return_exceptions=True)

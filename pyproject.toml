@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "web-scout-ai"
-version = "1.8.2"
+version = "1.9.0"
 description = "Agentic web research tool — smarter than search, faster than deep research. Search, scrape, and synthesize web content using LLMs."
-authors = ["Riccardo Soldan"]
+authors = ["Riccardo Soldan", "Oleh Lokshyn"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/RSO9192/web-scout-ai"
@@ -45,6 +45,7 @@ litellm = ">=1.30"
 pydantic-settings = ">=2.0"
 boto3 = "^1.43.61"
 typesafe-sdk = "^0.7.2"
+prefect = ">=3.4,<4"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.0"

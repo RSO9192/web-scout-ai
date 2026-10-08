@@ -15,14 +15,17 @@ via URL fetch.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import threading
 import time
+from dataclasses import replace
 from typing import Optional, Tuple
 
 from pdf_extractor_ai import PdfExtractor, document_title, is_low_text, summarize_images, to_markdown
 from pdf_extractor_ai.image_summarizer import SectionVisual
 from pdf_extractor_ai.markdown import layout_from_markdown
+from prefect import task
 
 from web_scout.config import ROUTING_HEURISTICS
 
@@ -164,6 +167,55 @@ def _pdf_stream_name(url: str) -> str:
     return name or "document.pdf"
 
 
+async def _convert_pdf_bytes(
+    pdf_bytes: bytes,
+    max_pages: int,
+    vision_model: str | None,
+    filename: str,
+) -> tuple[str, PdfDocumentLayout]:
+    """Convert PDF bytes to markdown plus layout metadata."""
+    extractor = _get_pdf_extractor()
+    stream_name = filename or "document.pdf"
+    if vision_model:
+        document = await extractor.extract_async(
+            pdf_bytes,
+            do_ocr=False,
+            max_pages=max_pages,
+            name=stream_name,
+        )
+        document = await summarize_images(document, _SectionVisionModel(vision_model), model_name=vision_model)
+        markdown = await asyncio.to_thread(to_markdown, document)
+    elif hasattr(extractor, "_extract_markdown_async"):
+        markdown, document = await extractor._extract_markdown_async(
+            pdf_bytes,
+            max_pages=max_pages,
+            name=stream_name,
+        )
+    else:
+        # Older installed pdf-extractor-ai releases retain their public API.
+        document = await extractor.extract_async(
+            pdf_bytes, do_ocr=False, max_pages=max_pages, name=stream_name
+        )
+        markdown = await asyncio.to_thread(to_markdown, document)
+    # Filename is a per-URL fallback applied by the caller, so it stays out of the cache.
+    title = document_title(document, fallback=None) or ""
+    package_layout = await asyncio.to_thread(layout_from_markdown, markdown, document)
+    return markdown, _to_pdf_document_layout(package_layout, document_title=title)
+
+
+@task(name="web-scout-pdf-parse")
+async def _pdf_parse_task(
+    pdf_sha256: str,
+    pdf_bytes: bytes,
+    max_pages: int,
+    vision_model: str,
+    filename: str,
+) -> tuple[str, PdfDocumentLayout]:
+    """Parse one PDF. The cache key is the hash, page limit, and vision model."""
+    del pdf_sha256  # Identity for the Prefect cache key; the bytes are excluded from it.
+    return await _convert_pdf_bytes(pdf_bytes, max_pages, vision_model or None, filename)
+
+
 async def _convert_pdf_to_markdown(
     pdf_bytes: bytes,
     url: str,
@@ -172,39 +224,32 @@ async def _convert_pdf_to_markdown(
     vision_model: str | None = None,
 ) -> tuple[str, PdfDocumentLayout]:
     """Convert PDF bytes to markdown plus layout metadata."""
+    from web_scout.result_cache import call_cached_task, refresh_pdf_cache_enabled
+
     fetch_logger = logging.getLogger("web_scout.fetch")
+    digest = hashlib.sha256(pdf_bytes).hexdigest()
     fetch_logger.info(
-        "[pdf-extractor] parsing PDF bytes=%d url=%s",
+        "[pdf-extractor] parsing PDF bytes=%d sha256=%s url=%s",
         len(pdf_bytes),
+        digest,
         url,
     )
     started = time.perf_counter()
-    filename = _filename_title(url)
-    extractor = _get_pdf_extractor()
-    if vision_model:
-        document = await extractor.extract_async(
-            pdf_bytes,
-            do_ocr=False,
-            max_pages=max_pages,
-            name=_pdf_stream_name(url),
-        )
-        document = await summarize_images(document, _SectionVisionModel(vision_model), model_name=vision_model)
-        markdown = await asyncio.to_thread(to_markdown, document)
-    elif hasattr(extractor, "_extract_markdown_async"):
-        markdown, document = await extractor._extract_markdown_async(
-            pdf_bytes,
-            max_pages=max_pages,
-            name=_pdf_stream_name(url),
-        )
-    else:
-        # Older installed pdf-extractor-ai releases retain their public API.
-        document = await extractor.extract_async(
-            pdf_bytes, do_ocr=False, max_pages=max_pages, name=_pdf_stream_name(url)
-        )
-        markdown = await asyncio.to_thread(to_markdown, document)
-    title = document_title(document, fallback=filename) or filename
-    package_layout = await asyncio.to_thread(layout_from_markdown, markdown, document)
-    layout = _to_pdf_document_layout(package_layout, document_title=title)
+    filename = _pdf_stream_name(url)
+    markdown, layout = await call_cached_task(
+        _pdf_parse_task,
+        kind="pdf",
+        refresh=refresh_pdf_cache_enabled(),
+        exclude=("pdf_bytes", "filename"),
+        pdf_sha256=digest,
+        pdf_bytes=pdf_bytes,
+        max_pages=max_pages,
+        vision_model=vision_model or "",
+        filename=filename,
+    )
+    title = layout.document_title or _filename_title(url)
+    if title != layout.document_title:
+        layout = replace(layout, document_title=title)
     fetch_logger.info(
         "[pdf-extractor] finished PDF bytes=%d elapsed=%.1fs url=%s",
         len(pdf_bytes),
