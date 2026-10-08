@@ -179,7 +179,7 @@ def create_scrape_and_extract_tool(
                             cached_artifact.raw_html or "",
                         )
                         if doc_url and ResearchTracker.normalize_url(doc_url) != norm:
-                            logger.info(
+                            logger.debug(
                                 "[extract] auto-following primary PDF %s from %s",
                                 doc_url,
                                 url,
@@ -273,7 +273,7 @@ def create_scrape_and_extract_tool(
                         used_pages=used_pages,
                     )
                     outcome_cache[norm] = outcome
-                    logger.info(
+                    logger.debug(
                         "[extract] pdf_extractor_outcome status=success pages=%s url=%s",
                         list(used_pages),
                         source_url,
@@ -341,7 +341,7 @@ def create_scrape_and_extract_tool(
                             links=[],
                             count_scraped=tracker.count_for_action("scraped") if tracker is not None else None,
                         )
-                        logger.info("[extract] extractor_outcome status=success recovery=true url=%s", url)
+                        logger.debug("[extract] extractor_outcome status=success recovery=true url=%s", url)
                     else:
                         failure_text = (
                             f"[Extractor failed after scrape and pre-fetched content was not recoverable: "
@@ -355,7 +355,7 @@ def create_scrape_and_extract_tool(
                             count_scraped=tracker.count_for_action("scraped") if tracker is not None else None,
                             failure_kind="subagent_failed",
                         )
-                        logger.info(
+                        logger.debug(
                             "[extract] extractor_outcome status=failure failure_kind=subagent_failed url=%s", url
                         )
                     outcome_cache[norm] = outcome
@@ -372,7 +372,7 @@ def create_scrape_and_extract_tool(
                 # sentinel string below remains as fallback for models that only
                 # follow the prompt contract.
                 if not output.has_evidence and not content.startswith("[No relevant content"):
-                    logger.info("[extract] has_evidence=false overrides content for %s", url)
+                    logger.debug("[extract] has_evidence=false overrides content for %s", url)
                     content = "[No relevant content found for this query]"
 
                 _content_lower = content.lower()
@@ -423,7 +423,7 @@ def create_scrape_and_extract_tool(
                     reference=title,
                 )
                 outcome_cache[norm] = outcome
-                logger.info(
+                logger.debug(
                     "[extract] extractor_outcome status=success page_type=%s links=%d url=%s",
                     outcome.page_type,
                     len(outcome.relevant_links),
@@ -483,9 +483,9 @@ def _handle_failure(
     if action in {"scraped_irrelevant", "blocked_by_policy"}:
         logger.debug("[extract] %s %s", action, url)
     elif action in {"source_http_error", "bot_detected"}:
-        logger.info("[extract] %s %s", action, url)
+        logger.debug("[extract] %s %s", action, url)
     else:
-        logger.info("[extract] scrape_failed %s", url)
+        logger.debug("[extract] scrape_failed %s", url)
 
     if tracker is not None:
         _record_by_action(tracker, action, url, content)
@@ -500,7 +500,7 @@ def _handle_failure(
         links=list(links) if links else None,
     )
     outcome_cache[norm] = outcome
-    logger.info("[extract] extractor_outcome status=failure failure_kind=%s url=%s", action, url)
+    logger.debug("[extract] extractor_outcome status=failure failure_kind=%s url=%s", action, url)
     return outcome
 
 

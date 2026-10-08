@@ -197,7 +197,7 @@ class ScraplingFetcher(Fetcher):
 
                         pdf_bytes, pdf_error = await download_pdf(pdf_url)
                         if pdf_bytes and not pdf_error:
-                            logger.info(
+                            logger.debug(
                                 "[fetcher] thin SPA shell → primary PDF %s from %s",
                                 pdf_url,
                                 url,
@@ -224,7 +224,7 @@ class ScraplingFetcher(Fetcher):
         if needs_browser_retry:
             used_browser = True
             reason = f"HTTP {resp.status}" if resp is not None else "fetch error / thin content"
-            logger.info("[fetcher] falling back to StealthyFetcher (%s) url=%s", reason, url)
+            logger.debug("[fetcher] falling back to StealthyFetcher (%s) url=%s", reason, url)
             try:
                 kwargs: dict = dict(
                     headless=True,

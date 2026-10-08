@@ -331,7 +331,7 @@ def build_extractor_agent(
         """
         nonlocal linked_document_called
         document_url = resolve_document_download_url(document_url)
-        logger.info("[extract-tool] sub-agent calling scrape_linked_document for %s", document_url)
+        logger.debug("[extract-tool] sub-agent calling scrape_linked_document for %s", document_url)
         if not allow_linked_document:
             return (
                 "[scrape_linked_document skipped: pre-fetched page content is already "
@@ -428,7 +428,7 @@ def build_extractor_agent(
         Only call this when the pre-fetched content is thin (under 500 chars).
         Do NOT call this if the content is already rich.
         """
-        logger.info("[extract-tool] sub-agent calling list_interactive_elements for %s", url)
+        logger.debug("[extract-tool] sub-agent calling list_interactive_elements for %s", url)
         if not allow_interaction:
             return (
                 "[list_interactive_elements skipped: pre-fetched page content is "
@@ -463,7 +463,7 @@ def build_extractor_agent(
             index: 1-based index of the element to click, as returned by
                 list_interactive_elements.
         """
-        logger.info("[extract-tool] sub-agent calling click_element(%d) for %s", index, url)
+        logger.debug("[extract-tool] sub-agent calling click_element(%d) for %s", index, url)
         if _page_holder[0] is None:
             return "[click_element error: no browser session open. Call list_interactive_elements() first.]"
         if _click_count[0] >= max_interactive_clicks:
@@ -530,7 +530,7 @@ def build_extractor_agent(
         domain_expertise=domain_expertise,
         extractor_guidance=extractor_guidance,
     )
-    logger.info(
+    logger.debug(
         "[extract] extractor_agent tools=%s chars=%d linked_doc=%s interaction=%s shape=%s doc_links=%s metadata_markers=%s url=%s",
         [getattr(tool, "name", str(tool)) for tool in agent_tools],
         len(pre_fetched_content),

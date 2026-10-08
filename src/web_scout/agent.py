@@ -264,8 +264,9 @@ async def run_web_research(
     survive a new process. ``refresh_pdf_cache`` and ``refresh_url_cache``
     recompute those caches.
     """
-    # Ensure ``web_scout.*`` INFO lines (including ``[fetch]`` / ``[pdf-extractor]``)
-    # are visible even when the host app never called ``configure_logging()``.
+    # Ensure ``web_scout.*`` INFO lines are visible even when the host app
+    # never called ``configure_logging()``. Per-URL ``[fetch]`` / ``[extract]``
+    # traces stay at DEBUG.
     from web_scout import configure_logging
 
     configure_logging()

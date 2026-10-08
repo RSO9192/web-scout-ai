@@ -25,16 +25,16 @@ def log_fetch(
     bytes_: int | None = None,
     error: str | None = None,
 ) -> None:
-    """Emit a consistent INFO line for every network URL web-scout retrieves."""
-    # Prefer the package logger so lines show after ``configure_logging()`` /
-    # ``run_web_research()`` even when the root logger is quiet (common in notebooks).
+    """Emit a consistent DEBUG line for every network URL web-scout retrieves."""
+    # Prefer the package logger so lines show after ``configure_logging(DEBUG)``
+    # even when the root logger is quiet (common in notebooks).
     fetch_logger = logging.getLogger("web_scout.fetch")
     if error:
-        fetch_logger.info("[fetch] %s %s via=%s error=%s", status, url, via, error)
+        fetch_logger.debug("[fetch] %s %s via=%s error=%s", status, url, via, error)
     elif bytes_ is not None:
-        fetch_logger.info("[fetch] %s %s via=%s bytes=%d", status, url, via, bytes_)
+        fetch_logger.debug("[fetch] %s %s via=%s bytes=%d", status, url, via, bytes_)
     else:
-        fetch_logger.info("[fetch] %s %s via=%s", status, url, via)
+        fetch_logger.debug("[fetch] %s %s via=%s", status, url, via)
 
 _NETWORK_ERROR_MARKERS = (
     "certificate verify failed",

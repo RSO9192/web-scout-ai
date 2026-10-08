@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Per-URL `[fetch]`, `[fetcher]`, `[extract]`, `[extract-tool]`, `[pdf-extract]`, and `[pdf-extractor]` traces are DEBUG. Extraction and scrape failures stay at ERROR.
+
 ### Fixed
 
 - A blocked-domain URL completes `web-scout-url-fetch` and is cached as `skipped: blocked domain`. Other fetch failures still raise and stay uncached, so one excluded URL no longer rolls back the caller's Prefect result.

@@ -228,7 +228,7 @@ async def _convert_pdf_to_markdown(
 
     fetch_logger = logging.getLogger("web_scout.fetch")
     digest = hashlib.sha256(pdf_bytes).hexdigest()
-    fetch_logger.info(
+    fetch_logger.debug(
         "[pdf-extractor] parsing PDF bytes=%d sha256=%s url=%s",
         len(pdf_bytes),
         digest,
@@ -250,7 +250,7 @@ async def _convert_pdf_to_markdown(
     title = layout.document_title or _filename_title(url)
     if title != layout.document_title:
         layout = replace(layout, document_title=title)
-    fetch_logger.info(
+    fetch_logger.debug(
         "[pdf-extractor] finished PDF bytes=%d elapsed=%.1fs url=%s",
         len(pdf_bytes),
         time.perf_counter() - started,

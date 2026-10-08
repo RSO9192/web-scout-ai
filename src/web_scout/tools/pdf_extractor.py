@@ -326,7 +326,7 @@ async def _llm_json(model: Any, prompt: str, schema: type[BaseModel]) -> BaseMod
             last_error = exc
             if attempt == _JSON_SCHEMA_ATTEMPTS:
                 raise
-            logger.warning(
+            logger.debug(
                 "[pdf-extract] structured output validation failed for %s (attempt %d/%d): %s",
                 schema.__name__,
                 attempt,
@@ -416,7 +416,7 @@ async def _extract_chunk_evidence(
         assert isinstance(result, _ChunkEvidence)
         return result.evidence
     except Exception as exc:
-        logger.warning("[pdf-extract] chunk evidence failed: %s", exc)
+        logger.debug("[pdf-extract] chunk evidence failed: %s", exc)
         return []
 
 
@@ -488,7 +488,7 @@ async def _verify_claims_llm(
         result = await _llm_json(model, prompt, _ClaimVerification)
         assert isinstance(result, _ClaimVerification)
     except Exception as exc:
-        logger.warning("[pdf-extract] claim verification failed: %s", exc)
+        logger.debug("[pdf-extract] claim verification failed: %s", exc)
         return PdfExtractResult(relevant_content=relevant_content, evidence=evidence)
 
     unsupported = {v.claim_index for v in result.verdicts if not v.supported}
@@ -563,7 +563,7 @@ async def extract_pdf_for_query(
         return title, f"[Scrape failed: PDF extraction error: {exc}]", []
 
     if not result.has_evidence:
-        logger.info("[pdf-extract] has_evidence=false for %r", title)
+        logger.debug("[pdf-extract] has_evidence=false for %r", title)
         return title, _NO_RELEVANT, []
 
     evidence = filter_evidence_by_layout(result.evidence, layout)
