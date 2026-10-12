@@ -313,7 +313,8 @@ async def describe_section_visuals(
             response = await litellm.acompletion(
                 model=vision_model,
                 messages=[{"role": "user", "content": content}],
-                response_format={"type": "json_object"},
+                # Plain JSON mode let Gemini emit bare lists and invalid escapes (LaTeX, raw newlines).
+                response_format=SectionVisualSummaries,
             )
         raw = (response.choices[0].message.content or "").strip()
         if not raw:
