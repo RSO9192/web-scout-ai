@@ -1,4 +1,4 @@
-"""Environment selection and the organization-wide Jev opt-out."""
+"""DISABLE_JEV selects GPT (default) or Jev for every classification step."""
 
 from inspect import signature
 from types import SimpleNamespace
@@ -11,42 +11,27 @@ from web_scout import _pipeline_flow as flow
 from web_scout import agent
 from web_scout.scraping import _crawler
 
-FEATURES = ("crawler", "coverage", "followup", "pdf_claims")
 
-
-@pytest.mark.parametrize("value", [None, "false", " FALSE "])
-def test_jev_remains_default(monkeypatch, value):
-    monkeypatch.delenv("WEB_SCOUT_CLASSIFICATION_BACKEND")
+@pytest.mark.parametrize("value", [None, "true", " TRUE ", "anything"])
+def test_gpt_is_default_without_credentials(monkeypatch, value):
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     if value is not None:
         monkeypatch.setenv("DISABLE_JEV", value)
-    assert all(classification.backend(feature) == "jev" for feature in FEATURES)
+    assert classification.backend() == "gpt"
 
 
-@pytest.mark.parametrize("feature", FEATURES)
-@pytest.mark.parametrize("selected", ["jev", "gpt"])
-def test_feature_setting_is_independent(monkeypatch, feature, selected):
-    monkeypatch.delenv("WEB_SCOUT_CLASSIFICATION_BACKEND")
-    monkeypatch.setenv(f"WEB_SCOUT_{feature.upper()}_BACKEND", selected)
-    assert classification.backend(feature) == selected
-    assert all(classification.backend(other) == "jev" for other in FEATURES if other != feature)
-
-
-@pytest.mark.parametrize("value", ["true", "TRUE", " true "])
-def test_disable_jev_overrides_all_settings_without_credentials(monkeypatch, value):
+@pytest.mark.parametrize("value", ["false", " FALSE "])
+def test_disable_jev_false_enables_jev(monkeypatch, value):
     monkeypatch.setenv("DISABLE_JEV", value)
+    assert classification.backend() == "jev"
+
+
+@pytest.mark.asyncio
+async def test_enabled_jev_requires_credentials(monkeypatch):
+    monkeypatch.setenv("DISABLE_JEV", "false")
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
-    monkeypatch.setenv("WEB_SCOUT_CLASSIFICATION_BACKEND", "jev")
-    for feature in FEATURES:
-        monkeypatch.setenv(f"WEB_SCOUT_{feature.upper()}_BACKEND", "jev")
-    assert all(classification.backend(feature) == "gpt" for feature in FEATURES)
-
-
-@pytest.mark.parametrize("feature", FEATURES)
-def test_invalid_feature_setting_fails(monkeypatch, feature):
-    variable = f"WEB_SCOUT_{feature.upper()}_BACKEND"
-    monkeypatch.setenv(variable, "unknown")
-    with pytest.raises(classification.ClassificationError, match=variable):
-        classification.backend(feature)
+    with pytest.raises(classification.ClassificationError, match="TYPESAFE_API_KEY"):
+        await agent.run_web_research("query", models={"web_researcher": "dummy"})
 
 
 def test_followup_selection_is_no_longer_a_public_parameter():
@@ -57,7 +42,6 @@ def test_followup_selection_is_no_longer_a_public_parameter():
 @pytest.mark.parametrize("direct_url", [None, "https://example.org/report"])
 async def test_disable_jev_routes_public_pipeline_to_gpt_without_jev_token(monkeypatch, direct_url):
     monkeypatch.setenv("DISABLE_JEV", "true")
-    monkeypatch.setenv("WEB_SCOUT_CLASSIFICATION_BACKEND", "jev")
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     require = Mock(side_effect=AssertionError("Jev credential check must not run"))
     monkeypatch.setattr(classification, "require_credentials", require)
@@ -84,7 +68,7 @@ async def test_disable_jev_uses_gpt_followup_ranker(monkeypatch):
     monkeypatch.setattr(flow.Runner, "run", gpt)
     selected = await flow._rerank_followup_urls(
         query="report", parent_url="https://example.org/root", parent_content="reports",
-        candidates=urls, cap=1, model="dummy", selector=classification.backend("followup"),
+        candidates=urls, cap=1, model="dummy", selector=classification.backend(),
     )
     assert selected == [urls[1]]
     gpt.assert_awaited_once()
@@ -107,7 +91,6 @@ async def test_disable_jev_uses_gpt_coverage(monkeypatch):
     from web_scout.tools.tracker import ResearchTracker
 
     monkeypatch.setenv("DISABLE_JEV", "true")
-    monkeypatch.setenv("WEB_SCOUT_COVERAGE_BACKEND", "jev")
     jev = AsyncMock(side_effect=AssertionError("Jev must not run"))
     monkeypatch.setattr(flow, "jev_coverage", jev)
     evaluation = agent.CoverageEvaluation(

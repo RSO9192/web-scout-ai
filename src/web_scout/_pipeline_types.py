@@ -13,9 +13,9 @@ DEFAULT_WEB_RESEARCH_MODELS = {
     "vision_fallback": "gemini/gemini-3.7-flash",
 }
 
-# Backend that chooses which follow-up links to open. "jev" is the default;
-# "gpt" uses the Agents SDK model named in models["followup_selector"].
-DEFAULT_FOLLOWUP_BACKEND = "jev"
+# Backend that chooses which follow-up links to open. "gpt" (the default) uses
+# the Agents SDK model named in models["followup_selector"]; "jev" uses Jev.
+DEFAULT_FOLLOWUP_BACKEND = "gpt"
 FOLLOWUP_BACKENDS = frozenset({"jev", "gpt"})
 
 

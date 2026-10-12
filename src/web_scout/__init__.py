@@ -22,10 +22,6 @@ Quick start::
 
     result = await run_web_research(
         query="What are the main threats to coral reefs?",
-        models={
-            "web_researcher": "openai/gpt-4o",
-            "content_extractor": "gemini/gemini-2.0-flash",
-        },
     )
     print(result.synthesis)
 
@@ -40,7 +36,7 @@ Public API
 - ``ResearchTracker`` — URL/query bookkeeping
 """
 
-__version__ = "1.9.1"
+__version__ = "1.10.0"
 
 import logging as _logging
 import os as _os

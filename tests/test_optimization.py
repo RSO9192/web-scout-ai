@@ -57,15 +57,12 @@ async def test_visual_readiness_waits_for_fonts_and_visible_images():
     assert "document.fonts.ready" in page.evaluate.call_args.args[0]
 
 
-def test_default_backend_and_missing_credentials_are_hard_errors(monkeypatch):
-    monkeypatch.delenv("WEB_SCOUT_CLASSIFICATION_BACKEND")
+def test_jev_backend_and_missing_credentials_are_hard_errors(monkeypatch):
+    monkeypatch.setenv("DISABLE_JEV", "false")
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     assert classification.backend() == "jev"
     with pytest.raises(classification.ClassificationError, match="TYPESAFE_API_KEY"):
         classification.require_credentials()
-    monkeypatch.setenv("WEB_SCOUT_CLASSIFICATION_BACKEND", "unknown")
-    with pytest.raises(classification.ClassificationError):
-        classification.backend()
 
 
 @pytest.mark.asyncio
@@ -284,7 +281,7 @@ async def test_coverage_reads_scraped_source_instead_of_generated_summary(monkey
         captured.extend(sources)
         return True, "", []
 
-    monkeypatch.setenv("WEB_SCOUT_CLASSIFICATION_BACKEND", "jev")
+    monkeypatch.setenv("DISABLE_JEV", "false")
     monkeypatch.setattr(flow, "jev_coverage", coverage)
     assert await flow._evaluate_search_coverage(
         query="query",

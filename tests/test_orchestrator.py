@@ -145,7 +145,7 @@ async def test_default_crawler_follows_shared_selector_without_refetching(monkey
 
     from web_scout import _pipeline_flow as flow
 
-    monkeypatch.setenv("WEB_SCOUT_CRAWLER_BACKEND", backend)
+    monkeypatch.setenv("DISABLE_JEV", "false" if backend == "jev" else "true")
     selector = AsyncMock(return_value=[_CHILD_URL])
     monkeypatch.setattr(flow, "_select_followup_urls_with_jev", selector)
     monkeypatch.setattr(flow, "_select_followup_urls_with_luna", selector)

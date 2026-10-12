@@ -169,7 +169,6 @@ async def test_disable_jev_uses_gpt_pdf_claim_verification(monkeypatch):
     from unittest.mock import AsyncMock
 
     monkeypatch.setenv("DISABLE_JEV", "true")
-    monkeypatch.setenv("WEB_SCOUT_PDF_CLAIMS_BACKEND", "jev")
     extracted = PdfExtractResult(
         relevant_content="Guidance [p. 1].",
         evidence=[PdfEvidenceItem(text="guidance", page_start=1, page_end=1)],

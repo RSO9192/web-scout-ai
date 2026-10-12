@@ -42,8 +42,8 @@ class Crawler(ABC):
 class DefaultCrawler(Crawler):
     """Use the shared Jev/GPT follow-up selectors on already-parsed content.
 
-    WEB_SCOUT_CRAWLER_BACKEND selects jev (default) or gpt; DISABLE_JEV=true
-    forces GPT. Omitted llm_config uses these environment settings.
+    GPT is the default; DISABLE_JEV=false selects Jev. Omitted llm_config
+    uses this environment setting.
     Explicit None keeps heuristic-only selection. Legacy config objects with
     provider, api_token and base_url fields keep their custom GPT connection.
     """
@@ -63,7 +63,7 @@ class DefaultCrawler(Crawler):
     async def _select_links(self, result: ParseResult, context: URLContext) -> list[str]:
         if self._llm_config is None:
             return self._heuristic_select(result)
-        if self._llm_config is _USE_DEFAULT_LLM and backend("crawler") == "jev":
+        if self._llm_config is _USE_DEFAULT_LLM and backend() == "jev":
             from web_scout._pipeline_flow import _select_followup_urls_with_jev
 
             return await _select_followup_urls_with_jev(

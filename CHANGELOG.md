@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-12
+
+### Changed
+
+- Jev is off by default: `DISABLE_JEV` now defaults to `true`, so crawler link selection, follow-up link selection, coverage evaluation and PDF claim verification use the configured GPT models and `TYPESAFE_API_KEY` is not required. Set `DISABLE_JEV=false` to run all four on Jev.
+
+### Removed
+
+- `WEB_SCOUT_CLASSIFICATION_BACKEND`, `WEB_SCOUT_CRAWLER_BACKEND`, `WEB_SCOUT_COVERAGE_BACKEND`, `WEB_SCOUT_FOLLOWUP_BACKEND` and `WEB_SCOUT_PDF_CLAIMS_BACKEND`. `DISABLE_JEV` is the only classification switch.
+
 ## [1.9.1] - 2026-10-08
 
 ### Changed

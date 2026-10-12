@@ -9,7 +9,6 @@ All LLM and network calls are replaced with synchronous fakes via monkeypatch.
 import pytest
 
 from web_scout import agent as _agent_module
-from web_scout._classification import ClassificationError
 from web_scout.agent import (
     CoverageEvaluation,
     FollowupSelection,
@@ -123,17 +122,6 @@ async def test_run_web_research_raises_for_invalid_research_depth():
             query="fish",
             models={"web_researcher": "dummy"},
             research_depth="turbo",
-        )
-
-
-@pytest.mark.asyncio
-async def test_run_web_research_raises_for_unknown_followup_backend(monkeypatch):
-    """The follow-up environment setting must be jev or gpt."""
-    monkeypatch.setenv("WEB_SCOUT_FOLLOWUP_BACKEND", "unknown")
-    with pytest.raises(ClassificationError, match="WEB_SCOUT_FOLLOWUP_BACKEND"):
-        await run_web_research(
-            query="fish",
-            models={"web_researcher": "dummy"},
         )
 
 
@@ -774,8 +762,7 @@ async def test_rerank_followup_urls_deduplicates_by_normalized_url(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_research_does_not_require_unused_crawler_jev_credentials(monkeypatch):
-    monkeypatch.setenv("WEB_SCOUT_CRAWLER_BACKEND", "jev")
+async def test_research_does_not_require_jev_credentials_by_default(monkeypatch):
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     _patch_scrape_tool(monkeypatch)
     _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Done"))

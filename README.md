@@ -114,6 +114,8 @@ export EXA_API_KEY="your-exa-api-key"
 
 Direct-URL mode does not use a search backend, so it only needs the API key for your configured model provider.
 
+`TYPESAFE_API_KEY` is only needed if you opt in to Jev classification (see [Jev classification](#jev-classification-optional)).
+
 ### 3. Run research
 
 ```python
@@ -269,32 +271,86 @@ fields, page-type handling, and the exact no-evidence sentinel.
 
 ## Configuration
 
-The defaults are Bedrock Mantle GPT-6 Luna for research and extraction, TypeSafe Jev for follow-up link selection, and `gemini/gemini-3.7-flash` for vision. Model IDs follow [LiteLLM provider naming](https://docs.litellm.ai/docs/providers), so each stage can use a different provider or model. Set `WEB_SCOUT_FOLLOWUP_BACKEND=gpt` to use the Agents SDK model in `models["followup_selector"]` instead of Jev. Jev reads `TYPESAFE_API_KEY`.
+### Models
+
+Pass `models` to choose the LLM for each stage. Model IDs follow [LiteLLM provider naming](https://docs.litellm.ai/docs/providers), so each stage can use a different provider. Any key you omit keeps its default. These are the defaults:
 
 ```python
 models = {
-    # Used as the fallback for query generation, coverage, and synthesis
-    "web_researcher": "openai/gpt-4o-mini",
+    # Query generation, coverage evaluation and synthesis, unless overridden below
+    "web_researcher": "bedrock_mantle/openai.gpt-6-luna",
 
-    # Reads and extracts individual sources
-    "content_extractor": "gemini/gemini-2.0-flash",
+    # Reads and extracts each source
+    "content_extractor": "bedrock_mantle/openai.gpt-6-luna",
 
-    # Optional stage-specific choices
-    "query_generator": "openai/gpt-4o-mini",
-    "coverage_evaluator": "openai/gpt-4o-mini",
-    "synthesiser": "openai/gpt-4o-mini",
-    "followup_selector": "openai/gpt-4o-mini",  # used when WEB_SCOUT_FOLLOWUP_BACKEND=gpt
-    "vision_fallback": "gemini/gemini-2.0-flash",
+    # Chooses which follow-up links to open
+    "followup_selector": "bedrock_mantle/openai.gpt-6-luna",
+
+    # Describes scanned pages, charts, maps and images
+    "vision_fallback": "gemini/gemini-3.7-flash",
+
+    # Optional per-stage overrides; each falls back to "web_researcher"
+    # "query_generator": "...",
+    # "coverage_evaluator": "...",
+    # "synthesiser": "...",
 }
 
 result = await run_web_research(query="...", models=models)
-# Or keep Luna for link selection:
-# Set WEB_SCOUT_FOLLOWUP_BACKEND=gpt in the environment, then pass models as usual.
 ```
 
-Provider credentials are read from their standard environment variables, such as `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `TYPESAFE_API_KEY`, or AWS credentials for Bedrock.
+For example, to keep the defaults but extract sources with Gemini:
 
-### Public API
+```python
+result = await run_web_research(
+    query="...",
+    models={"content_extractor": "gemini/gemini-3.7-flash"},
+)
+```
+
+Provider credentials are read from their standard environment variables, such as `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, or AWS credentials for Bedrock.
+
+### All options
+
+```python
+result = await run_web_research(
+    query="latest IPCC findings on sea-level rise",
+    models=None,                       # optional; GPT-6 Luna defaults, Gemini vision
+    search_backend="serper",          # "serper" (Google via serper.dev) or "exa" (exa.ai)
+    research_depth="standard",        # "standard", "deep", or a custom dict
+    include_domains=["ipcc.ch"],       # optional discovery restriction
+    direct_url=None,                   # optional; skips search when set
+    domain_expertise="climate science",  # optional prompt context
+    exclude_domains=None,              # optional blocklist; nothing is blocked
+                                       # by default. See "Domain policy" below.
+    max_pdf_pages=50,                  # pages converted from each PDF
+    max_content_chars=30_000,          # characters passed to the extractor per source
+    verify_pdf_claims=False,           # extra claim-support check on PDF extracts
+    cache=False,                       # accepted; URL and PDF caches stay on
+    cache_storage=None,               # Prefect block, e.g. a GCS bucket
+    refresh_pdf_cache=False,          # recompute cached PDF parses
+    refresh_url_cache=False,          # recompute cached URL fetches
+    coverage_criteria=None,            # extra evidence requirements
+    extractor_guidance=None,           # optional per-source extraction guidance
+)
+```
+
+### Jev classification (optional)
+
+Four steps make yes/no judgments rather than generate text: crawler link selection, follow-up link selection, search coverage evaluation, and (when `verify_pdf_claims=True`) PDF claim verification. By default they use the GPT models above. Set `DISABLE_JEV=false` to run all four on TypeSafe Jev instead:
+
+```bash
+export DISABLE_JEV=false
+export TYPESAFE_API_KEY="your-typesafe-api-key"
+```
+
+| `DISABLE_JEV` | Classification steps use | Needs `TYPESAFE_API_KEY` |
+| --- | --- | --- |
+| unset or `true` (default) | GPT models from `models` | No |
+| `false` | Jev | Yes; `run_web_research()` raises `ClassificationError` without it |
+
+The value is case-insensitive. Query generation, extraction, vision and synthesis always use your configured models. Jev failures raise errors; there is no automatic GPT fallback.
+
+### Fetching a single URL
 
 Fetch one URL and get a `FetchResult`. This uses the same Scrapling fetcher as the research pipeline (fast HTTP, then a stealth browser when the page looks blocked or JavaScript-rendered):
 
@@ -321,28 +377,6 @@ if is_pdf:
 from web_scout import fetch_pdf
 
 pdf_bytes = await fetch_pdf("https://openknowledge.fao.org/bitstreams/c1caede2-ea98-46b0-b663-4cae429e05d3/download")
-```
-
-```python
-result = await run_web_research(
-    query="latest IPCC findings on sea-level rise",
-    models=None,                       # optional; GPT-6 Luna defaults, Gemini vision
-    search_backend="serper",          # "serper" (Google via serper.dev) or "exa" (exa.ai)
-    research_depth="standard",        # "standard", "deep", or a custom dict
-    include_domains=["ipcc.ch"],       # optional discovery restriction
-    direct_url=None,                   # optional; skips search when set
-    domain_expertise="climate science",  # optional prompt context
-    exclude_domains=None,              # optional blocklist; nothing is blocked
-                                       # by default. See "Domain policy" below.
-    max_pdf_pages=50,                  # pages converted from each PDF
-    max_content_chars=30_000,          # characters passed to the extractor per source
-    cache=False,                       # accepted; URL and PDF caches stay on
-    cache_storage=None,               # Prefect block, e.g. a GCS bucket
-    refresh_pdf_cache=False,          # recompute cached PDF parses
-    refresh_url_cache=False,          # recompute cached URL fetches
-    coverage_criteria=None,            # extra evidence requirements
-    extractor_guidance=None,           # optional per-source extraction guidance
-)
 ```
 
 ### Domain policy
@@ -421,11 +455,15 @@ It is intentionally a bounded research component. If you only need search links,
 - A Serper or Exa API key for search mode
 - Chromium setup for rendered pages, interactive sites, and browser fallbacks
 
-## Classification and resource reuse
-
-Semantic classification defaults to TypeSafe Jev and requires `TYPESAFE_API_KEY`. Set `WEB_SCOUT_CLASSIFICATION_BACKEND=gpt` to use the existing GPT classifiers instead. Query generation, factual extraction, visual descriptions and synthesis continue to use your configured generative models. Feature-specific switches and the global override are described below.
+## Resource reuse
 
 CPU PDF pipelines initialize on the first document and are reused. Browser and HTTP resources are reused on the same event loop; after requests finish, call `await web_scout.scraping.close_resources()` at application shutdown. See the [performance report](docs/performance.md) for measurements, limits, benchmark commands and compatibility details.
+
+## Orchestrator link selection
+
+`Orchestrator` uses `DefaultCrawler`, which selects links from already-parsed content with the same selectors as the research pipeline, so `DISABLE_JEV` applies to it too. With GPT it uses the default `followup_selector` model unless you pass a custom `llm_config`.
+
+`Crawl4AICrawler` remains an alias for `DefaultCrawler` to preserve existing imports. `llm_config=None` requests heuristic-only selection. Config objects with `provider`, `api_token` and `base_url` are accepted for custom GPT connections. No Crawl4AI package, browser or setup is required.
 
 ## Contributing
 
@@ -436,26 +474,3 @@ Bug reports and focused pull requests are welcome at [github.com/RSO9192/web-sco
 ## License
 
 [MIT](LICENSE)
-
-
-### Jev / GPT selection
-
-Set `DISABLE_JEV=true` to use the retained GPT implementations for every Jev-backed feature. It overrides all feature settings and does not require `TYPESAFE_API_KEY`. Unset or `DISABLE_JEV=false` preserves Jev defaults. Values are case-insensitive and surrounding whitespace is ignored.
-
-| Environment variable | Feature | Values |
-| --- | --- | --- |
-| `WEB_SCOUT_CRAWLER_BACKEND` | Crawler link classification | `jev`, `gpt` |
-| `WEB_SCOUT_COVERAGE_BACKEND` | Search coverage evaluation | `jev`, `gpt` |
-| `WEB_SCOUT_FOLLOWUP_BACKEND` | Follow-up link selection | `jev`, `gpt` |
-| `WEB_SCOUT_PDF_CLAIMS_BACKEND` | PDF claim verification when enabled | `jev`, `gpt` |
-
-Each feature defaults to `jev`. The existing `WEB_SCOUT_CLASSIFICATION_BACKEND` remains a shared default for features without a specific setting. Invalid backend values raise an error; missing Jev credentials remain an error when an active feature selects Jev. GPT paths use the existing configured models and provider credentials; disabling Jev does not change model IDs or switch Bedrock models to the OpenAI endpoint.
-
-The `followup_backend` argument has been removed from `run_web_research()`. Replace `followup_backend="luna"` with `WEB_SCOUT_FOLLOWUP_BACKEND=gpt`, or `followup_backend="jev"` with `WEB_SCOUT_FOLLOWUP_BACKEND=jev`.
-
-
-### Orchestrator link selection
-
-`Orchestrator` uses `DefaultCrawler`, which selects links from already-parsed content using the same Jev/GPT selectors as the research pipeline. Select the backend with `WEB_SCOUT_CRAWLER_BACKEND=jev|gpt`; `DISABLE_JEV=true` forces GPT. `WEB_SCOUT_FOLLOWUP_BACKEND` independently controls follow-ups in `run_web_research()`.
-
-`Crawl4AICrawler` remains an alias for `DefaultCrawler` to preserve existing imports. `llm_config=None` still requests heuristic-only selection. Existing config objects with `provider`, `api_token` and `base_url` are accepted for custom GPT connections; third-party extraction-strategy options are no longer used. No Crawl4AI package, browser or setup is required.

@@ -246,8 +246,8 @@ async def run_web_research(
 ) -> WebResearchResult:
     """Run deterministic web research pipeline.
 
-    ``WEB_SCOUT_FOLLOWUP_BACKEND=jev|gpt`` selects follow-up link ranking.
-    ``DISABLE_JEV=true`` forces all Jev-backed features onto their GPT paths.
+    Classification steps use GPT by default; ``DISABLE_JEV=false`` routes
+    all of them to Jev and requires ``TYPESAFE_API_KEY``.
 
     ``extractor_guidance`` augments only the per-source content extractor.
     The base extraction contract takes precedence over conflicting guidance.
@@ -280,20 +280,14 @@ async def run_web_research(
     if models is None:
         models = DEFAULT_WEB_RESEARCH_MODELS
 
-    followup_backend = classification_backend("followup")
+    followup_backend = classification_backend()
+    if followup_backend == "jev":
+        require_credentials()
 
     if short_pdf_max_chars is None:
         short_pdf_max_chars = ROUTING_HEURISTICS.short_pdf_max_chars
     if verify_pdf_claims is None:
         verify_pdf_claims = ROUTING_HEURISTICS.verify_pdf_claims
-
-    active_features = ["followup"]
-    if not direct_url:
-        active_features.append("coverage")
-    if verify_pdf_claims:
-        active_features.append("pdf_claims")
-    if any(classification_backend(feature) == "jev" for feature in active_features):
-        require_credentials()
 
     if isinstance(research_depth, str):
         if research_depth not in _DEPTH_PRESETS:

@@ -36,7 +36,7 @@ async def test_gpt_selects_using_existing_runner_and_never_imports_crawl4ai(monk
         return original_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", guarded_import)
-    monkeypatch.setenv("WEB_SCOUT_CRAWLER_BACKEND", "gpt")
+    monkeypatch.setenv("DISABLE_JEV", "true")
     page = _page()
     output = SimpleNamespace(
         final_output_as=lambda _: FollowupSelection(
@@ -55,7 +55,7 @@ async def test_gpt_selects_using_existing_runner_and_never_imports_crawl4ai(monk
 
 @pytest.mark.asyncio
 async def test_jev_selects_using_shared_followup_selector(monkeypatch):
-    monkeypatch.setenv("WEB_SCOUT_CRAWLER_BACKEND", "jev")
+    monkeypatch.setenv("DISABLE_JEV", "false")
     page = _page()
     jev = AsyncMock(return_value=([page.links[2]], None))
     monkeypatch.setattr(flow, "select_links_with_jev", jev)
@@ -66,9 +66,8 @@ async def test_jev_selects_using_shared_followup_selector(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_disable_jev_overrides_crawler_setting(monkeypatch):
+async def test_disable_jev_uses_gpt_crawler(monkeypatch):
     monkeypatch.setenv("DISABLE_JEV", "true")
-    monkeypatch.setenv("WEB_SCOUT_CRAWLER_BACKEND", "jev")
     crawler = DefaultCrawler()
     gpt = AsyncMock(return_value=[_page().links[0]])
     jev = AsyncMock(side_effect=AssertionError("Jev must not run"))
@@ -109,7 +108,7 @@ async def test_legacy_custom_connection_is_preserved(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_gpt_failure_keeps_existing_shortlist_fallback(monkeypatch):
-    monkeypatch.setenv("WEB_SCOUT_CRAWLER_BACKEND", "gpt")
+    monkeypatch.setenv("DISABLE_JEV", "true")
     monkeypatch.setattr("web_scout.utils.get_model", lambda name: "dummy")
     monkeypatch.setattr(flow.Runner, "run", AsyncMock(side_effect=TimeoutError()))
     assert (
@@ -120,7 +119,7 @@ async def test_gpt_failure_keeps_existing_shortlist_fallback(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_jev_failure_remains_a_hard_error(monkeypatch):
-    monkeypatch.setenv("WEB_SCOUT_CRAWLER_BACKEND", "jev")
+    monkeypatch.setenv("DISABLE_JEV", "false")
     monkeypatch.setattr(flow, "select_links_with_jev", AsyncMock(side_effect=ClassificationError("missing token")))
     with pytest.raises(ClassificationError):
         await DefaultCrawler()._select_links(_page(), URLContext(url=_page().url, depth=0))
