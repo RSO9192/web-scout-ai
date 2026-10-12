@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `WEB_SCOUT_CLASSIFICATION_BACKEND`, `WEB_SCOUT_CRAWLER_BACKEND`, `WEB_SCOUT_COVERAGE_BACKEND`, `WEB_SCOUT_FOLLOWUP_BACKEND` and `WEB_SCOUT_PDF_CLAIMS_BACKEND`. `DISABLE_JEV` is the only classification switch.
 
+### Fixed
+
+- PDF section visual descriptions request the `SectionVisualSummaries` JSON schema instead of plain JSON mode. Gemini could return a bare list or invalid JSON (unescaped LaTeX, raw newlines, extra brackets), which dropped the visual enrichment for that section.
+
 ## [1.9.1] - 2026-10-08
 
 ### Changed
