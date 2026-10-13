@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.1] - 2026-10-13
+
+### Changed
+
+- Short research agents retry transient model failures through the Agents SDK. The synthesiser, query generator, coverage evaluator, follow-up selector, and search-result selector retry up to three times with backoff on provider advice, `Retry-After`, network errors, and HTTP 408, 409, 429, and 5xx. The content extractor keeps its own multi-turn retry loop.
+- Mantle synthesis no longer allow-lists `reasoning_effort` through LiteLLM `extra_args`. The synthesiser still requests high reasoning effort through `ModelSettings.reasoning`, which LiteLLM 1.104+ accepts natively.
+
 ## [1.11.0] - 2026-10-13
 
 ### Added

@@ -9,8 +9,7 @@ from datetime import date
 from typing import Any, Optional
 from urllib.parse import urlparse
 
-from agents import Agent, ModelSettings, Runner
-from agents.extensions.models.litellm_model import LitellmModel
+from agents import Agent, ModelRetrySettings, ModelSettings, Runner, retry_policies
 from openai.types.shared.reasoning import Reasoning
 
 from web_scout.config import FOLLOWUP_HEURISTICS
@@ -70,6 +69,23 @@ logger = logging.getLogger("web_scout.agent")
 
 # Same yes-probability cutoff as coverage's candidate routing.
 JEV_SEARCH_RESULT_MIN = 0.5
+
+
+def _research_model_settings(*, reasoning: Reasoning | None = None) -> ModelSettings:
+    """Retry transient model failures for short, single-turn research agents."""
+    return ModelSettings(
+        reasoning=reasoning,
+        retry=ModelRetrySettings(
+            max_retries=3,
+            backoff={"initial_delay": 1.0, "max_delay": 8.0, "multiplier": 2.0, "jitter": True},
+            policy=retry_policies.any(
+                retry_policies.provider_suggested(),
+                retry_policies.retry_after(),
+                retry_policies.network_error(),
+                retry_policies.http_status([408, 409, 429, 500, 502, 503, 504]),
+            ),
+        ),
+    )
 
 
 def _normalize_planned_code(value: Optional[str], *, label: str) -> Optional[str]:
@@ -161,7 +177,7 @@ async def _select_followup_urls_with_luna(
         name="followup_selector",
         model=model,
         output_type=FollowupSelection,
-        model_settings=ModelSettings(),
+        model_settings=_research_model_settings(),
         instructions=(
             "You rank same-domain follow-up URLs for a web research pipeline. "
             "Only select from the provided candidates. "
@@ -295,6 +311,7 @@ def _build_query_agents(
     query_gen_agent = Agent(
         name="query_generator",
         model=query_gen_model,
+        model_settings=_research_model_settings(),
         output_type=SearchQueryChecklist if classification_backend() == "jev" else SearchQueryGeneration,
         instructions=QUERY_GENERATOR_INSTRUCTIONS
         + suffix
@@ -312,6 +329,7 @@ def _build_query_agents(
     evaluator_agent = Agent(
         name="coverage_evaluator",
         model=evaluator_model,
+        model_settings=_research_model_settings(),
         output_type=CoverageEvaluation,
         instructions=eval_instructions,
     )
@@ -606,7 +624,7 @@ async def _select_search_urls_with_gpt(
         name="search_result_selector",
         model=selector_model,
         output_type=FollowupSelection,
-        model_settings=ModelSettings(),
+        model_settings=_research_model_settings(),
         instructions=SEARCH_RESULT_SELECTOR_INSTRUCTIONS,
     )
     try:
@@ -1239,14 +1257,7 @@ async def _synthesise_result(
         model=synth_model,
         output_type=WebResearchResultRaw,
         instructions=SYNTHESISER_INSTRUCTIONS,
-        model_settings=ModelSettings(
-            reasoning=Reasoning(effort="high"),
-            # Mantle supports this parameter even when LiteLLM
-            # does not yet advertise it for the selected model.
-            extra_args={"allowed_openai_params": ["reasoning_effort"]}
-            if isinstance(synth_model, LitellmModel) and synth_model.model.startswith("bedrock_mantle/")
-            else None,
-        ),
+        model_settings=_research_model_settings(reasoning=Reasoning(effort="high")),
     )
     slots = _build_citation_slots(scraped)
 
