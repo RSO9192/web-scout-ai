@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-10-13
+
+### Added
+
+- Automatic country-aware multilingual search planning for initial and follow-up discovery. The planner identifies a canonical country name, which Web Scout resolves through an internal ISO 3166-1 registry before passing the validated code to Serper (`gl`) or Exa (`userLocation`). Country-specific research mixes English with the principal local publication language, and query audit records include the resolved country and language codes.
+
+### Changed
+
+- Final research syntheses are always written in English, including when source evidence is retrieved in other languages.
+- Search-result selection now uses a reranker that treats requested geography as part of relevance while balancing authority, direct evidence, accessibility, and source diversity. By default it is a structured GPT selector on the new `search_result_selector` model key (default: `web_researcher`). With `DISABLE_JEV=false` it runs on Jev, which judges each result and keeps the most probable ones; Jev failures raise `ClassificationError`.
+- Require `litellm>=1.104`, whose bundled model map routes `bedrock_mantle/openai.gpt-6-luna` to the Responses API. With older versions the content extractor fell back to Chat Completions, where Mantle rejects function tools.
+
+### Fixed
+
+- With `include_domains`, `site:` operators written by the query planner are removed before searching, and the planner is told not to add them. Serper already prepends the domain filter, so the duplicate used up Google's query-length limit.
+- Search results from `exclude_domains` are dropped before URL selection. With Serper, which ignores exclusions, they previously took scrape slots and were then blocked at fetch time.
+- Query planning and initial result selection receive the current date. Requests for current or recent evidence prioritize the latest reporting period, while frequency and trend requests target repeated or multi-year observations.
+
 ## [1.10.0] - 2026-10-12
 
 ### Changed

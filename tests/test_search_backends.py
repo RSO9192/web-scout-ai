@@ -4,6 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from web_scout._country_codes import resolve_country_code
+from web_scout._pipeline_types import PlannedSearchQuery, SearchQueryGeneration
 from web_scout.search_backends import ExaBackend, SerperBackend
 
 
@@ -25,6 +27,28 @@ def _make_client_mock(response):
     cm.__aenter__ = AsyncMock(return_value=client)
     cm.__aexit__ = AsyncMock(return_value=False)
     return cm, client
+
+
+def test_search_query_generation_accepts_legacy_query_strings():
+    generated = SearchQueryGeneration(queries=["fish production"])
+
+    assert generated.queries == [PlannedSearchQuery(query="fish production")]
+
+
+@pytest.mark.parametrize(
+    ("country_name", "expected"),
+    [
+        ("Bolivia", "bo"),
+        ("Bolivia, Plurinational State of", "bo"),
+        ("Côte d’Ivoire", "ci"),
+        ("United Kingdom", "gb"),
+        ("UK", "gb"),
+        ("not a country", None),
+        (None, None),
+    ],
+)
+def test_resolve_country_code_uses_internal_iso_registry(country_name, expected):
+    assert resolve_country_code(country_name) == expected
 
 
 # ---------------------------------------------------------------------------
@@ -77,6 +101,19 @@ async def test_no_include_domains_sends_query_unchanged():
 
     _, kwargs = client.post.call_args
     assert kwargs["json"]["q"] == "fish production"
+
+
+@pytest.mark.asyncio
+async def test_serper_maps_country_and_language_codes_to_gl_and_hl():
+    backend = SerperBackend(api_key="test-key")
+    cm, client = _make_client_mock(_mock_http_response({"organic": []}))
+
+    with patch("web_scout.scraping._resources.search_client", return_value=client):
+        await backend.search("riesgo de inundaciones", country_code="BO", language_code="ES")
+
+    _, kwargs = client.post.call_args
+    assert kwargs["json"]["gl"] == "bo"
+    assert kwargs["json"]["hl"] == "es"
 
 
 # ---------------------------------------------------------------------------
@@ -275,6 +312,90 @@ async def test_execute_searches_forwards_exclude_domains():
 
 
 @pytest.mark.asyncio
+async def test_execute_searches_forwards_and_records_search_locale():
+    from web_scout._pipeline_flow import _execute_searches
+    from web_scout.search_backends import SearchResponse
+    from web_scout.tools import ResearchTracker
+
+    backend = MagicMock()
+    backend.search = AsyncMock(return_value=SearchResponse(results=[]))
+    tracker = ResearchTracker()
+
+    await _execute_searches(
+        backend=backend,
+        search_queries=[
+            PlannedSearchQuery(
+                query="Bolivia riesgo de desastres",
+                country_name="Bolivia",
+                language_code="es",
+            )
+        ],
+        include_domains=None,
+        tracker=tracker,
+    )
+
+    kwargs = backend.search.call_args.kwargs
+    assert kwargs["country_code"] == "bo"
+    assert kwargs["language_code"] == "es"
+    recorded = tracker.queries[0]
+    assert recorded.country_code == "bo"
+    assert recorded.language_code == "es"
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("site:ipcinfo.org OR site:wfp.org OR site:fao.org Sudan latest IPC", "Sudan latest IPC"),
+        ("(site:fao.org OR site:wfp.org) Sudan IPC", "Sudan IPC"),
+        ("Sudan IPC site:fao.org", "Sudan IPC"),
+        ("Sudan IPC OR site:fao.org", "Sudan IPC"),
+        ("Sudan OR Chad IPC site:fao.org", "Sudan OR Chad IPC"),
+        ("Sudan IPC", "Sudan IPC"),
+    ],
+)
+def test_strip_site_operators(query, expected):
+    from web_scout._pipeline_rules import _strip_site_operators
+
+    assert _strip_site_operators(query) == expected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("include_domains", "expected_query"),
+    [
+        (["fao.org", "wfp.org"], "Sudan IPC"),
+        (None, "site:fao.org Sudan IPC"),
+    ],
+)
+async def test_execute_searches_strips_planner_site_operators_only_in_domain_mode(include_domains, expected_query):
+    from web_scout._pipeline_flow import _execute_searches
+    from web_scout.search_backends import SearchResponse
+    from web_scout.tools import ResearchTracker
+
+    backend = MagicMock()
+    backend.search = AsyncMock(return_value=SearchResponse(results=[]))
+    tracker = ResearchTracker()
+
+    await _execute_searches(
+        backend=backend,
+        search_queries=[PlannedSearchQuery(query="site:fao.org Sudan IPC")],
+        include_domains=include_domains,
+        tracker=tracker,
+    )
+
+    assert backend.search.call_args.args[0] == expected_query
+    assert tracker.queries[0].query == expected_query
+
+
+def test_query_generation_prompt_forbids_site_operators_in_domain_mode():
+    from web_scout._pipeline_rules import _build_query_generation_prompt
+
+    prompt = _build_query_generation_prompt(query="Sudan IPC", n_queries=3, include_domains=["fao.org"])
+
+    assert "do not add site: operators" in prompt
+
+
+@pytest.mark.asyncio
 async def test_search_and_scrape_iteration_forwards_exclude_domains(monkeypatch):
     """_search_and_scrape_iteration threads exclude_domains into _execute_searches."""
     from web_scout import _pipeline_flow as flow
@@ -417,6 +538,27 @@ async def test_exa_passes_native_domain_filters():
     assert body["includeDomains"] == ["fao.org"]
     assert body["excludeDomains"] == ["youtube.com"]
     assert body["query"] == "fish production"  # no site: operators injected
+
+
+@pytest.mark.asyncio
+async def test_exa_maps_country_to_user_location_and_uses_query_text_for_language():
+    backend = ExaBackend(api_key="exa-key")
+    cm, client = _make_client_mock(_mock_http_response(_exa_payload([])))
+
+    with patch("web_scout.scraping._resources.search_client", return_value=client):
+        await backend.search(
+            "Bolivia patrones espaciales de desastres",
+            country_code="bo",
+            language_code="es",
+        )
+
+    _, kwargs = client.post.call_args
+    body = kwargs["json"]
+    assert body["query"] == "Bolivia patrones espaciales de desastres"
+    assert body["userLocation"] == "BO"
+    assert body["type"] == "auto"
+    assert "language" not in body
+    assert "language_code" not in body
 
 
 # ---------------------------------------------------------------------------

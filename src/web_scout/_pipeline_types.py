@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ._extractor_contract import ExtractorOutcome
 
@@ -19,10 +19,34 @@ DEFAULT_FOLLOWUP_BACKEND = "gpt"
 FOLLOWUP_BACKENDS = frozenset({"jev", "gpt"})
 
 
+class PlannedSearchQuery(BaseModel):
+    """One backend-neutral search request produced by the query planner."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    query: str = Field(description="Natural search query written in the language identified by language_code")
+    country_name: str | None = Field(
+        default=None,
+        description="Canonical English country name for single-country localization, or null for other searches",
+    )
+    language_code: str | None = Field(
+        default=None,
+        description="Two-letter language code describing the query language, or null when unknown",
+    )
+
+
 class SearchQueryGeneration(BaseModel):
     """LLM output for generating diverse search queries."""
 
-    queries: list[str] = Field(description="List of search queries")
+    queries: list[PlannedSearchQuery] = Field(description="List of localized search queries")
+
+    @field_validator("queries", mode="before")
+    @classmethod
+    def _accept_legacy_query_strings(cls, value):
+        """Keep programmatic callers using the former list[str] shape working."""
+        if isinstance(value, list):
+            return [{"query": item} if isinstance(item, str) else item for item in value]
+        return value
 
 
 class SearchQueryChecklist(SearchQueryGeneration):
@@ -87,6 +111,7 @@ __all__ = [
     "FOLLOWUP_BACKENDS",
     "CoverageEvaluation",
     "FollowupSelection",
+    "PlannedSearchQuery",
     "SearchIterationResult",
     "SearchLoopState",
     "SearchQueryGeneration",

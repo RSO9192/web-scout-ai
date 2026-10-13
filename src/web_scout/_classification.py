@@ -162,6 +162,39 @@ async def coverage(query, requirements, sources, candidates):
     return not missing, "; ".join(missing), selected
 
 
+async def search_results(query, current_date, candidates):
+    """Return, in candidate order, each search result's probability of giving direct evidence for ``query``."""
+    probabilities = []
+    for start in range(0, len(candidates), 16):
+        batch = candidates[start : start + 16]
+        scores = await judge(
+            {"query": query, "current_date": current_date, "candidates": batch},
+            {
+                f"c{i}": Noul(
+                    instructions=(
+                        f"Is `candidates[{i}]` likely to provide direct evidence for `query`? "
+                        "Judge its title, snippet and URL."
+                    ),
+                    criteria={
+                        "true": (
+                            "A specific report, article, dataset or detail page from a primary or authoritative "
+                            "source that covers the topic, geography and time period of the query. For current or "
+                            "recent questions it covers the latest reporting period relative to `current_date`; for "
+                            "frequency or trend questions it covers repeated or multi-year observations."
+                        ),
+                        "false": (
+                            "Generic, about another geography or time period, a search page, homepage, social media "
+                            "post or aggregator, or no sign that it contains the facts the query asks for."
+                        ),
+                    },
+                )
+                for i in range(len(batch))
+            },
+        )
+        probabilities.extend(scores[f"c{i}"] for i in range(len(batch)))
+    return probabilities
+
+
 def _normalized(text):
     return re.sub(r"\s+", " ", text.translate(str.maketrans({"“": '"', "”": '"', "‘": "'", "’": "'"}))).strip()
 

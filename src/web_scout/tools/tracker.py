@@ -86,6 +86,8 @@ class ResearchTracker:
         num_results: int,
         domains: Optional[List[str]],
         results: list,
+        country_code: Optional[str] = None,
+        language_code: Optional[str] = None,
     ):
         from web_scout.models import SearchQuery, UrlEntry
 
@@ -94,6 +96,8 @@ class ResearchTracker:
                 query=query,
                 num_results_returned=num_results,
                 domains_restricted=domains or [],
+                country_code=country_code,
+                language_code=language_code,
             )
         )
         for r in results:

@@ -1,9 +1,11 @@
 """Pipeline orchestration helpers for deterministic web research."""
 
 import asyncio
+import json
 import logging
 import os
 from collections import OrderedDict
+from datetime import date
 from typing import Any, Optional
 from urllib.parse import urlparse
 
@@ -16,6 +18,8 @@ from web_scout.config import FOLLOWUP_HEURISTICS
 from ._classification import ClassificationError
 from ._classification import backend as classification_backend
 from ._classification import coverage as jev_coverage
+from ._classification import search_results as jev_search_results
+from ._country_codes import resolve_country_code
 from ._extractor_contract import ExtractorOutcome
 from ._pipeline_rules import (
     _build_citation_slots,
@@ -30,12 +34,14 @@ from ._pipeline_rules import (
     _normalize_domain,
     _rank_followup_candidates,
     _resolve_slot_citations,
+    _strip_site_operators,
 )
 from ._pipeline_types import (
     DEFAULT_FOLLOWUP_BACKEND,
     FOLLOWUP_BACKENDS,
     CoverageEvaluation,
     FollowupSelection,
+    PlannedSearchQuery,
     SearchIterationResult,
     SearchLoopState,
     SearchQueryChecklist,
@@ -44,6 +50,7 @@ from ._pipeline_types import (
 from ._prompts import (
     COVERAGE_EVALUATOR_INSTRUCTIONS,
     QUERY_GENERATOR_INSTRUCTIONS,
+    SEARCH_RESULT_SELECTOR_INSTRUCTIONS,
     SYNTHESISER_INSTRUCTIONS,
 )
 from .jev_link_selector import select_links_with_jev
@@ -60,6 +67,20 @@ from .tools import (
 )
 
 logger = logging.getLogger("web_scout.agent")
+
+# Same yes-probability cutoff as coverage's candidate routing.
+JEV_SEARCH_RESULT_MIN = 0.5
+
+
+def _normalize_planned_code(value: Optional[str], *, label: str) -> Optional[str]:
+    """Normalize a planner-produced two-letter locale code, ignoring malformed values."""
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    if len(normalized) == 2 and normalized.isalpha():
+        return normalized
+    logger.warning("[pipeline] ignoring invalid %s from query planner: %r", label, value)
+    return None
 
 
 async def _gather_scrapes(tasks: list) -> list:
@@ -338,7 +359,7 @@ async def _generate_search_queries(
     iteration: int,
     missing_info: str,
     query_gen_agent: Agent,
-) -> list[str]:
+) -> list[PlannedSearchQuery]:
     n_queries = depth["queries_first"] if iteration == 0 else depth["queries_followup"]
     prompt = _build_query_generation_prompt(
         query=query,
@@ -360,7 +381,11 @@ async def _generate_search_queries(
         search_queries = []
 
     if not search_queries:
-        search_queries = [query]
+        search_queries = [
+            PlannedSearchQuery(
+                query=query,
+            )
+        ]
 
     logger.info("[pipeline] generated %d queries: %s", len(search_queries), search_queries)
     return search_queries
@@ -369,23 +394,45 @@ async def _generate_search_queries(
 async def _execute_searches(
     *,
     backend: Any,
-    search_queries: list[str],
+    search_queries: list[PlannedSearchQuery | str],
     include_domains: Optional[list[str]],
     exclude_domains: Optional[list[str]] = None,
     tracker: ResearchTracker,
 ) -> list[Any]:
-    async def do_search(query: str):
+    async def do_search(planned: PlannedSearchQuery | str):
+        if isinstance(planned, str):
+            planned = PlannedSearchQuery(query=planned)
+        if include_domains:
+            # The backend applies include_domains itself; planner-written site: operators would duplicate it.
+            planned = planned.model_copy(update={"query": _strip_site_operators(planned.query)})
+        country_code = resolve_country_code(planned.country_name)
+        if planned.country_name and country_code is None:
+            logger.warning("[pipeline] ignoring unrecognized country from query planner: %r", planned.country_name)
+        language_code = _normalize_planned_code(planned.language_code, label="language code")
         try:
             response = await backend.search(
-                query,
+                planned.query,
                 max_results=10,
                 include_domains=include_domains,
                 exclude_domains=exclude_domains,
+                country_code=country_code,
+                language_code=language_code,
             )
-            tracker.record_search(query, len(response.results), include_domains, response.results)
+            response.query = planned.query
+            response.country_name = planned.country_name
+            response.country_code = country_code
+            response.language_code = language_code
+            tracker.record_search(
+                planned.query,
+                len(response.results),
+                include_domains,
+                response.results,
+                country_code=country_code,
+                language_code=language_code,
+            )
             return response
         except Exception as exc:
-            logger.error("[pipeline] search failed for %r: %s", query, exc)
+            logger.error("[pipeline] search failed for %r: %s", planned.query, exc)
             return None
 
     return await asyncio.gather(*(do_search(query) for query in search_queries))
@@ -399,6 +446,7 @@ def _select_search_urls(
     iteration: int,
     tracker: ResearchTracker,
     search_results: list[Any],
+    exclude_domains: Optional[list[str]] = None,
 ) -> list[str]:
     unique_urls = OrderedDict()
     max_urls_to_scrape = depth["urls_first"] if iteration == 0 else depth["urls_followup"]
@@ -412,7 +460,7 @@ def _select_search_urls(
                 norm = tracker.normalize_url(url)
                 if include_domains and not _is_domain_mode_candidate(url, include_domains, query):
                     continue
-                if tracker.is_domain_bot_blocked(url):
+                if tracker.is_domain_bot_blocked(url) or is_blocked_domain(url, exclude_domains=exclude_domains):
                     continue
                 if norm not in unique_urls and tracker.is_unscraped_candidate(url):
                     unique_urls[norm] = url
@@ -423,6 +471,151 @@ def _select_search_urls(
     urls_to_scrape = _diversify_search_urls(list(unique_urls.values()), max_urls_to_scrape)
     logger.info("[pipeline] selected %d new URLs to scrape", len(urls_to_scrape))
     return urls_to_scrape
+
+
+def _search_result_candidates(
+    *,
+    include_domains: Optional[list[str]],
+    tracker: ResearchTracker,
+    search_results: list[Any],
+    exclude_domains: Optional[list[str]] = None,
+) -> list[dict[str, Any]]:
+    """Build a deduplicated, round-robin candidate pool with locale provenance."""
+    candidates: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    max_results_len = max([len(response.results) for response in search_results if response] + [0])
+
+    for rank in range(max_results_len):
+        for response in search_results:
+            if not response or rank >= len(response.results):
+                continue
+            result = response.results[rank]
+            url = result.url
+            norm = tracker.normalize_url(url)
+            if include_domains and not _is_domain_mode_candidate(url, include_domains, response.query or ""):
+                continue
+            if tracker.is_domain_bot_blocked(url) or norm in seen or not tracker.is_unscraped_candidate(url):
+                continue
+            if is_blocked_domain(url, exclude_domains=exclude_domains):
+                continue
+            seen.add(norm)
+            candidates.append(
+                {
+                    "url": url,
+                    "title": result.title,
+                    "snippet": " ".join(result.snippet.split())[:600],
+                    "backend_rank": rank + 1,
+                    "search_query": response.query,
+                    "country_name": response.country_name,
+                    "country_code": response.country_code,
+                    "language_code": response.language_code,
+                }
+            )
+    return candidates
+
+
+async def _select_search_urls_with_model(
+    *,
+    query: str,
+    include_domains: Optional[list[str]],
+    depth: dict[str, int],
+    iteration: int,
+    tracker: ResearchTracker,
+    search_results: list[Any],
+    selector_model: Any,
+    exclude_domains: Optional[list[str]] = None,
+) -> list[str]:
+    """Rank search results with Jev (``DISABLE_JEV=false``) or a structured GPT selector.
+
+    Selections are padded with the deterministic round-robin order up to the URL budget.
+    A GPT failure falls back to that order; a Jev failure raises ``ClassificationError``.
+    """
+    fallback = _select_search_urls(
+        query=query,
+        include_domains=include_domains,
+        depth=depth,
+        iteration=iteration,
+        tracker=tracker,
+        search_results=search_results,
+        exclude_domains=exclude_domains,
+    )
+    candidates = _search_result_candidates(
+        include_domains=include_domains,
+        tracker=tracker,
+        search_results=search_results,
+        exclude_domains=exclude_domains,
+    )
+    use_jev = classification_backend() == "jev"
+    if (selector_model is None and not use_jev) or len(candidates) <= 1:
+        return fallback
+
+    cap = depth["urls_first"] if iteration == 0 else depth["urls_followup"]
+    if use_jev:
+        selected = await _select_search_urls_with_jev(query=query, candidates=candidates)
+    else:
+        selected = await _select_search_urls_with_gpt(
+            query=query, candidates=candidates, cap=cap, selector_model=selector_model
+        )
+        if selected is None:
+            return fallback
+
+    allowed = {tracker.normalize_url(item["url"]): item["url"] for item in candidates}
+    chosen: list[str] = []
+    for url in selected:
+        original = allowed.get(tracker.normalize_url(url))
+        if original and original not in chosen:
+            chosen.append(original)
+        if len(chosen) >= cap:
+            break
+    for url in fallback:
+        if url not in chosen:
+            chosen.append(url)
+        if len(chosen) >= cap:
+            break
+
+    chosen = _diversify_search_urls(chosen, cap)
+    logger.info("[pipeline] %s search-result selector chose %d URLs", "jev" if use_jev else "gpt", len(chosen))
+    return chosen
+
+
+async def _select_search_urls_with_jev(*, query: str, candidates: list[dict[str, Any]]) -> list[str]:
+    """Return candidate URLs Jev judges relevant, most probable first."""
+    probabilities = await jev_search_results(
+        query,
+        date.today().isoformat(),
+        [{key: item[key] for key in ("url", "title", "snippet")} for item in candidates],
+    )
+    ranked = sorted(zip(probabilities, candidates), key=lambda pair: pair[0], reverse=True)
+    return [item["url"] for probability, item in ranked if probability >= JEV_SEARCH_RESULT_MIN]
+
+
+async def _select_search_urls_with_gpt(
+    *, query: str, candidates: list[dict[str, Any]], cap: int, selector_model: Any
+) -> Optional[list[str]]:
+    """Return GPT-selected candidate URLs best-first, or None when the call fails."""
+    prompt = (
+        f"Original research question: {query}\n"
+        f"Current date: {date.today().isoformat()}\n"
+        f"Select up to {cap} candidates to scrape.\n"
+        "Candidate country names, country codes, and language codes describe the search that produced each result; "
+        "they do not prove that the result itself matches that geography.\n"
+        "If the question has no specific geographic scope, do not invent one.\n\n"
+        f"Candidates:\n{json.dumps(candidates, ensure_ascii=False, indent=2)}"
+    )
+    selector = Agent(
+        name="search_result_selector",
+        model=selector_model,
+        output_type=FollowupSelection,
+        model_settings=ModelSettings(),
+        instructions=SEARCH_RESULT_SELECTOR_INSTRUCTIONS,
+    )
+    try:
+        async with model_admission():
+            result = await Runner.run(selector, prompt)
+        return result.final_output_as(FollowupSelection).selected_urls
+    except Exception as exc:
+        logger.warning("[pipeline] search-result selector failed: %s", exc)
+        return None
 
 
 async def _search_and_scrape_iteration(
@@ -437,6 +630,7 @@ async def _search_and_scrape_iteration(
     backend: Any,
     tracker: ResearchTracker,
     scrape_tool: Any,
+    selector_model: Any = None,
 ) -> SearchIterationResult:
     search_queries = await _generate_search_queries(
         query=query,
@@ -453,13 +647,15 @@ async def _search_and_scrape_iteration(
         exclude_domains=exclude_domains,
         tracker=tracker,
     )
-    urls_to_scrape = _select_search_urls(
+    urls_to_scrape = await _select_search_urls_with_model(
         query=query,
         include_domains=include_domains,
         depth=depth,
         iteration=iteration,
         tracker=tracker,
         search_results=search_results,
+        selector_model=selector_model,
+        exclude_domains=exclude_domains,
     )
     return await _scrape_urls(
         scrape_tool,
@@ -931,6 +1127,7 @@ async def _run_search_mode_impl(
     evaluator_model: Any,
     followup_model: Any,
     followup_backend: str = DEFAULT_FOLLOWUP_BACKEND,
+    search_selector_model: Any = None,
     tracker: ResearchTracker,
     scrape_tool: Any,
     exclude_domains: Optional[frozenset[str]],
@@ -978,6 +1175,7 @@ async def _run_search_mode_impl(
                 backend=backend,
                 tracker=tracker,
                 scrape_tool=scrape_tool,
+                selector_model=search_selector_model,
             )
 
         if classification_backend() == "jev":
@@ -1137,5 +1335,6 @@ __all__ = [
     "_select_followup_urls_with_jev",
     "_select_followup_urls_with_luna",
     "_select_search_urls",
+    "_select_search_urls_with_model",
     "_synthesise_result",
 ]

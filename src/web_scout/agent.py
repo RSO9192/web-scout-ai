@@ -40,6 +40,7 @@ from ._pipeline_flow import (
     _run_direct_url_mode,
     _run_search_mode_impl,
     _select_search_urls,
+    _select_search_urls_with_model,
     _synthesise_result,
 )
 from ._pipeline_flow import (
@@ -78,6 +79,7 @@ from ._pipeline_types import (
 from ._prompts import (
     COVERAGE_EVALUATOR_INSTRUCTIONS,
     QUERY_GENERATOR_INSTRUCTIONS,
+    SEARCH_RESULT_SELECTOR_INSTRUCTIONS,
     SYNTHESISER_INSTRUCTIONS,
 )
 from .models import WebResearchResult
@@ -144,6 +146,7 @@ async def _search_and_scrape_iteration(
     backend: Any,
     tracker: ResearchTracker,
     scrape_tool: Any,
+    selector_model: Any = None,
 ) -> SearchIterationResult:
     """Compatibility wrapper kept on the public module for tests and monkeypatching."""
     return await _search_and_scrape_iteration_impl(
@@ -157,6 +160,7 @@ async def _search_and_scrape_iteration(
         backend=backend,
         tracker=tracker,
         scrape_tool=scrape_tool,
+        selector_model=selector_model,
     )
 
 
@@ -193,6 +197,7 @@ async def _run_search_mode(
     evaluator_model: Any,
     followup_model: Any,
     followup_backend: str = DEFAULT_FOLLOWUP_BACKEND,
+    search_selector_model: Any = None,
     tracker: ResearchTracker,
     scrape_tool: Any,
     exclude_domains: Optional[frozenset[str]],
@@ -213,6 +218,7 @@ async def _run_search_mode(
         evaluator_model=evaluator_model,
         followup_model=followup_model,
         followup_backend=followup_backend,
+        search_selector_model=search_selector_model,
         tracker=tracker,
         scrape_tool=scrape_tool,
         exclude_domains=exclude_domains,
@@ -256,6 +262,9 @@ async def run_web_research(
     (default from ``ROUTING_HEURISTICS.short_pdf_max_chars``).
     ``verify_pdf_claims`` enables an optional extra LLM claim-support check
     for PDF extracts (default False).
+
+    Search localization is inferred automatically by the query planner for
+    country-specific questions.
 
     ``cache`` is accepted for existing callers and does not disable caching.
     URL fetches and PDF parses are cached with Prefect. ``cache_storage`` is an
@@ -326,8 +335,10 @@ async def run_web_research(
     query_gen_model = get_model(models.get("query_generator", fallback_model))
     evaluator_model = get_model(models.get("coverage_evaluator", fallback_model))
     synth_model = get_model(models.get("synthesiser", fallback_model))
+    search_selector_model = None
     followup_model = None
     if followup_backend == "gpt":
+        search_selector_model = get_model(models.get("search_result_selector", fallback_model))
         followup_model = get_model(
             models.get(
                 "followup_selector",
@@ -403,6 +414,7 @@ async def run_web_research(
                     evaluator_model=evaluator_model,
                     followup_model=followup_model,
                     followup_backend=followup_backend,
+                    search_selector_model=search_selector_model,
                     tracker=tracker,
                     scrape_tool=scrape_tool,
                     exclude_domains=_excluded,
@@ -427,6 +439,7 @@ __all__ = [
     "CoverageEvaluation",
     "FollowupSelection",
     "QUERY_GENERATOR_INSTRUCTIONS",
+    "SEARCH_RESULT_SELECTOR_INSTRUCTIONS",
     "Runner",
     "SYNTHESISER_INSTRUCTIONS",
     "SearchIterationResult",
@@ -457,6 +470,7 @@ __all__ = [
     "_score_followup_candidate",
     "_search_and_scrape_iteration",
     "_select_search_urls",
+    "_select_search_urls_with_model",
     "run_web_research",
 ]
 

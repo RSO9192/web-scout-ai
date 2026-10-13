@@ -209,9 +209,10 @@ class WebResearchResult(BaseModel):
 | `scraped_irrelevant` | Pages fetched successfully but not useful for the query |
 | `bot_detected` | Sources that still returned a bot-protection wall |
 | `snippet_only` | Search results discovered but not opened; snippets are never valid citation targets |
-| `queries` | Every search query executed, its result count, and domain restrictions |
+| `queries` | Every search query executed, its result count, domain restrictions, country, and language |
 
-`UrlEntry` contains `url`, `title`, and `content`. `SearchQuery` contains `query`, `num_results_returned`, and `domains_restricted`.
+`UrlEntry` contains `url`, `title`, and `content`. `SearchQuery` contains `query`,
+`num_results_returned`, `domains_restricted`, `country_code`, and `language_code`.
 
 The synthesizer is instructed to use scraped evidence only. A deterministic final check rejects citations to invented or snippet-only URLs and retries the synthesis with feedback.
 
@@ -277,7 +278,8 @@ Pass `models` to choose the LLM for each stage. Model IDs follow [LiteLLM provid
 
 ```python
 models = {
-    # Query generation, coverage evaluation and synthesis, unless overridden below
+    # Query generation, search-result ranking, coverage evaluation and synthesis,
+    # unless overridden below
     "web_researcher": "bedrock_mantle/openai.gpt-6-luna",
 
     # Reads and extracts each source
@@ -291,6 +293,7 @@ models = {
 
     # Optional per-stage overrides; each falls back to "web_researcher"
     # "query_generator": "...",
+    # "search_result_selector": "...",  # ranks search results before scraping (unused when Jev is on)
     # "coverage_evaluator": "...",
     # "synthesiser": "...",
 }
@@ -334,9 +337,25 @@ result = await run_web_research(
 )
 ```
 
+For country-specific questions, the query planner identifies the canonical country
+name and automatically combines English queries with queries in the country's principal
+publication language. Web Scout resolves the country name through its internal ISO 3166-1
+registry before any code reaches a search backend. Serper maps the validated code and
+planned language to its country and language options; Exa maps the country to
+`userLocation` and relies on the translated query text for language targeting.
+Both initial and gap-directed follow-up searches use the same multilingual policy.
+The search-result selector also treats requested geography as part of relevance,
+favoring sources with substantive place-specific coverage without hard-coding any
+country or excluding stronger international evidence. It runs on the
+`search_result_selector` model (default: `web_researcher`), or on Jev when
+`DISABLE_JEV=false`, and never sees URLs from `exclude_domains`. If the GPT call fails
+it falls back to backend rank order. Localization is fully automatic;
+there are no public country or language parameters. Final syntheses are always written
+in English, including when evidence was retrieved from non-English sources.
+
 ### Jev classification (optional)
 
-Four steps make yes/no judgments rather than generate text: crawler link selection, follow-up link selection, search coverage evaluation, and (when `verify_pdf_claims=True`) PDF claim verification. By default they use the GPT models above. Set `DISABLE_JEV=false` to run all four on TypeSafe Jev instead:
+Five steps make yes/no judgments rather than generate text: search-result selection, crawler link selection, follow-up link selection, search coverage evaluation, and (when `verify_pdf_claims=True`) PDF claim verification. By default they use the GPT models above. Set `DISABLE_JEV=false` to run all five on TypeSafe Jev instead:
 
 ```bash
 export DISABLE_JEV=false

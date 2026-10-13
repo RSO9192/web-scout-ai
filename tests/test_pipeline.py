@@ -6,9 +6,12 @@ All LLM and network calls are replaced with synchronous fakes via monkeypatch.
 """
 
 
+import inspect
+
 import pytest
 
 from web_scout import agent as _agent_module
+from web_scout._pipeline_rules import _build_query_generation_prompt
 from web_scout.agent import (
     CoverageEvaluation,
     FollowupSelection,
@@ -18,10 +21,12 @@ from web_scout.agent import (
     _evaluate_search_coverage,
     _rerank_followup_urls,
     _select_search_urls,
+    _select_search_urls_with_model,
     run_web_research,
 )
 from web_scout.models import UrlEntry, WebResearchResultRaw
 from web_scout.scraping import _document as _document_module
+from web_scout.search_backends import SearchResponse, SearchResult
 from web_scout.tools import ResearchTracker
 
 # ---------------------------------------------------------------------------
@@ -44,8 +49,12 @@ class _FakeRunResult:
 
 
 class _FakeSearchResponse:
-    def __init__(self, urls):
+    def __init__(self, urls, *, query="", country_name=None, country_code=None, language_code=None):
         self.results = [type("R", (), {"url": url, "title": url, "snippet": ""})() for url in urls]
+        self.query = query
+        self.country_name = country_name
+        self.country_code = country_code
+        self.language_code = language_code
 
 
 def _patch_scrape_tool(monkeypatch, return_value: str = "Some scraped content " * 30):
@@ -112,6 +121,34 @@ async def test_pdf_conversion_uses_shared_extractor(monkeypatch):
 # ---------------------------------------------------------------------------
 # Input validation
 # ---------------------------------------------------------------------------
+
+
+def test_query_generation_prompt_targets_followup_gap_without_locale_overrides():
+    prompt = _build_query_generation_prompt(
+        query="Bolivia disaster risk",
+        n_queries=2,
+        include_domains=None,
+        missing_info="municipal flood and drought patterns",
+        current_date="2026-10-13",
+    )
+
+    assert "Current date: 2026-10-13" in prompt
+    assert "missing: municipal flood and drought patterns" in prompt
+    assert "override" not in prompt.lower()
+
+
+def test_query_planner_instructions_cover_current_status_and_trends():
+    from web_scout._prompts import QUERY_GENERATOR_INSTRUCTIONS
+
+    assert "latest available reporting period" in QUERY_GENERATOR_INSTRUCTIONS
+    assert "historical series" in QUERY_GENERATOR_INSTRUCTIONS
+
+
+def test_run_web_research_has_no_public_locale_overrides():
+    parameters = inspect.signature(run_web_research).parameters
+
+    assert "search_country" not in parameters
+    assert "search_languages" not in parameters
 
 
 @pytest.mark.asyncio
@@ -597,6 +634,103 @@ def test_select_search_urls_skips_bot_blocked_domains():
         "https://open3.org/1",
         "https://open.org/2",
     ]
+
+
+@pytest.mark.asyncio
+async def test_search_result_selector_can_promote_geography_specific_source(monkeypatch):
+    captured = {}
+
+    async def _fake_run(agent, prompt):
+        captured["instructions"] = agent.instructions
+        captured["prompt"] = prompt
+        return _FakeRunResult(FollowupSelection(selected_urls=["https://environment.go.ke/drought-report.pdf"]))
+
+    monkeypatch.setattr(_agent_module.Runner, "run", _fake_run)
+    response = SearchResponse(
+        query="Kenya drought spatial patterns",
+        country_name="Kenya",
+        country_code="ke",
+        language_code="en",
+        results=[
+            SearchResult(
+                title="Global drought patterns",
+                url="https://example.org/global-drought",
+                snippet="A worldwide review of drought patterns.",
+            ),
+            SearchResult(
+                title="Kenya drought risk report",
+                url="https://environment.go.ke/drought-report.pdf",
+                snippet="County-level drought exposure and drivers in Kenya.",
+            ),
+        ],
+    )
+
+    selected = await _select_search_urls_with_model(
+        query="What are the spatial patterns and drivers of drought in Kenya?",
+        include_domains=None,
+        depth={"urls_first": 1, "urls_followup": 1},
+        iteration=0,
+        tracker=ResearchTracker(),
+        search_results=[response],
+        selector_model="dummy",
+    )
+
+    assert selected == ["https://environment.go.ke/drought-report.pdf"]
+    assert "Treat geographic scope as part of relevance" in captured["instructions"]
+    assert "Treat temporal scope as part of relevance" in captured["instructions"]
+    assert "Current date:" in captured["prompt"]
+    assert '"country_name": "Kenya"' in captured["prompt"]
+    assert '"country_code": "ke"' in captured["prompt"]
+
+
+@pytest.mark.asyncio
+async def test_search_result_selector_never_returns_excluded_domains(monkeypatch):
+    captured = {}
+
+    async def _fake_run(agent, prompt):
+        captured["prompt"] = prompt
+        return _FakeRunResult(FollowupSelection(selected_urls=["https://www.facebook.com/post/1"]))
+
+    monkeypatch.setattr(_agent_module.Runner, "run", _fake_run)
+    search_results = [
+        _FakeSearchResponse(["https://www.facebook.com/post/1", "https://open.org/1", "https://open2.org/1"]),
+    ]
+
+    selected = await _select_search_urls_with_model(
+        query="reef threats",
+        include_domains=None,
+        exclude_domains=["facebook.com"],
+        depth={"urls_first": 3, "urls_followup": 3},
+        iteration=0,
+        tracker=ResearchTracker(),
+        search_results=search_results,
+        selector_model="dummy",
+    )
+
+    assert selected == ["https://open.org/1", "https://open2.org/1"]
+    assert "facebook.com" not in captured["prompt"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("models", "expected"),
+    [
+        ({"web_researcher": "researcher", "search_result_selector": "ranker"}, "ranker"),
+        ({"web_researcher": "researcher"}, "researcher"),
+    ],
+)
+async def test_search_result_selector_model_is_configurable(monkeypatch, models, expected):
+    from unittest.mock import AsyncMock
+
+    monkeypatch.setattr("web_scout.utils.get_model", lambda model: model)
+    monkeypatch.setattr(_agent_module, "create_scrape_and_extract_tool", lambda **kwargs: AsyncMock())
+    run_mode = AsyncMock()
+    monkeypatch.setattr(_agent_module, "_run_search_mode", run_mode)
+    monkeypatch.setattr(_agent_module, "_synthesise_result", AsyncMock(return_value="result"))
+
+    await run_web_research("query", models=models)
+
+    assert run_mode.await_args.kwargs["search_selector_model"] == expected
 
 
 @pytest.mark.asyncio

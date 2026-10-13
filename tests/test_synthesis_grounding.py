@@ -22,6 +22,11 @@ def test_instructions_forbid_training_data():
     assert "do not" in lower or "no training data" in lower
 
 
+def test_instructions_always_require_english_synthesis():
+    lower = SYNTHESISER_INSTRUCTIONS.lower()
+    assert "always write the final synthesis in english" in lower
+
+
 def test_instructions_require_gap_reporting():
     lower = SYNTHESISER_INSTRUCTIONS.lower()
     assert "gap" in lower or "not found" in lower or "did not contain" in lower

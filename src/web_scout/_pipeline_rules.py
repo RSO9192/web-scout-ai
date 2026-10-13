@@ -1,6 +1,7 @@
 """Pure helpers and prompt builders for the web research pipeline."""
 
 import re as _re
+from datetime import date as _date
 from typing import Optional
 from urllib.parse import parse_qsl, urljoin, urlparse
 
@@ -553,19 +554,42 @@ def _build_query_generation_prompt(
     n_queries: int,
     include_domains: Optional[list[str]],
     missing_info: str = "",
+    current_date: Optional[str] = None,
 ) -> str:
+    temporal_context = current_date or _date.today().isoformat()
     if missing_info:
         prompt = (
             f"Research Query: {query}\n"
+            f"Current date: {temporal_context}\n"
             f"We have already scraped some content, but we are missing: {missing_info}\n"
             f"Generate exactly {n_queries} new distinct search queries specifically "
             "targeting this missing information.\n"
         )
     else:
-        prompt = f"Research Query: {query}\nGenerate exactly {n_queries} distinct search queries.\n"
+        prompt = (
+            f"Research Query: {query}\n"
+            f"Current date: {temporal_context}\n"
+            f"Generate exactly {n_queries} distinct search queries.\n"
+        )
     if include_domains:
-        prompt += f"Note: We will search exclusively within these domains: {', '.join(include_domains)}\n"
+        prompt += (
+            f"Note: We will search exclusively within these domains: {', '.join(include_domains)}\n"
+            "The domain filter is applied automatically; do not add site: operators to the queries.\n"
+        )
     return prompt
+
+
+# A site: operator, optionally parenthesized, plus an OR joining it to a neighbour.
+_SITE_OPERATOR_RE = _re.compile(r"(?:\bOR\s+)?\(?\bsite:[^\s()]+\)?(?:\s+OR\b)?", _re.IGNORECASE)
+
+
+def _strip_site_operators(query: str) -> str:
+    """Remove ``site:`` operators (and the ORs joining them) from a search query.
+
+    Returns the original query when nothing else would remain.
+    """
+    stripped = " ".join(_SITE_OPERATOR_RE.sub(" ", query).split())
+    return stripped or query
 
 
 def _build_coverage_prompt(query: str, tracker: ResearchTracker) -> str:
@@ -648,4 +672,5 @@ __all__ = [
     "_rank_followup_candidates",
     "_resolve_slot_citations",
     "_score_followup_candidate",
+    "_strip_site_operators",
 ]

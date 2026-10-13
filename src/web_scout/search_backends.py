@@ -43,6 +43,10 @@ class SearchResponse:
     """Search results from a backend."""
 
     results: List[SearchResult]
+    query: str = ""
+    country_name: Optional[str] = None
+    country_code: Optional[str] = None
+    language_code: Optional[str] = None
 
 
 class SearchBackend(abc.ABC):
@@ -54,6 +58,10 @@ class SearchBackend(abc.ABC):
     ``exclude_domains`` is best-effort: backends with native exclusion
     (e.g. Exa) apply it at the API; backends without (e.g. Serper) may
     ignore it.  Callers must always post-filter result URLs.
+
+    ``country_code`` and ``language_code`` are backend-neutral localization
+    hints. Backends apply the capabilities they support and otherwise rely on
+    the localized query text.
     """
 
     @abc.abstractmethod
@@ -63,6 +71,8 @@ class SearchBackend(abc.ABC):
         max_results: int = 5,
         include_domains: Optional[List[str]] = None,
         exclude_domains: Optional[List[str]] = None,
+        country_code: Optional[str] = None,
+        language_code: Optional[str] = None,
     ) -> SearchResponse: ...
 
 
@@ -126,6 +136,7 @@ class SerperBackend(SearchBackend):
     in Google, so no post-filtering is needed.  ``exclude_domains`` is
     ignored: Google has no native exclusion filter, and ``-site:`` operators
     would eat into its ~32-term query limit — callers post-filter instead.
+    Locale hints map to Serper's ``gl`` and ``hl`` request fields.
 
     Retries transient failures via ``_post_with_retries``.
     """
@@ -139,11 +150,19 @@ class SerperBackend(SearchBackend):
         max_results: int = 5,
         include_domains: Optional[List[str]] = None,
         exclude_domains: Optional[List[str]] = None,
+        country_code: Optional[str] = None,
+        language_code: Optional[str] = None,
     ) -> SearchResponse:
         effective_query = query
         if include_domains:
             site_clause = " OR ".join(f"site:{d}" for d in include_domains)
             effective_query = f"({site_clause}) {effective_query}"
+
+        payload: dict = {"q": effective_query, "num": max_results}
+        if country_code:
+            payload["gl"] = country_code.lower()
+        if language_code:
+            payload["hl"] = language_code.lower()
 
         data = await _post_with_retries(
             "https://google.serper.dev/search",
@@ -151,7 +170,7 @@ class SerperBackend(SearchBackend):
                 "X-API-KEY": self._api_key,
                 "Content-Type": "application/json",
             },
-            payload={"q": effective_query, "num": max_results},
+            payload=payload,
             label="Serper",
         )
 
@@ -165,7 +184,12 @@ class SerperBackend(SearchBackend):
             if item.get("link")
         ][:max_results]
 
-        return SearchResponse(results=results)
+        return SearchResponse(
+            results=results,
+            query=query,
+            country_code=country_code,
+            language_code=language_code,
+        )
 
 
 class ExaBackend(SearchBackend):
@@ -176,6 +200,8 @@ class ExaBackend(SearchBackend):
     query-relevant sentences from each page — to fill the ``snippet`` field,
     since bare Exa results carry no snippet.  Domain filters map to Exa's
     native ``includeDomains``/``excludeDomains``.
+    ``country_code`` maps to Exa's ``userLocation``; Exa has no separate
+    query-language field, so language targeting comes from the query text.
 
     Google SERP extras (related searches, People Also Ask, knowledge graph)
     do not exist in Exa and are returned empty.
@@ -192,6 +218,8 @@ class ExaBackend(SearchBackend):
         max_results: int = 5,
         include_domains: Optional[List[str]] = None,
         exclude_domains: Optional[List[str]] = None,
+        country_code: Optional[str] = None,
+        language_code: Optional[str] = None,
     ) -> SearchResponse:
         payload: dict = {
             "query": query,
@@ -206,6 +234,8 @@ class ExaBackend(SearchBackend):
             payload["includeDomains"] = include_domains
         if exclude_domains:
             payload["excludeDomains"] = exclude_domains
+        if country_code:
+            payload["userLocation"] = country_code.upper()
 
         data = await _post_with_retries(
             "https://api.exa.ai/search",
@@ -227,4 +257,9 @@ class ExaBackend(SearchBackend):
             if item.get("url")
         ][:max_results]
 
-        return SearchResponse(results=results)
+        return SearchResponse(
+            results=results,
+            query=query,
+            country_code=country_code,
+            language_code=language_code,
+        )

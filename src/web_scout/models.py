@@ -1,6 +1,6 @@
 """Pydantic output models for the web researcher agent (new)."""
 
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -11,6 +11,8 @@ class SearchQuery(BaseModel):
     query: str
     num_results_returned: int
     domains_restricted: List[str] = Field(default_factory=list)
+    country_code: Optional[str] = Field(default=None, description="Country localization used for this search")
+    language_code: Optional[str] = Field(default=None, description="Language of this search query")
 
 
 class UrlEntry(BaseModel):
@@ -45,7 +47,7 @@ class WebResearchResultRaw(BaseModel):
     synthesis: str = Field(
         default="",
         description=(
-            "A coherent narrative synthesizing the findings to answer the research query. "
+            "An English-language narrative synthesizing the findings to answer the research query. "
             "Highlight key facts, mention data gaps, and note any contradictions or issues "
             "with the search results."
         ),
@@ -93,5 +95,5 @@ class WebResearchResult(BaseModel):
     )
     synthesis: str = Field(
         default="",
-        description="Main agent's synthesized answer and narrative about the research process.",
+        description="Main agent's English-language synthesized answer and narrative about the research process.",
     )

@@ -76,6 +76,79 @@ async def test_disable_jev_uses_gpt_followup_ranker(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_enabled_jev_ranks_search_results_by_probability(monkeypatch):
+    monkeypatch.setenv("DISABLE_JEV", "false")
+    gpt = AsyncMock(side_effect=AssertionError("GPT selector must not run"))
+    monkeypatch.setattr(flow.Runner, "run", gpt)
+    captured = {}
+
+    async def fake_jev(query, current_date, candidates):
+        captured["candidates"] = candidates
+        return [0.2, 0.9, 0.6]
+
+    monkeypatch.setattr(flow, "jev_search_results", fake_jev)
+    response = flow_search_response(["https://a.org/1", "https://b.org/1", "https://c.org/1"])
+
+    selected = await flow._select_search_urls_with_model(
+        query="Sudan IPC",
+        include_domains=None,
+        depth={"urls_first": 2, "urls_followup": 2},
+        iteration=0,
+        tracker=agent.ResearchTracker(),
+        search_results=[response],
+        selector_model=None,
+    )
+
+    assert selected == ["https://b.org/1", "https://c.org/1"]
+    assert set(captured["candidates"][0]) == {"url", "title", "snippet"}
+    gpt.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_enabled_jev_search_result_failure_raises(monkeypatch):
+    monkeypatch.setenv("DISABLE_JEV", "false")
+    monkeypatch.setattr(
+        flow, "jev_search_results", AsyncMock(side_effect=classification.ClassificationError("Jev down"))
+    )
+
+    with pytest.raises(classification.ClassificationError):
+        await flow._select_search_urls_with_model(
+            query="Sudan IPC",
+            include_domains=None,
+            depth={"urls_first": 2, "urls_followup": 2},
+            iteration=0,
+            tracker=agent.ResearchTracker(),
+            search_results=[flow_search_response(["https://a.org/1", "https://b.org/1"])],
+            selector_model=None,
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("disable_jev", "expected"), [("true", "ranker"), ("false", None)])
+async def test_search_result_selector_model_only_used_without_jev(monkeypatch, disable_jev, expected):
+    monkeypatch.setenv("DISABLE_JEV", disable_jev)
+    monkeypatch.setattr(classification, "require_credentials", Mock())
+    monkeypatch.setattr("web_scout.utils.get_model", lambda model: model)
+    monkeypatch.setattr(agent, "create_scrape_and_extract_tool", lambda **kwargs: AsyncMock())
+    run_mode = AsyncMock()
+    monkeypatch.setattr(agent, "_run_search_mode", run_mode)
+    monkeypatch.setattr(agent, "_synthesise_result", AsyncMock(return_value="result"))
+
+    await agent.run_web_research("query", models={"web_researcher": "researcher", "search_result_selector": "ranker"})
+
+    assert run_mode.await_args.kwargs["search_selector_model"] == expected
+
+
+def flow_search_response(urls):
+    from web_scout.search_backends import SearchResponse, SearchResult
+
+    return SearchResponse(
+        query="Sudan IPC",
+        results=[SearchResult(title=f"Title {url}", url=url, snippet=f"Snippet {url}") for url in urls],
+    )
+
+
+@pytest.mark.asyncio
 async def test_disable_jev_uses_gpt_crawler(monkeypatch):
     monkeypatch.setenv("DISABLE_JEV", "true")
     crawler = _crawler.Crawl4AICrawler()
