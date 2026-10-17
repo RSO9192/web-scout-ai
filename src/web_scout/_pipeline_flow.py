@@ -274,7 +274,7 @@ async def _rerank_followup_urls(
 
 
 def _build_search_backend(search_backend: str):
-    from .search_backends import ExaBackend, SerperBackend
+    from .search_backends import ExaBackend, ParallelBackend, SerperBackend
 
     if search_backend == "serper":
         key = os.getenv("SERPER_API_KEY", "")
@@ -288,9 +288,12 @@ def _build_search_backend(search_backend: str):
             raise ValueError("search_backend='exa' requires EXA_API_KEY env var")
         return ExaBackend(key)
 
+    if search_backend == "parallel":
+        return ParallelBackend()
+
     raise ValueError(
         f"Unknown search_backend={search_backend!r}. "
-        "Currently supported: 'serper', 'exa'. "
+        "Currently supported: 'serper', 'exa', 'parallel'. "
         "See SearchBackend in search_backends.py to add a new backend."
     )
 
