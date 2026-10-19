@@ -127,11 +127,16 @@ async def test_scrape_live_example_com_returns_content():
 
 @pytest.mark.asyncio
 async def test_scrape_live_blocked_domain_returns_error():
-    """Scraping a blocked domain returns an error, not content."""
-    content, title, error = await _scrape("https://www.youtube.com/watch?v=abc")
+    """A domain on the recommended exclude list is rejected before any request."""
+    from web_scout.scraping.constants import RECOMMENDED_EXCLUDE_DOMAINS
 
-    assert error is not None, "Expected an error for a blocked domain"
-    assert content == "" or len(content) < 50
+    content, title, error = await _scrape(
+        "https://www.youtube.com/watch?v=abc",
+        exclude_domains=RECOMMENDED_EXCLUDE_DOMAINS,
+    )
+
+    assert error == "blocked domain"
+    assert content == ""
 
 
 @pytest.mark.asyncio

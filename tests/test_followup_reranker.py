@@ -12,7 +12,35 @@ class _FakeRunResult:
 
 
 @pytest.mark.asyncio
-async def test_rerank_followup_urls_uses_jev_by_default(monkeypatch):
+async def test_rerank_followup_urls_uses_heuristic_by_default(monkeypatch):
+    """GPT is the default selector. With no model it keeps the heuristic shortlist."""
+    from web_scout import _pipeline_flow
+
+    async def _jev_should_not_run(**_kwargs):
+        raise AssertionError("Jev is not the default follow-up selector")
+
+    monkeypatch.setattr(_pipeline_flow, "select_links_with_jev", _jev_should_not_run)
+
+    result = await _rerank_followup_urls(
+        query="test query",
+        parent_url="https://example.org/root",
+        parent_content="Parent content",
+        candidates=[
+            "https://example.org/home",
+            "https://example.org/reports/climate-report-2025",
+            "https://example.org/downloads/report.pdf",
+        ],
+        cap=2,
+    )
+
+    assert result == [
+        "https://example.org/downloads/report.pdf",
+        "https://example.org/reports/climate-report-2025",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_rerank_followup_urls_uses_jev_when_selected(monkeypatch):
     from web_scout import _pipeline_flow
 
     async def _fake_jev(**_kwargs):
@@ -36,6 +64,7 @@ async def test_rerank_followup_urls_uses_jev_by_default(monkeypatch):
             "https://example.org/downloads/report.pdf",
         ],
         cap=2,
+        selector="jev",
     )
 
     assert result == [
@@ -102,6 +131,7 @@ async def test_rerank_followup_urls_falls_back_when_model_returns_invalid_urls(
         parent_content="Parent content",
         candidates=candidates,
         cap=2,
+        selector="jev",
     )
 
     assert result == candidates[:2]

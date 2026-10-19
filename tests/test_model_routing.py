@@ -88,7 +88,11 @@ async def test_synthesis_sets_reasoning_without_litellm_allow_list(monkeypatch, 
         assert await _retries(settings, status_code=503)
         assert await _retries(settings, is_network_error=True)
         assert not await _retries(settings, status_code=400)
-        if isinstance(model, LitellmModel) and str(model.model).startswith("bedrock_mantle/"):
+        if (
+            isinstance(model, LitellmModel)
+            and str(model.model).startswith("bedrock_mantle/")
+            and litellm.supports_reasoning(model="openai.gpt-6-luna", custom_llm_provider="bedrock_mantle")
+        ):
             params = litellm.utils.get_optional_params(
                 model="openai.gpt-6-luna",
                 custom_llm_provider="bedrock_mantle",

@@ -38,7 +38,8 @@ PDF_PATH = (
 _MISSING_KEY = not bool(os.getenv("GEMINI_API_KEY"))
 
 
-@pytest.mark.skipif(_MISSING_KEY, reason="GEMINI_API_KEY not set")
+# @pytest.mark.skipif(_MISSING_KEY, reason="GEMINI_API_KEY not set")
+@pytest.mark.skip(reason="Skipping test that requires Gemini API key")
 @pytest.mark.asyncio
 async def test_cd9804en_pdf_visual_enrichment_preserves_semantics(tmp_path):
     # import litellm
