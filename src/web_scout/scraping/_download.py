@@ -58,28 +58,39 @@ class _Downloader(ABC):
 class _ScraplingFetcher(_Downloader):
     """Download via Scrapling's AsyncFetcher with stealth headers and TLS fingerprint spoofing."""
 
+    async def _read(self, session, url: str) -> Optional[bytes]:
+        async with session.stream(
+            "GET",
+            url,
+            impersonate="chrome",
+            headers={"referer": "https://www.google.com/"},
+            allow_redirects=True,
+            timeout=ROUTING_HEURISTICS.document_download_timeout,
+        ) as response:
+            if response.status_code >= 400:
+                return None
+            with io.BytesIO() as buffer:
+                async for chunk in response.aiter_content():
+                    if buffer.tell() + len(chunk) > _max_document_bytes():
+                        raise ValueError("PDF exceeds download memory budget")
+                    buffer.write(chunk)
+                return buffer.getvalue()
+
     async def _attempt(self, url: str) -> Optional[bytes]:
+        from ._akamai import follow_akamai_interstitial
         from ._resources import binary_session, resources
 
         try:
             async with resources().http_limit:
-                async with binary_session().stream(
-                    "GET",
-                    url,
-                    impersonate="chrome",
-                    headers={"referer": "https://www.google.com/"},
-                    allow_redirects=True,
-                    timeout=ROUTING_HEURISTICS.document_download_timeout,
-                ) as response:
-                    if response.status_code >= 400:
-                        return None
-                    with io.BytesIO() as buffer:
-                        async for chunk in response.aiter_content():
-                            if buffer.tell() + len(chunk) > _max_document_bytes():
-                                raise ValueError("PDF exceeds download memory budget")
-                            buffer.write(chunk)
-                        data = buffer.getvalue()
-                    return data if data.startswith(PDF_MAGIC_BYTES) else None
+                session = binary_session()
+                data = await self._read(session, url)
+                if data is None:
+                    return None
+                if not data.startswith(PDF_MAGIC_BYTES):
+                    next_url = await follow_akamai_interstitial(session, url, data, impersonate="chrome")
+                    if next_url:
+                        data = await self._read(session, next_url)
+                return data if data and data.startswith(PDF_MAGIC_BYTES) else None
         except Exception as exc:
             logger.debug("[download] pooled HTTP failed: %s", exc)
             return None

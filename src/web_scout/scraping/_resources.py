@@ -53,6 +53,13 @@ async def http_get(url, **kwargs):
                 state.http_manager = session
         try:
             response = await state.http_session.get(url, **kwargs)
+            from ._akamai import follow_akamai_interstitial
+
+            next_url = await follow_akamai_interstitial(
+                state.http_session, url, getattr(response, "body", b"") or b""
+            )
+            if next_url:
+                response = await state.http_session.get(next_url, **kwargs)
         except Exception as exc:
             log_fetch(url, status="error", via="http", error=f"{type(exc).__name__}: {exc}")
             raise

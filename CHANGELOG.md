@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- PDF downloads from hosts that answer with an Akamai interstitial before the file, including MDPI links that end in `/pdf`. The HTTP client posts the challenge proof and refetches the same URL. The file is then recognized from `Content-Disposition` and a `%PDF` body, on any host that serves this challenge.
+- A fetched PDF is reported as `application/pdf` when the server omits `Content-Type`.
+
 ## [1.11.1] - 2026-10-13
 
 ### Changed

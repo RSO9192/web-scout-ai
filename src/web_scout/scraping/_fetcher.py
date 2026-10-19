@@ -275,6 +275,9 @@ class ScraplingFetcher(Fetcher):
         cd = resp.headers.get("content-disposition", "")
 
         raw_body = _as_bytes(getattr(resp, "body", None))
+        # Some hosts, including MDPI, send a PDF with no Content-Type header.
+        if not ct and raw_body and raw_body.startswith(PDF_MAGIC_BYTES):
+            ct = "application/pdf"
 
         # Classify as binary or text
         is_binary = any(ct.startswith(t) for t in BINARY_CONTENT_TYPES + IMAGE_CONTENT_TYPES) or (
@@ -290,6 +293,8 @@ class ScraplingFetcher(Fetcher):
                 headers = dict(resp.headers)
             except Exception:
                 pass
+        if ct == "application/pdf" and not normalize_content_type(headers.get("content-type", "")):
+            headers["content-type"] = "application/pdf"
 
         return FetchResult(
             url=url,

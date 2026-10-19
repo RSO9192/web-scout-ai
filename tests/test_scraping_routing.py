@@ -398,6 +398,57 @@ async def test_fetcher_routes_known_pdf_through_binary_download_chain(monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_fetcher_reports_pdf_when_content_type_header_is_missing(monkeypatch):
+    """A %PDF body is application/pdf even when the server omits Content-Type."""
+    url = "https://publisher.example/article/1816/pdf"
+    pdf = b"%PDF-1.7 paper"
+
+    class _Response:
+        status = 200
+        body = pdf
+        html_content = ""
+        headers = {"content-disposition": 'attachment; filename="paper.pdf"'}
+
+    async def _get(requested, **kwargs):
+        assert requested == url
+        return _Response()
+
+    monkeypatch.setattr("web_scout.scraping._resources.http_get", _get)
+
+    result = await ScraplingFetcher().fetch(url, URLContext(url=url, depth=0))
+
+    assert result.error is None
+    assert result.content_type == "application/pdf"
+    assert result.headers["content-type"] == "application/pdf"
+    assert result.body == pdf
+
+
+@pytest.mark.asyncio
+async def test_fetcher_keeps_content_type_header_for_pdf_body(monkeypatch):
+    """A Content-Type sent with a %PDF body is left unchanged."""
+    url = "https://publisher.example/article/1816/pdf"
+    pdf = b"%PDF-1.7 paper"
+    sent = "application/octet-stream"
+
+    class _Response:
+        status = 200
+        body = pdf
+        html_content = ""
+        headers = {"content-type": sent, "content-disposition": 'attachment; filename="paper.pdf"'}
+
+    async def _get(requested, **kwargs):
+        return _Response()
+
+    monkeypatch.setattr("web_scout.scraping._resources.http_get", _get)
+
+    result = await ScraplingFetcher().fetch(url, URLContext(url=url, depth=0))
+
+    assert result.content_type == sent
+    assert result.headers["content-type"] == sent
+    assert result.body == pdf
+
+
+@pytest.mark.asyncio
 async def test_files_url_timeout_is_not_misclassified_as_download(monkeypatch):
     from scrapling.fetchers import AsyncFetcher
 
