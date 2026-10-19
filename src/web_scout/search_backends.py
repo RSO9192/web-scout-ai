@@ -1,13 +1,11 @@
 """Pluggable search backends for web discovery.
 
-Provides a ``SearchBackend`` ABC with concrete implementations:
+Provides a ``SearchBackend`` ABC with two concrete implementations:
 
 - ``SerperBackend`` — Google-quality results via serper.dev
                       (requires ``SERPER_API_KEY`` env var)
 - ``ExaBackend``    — neural/auto search via exa.ai
                       (requires ``EXA_API_KEY`` env var)
-
-- ``ParallelBackend`` - keyless search via Parallel Search MCP
 
 Adding a new backend
 --------------------
@@ -258,116 +256,6 @@ class ExaBackend(SearchBackend):
             for item in data.get("results", [])
             if item.get("url")
         ][:max_results]
-
-        return SearchResponse(
-            results=results,
-            query=query,
-            country_code=country_code,
-            language_code=language_code,
-        )
-
-
-class ParallelBackend(SearchBackend):
-    """Anonymous web search via Parallel Search MCP (Fast mode).
-
-    Uses the Streamable HTTP client already provided by openai-agents. Domain
-    and locale hints guide the search; domain constraints are also enforced
-    locally because anonymous MCP connections do not support native filters.
-    Source reading remains with the existing scraping pipeline.
-    """
-
-    def __init__(self):
-        import uuid
-
-        # Reuse the same identity across related searches, including failures.
-        self._session_id = uuid.uuid4().hex
-
-    async def search(
-        self,
-        query: str,
-        max_results: int = 5,
-        include_domains: Optional[List[str]] = None,
-        exclude_domains: Optional[List[str]] = None,
-        country_code: Optional[str] = None,
-        language_code: Optional[str] = None,
-    ) -> SearchResponse:
-        import json
-        from urllib.parse import urlparse
-
-        from agents.mcp import MCPServerStreamableHttp
-
-        if max_results <= 0:
-            return SearchResponse(results=[], query=query, country_code=country_code, language_code=language_code)
-
-        objective = query
-        if include_domains:
-            objective += "\nFind sources within these domains: " + ", ".join(include_domains)
-        if exclude_domains:
-            objective += "\nAvoid these domains: " + ", ".join(exclude_domains)
-        if country_code:
-            objective += f"\nPrefer sources relevant to country code {country_code}."
-        if language_code:
-            objective += f"\nPrefer sources in language code {language_code}."
-
-        async def call_search():
-            async with MCPServerStreamableHttp(
-                params={
-                    "url": "https://search.parallel.ai/mcp",
-                    "headers": {"User-Agent": "web-scout-ai (+https://github.com/RSO9192/web-scout-ai)"},
-                    "timeout": 15,
-                    "sse_read_timeout": 45,
-                },
-                client_session_timeout_seconds=45,
-            ) as server:
-                return await server.call_tool(
-                    "web_search",
-                    {"objective": objective, "search_queries": [query], "session_id": self._session_id},
-                )
-
-        # The MCP transport can cancel its owning task on an HTTP failure.
-        # Isolate that cancellation while preserving cancellation by our caller.
-        try:
-            result = await asyncio.create_task(call_search())
-        except asyncio.CancelledError as exc:
-            if asyncio.current_task().cancelling():
-                raise
-            raise RuntimeError("Parallel MCP transport cancelled the search") from exc
-
-        text = "\n".join(block.text for block in result.content if block.type == "text")
-        if result.isError:
-            raise RuntimeError(f"Parallel search failed: {text}")
-        data = result.structuredContent
-        if data is None:
-            data = json.loads(text)
-        if not isinstance(data, dict) or not isinstance(data.get("results"), list):
-            raise ValueError("Parallel search returned an invalid results payload")
-        if data.get("errors"):
-            raise RuntimeError(f"Parallel search failed: {data['errors']}")
-
-        def matches(host: str, domain: str) -> bool:
-            domain = domain.strip().lower().strip(".").removeprefix("www.")
-            return bool(domain) and (host == domain or host.endswith("." + domain))
-
-        results = []
-        for item in data["results"]:
-            url = item.get("url") or ""
-            parsed = urlparse(url)
-            host = (parsed.hostname or "").lower().rstrip(".")
-            if parsed.scheme not in {"http", "https"} or not host:
-                continue
-            if include_domains and not any(matches(host, d) for d in include_domains):
-                continue
-            if exclude_domains and any(matches(host, d) for d in exclude_domains):
-                continue
-            results.append(
-                SearchResult(
-                    title=item.get("title") or "Untitled",
-                    url=url,
-                    snippet=" … ".join(excerpt.strip() for excerpt in item.get("excerpts", []) if excerpt.strip()),
-                )
-            )
-            if len(results) >= max_results:
-                break
 
         return SearchResponse(
             results=results,

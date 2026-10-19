@@ -112,25 +112,6 @@ To use the Exa search backend instead (`search_backend="exa"`):
 export EXA_API_KEY="your-exa-api-key"
 ```
 
-To use [Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp)
-for free web search without a search-provider account or API key, select
-`search_backend="parallel"`:
-
-```python
-result = await run_web_research(
-    "What are the main threats to coral reefs worldwide?",
-    search_backend="parallel",
-)
-```
-
-Parallel uses anonymous Fast-mode search over Streamable HTTP. No additional
-package or search key is needed; keep the keys for your configured research
-models. Anonymous access has usage limits, and search failures are handled by
-the existing pipeline. Domain filters are enforced locally on returned URLs;
-domain and country/language hints also guide the search, but do not guarantee
-that it will find enough matching results. Source reading still uses the
-existing scraping pipeline. Serper remains the default.
-
 Direct-URL mode does not use a search backend, so it only needs the API key for your configured model provider.
 
 `TYPESAFE_API_KEY` is only needed if you opt in to Jev classification (see [Jev classification](#jev-classification-optional)).
@@ -337,7 +318,7 @@ Provider credentials are read from their standard environment variables, such as
 result = await run_web_research(
     query="latest IPCC findings on sea-level rise",
     models=None,                       # optional; GPT-6 Luna defaults, Gemini vision
-    search_backend="serper",          # "serper" (default), "exa", or "parallel" (keyless MCP)
+    search_backend="serper",          # "serper" (Google via serper.dev) or "exa" (exa.ai)
     research_depth="standard",        # "standard", "deep", or a custom dict
     include_domains=["ipcc.ch"],       # optional discovery restriction
     direct_url=None,                   # optional; skips search when set
