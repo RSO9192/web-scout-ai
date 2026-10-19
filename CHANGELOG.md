@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.2] - 2026-10-19
+
+### Added
+
+- `ParallelBackend`, selected with `search_backend="parallel"`. It runs anonymous Fast-mode search through Parallel Search MCP, so no search-provider account, API key, or extra package is required. Domain filters are enforced locally on returned URLs, and country and language hints are included in the search objective. Source reading stays on the existing scraping pipeline. Serper remains the default.
+
 ### Fixed
 
 - PDF downloads from hosts that answer with an Akamai interstitial before the file, including MDPI links that end in `/pdf`. The HTTP client posts the challenge proof and refetches the same URL. The file is then recognized from `Content-Disposition` and a `%PDF` body, on any host that serves this challenge.
