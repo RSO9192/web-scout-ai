@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.3] - 2026-10-21
+
+### Changed
+
+- Updated runtime dependencies, including Scrapling 0.5, openai-agents 0.20, MCP Python SDK 2.3, Docling 2.141, LiteLLM 1.106, and Prefect 3.9.
+
+### Fixed
+
+- `search_backend="parallel"` reads MCP v2 tool results. The SDK renamed `isError` and `structuredContent` to `is_error` and `structured_content`, so Parallel search failed after the MCP 2 upgrade.
+
 ## [1.11.2] - 2026-10-19
 
 ### Added
