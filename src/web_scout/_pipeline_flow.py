@@ -1228,6 +1228,43 @@ async def _run_search_mode_impl(
             break
 
 
+def _assemble_research_result(tracker: ResearchTracker, *, synthesis: str) -> WebResearchResult:
+    """Copy tracker URL groups and queries onto a ``WebResearchResult``."""
+    groups = tracker.build_result_groups()
+    scraped = groups["scraped"]
+    scrape_failed = groups["scrape_failed"]
+    blocked_by_policy = groups["blocked_by_policy"]
+    source_http_error = groups["source_http_error"]
+    scraped_irrelevant = groups["scraped_irrelevant"]
+    bot_detected = groups["bot_detected"]
+    snippet_only = groups["snippet_only"]
+
+    logger.info(
+        "[pipeline] done scraped=%d failed=%d blocked=%d source_http=%d irrelevant=%d "
+        "bot_detected=%d snippet_only=%d queries=%d",
+        len(scraped),
+        len(scrape_failed),
+        len(blocked_by_policy),
+        len(source_http_error),
+        len(scraped_irrelevant),
+        len(bot_detected),
+        len(snippet_only),
+        len(tracker.queries),
+    )
+
+    return WebResearchResult(
+        scraped=scraped,
+        scrape_failed=scrape_failed,
+        blocked_by_policy=blocked_by_policy,
+        source_http_error=source_http_error,
+        scraped_irrelevant=scraped_irrelevant,
+        bot_detected=bot_detected,
+        snippet_only=snippet_only,
+        queries=tracker.queries,
+        synthesis=synthesis,
+    )
+
+
 async def _synthesise_result(
     *,
     query: str,
@@ -1240,7 +1277,6 @@ async def _synthesise_result(
     scrape_failed = groups["scrape_failed"]
     blocked_by_policy = groups["blocked_by_policy"]
     source_http_error = groups["source_http_error"]
-    scraped_irrelevant = groups["scraped_irrelevant"]
     bot_detected = groups["bot_detected"]
     snippet_only = groups["snippet_only"]
 
@@ -1309,33 +1345,11 @@ async def _synthesise_result(
             )
     output.synthesis = resolved
 
-    logger.info(
-        "[pipeline] done scraped=%d failed=%d blocked=%d source_http=%d irrelevant=%d "
-        "bot_detected=%d snippet_only=%d queries=%d",
-        len(scraped),
-        len(scrape_failed),
-        len(blocked_by_policy),
-        len(source_http_error),
-        len(scraped_irrelevant),
-        len(bot_detected),
-        len(snippet_only),
-        len(tracker.queries),
-    )
-
-    return WebResearchResult(
-        scraped=scraped,
-        scrape_failed=scrape_failed,
-        blocked_by_policy=blocked_by_policy,
-        source_http_error=source_http_error,
-        scraped_irrelevant=scraped_irrelevant,
-        bot_detected=bot_detected,
-        snippet_only=snippet_only,
-        queries=tracker.queries,
-        synthesis=output.synthesis,
-    )
+    return _assemble_research_result(tracker, synthesis=output.synthesis)
 
 
 __all__ = [
+    "_assemble_research_result",
     "_build_query_agents",
     "_build_search_backend",
     "_collect_hub_results",

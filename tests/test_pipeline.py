@@ -524,6 +524,196 @@ async def test_synthesis_retries_on_unknown_slot_id(monkeypatch):
     assert "(https://fao.org/fishery/report.pdf)" in result.synthesis
 
 
+_GROUPED_DIRECT_URL = "https://fao.org/fishery/report.pdf"
+
+
+def _patch_grouped_scrape_tool(monkeypatch):
+    """Fake direct-URL scrape that fills every tracker URL group."""
+    held = {}
+
+    def _factory(**kwargs):
+        tracker = kwargs["tracker"]
+        held["tracker"] = tracker
+
+        async def _fake_scrape(url: str) -> str:
+            content = "Solid report content " * 20
+            tracker.record_scrape(
+                url,
+                "FAO Fishery Report",
+                content,
+                reference="FAO Fishery Report, pp. 3–7",
+            )
+            tracker.record_scrape_failure("https://example.org/failed", "timeout")
+            tracker.record_blocked_by_policy("https://blocked.example/page", "excluded")
+            tracker.record_source_http_error("https://example.org/500", "HTTP 500")
+            tracker.record_scraped_irrelevant("https://example.org/off-topic", "unrelated")
+            tracker.record_bot_detection("https://example.org/bot", "akamai")
+            tracker.record_search(
+                "fish extra",
+                1,
+                ["example.org"],
+                [SearchResult(title="Snippet title", url="https://example.org/snippet", snippet="search snippet")],
+            )
+            return content
+
+        return _fake_scrape
+
+    monkeypatch.setattr(_agent_module, "create_scrape_and_extract_tool", _factory)
+    return held
+
+
+def _assert_result_copies_tracker(result, tracker):
+    groups = tracker.build_result_groups()
+    assert result.scraped == groups["scraped"]
+    assert result.scrape_failed == groups["scrape_failed"]
+    assert result.blocked_by_policy == groups["blocked_by_policy"]
+    assert result.source_http_error == groups["source_http_error"]
+    assert result.scraped_irrelevant == groups["scraped_irrelevant"]
+    assert result.bot_detected == groups["bot_detected"]
+    assert result.snippet_only == groups["snippet_only"]
+    assert result.queries == tracker.queries
+
+    scraped = result.scraped[0]
+    assert scraped.url == _GROUPED_DIRECT_URL
+    assert scraped.title == "FAO Fishery Report"
+    assert scraped.content.startswith("Solid report content")
+    assert scraped.reference == "FAO Fishery Report, pp. 3–7"
+    assert len(result.scrape_failed) == 1
+    assert len(result.blocked_by_policy) == 1
+    assert len(result.source_http_error) == 1
+    assert len(result.scraped_irrelevant) == 1
+    assert len(result.bot_detected) == 1
+    assert len(result.snippet_only) == 1
+    assert [query.query for query in result.queries] == ["fish", "fish extra"]
+
+
+def _capture_done_logs(monkeypatch):
+    done_logs = []
+    real_info = _agent_module.logger.info
+
+    def _info(msg, *args, **kwargs):
+        rendered = msg % args if args else msg
+        if isinstance(rendered, str) and rendered.startswith("[pipeline] done"):
+            done_logs.append(rendered)
+        return real_info(msg, *args, **kwargs)
+
+    monkeypatch.setattr(_agent_module.logger, "info", _info)
+    return done_logs
+
+
+@pytest.mark.asyncio
+async def test_synthesize_false_returns_tracker_groups_without_synthesiser(monkeypatch):
+    """synthesize=False copies tracker groups and does not call the synthesiser or its citation retry."""
+    held = _patch_grouped_scrape_tool(monkeypatch)
+    done_logs = _capture_done_logs(monkeypatch)
+    synthesise_calls = []
+    runner_calls = []
+    real_synthesise = _agent_module._synthesise_result
+
+    async def _spy_synthesise(*args, **kwargs):
+        synthesise_calls.append(kwargs)
+        return await real_synthesise(*args, **kwargs)
+
+    async def _fake_run(agent_obj, prompt, **kwargs):
+        runner_calls.append(getattr(agent_obj, "name", None))
+        # An unknown slot id would retry synthesis if this Runner were used.
+        if len(runner_calls) == 1:
+            return _FakeRunResult(WebResearchResultRaw(synthesis="Some fact [S9]."))
+        return _FakeRunResult(WebResearchResultRaw(synthesis="Some fact [S1]."))
+
+    monkeypatch.setattr(_agent_module, "_synthesise_result", _spy_synthesise)
+    monkeypatch.setattr(_agent_module.Runner, "run", _fake_run)
+
+    result = await run_web_research(
+        query="fish",
+        models={"web_researcher": "dummy", "content_extractor": "dummy"},
+        direct_url=_GROUPED_DIRECT_URL,
+        synthesize=False,
+    )
+
+    tracker = held["tracker"]
+    groups = tracker.build_result_groups()
+    assert synthesise_calls == []
+    assert runner_calls == []
+    assert result.synthesis == ""
+    _assert_result_copies_tracker(result, tracker)
+    assert done_logs == [
+        "[pipeline] done scraped=%d failed=%d blocked=%d source_http=%d irrelevant=%d "
+        "bot_detected=%d snippet_only=%d queries=%d"
+        % (
+            len(groups["scraped"]),
+            len(groups["scrape_failed"]),
+            len(groups["blocked_by_policy"]),
+            len(groups["source_http_error"]),
+            len(groups["scraped_irrelevant"]),
+            len(groups["bot_detected"]),
+            len(groups["snippet_only"]),
+            len(tracker.queries),
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_omitted_synthesize_flag_calls_synthesiser(monkeypatch):
+    """Omitting synthesize keeps the synthesiser call, including a valid citation resolution."""
+    held = _patch_grouped_scrape_tool(monkeypatch)
+    done_logs = _capture_done_logs(monkeypatch)
+    runner_calls = []
+
+    async def _fake_run(agent_obj, prompt, **kwargs):
+        runner_calls.append(getattr(agent_obj, "name", None))
+        return _FakeRunResult(WebResearchResultRaw(synthesis="Some fact [S1]."))
+
+    monkeypatch.setattr(_agent_module.Runner, "run", _fake_run)
+
+    result = await run_web_research(
+        query="fish",
+        models={"web_researcher": "dummy", "content_extractor": "dummy"},
+        direct_url=_GROUPED_DIRECT_URL,
+    )
+
+    assert runner_calls == ["synthesiser"]
+    assert "(https://fao.org/fishery/report.pdf)" in result.synthesis
+    assert "[S1]" not in result.synthesis
+    _assert_result_copies_tracker(result, held["tracker"])
+    assert len(done_logs) == 1
+
+
+@pytest.mark.asyncio
+async def test_synthesize_false_still_runs_search_mode(monkeypatch):
+    """Skipping synthesis does not skip the search loop."""
+    search_queries = []
+
+    async def _fake_search(**kwargs):
+        search_queries.append(kwargs["query"])
+        kwargs["tracker"].record_scrape(
+            "https://example.org/a",
+            "Title",
+            "extracted evidence",
+            reference="Title",
+        )
+
+    async def _fake_run(agent_obj, prompt, **kwargs):
+        raise AssertionError(f"Runner should not be called, got {getattr(agent_obj, 'name', None)}")
+
+    _patch_scrape_tool(monkeypatch)
+    monkeypatch.setattr(_agent_module, "_run_search_mode", _fake_search)
+    monkeypatch.setattr(_agent_module.Runner, "run", _fake_run)
+
+    result = await run_web_research(
+        query="fish",
+        models={"web_researcher": "dummy", "content_extractor": "dummy"},
+        synthesize=False,
+    )
+
+    assert search_queries == ["fish"]
+    assert result.synthesis == ""
+    assert result.scraped[0].url == "https://example.org/a"
+    assert result.scraped[0].title == "Title"
+    assert result.scraped[0].content == "extracted evidence"
+    assert result.scraped[0].reference == "Title"
+
+
 # ---------------------------------------------------------------------------
 # _build_synth_prompt — domain expertise
 # ---------------------------------------------------------------------------

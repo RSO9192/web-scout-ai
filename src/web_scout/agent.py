@@ -27,6 +27,15 @@ from typing import Any, Dict, List, Optional
 from agents import Runner
 
 from ._pipeline_flow import (
+    _assemble_research_result,
+    _rerank_followup_urls,
+    _run_direct_url_mode,
+    _run_search_mode_impl,
+    _select_search_urls,
+    _select_search_urls_with_model,
+    _synthesise_result,
+)
+from ._pipeline_flow import (
     _build_query_agents as _build_query_agents_impl,
 )
 from ._pipeline_flow import (
@@ -34,14 +43,6 @@ from ._pipeline_flow import (
 )
 from ._pipeline_flow import (
     _evaluate_search_coverage as _evaluate_search_coverage_impl,
-)
-from ._pipeline_flow import (
-    _rerank_followup_urls,
-    _run_direct_url_mode,
-    _run_search_mode_impl,
-    _select_search_urls,
-    _select_search_urls_with_model,
-    _synthesise_result,
 )
 from ._pipeline_flow import (
     _search_and_scrape_iteration as _search_and_scrape_iteration_impl,
@@ -249,6 +250,7 @@ async def run_web_research(
     cache_storage: Any | None = None,
     refresh_pdf_cache: bool = False,
     refresh_url_cache: bool = False,
+    synthesize: bool = True,
 ) -> WebResearchResult:
     """Run deterministic web research pipeline.
 
@@ -272,6 +274,10 @@ async def run_web_research(
     When it is omitted, results are stored under ``~/.cache/web-scout`` and
     survive a new process. ``refresh_pdf_cache`` and ``refresh_url_cache``
     recompute those caches.
+
+    ``synthesize`` defaults to True. When False, skip the synthesiser model
+    call and return ``synthesis=""``. Search, scraping, extraction, coverage
+    evaluation, and direct-URL mode still run.
     """
     # Ensure ``web_scout.*`` INFO lines are visible even when the host app
     # never called ``configure_logging()``. Per-URL ``[fetch]`` / ``[extract]``
@@ -422,6 +428,9 @@ async def run_web_research(
                 )
     finally:
         await release_stealth_sessions()
+
+    if not synthesize:
+        return _assemble_research_result(tracker, synthesis="")
 
     return await _synthesise_result(
         query=query,
