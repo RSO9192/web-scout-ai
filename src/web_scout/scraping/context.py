@@ -17,7 +17,7 @@ class URLContext(BaseModel):
     url: str
     depth: int
     parent_url: str | None = None
-    wait_for: str | None = None     # CSS selector for browser wait (forwarded to ScraplingFetcher)
+    wait_for: str | None = None  # CSS selector for browser wait (forwarded to ScraplingFetcher)
     _stopped: bool = PrivateAttr(default=False)
 
     def stop(self) -> None:

@@ -419,10 +419,7 @@ def build_report(results: list[CaseResult]) -> str:
                 f"- Model: `{result.model}`",
                 f"- Links extracted: {result.candidate_count}",
                 f"- Selection time: {result.elapsed_seconds:.2f}s",
-                (
-                    f"- Identified: {len(score.true_positives)}/"
-                    f"{len(score.true_positives) + len(score.false_negatives)}"
-                ),
+                (f"- Identified: {len(score.true_positives)}/{len(score.true_positives) + len(score.false_negatives)}"),
                 f"- False positives: {len(score.false_positives)}",
                 f"- Precision: {score.precision:.2f}",
                 f"- Recall: {score.recall:.2f}",

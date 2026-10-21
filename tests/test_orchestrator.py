@@ -150,11 +150,15 @@ async def test_default_crawler_follows_shared_selector_without_refetching(monkey
     monkeypatch.setattr(flow, "_select_followup_urls_with_jev", selector)
     monkeypatch.setattr(flow, "_select_followup_urls_with_luna", selector)
     monkeypatch.setattr("web_scout.utils.get_model", lambda _: "dummy")
-    fetcher = _RecordingFetcher({
-        _SEED_URL: _make_fetch_result(_SEED_URL), _CHILD_URL: _make_fetch_result(_CHILD_URL),
-    })
+    fetcher = _RecordingFetcher(
+        {
+            _SEED_URL: _make_fetch_result(_SEED_URL),
+            _CHILD_URL: _make_fetch_result(_CHILD_URL),
+        }
+    )
     orch = Orchestrator(
-        OrchestratorConfig(max_depth=1, max_urls=5), fetcher=fetcher,
+        OrchestratorConfig(max_depth=1, max_urls=5),
+        fetcher=fetcher,
         parser=_FakeParser({_SEED_URL: [_CHILD_URL]}),
     )
     await orch.queue_url(_SEED_URL)

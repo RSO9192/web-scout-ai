@@ -31,7 +31,9 @@ async def test_partial_batches_do_not_accumulate_into_completion(monkeypatch):
 
     monkeypatch.setattr(classification, "judge", judge)
     assert await classification.coverage("Kenya", ["all risks"], [{"text": "partial " * 10000}], []) == (
-        False, "all risks", []
+        False,
+        "all risks",
+        [],
     )
     assert await classification.coverage("Kenya", ["all risks"], [], []) == (False, "all risks", [])
 

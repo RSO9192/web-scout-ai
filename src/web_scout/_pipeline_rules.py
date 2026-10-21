@@ -189,10 +189,7 @@ def _build_citation_slots(scraped: list) -> dict[str, tuple[str, str]]:
 
     Ids are positional and must match the ordering used by ``_build_synth_prompt``.
     """
-    return {
-        f"S{idx}": (entry.reference or entry.title or entry.url, entry.url)
-        for idx, entry in enumerate(scraped, 1)
-    }
+    return {f"S{idx}": (entry.reference or entry.title or entry.url, entry.url) for idx, entry in enumerate(scraped, 1)}
 
 
 def _resolve_slot_citations(synthesis: str, slots: dict[str, tuple[str, str]]) -> tuple[str, list[str]]:
@@ -462,9 +459,7 @@ def _build_exclude_domain_set(
     if include_domains:
         overlap = effective & {_normalize_domain(domain) for domain in include_domains}
         if overlap:
-            raise ValueError(
-                f"Domain(s) present in both include_domains and exclude_domains: {sorted(overlap)}"
-            )
+            raise ValueError(f"Domain(s) present in both include_domains and exclude_domains: {sorted(overlap)}")
     if direct_url and _normalize_domain(direct_url) in effective:
         raise ValueError(f"direct_url host {_normalize_domain(direct_url)!r} is in exclude_domains")
     return effective

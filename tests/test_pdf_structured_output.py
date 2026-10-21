@@ -9,9 +9,7 @@ from web_scout.tools.pdf_extractor import PdfExtractResult
 
 
 def _response(content: str):
-    return SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content=content))]
-    )
+    return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))])
 
 
 @pytest.mark.asyncio
@@ -21,9 +19,7 @@ async def test_llm_json_sends_strict_pydantic_json_schema(monkeypatch):
     async def _fake_acompletion(**kwargs):
         calls.append(kwargs)
         return _response(
-            '{"has_evidence":false,'
-            '"relevant_content":"[No relevant content found for this query]",'
-            '"evidence":[]}'
+            '{"has_evidence":false,"relevant_content":"[No relevant content found for this query]","evidence":[]}'
         )
 
     monkeypatch.setattr(pdf_mod.litellm, "acompletion", _fake_acompletion)
@@ -46,13 +42,9 @@ async def test_llm_json_retries_schema_invalid_response_with_feedback(monkeypatc
     calls = []
     responses = iter(
         [
+            _response('{"has_evidence":false,"relevant_content":null,"evidence":[]}'),
             _response(
-                '{"has_evidence":false,"relevant_content":null,"evidence":[]}'
-            ),
-            _response(
-                '{"has_evidence":false,'
-                '"relevant_content":"[No relevant content found for this query]",'
-                '"evidence":[]}'
+                '{"has_evidence":false,"relevant_content":"[No relevant content found for this query]","evidence":[]}'
             ),
         ]
     )
@@ -79,9 +71,7 @@ async def test_llm_json_raises_after_validation_retries(monkeypatch):
 
     async def _fake_acompletion(**kwargs):
         calls.append(kwargs)
-        return _response(
-            '{"has_evidence":false,"relevant_content":null,"evidence":[]}'
-        )
+        return _response('{"has_evidence":false,"relevant_content":null,"evidence":[]}')
 
     monkeypatch.setattr(pdf_mod.litellm, "acompletion", _fake_acompletion)
     with pytest.raises(ValueError):

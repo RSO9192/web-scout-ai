@@ -55,9 +55,7 @@ async def http_get(url, **kwargs):
             response = await state.http_session.get(url, **kwargs)
             from ._akamai import follow_akamai_interstitial
 
-            next_url = await follow_akamai_interstitial(
-                state.http_session, url, getattr(response, "body", b"") or b""
-            )
+            next_url = await follow_akamai_interstitial(state.http_session, url, getattr(response, "body", b"") or b"")
             if next_url:
                 response = await state.http_session.get(next_url, **kwargs)
         except Exception as exc:

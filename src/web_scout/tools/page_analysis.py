@@ -112,8 +112,7 @@ def _has_primary_document_download_cue(content: str) -> bool:
     # Extensionless repository downloads (DSpace bitstreams, /download endpoints)
     # are themselves a strong primary-document signal.
     return any(
-        any(marker in url.lower() for marker in ("/bitstreams/", "/bitstream/", "/download"))
-        for url in document_urls
+        any(marker in url.lower() for marker in ("/bitstreams/", "/bitstream/", "/download")) for url in document_urls
     )
 
 

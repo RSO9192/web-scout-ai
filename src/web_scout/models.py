@@ -29,10 +29,7 @@ class UrlEntry(BaseModel):
     content: str = ""
     reference: str = Field(
         default="",
-        description=(
-            "Citation label without URL. For PDFs: 'Title, pp. 3–7'. "
-            "For HTML/JSON: usually just the title."
-        ),
+        description=("Citation label without URL. For PDFs: 'Title, pp. 3–7'. For HTML/JSON: usually just the title."),
     )
 
 

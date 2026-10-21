@@ -81,7 +81,8 @@ async def test_cd9804en_pdf_visual_enrichment_preserves_semantics(tmp_path):
     #     "differently. Do NOT require word-for-word matches.\n\n"
     #     "Return JSON only:\n"
     #     '{"all_present": true/false, "missing": ["fact text", ...], "notes": "brief"}\n\n'
-    #     "Required facts:\n" + "\n".join(f"- {fact}" for fact in REQUIRED_FACTS) + "\n\nExtracted markdown:\n" + content
+    #     "Required facts:\n" + "\n".join(f"- {fact}" for fact in REQUIRED_FACTS)
+    #     + "\n\nExtracted markdown:\n" + content
     # )
 
     # response = await litellm.acompletion(

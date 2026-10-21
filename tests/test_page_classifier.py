@@ -87,8 +87,7 @@ def test_extract_citation_pdf_urls_rewrites_dspace_download_to_api_content():
         'c1caede2-ea98-46b0-b663-4cae429e05d3/download">'
     )
     assert extract_citation_pdf_urls(html) == [
-        "https://openknowledge.fao.org/server/api/core/bitstreams/"
-        "c1caede2-ea98-46b0-b663-4cae429e05d3/content"
+        "https://openknowledge.fao.org/server/api/core/bitstreams/c1caede2-ea98-46b0-b663-4cae429e05d3/content"
     ]
 
 

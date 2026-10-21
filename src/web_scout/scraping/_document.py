@@ -193,9 +193,7 @@ async def _convert_pdf_bytes(
         )
     else:
         # Older installed pdf-extractor-ai releases retain their public API.
-        document = await extractor.extract_async(
-            pdf_bytes, do_ocr=False, max_pages=max_pages, name=stream_name
-        )
+        document = await extractor.extract_async(pdf_bytes, do_ocr=False, max_pages=max_pages, name=stream_name)
         markdown = await asyncio.to_thread(to_markdown, document)
     # Filename is a per-URL fallback applied by the caller, so it stays out of the cache.
     title = document_title(document, fallback=None) or ""

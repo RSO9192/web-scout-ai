@@ -82,10 +82,7 @@ def _stamp_block(block: Any) -> Any:
     """Let Prefect accept an unsaved block without registering it on a server."""
     if getattr(block, "_block_document_id", None) is not None:
         return block
-    identity = ":".join(
-        str(getattr(block, field, ""))
-        for field in ("basepath", "bucket", "bucket_folder")
-    )
+    identity = ":".join(str(getattr(block, field, "")) for field in ("basepath", "bucket", "bucket_folder"))
     block._block_document_id = uuid.uuid5(
         _CACHE_NAMESPACE,
         f"{type(block).__module__}.{type(block).__qualname__}:{identity}",

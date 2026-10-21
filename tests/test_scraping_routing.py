@@ -177,9 +177,14 @@ def test_trim_json_value_limits_large_collections():
 
 def test_append_links_keeps_icon_only_external_document_links():
     content = "Repository record content"
-    result = SimpleNamespace(css=lambda _: [SimpleNamespace(
-        attrib={"href": "https://cdn.example.org/laws/kenya-forestry-law.pdf"}, get_all_text=lambda: "",
-    )])
+    result = SimpleNamespace(
+        css=lambda _: [
+            SimpleNamespace(
+                attrib={"href": "https://cdn.example.org/laws/kenya-forestry-law.pdf"},
+                get_all_text=lambda: "",
+            )
+        ]
+    )
 
     enriched = append_links(content, result)
 
@@ -208,17 +213,11 @@ def test_append_links_surfaces_citation_pdf_url_meta():
 def test_resolve_document_download_url_rewrites_dspace_frontend_route():
     from web_scout.scraping.utils import resolve_document_download_url
 
-    frontend = (
-        "https://openknowledge.fao.org/bitstreams/"
-        "c1caede2-ea98-46b0-b663-4cae429e05d3/download"
-    )
+    frontend = "https://openknowledge.fao.org/bitstreams/c1caede2-ea98-46b0-b663-4cae429e05d3/download"
     assert resolve_document_download_url(frontend) == (
-        "https://openknowledge.fao.org/server/api/core/bitstreams/"
-        "c1caede2-ea98-46b0-b663-4cae429e05d3/content"
+        "https://openknowledge.fao.org/server/api/core/bitstreams/c1caede2-ea98-46b0-b663-4cae429e05d3/content"
     )
-    assert resolve_document_download_url("https://example.org/report.pdf") == (
-        "https://example.org/report.pdf"
-    )
+    assert resolve_document_download_url("https://example.org/report.pdf") == ("https://example.org/report.pdf")
 
 
 def test_primary_pdf_url_from_dspace_item_payload_prefers_original_pdf():
@@ -274,8 +273,7 @@ def test_primary_pdf_url_from_dspace_item_payload_prefers_original_pdf():
     }
 
     assert primary_pdf_url_from_dspace_item_payload(payload) == (
-        "https://openknowledge.fao.org/server/api/core/bitstreams/"
-        "c1caede2-ea98-46b0-b663-4cae429e05d3/content"
+        "https://openknowledge.fao.org/server/api/core/bitstreams/c1caede2-ea98-46b0-b663-4cae429e05d3/content"
     )
 
 
@@ -340,6 +338,7 @@ async def test_pdf_download_streams_from_pooled_session(monkeypatch):
 
     class Response:
         status_code = 200
+
         async def aiter_content(self):
             yield b"%PDF-1.7 "
             yield b"mock data"
@@ -450,7 +449,6 @@ async def test_fetcher_keeps_content_type_header_for_pdf_body(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_files_url_timeout_is_not_misclassified_as_download(monkeypatch):
-    from scrapling.fetchers import AsyncFetcher
 
     from web_scout.scraping import _scrapling
 
@@ -531,9 +529,7 @@ async def test_scrape_document_reuses_prefetched_pdf_bytes(monkeypatch):
         assert received_bytes == pdf_bytes
         from web_scout.scraping.types import PdfDocumentLayout
 
-        return "Extracted PDF content with enough text. " * 20, PdfDocumentLayout(
-            document_title="report.pdf"
-        )
+        return "Extracted PDF content with enough text. " * 20, PdfDocumentLayout(document_title="report.pdf")
 
     monkeypatch.setattr(doc_module, "download_pdf", _download_unexpected)
     monkeypatch.setattr(doc_module, "_convert_pdf_to_markdown", _fake_convert)

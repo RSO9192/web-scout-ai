@@ -4,7 +4,7 @@ import asyncio
 import json
 from unittest.mock import patch
 
-import httpx
+import httpx2
 import pytest
 
 from web_scout._pipeline_flow import _build_search_backend, _execute_searches, _select_search_urls
@@ -30,19 +30,29 @@ def mcp_http(monkeypatch):
     async def respond(request):
         requests.append(request)
         if request.method != "POST":
-            return httpx.Response(405)
+            return httpx2.Response(405)
         message = json.loads(request.content)
         method = message["method"]
         if method == "notifications/initialized":
-            return httpx.Response(202)
+            return httpx2.Response(202)
         if method == "initialize":
             result = {
                 "protocolVersion": "2025-03-26",
                 "capabilities": {"tools": {}},
                 "serverInfo": {"name": "fixture", "version": "1"},
             }
+        elif method == "server/discover":
+            result = {
+                "supportedVersions": ["2026-07-28"],
+                "capabilities": {"tools": {}},
+            }
         elif method == "tools/list":
-            result = {"tools": [{"name": "web_search", "inputSchema": {"type": "object"}}]}
+            result = {
+                "tools": [{"name": "web_search", "inputSchema": {"type": "object"}}],
+                "cacheScope": "private",
+                "resultType": "complete",
+                "ttlMs": 0,
+            }
         else:
             assert method == "tools/call"
             assert message["params"]["name"] == "web_search"
@@ -52,16 +62,21 @@ def mcp_http(monkeypatch):
             if state["failure"]:
                 raise state["failure"]
             if state["status"] != 200:
-                return httpx.Response(state["status"], json={"error": "unavailable"})
-            result = {"content": [{"type": "text", "text": json.dumps(state["payload"])}],
-                      "isError": state["is_error"]}
+                return httpx2.Response(state["status"], json={"error": "unavailable"})
+            result = {
+                "content": [{"type": "text", "text": json.dumps(state["payload"])}],
+                "isError": state["is_error"],
+                "resultType": "complete",
+            }
             if state["structured"]:
                 result["structuredContent"] = state["payload"]
                 result["content"] = []
-        return httpx.Response(200, json={"jsonrpc": "2.0", "id": message["id"], "result": result})
+        return httpx2.Response(200, json={"jsonrpc": "2.0", "id": message["id"], "result": result})
 
     def client_factory(headers=None, timeout=None, auth=None):
-        client = httpx.AsyncClient(headers=headers, timeout=timeout, auth=auth, transport=httpx.MockTransport(respond))
+        client = httpx2.AsyncClient(
+            headers=headers, timeout=timeout, auth=auth, transport=httpx2.MockTransport(respond)
+        )
         clients.append(client)
         return client
 
@@ -75,8 +90,11 @@ def mcp_http(monkeypatch):
 
 
 def tool_arguments(requests):
-    return [json.loads(r.content)["params"]["arguments"] for r in requests
-            if r.method == "POST" and json.loads(r.content)["method"] == "tools/call"]
+    return [
+        json.loads(r.content)["params"]["arguments"]
+        for r in requests
+        if r.method == "POST" and json.loads(r.content)["method"] == "tools/call"
+    ]
 
 
 async def test_selected_backend_feeds_pipeline_and_tool_without_search_keys(mcp_http, monkeypatch):
@@ -87,13 +105,20 @@ async def test_selected_backend_feeds_pipeline_and_tool_without_search_keys(mcp_
     assert isinstance(backend, ParallelBackend)
     tracker = ResearchTracker()
     responses = await _execute_searches(
-        backend=backend, search_queries=["coral reef threats"], include_domains=None, tracker=tracker,
+        backend=backend,
+        search_queries=["coral reef threats"],
+        include_domains=None,
+        tracker=tracker,
     )
     assert responses[0].results[0].snippet == "Warming."
     assert tracker.queries[0].query == "coral reef threats"
     assert _select_search_urls(
-        query="coral reef threats", include_domains=None, depth={"urls_first": 3}, iteration=0,
-        tracker=tracker, search_results=responses,
+        query="coral reef threats",
+        include_domains=None,
+        depth={"urls_first": 3},
+        iteration=0,
+        tracker=tracker,
+        search_results=responses,
     ) == ["https://noaa.gov/reefs"]
     from agents.tool_context import ToolContext
 
@@ -111,17 +136,23 @@ async def test_selected_backend_feeds_pipeline_and_tool_without_search_keys(mcp_
 async def test_filters_before_cap_and_preserves_metadata(mcp_http, structured):
     state, requests = mcp_http
     state["structured"] = structured
-    state["payload"] = {"results": [
-        {"url": "https://evilnoaa.gov/other", "excerpts": []},
-        {"url": "https://blocked.noaa.gov/other", "excerpts": []},
-        {"url": "file:///tmp/local", "excerpts": []},
-        {"title": None, "excerpts": []},
-        {"title": "Reefs", "url": "https://ocean.noaa.gov/reefs", "excerpts": [" One ", "", " Two "]},
-        {"url": "https://noaa.gov/extra", "excerpts": []},
-    ]}
+    state["payload"] = {
+        "results": [
+            {"url": "https://evilnoaa.gov/other", "excerpts": []},
+            {"url": "https://blocked.noaa.gov/other", "excerpts": []},
+            {"url": "file:///tmp/local", "excerpts": []},
+            {"title": None, "excerpts": []},
+            {"title": "Reefs", "url": "https://ocean.noaa.gov/reefs", "excerpts": [" One ", "", " Two "]},
+            {"url": "https://noaa.gov/extra", "excerpts": []},
+        ]
+    }
     response = await _build_search_backend("parallel").search(
-        "coral reef threats", max_results=1, include_domains=["NOAA.gov"],
-        exclude_domains=["blocked.noaa.gov"], country_code="US", language_code="en",
+        "coral reef threats",
+        max_results=1,
+        include_domains=["NOAA.gov"],
+        exclude_domains=["blocked.noaa.gov"],
+        country_code="US",
+        language_code="en",
     )
     assert [(r.title, r.url, r.snippet) for r in response.results] == [
         ("Reefs", "https://ocean.noaa.gov/reefs", "One … Two"),
@@ -131,11 +162,14 @@ async def test_filters_before_cap_and_preserves_metadata(mcp_http, structured):
     assert all(hint in objective for hint in ("NOAA.gov", "blocked.noaa.gov", "US", "en"))
 
 
-@pytest.mark.parametrize("payload,is_error,exception", [
-    ({"message": "quota exceeded"}, True, RuntimeError),
-    ({"errors": ["search unavailable"], "results": []}, False, RuntimeError),
-    ({"unexpected": []}, False, ValueError),
-])
+@pytest.mark.parametrize(
+    "payload,is_error,exception",
+    [
+        ({"message": "quota exceeded"}, True, RuntimeError),
+        ({"errors": ["search unavailable"], "results": []}, False, RuntimeError),
+        ({"unexpected": []}, False, ValueError),
+    ],
+)
 async def test_mcp_errors_do_not_become_empty_success(mcp_http, payload, is_error, exception):
     state, _ = mcp_http
     state.update(payload=payload, is_error=is_error)
@@ -151,11 +185,13 @@ async def test_empty_results_are_a_valid_response(mcp_http):
 
 async def test_transport_timeout_uses_existing_pipeline_failure_path(mcp_http):
     state, _ = mcp_http
-    state["failure"] = httpx.ReadTimeout("fixture timed out")
+    state["failure"] = httpx2.ReadTimeout("fixture timed out")
     tracker = ResearchTracker()
     responses = await _execute_searches(
-        backend=_build_search_backend("parallel"), search_queries=["coral reef threats"],
-        include_domains=None, tracker=tracker,
+        backend=_build_search_backend("parallel"),
+        search_queries=["coral reef threats"],
+        include_domains=None,
+        tracker=tracker,
     )
     assert responses == [None]
     assert tracker.queries == []
@@ -167,8 +203,10 @@ async def test_http_failure_does_not_cancel_research(mcp_http, status):
     state["status"] = status
     tracker = ResearchTracker()
     responses = await _execute_searches(
-        backend=_build_search_backend("parallel"), search_queries=["coral reef threats"],
-        include_domains=None, tracker=tracker,
+        backend=_build_search_backend("parallel"),
+        search_queries=["coral reef threats"],
+        include_domains=None,
+        tracker=tracker,
     )
     assert responses == [None]
     assert tracker.queries == []
@@ -178,10 +216,14 @@ async def test_http_failure_does_not_cancel_research(mcp_http, status):
 async def test_cancellation_propagates_and_closes_transport(mcp_http):
     state, _ = mcp_http
     state["block"] = True
-    task = asyncio.create_task(_execute_searches(
-        backend=_build_search_backend("parallel"), search_queries=["coral reef threats"],
-        include_domains=None, tracker=ResearchTracker(),
-    ))
+    task = asyncio.create_task(
+        _execute_searches(
+            backend=_build_search_backend("parallel"),
+            search_queries=["coral reef threats"],
+            include_domains=None,
+            tracker=ResearchTracker(),
+        )
+    )
     await asyncio.wait_for(state["started"].wait(), timeout=5)
     task.cancel()
     with pytest.raises(asyncio.CancelledError):

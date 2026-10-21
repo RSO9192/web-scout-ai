@@ -55,6 +55,7 @@ _DOWNLOAD_SIGNAL = "__DOWNLOAD_REDIRECT__"
 # Internal routing helper (replaces plan._classify_response)
 # ---------------------------------------------------------------------------
 
+
 def _classify_fetch_result(result: FetchResult) -> str:
     """Classify a ``FetchResult`` into a parse strategy.
 
@@ -145,6 +146,7 @@ def _extract_absolute_links(base_url: str, page, content: str, *, html: str = ""
 # Parser ABC
 # ---------------------------------------------------------------------------
 
+
 class Parser(ABC):
     """Abstract base class for content parsers.
 
@@ -203,6 +205,7 @@ class Parser(ABC):
 # DefaultParser
 # ---------------------------------------------------------------------------
 
+
 class DefaultParser(Parser):
     """Parser that delegates to the existing private strategy modules.
 
@@ -234,6 +237,7 @@ class DefaultParser(Parser):
         if page is not None and hasattr(page, "html_content"):
             html = page.html_content or ""
             from ._html import _parse_page
+
             content, title = _parse_page(page)
         else:
             # Fallback: markdownify on html_content when page object is unavailable
@@ -257,9 +261,7 @@ class DefaultParser(Parser):
 
         # Vision fallback for pages that rendered empty (SPA race condition, etc.)
         if not content.strip() and self._vision_model:
-            artifact, error = await _vision.scrape_url_via_vision(
-                result.url, query="", vision_model=self._vision_model
-            )
+            artifact, error = await _vision.scrape_url_via_vision(result.url, query="", vision_model=self._vision_model)
             if not error:
                 content = artifact.text_content
 
@@ -357,11 +359,7 @@ class DefaultParser(Parser):
 
     async def parse_image(self, result: FetchResult, context: URLContext) -> ParseResult:
         body = result.body or b""
-        mime_type = (
-            normalize_content_type(result.content_type)
-            or mimetypes.guess_type(result.url)[0]
-            or "image/png"
-        )
+        mime_type = normalize_content_type(result.content_type) or mimetypes.guess_type(result.url)[0] or "image/png"
         title = result.url.rsplit("/", 1)[-1] or "Image"
         artifact = SourceArtifact(kind="binary", title=title, binary_bytes=body, mime_type=mime_type)
         return ParseResult(
@@ -376,6 +374,7 @@ class DefaultParser(Parser):
 # ---------------------------------------------------------------------------
 # Materialization helper
 # ---------------------------------------------------------------------------
+
 
 async def materialize_parse_result(
     result: ParseResult,
@@ -410,9 +409,7 @@ async def materialize_parse_result(
         )
     else:
         mime_type = (
-            "image/png"
-            if artifact.mime_type == "application/x-page-screenshot"
-            else artifact.mime_type or "image/png"
+            "image/png" if artifact.mime_type == "application/x-page-screenshot" else artifact.mime_type or "image/png"
         )
         content, error = await _vision.extract_image_via_vision(
             image_bytes=artifact.binary_bytes,

@@ -36,7 +36,7 @@ def _extract_rendered_links_section(content: str) -> list[str]:
     if heading_index < 0:
         return []
 
-    section = content[heading_index + len(RENDERED_RELEVANT_LINKS_HEADING):]
+    section = content[heading_index + len(RENDERED_RELEVANT_LINKS_HEADING) :]
     lines = []
     for line in section.splitlines():
         if line.startswith("- "):

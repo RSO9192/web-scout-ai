@@ -1,9 +1,9 @@
 """Hub pages with no direct evidence: sentinel content must not become citable
 evidence, while their relevant_links must survive for crawl deepening."""
 
-import pytest
 from unittest.mock import AsyncMock
 
+import pytest
 from agents import Runner
 
 import web_scout.tools.scraper as _tools_scraper
@@ -43,10 +43,22 @@ def _patch_scrape_stack(monkeypatch, extractor_output):
     )
     monkeypatch.setattr(_tools_scraper, "build_extractor_agent", lambda *args, **kwargs: (object(), _no_cleanup))
     monkeypatch.setattr(DefaultParser, "dispatch", AsyncMock(return_value=parse_result))
-    monkeypatch.setattr(ScraplingFetcher, "fetch", AsyncMock(return_value=FetchResult(
-        url=HUB_URL, status=200, content_type="text/html",
-        content_disposition="", html_content="<html>...</html>", body=None, headers={}, used_browser=False,
-    )))
+    monkeypatch.setattr(
+        ScraplingFetcher,
+        "fetch",
+        AsyncMock(
+            return_value=FetchResult(
+                url=HUB_URL,
+                status=200,
+                content_type="text/html",
+                content_disposition="",
+                html_content="<html>...</html>",
+                body=None,
+                headers={},
+                used_browser=False,
+            )
+        ),
+    )
     monkeypatch.setattr(Runner, "run", _fake_run)
 
 

@@ -20,9 +20,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from web_scout.scraping.plan import _validate_url
+
 from web_scout import configure_logging
 from web_scout.scraping import scrape_url
-from web_scout.scraping.plan import _validate_url
 from web_scout.search_backends import SerperBackend
 
 DEFAULT_QUERIES = [

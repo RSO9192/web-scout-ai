@@ -67,8 +67,13 @@ async def test_disable_jev_uses_gpt_followup_ranker(monkeypatch):
     gpt = AsyncMock(return_value=result)
     monkeypatch.setattr(flow.Runner, "run", gpt)
     selected = await flow._rerank_followup_urls(
-        query="report", parent_url="https://example.org/root", parent_content="reports",
-        candidates=urls, cap=1, model="dummy", selector=classification.backend(),
+        query="report",
+        parent_url="https://example.org/root",
+        parent_content="reports",
+        candidates=urls,
+        cap=1,
+        model="dummy",
+        selector=classification.backend(),
     )
     assert selected == [urls[1]]
     gpt.assert_awaited_once()
@@ -167,15 +172,23 @@ async def test_disable_jev_uses_gpt_coverage(monkeypatch):
     jev = AsyncMock(side_effect=AssertionError("Jev must not run"))
     monkeypatch.setattr(flow, "jev_coverage", jev)
     evaluation = agent.CoverageEvaluation(
-        fully_answered=True, gaps="", promising_unscraped_urls=[], needs_new_searches=False,
+        fully_answered=True,
+        gaps="",
+        promising_unscraped_urls=[],
+        needs_new_searches=False,
     )
     gpt = AsyncMock(return_value=SimpleNamespace(final_output_as=lambda _: evaluation))
     monkeypatch.setattr(flow.Runner, "run", gpt)
     tracker = ResearchTracker()
     tracker.record_scrape("https://example.org/report", "Report", "Relevant facts")
     assert await flow._evaluate_search_coverage(
-        query="facts", include_domains=None, depth={}, evaluator_agent="dummy",
-        tracker=tracker, exclude_domains=None, state=agent.SearchLoopState(),
+        query="facts",
+        include_domains=None,
+        depth={},
+        evaluator_agent="dummy",
+        tracker=tracker,
+        exclude_domains=None,
+        state=agent.SearchLoopState(),
     )
     gpt.assert_awaited_once()
     jev.assert_not_awaited()

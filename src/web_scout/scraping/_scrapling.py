@@ -32,9 +32,12 @@ async def stealthy_fetch(url: str, **kwargs: Any):
     from ._readiness import wait_for_content
 
     async def ready(page):
-        await wait_for_content(page, selector=selector,
-                               timeout_ms=kwargs.get("timeout", 15_000),
-                               visual=not kwargs.get("disable_resources", True))
+        await wait_for_content(
+            page,
+            selector=selector,
+            timeout_ms=kwargs.get("timeout", 15_000),
+            visual=not kwargs.get("disable_resources", True),
+        )
         if action is not None:
             await action(page)
 

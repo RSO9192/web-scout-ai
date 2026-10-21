@@ -110,18 +110,18 @@ async def coverage(query, requirements, sources, candidates):
                                     instructions=f"Do `scraped_sources` fully answer `requirements[{i}]` of `query`?",
                                     criteria={
                                         "true": (
-                                            'Explicit facts supply every requested entity, geography, time period, '
-                                            'measurement and '
-                                            'qualifier. Numerical claims retain their units and scope. A cited source '
-                                            'supports the '
+                                            "Explicit facts supply every requested entity, geography, time period, "
+                                            "measurement and "
+                                            "qualifier. Numerical claims retain their units and scope. A cited source "
+                                            "supports the "
                                             "answer."
                                         ),
                                         "false": (
-                                            'Any requested detail is absent, contradicted or merely inferred. General '
-                                            'guidance, '
-                                            'navigation, titles and search snippets are not evidence. '
-                                        'Similar countries, '
-                                            'years or '
+                                            "Any requested detail is absent, contradicted or merely inferred. General "
+                                            "guidance, "
+                                            "navigation, titles and search snippets are not evidence. "
+                                            "Similar countries, "
+                                            "years or "
                                             "quantities do not fulfill the requirement."
                                         ),
                                     },

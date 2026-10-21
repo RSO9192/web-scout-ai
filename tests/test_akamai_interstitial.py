@@ -90,9 +90,7 @@ async def test_follow_posts_proof_to_the_request_host():
 async def test_follow_uses_verify_location_when_the_challenge_returns_one():
     session = _Session(b'{"location": "https://cdn.publisher.example/files/paper.pdf"}')
 
-    next_url = await follow_akamai_interstitial(
-        session, "https://other.example/download/pdf", _CHALLENGE.encode()
-    )
+    next_url = await follow_akamai_interstitial(session, "https://other.example/download/pdf", _CHALLENGE.encode())
 
     assert next_url == "https://cdn.publisher.example/files/paper.pdf"
     assert session.posts[0][0] == "https://other.example/_sec/verify?provider=interstitial"

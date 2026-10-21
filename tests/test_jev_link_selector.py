@@ -26,10 +26,7 @@ def test_link_label_uses_the_anchor_text():
 
 def test_link_label_uses_the_heading_when_the_link_text_is_not_a_title():
     url = "https://www.bbc.com/news/articles/c6lyez3q3j9wo"
-    content = (
-        "## Pitch and putt saved as important for tourism\n\n"
-        "15 Sept 2026](/news/articles/c6lyez3q3j9wo)\n"
-    )
+    content = "## Pitch and putt saved as important for tourism\n\n15 Sept 2026](/news/articles/c6lyez3q3j9wo)\n"
     assert link_label(url, content) == "Pitch and putt saved as important for tourism"
 
 

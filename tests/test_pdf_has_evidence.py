@@ -66,9 +66,7 @@ async def test_has_evidence_default_true_keeps_existing_behavior(monkeypatch):
             evidence=[PdfEvidenceItem(text="wheat output fell", page_start=1, page_end=1)],
         ),
     )
-    title, content, pages = await extract_pdf_for_query(
-        artifact=_ARTIFACT, query="wheat output", model="dummy"
-    )
+    title, content, pages = await extract_pdf_for_query(artifact=_ARTIFACT, query="wheat output", model="dummy")
     assert "Wheat output" in content
     assert pages == [1]
 
@@ -98,8 +96,7 @@ def _assert_pdf_result_contract(prompt: str) -> None:
     assert '"has_evidence":true' in prompt
     assert "Valid no-evidence output:" in prompt
     no_evidence_example = (
-        '"has_evidence":false,"relevant_content":"[No relevant content found for this query]",'
-        '"evidence":[]'
+        '"has_evidence":false,"relevant_content":"[No relevant content found for this query]","evidence":[]'
     )
     assert "".join(no_evidence_example) in prompt
 
@@ -179,7 +176,10 @@ async def test_disable_jev_uses_gpt_pdf_claim_verification(monkeypatch):
     monkeypatch.setattr(pdf_mod, "supported_evidence", jev)
     monkeypatch.setattr(pdf_mod, "_verify_claims_llm", gpt)
     _, content, pages = await extract_pdf_for_query(
-        artifact=_ARTIFACT, query="guidance", model="dummy", verify_pdf_claims=True,
+        artifact=_ARTIFACT,
+        query="guidance",
+        model="dummy",
+        verify_pdf_claims=True,
     )
     assert content == "Guidance [p. 1]."
     assert pages == [1]

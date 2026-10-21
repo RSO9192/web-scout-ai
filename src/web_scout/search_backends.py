@@ -334,9 +334,9 @@ class ParallelBackend(SearchBackend):
             raise RuntimeError("Parallel MCP transport cancelled the search") from exc
 
         text = "\n".join(block.text for block in result.content if block.type == "text")
-        if result.isError:
+        if result.is_error:
             raise RuntimeError(f"Parallel search failed: {text}")
-        data = result.structuredContent
+        data = result.structured_content
         if data is None:
             data = json.loads(text)
         if not isinstance(data, dict) or not isinstance(data.get("results"), list):

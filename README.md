@@ -16,9 +16,7 @@ Give it a question or a URL:
 ```python
 from web_scout import run_web_research
 
-result = await run_web_research(
-    "Indonesia biodiversity hotspots current status and recent trend"
-)
+result = await run_web_research("Indonesia biodiversity hotspots current status and recent trend")
 
 print(result.synthesis)
 print(f"Read {len(result.scraped)} sources across {len(result.queries)} searches")
@@ -156,10 +154,7 @@ async def main():
         print(f"- {source.title or source.url}: {source.url}")
 
     if result.bot_detected or result.scrape_failed:
-        print(
-            f"\nCould not read "
-            f"{len(result.bot_detected) + len(result.scrape_failed)} source(s)"
-        )
+        print(f"\nCould not read {len(result.bot_detected) + len(result.scrape_failed)} source(s)")
 
 
 asyncio.run(main())
@@ -300,16 +295,12 @@ models = {
     # Query generation, search-result ranking, coverage evaluation and synthesis,
     # unless overridden below
     "web_researcher": "bedrock_mantle/openai.gpt-6-luna",
-
     # Reads and extracts each source
     "content_extractor": "bedrock_mantle/openai.gpt-6-luna",
-
     # Chooses which follow-up links to open
     "followup_selector": "bedrock_mantle/openai.gpt-6-luna",
-
     # Describes scanned pages, charts, maps and images
     "vision_fallback": "gemini/gemini-3.7-flash",
-
     # Optional per-stage overrides; each falls back to "web_researcher"
     # "query_generator": "...",
     # "search_result_selector": "...",  # ranks search results before scraping (unused when Jev is on)
@@ -336,23 +327,23 @@ Provider credentials are read from their standard environment variables, such as
 ```python
 result = await run_web_research(
     query="latest IPCC findings on sea-level rise",
-    models=None,                       # optional; GPT-6 Luna defaults, Gemini vision
-    search_backend="serper",          # "serper" (default), "exa", or "parallel" (keyless MCP)
-    research_depth="standard",        # "standard", "deep", or a custom dict
-    include_domains=["ipcc.ch"],       # optional discovery restriction
-    direct_url=None,                   # optional; skips search when set
+    models=None,  # optional; GPT-6 Luna defaults, Gemini vision
+    search_backend="serper",  # "serper" (default), "exa", or "parallel" (keyless MCP)
+    research_depth="standard",  # "standard", "deep", or a custom dict
+    include_domains=["ipcc.ch"],  # optional discovery restriction
+    direct_url=None,  # optional; skips search when set
     domain_expertise="climate science",  # optional prompt context
-    exclude_domains=None,              # optional blocklist; nothing is blocked
-                                       # by default. See "Domain policy" below.
-    max_pdf_pages=50,                  # pages converted from each PDF
-    max_content_chars=30_000,          # characters passed to the extractor per source
-    verify_pdf_claims=False,           # extra claim-support check on PDF extracts
-    cache=False,                       # accepted; URL and PDF caches stay on
-    cache_storage=None,               # Prefect block, e.g. a GCS bucket
-    refresh_pdf_cache=False,          # recompute cached PDF parses
-    refresh_url_cache=False,          # recompute cached URL fetches
-    coverage_criteria=None,            # extra evidence requirements
-    extractor_guidance=None,           # optional per-source extraction guidance
+    exclude_domains=None,  # optional blocklist; nothing is blocked
+    # by default. See "Domain policy" below.
+    max_pdf_pages=50,  # pages converted from each PDF
+    max_content_chars=30_000,  # characters passed to the extractor per source
+    verify_pdf_claims=False,  # extra claim-support check on PDF extracts
+    cache=False,  # accepted; URL and PDF caches stay on
+    cache_storage=None,  # Prefect block, e.g. a GCS bucket
+    refresh_pdf_cache=False,  # recompute cached PDF parses
+    refresh_url_cache=False,  # recompute cached URL fetches
+    coverage_criteria=None,  # extra evidence requirements
+    extractor_guidance=None,  # optional per-source extraction guidance
 )
 ```
 

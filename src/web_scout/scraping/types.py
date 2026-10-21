@@ -54,14 +54,14 @@ class FetchResult(BaseModel):
 
     url: str
     status: int
-    content_type: str           # normalised (no params, lowercase)
+    content_type: str  # normalised (no params, lowercase)
     content_disposition: str
-    html_content: str | None    # None for binary responses (PDFs, images)
-    body: bytes | None          # None for text responses; raw bytes for PDFs, images
+    html_content: str | None  # None for binary responses (PDFs, images)
+    body: bytes | None  # None for text responses; raw bytes for PDFs, images
     headers: dict[str, str]
     used_browser: bool
-    page: Any = None            # Scrapling page object (for CSS selector access in Parser)
-    error: str | None = None    # set when fetch failed or URL was blocked before network call
+    page: Any = None  # Scrapling page object (for CSS selector access in Parser)
+    error: str | None = None  # set when fetch failed or URL was blocked before network call
 
 
 class ParseResult(BaseModel):
@@ -72,7 +72,7 @@ class ParseResult(BaseModel):
     url: str
     title: str
     text_content: str
-    links: list[str]            # absolute URLs extracted from the page
-    artifact: SourceArtifact    # full artifact for vision/binary use downstream
-    raw_html: str | None = None # original HTML from Fetcher (for Crawler; avoids re-fetch)
+    links: list[str]  # absolute URLs extracted from the page
+    artifact: SourceArtifact  # full artifact for vision/binary use downstream
+    raw_html: str | None = None  # original HTML from Fetcher (for Crawler; avoids re-fetch)
     error: str | None = None

@@ -150,10 +150,7 @@ async def test_busy_sessions_are_not_evicted():
     for s in FakeSession.instances:
         s.fetch_gate = asyncio.Event()
         gates.append(s.fetch_gate)
-    tasks = [
-        asyncio.create_task(ss.fetch_via_session(f"https://{h}/slow"))
-        for h in ["a.org", "b.org", "c.org"]
-    ]
+    tasks = [asyncio.create_task(ss.fetch_via_session(f"https://{h}/slow")) for h in ["a.org", "b.org", "c.org"]]
     await asyncio.sleep(0.01)  # let the fetches enter their sessions
     # all 3 sessions busy; a 4th host must overshoot the cap, not kill a busy one
     await ss.fetch_via_session("https://d.org/page")

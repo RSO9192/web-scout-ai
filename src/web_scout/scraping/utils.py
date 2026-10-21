@@ -36,6 +36,7 @@ def log_fetch(
     else:
         fetch_logger.debug("[fetch] %s %s via=%s", status, url, via)
 
+
 _NETWORK_ERROR_MARKERS = (
     "certificate verify failed",
     "certificateverifyerror",
@@ -197,7 +198,7 @@ def extract_citation_pdf_urls(html: str) -> list[str]:
         if raw.startswith("//"):
             raw = "https:" + raw
         elif raw.startswith("http://"):
-            raw = "https://" + raw[len("http://"):]
+            raw = "https://" + raw[len("http://") :]
         if not raw.startswith(("http://", "https://")):
             continue
         raw = resolve_document_download_url(raw)

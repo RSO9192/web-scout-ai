@@ -23,6 +23,18 @@ from pathlib import Path
 
 import pytest
 
+from web_scout import run_web_research
+from web_scout._pipeline_types import DEFAULT_WEB_RESEARCH_MODELS
+from web_scout.scraping._document import scrape_document
+from web_scout.scraping.types import (
+    FetchResult,
+    ParseResult,
+    PdfDocumentLayout,
+    PdfPageSpan,
+    PdfSectionSpan,
+    SourceArtifact,
+)
+
 # Load repo .env so GEMINI_API_KEY is available without exporting manually.
 _ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
 if _ENV_PATH.is_file():
@@ -32,18 +44,6 @@ if _ENV_PATH.is_file():
             continue
         key, _, value = line.partition("=")
         os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
-
-from web_scout import run_web_research
-from web_scout._pipeline_types import DEFAULT_WEB_RESEARCH_MODELS
-from web_scout.scraping._document import scrape_document
-from web_scout.scraping.types import (
-    PdfDocumentLayout,
-    PdfPageSpan,
-    PdfSectionSpan,
-    FetchResult,
-    ParseResult,
-    SourceArtifact,
-)
 
 PDF_URL = "https://openknowledge.fao.org/server/api/core/bitstreams/1c2612f4-2392-4938-8dd6-064c61d1528f/content"
 LOCAL_PDF = (
@@ -64,7 +64,8 @@ bounding box: l=40.9, t=511.9, r=238.5, b=763.9 (TOPLEFT)
 Summary:
 ### Millet prices in selected West African markets
 
-**Chart Type & Unit:** Multi-line chart showing monthly millet prices in **CFA franc BCEAO per 100 kg** from May 2024 to May 2026.
+**Chart Type & Unit:** Multi-line chart showing monthly millet prices in **CFA franc BCEAO per 100 kg** \
+from May 2024 to May 2026.
 
 - **Y-Axis:** Price in CFA franc BCEAO/100 kg, ranging from 15,000 to 45,000.
 - **X-Axis:** Monthly timeline from May 2024 through May 2026.
@@ -142,8 +143,10 @@ def _bannered_fixture_markdown() -> tuple[str, PdfDocumentLayout]:
         PdfSectionSpan(
             title="Millet prices in selected West African markets",
             level=2,
-            start_line=next(i for i, l in enumerate(lines, 1) if "Millet prices in selected" in l),
-            end_line=next(i for i, l in enumerate(lines, 1) if l.strip() == "========== page 17 end =========="),
+            start_line=next(i for i, line in enumerate(lines, 1) if "Millet prices in selected" in line),
+            end_line=next(
+                i for i, line in enumerate(lines, 1) if line.strip() == "========== page 17 end =========="
+            ),
             page_start=17,
             page_end=17,
             heading_path=(title, "Millet prices in selected West African markets"),
@@ -179,6 +182,7 @@ pytestmark = [
 @pytest.mark.asyncio
 async def test_direct_url_millet_prices_niger_page17_chart(monkeypatch):
     import litellm
+
     import web_scout.scraping as scraping_pkg
 
     if _LIVE_DOCLING:

@@ -272,9 +272,7 @@ def build_extractor_agent(
     legacy_direct_agent = not pre_fetched_content
     page_shape = classify_prefetched_page_shape(pre_fetched_content) if pre_fetched_content else None
     allow_interaction = legacy_direct_agent or prefetched_allows_interaction(pre_fetched_content, page_shape)
-    allow_linked_document = legacy_direct_agent or prefetched_allows_linked_document(
-        pre_fetched_content, page_shape
-    )
+    allow_linked_document = legacy_direct_agent or prefetched_allows_linked_document(pre_fetched_content, page_shape)
     linked_document_called = False
 
     async def _render_linked_artifact(artifact, document_url: str, title: str) -> str:

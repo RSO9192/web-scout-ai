@@ -5,12 +5,12 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from agents.tool import ToolContext
 
+from web_scout.tools.extractor import build_extractor_agent as _build_extractor_agent
+
 
 @pytest.fixture(autouse=True)
 def ready_page(monkeypatch):
     monkeypatch.setattr("web_scout.scraping._readiness.wait_for_content", AsyncMock())
-
-from web_scout.tools.extractor import build_extractor_agent as _build_extractor_agent
 
 
 def _make_ctx(tool_name: str = "tool") -> ToolContext:
@@ -554,6 +554,7 @@ async def test_cleanup_closes_browser():
     mock_context.close.assert_called_once()
     mock_browser.close.assert_not_called()
     from web_scout.scraping._resources import close_resources
+
     await close_resources()
     mock_browser.close.assert_called_once()
     mock_pw_cm.__aexit__.assert_called_once()

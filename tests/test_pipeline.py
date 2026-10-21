@@ -5,7 +5,6 @@ synthesis judge retry, and _rerank_followup_urls edge cases.
 All LLM and network calls are replaced with synchronous fakes via monkeypatch.
 """
 
-
 import inspect
 
 import pytest
@@ -900,5 +899,7 @@ async def test_research_does_not_require_jev_credentials_by_default(monkeypatch)
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     _patch_scrape_tool(monkeypatch)
     _patch_runner(monkeypatch, WebResearchResultRaw(synthesis="Done"))
-    result = await run_web_research("report", models={"web_researcher": "dummy"}, direct_url="https://example.org/report")
+    result = await run_web_research(
+        "report", models={"web_researcher": "dummy"}, direct_url="https://example.org/report"
+    )
     assert result.synthesis == "Done"

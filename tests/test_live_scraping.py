@@ -21,6 +21,7 @@ from web_scout.scraping.utils import is_blocked_domain
 
 def test_youtube_is_blocked_by_recommended_policy():
     from web_scout.scraping.constants import RECOMMENDED_EXCLUDE_DOMAINS
+
     assert is_blocked_domain("https://www.youtube.com/watch?v=abc", exclude_domains=RECOMMENDED_EXCLUDE_DOMAINS) is True
 
 
@@ -145,9 +146,7 @@ async def test_scrape_live_404_returns_error_or_skip():
     content, title, error = await _scrape("https://httpbin.org/status/404")
 
     # Either the error field is set or content is empty (soft-404 detection)
-    assert error is not None or not content.strip(), (
-        f"Expected error or empty content for 404, got content={content!r}"
-    )
+    assert error is not None or not content.strip(), f"Expected error or empty content for 404, got content={content!r}"
 
 
 @pytest.mark.asyncio

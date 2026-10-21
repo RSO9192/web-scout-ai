@@ -29,9 +29,7 @@ def test_cases_match_the_hand_picked_sets():
 
 
 def test_normalize_benchmark_url_treats_encoding_and_www_as_the_same_page():
-    encoded = (
-        "https://www.fao.org/newsroom/detail/bracing-for-el-ni%C3%B1o--fao-and-wfp-launch-joint-appeal/en"
-    )
+    encoded = "https://www.fao.org/newsroom/detail/bracing-for-el-ni%C3%B1o--fao-and-wfp-launch-joint-appeal/en"
     decoded = "http://fao.org/newsroom/detail/bracing-for-el-niño--fao-and-wfp-launch-joint-appeal/en/"
     assert normalize_benchmark_url(encoded) == normalize_benchmark_url(decoded)
 
