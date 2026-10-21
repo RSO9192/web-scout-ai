@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-10-21
+
+### Added
+
+- `run_web_research(..., synthesize=False)` skips the synthesiser model call and returns `synthesis=""`. Search, scraping, extraction, coverage evaluation, and direct-URL mode still run, and the result includes the tracker URL groups. The default remains `synthesize=True`, including the citation retry.
+
 ## [1.11.3] - 2026-10-21
 
 ### Changed
