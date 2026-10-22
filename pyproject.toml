@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "web-scout-ai"
-version = "1.12.0"
+version = "1.12.1"
 description = "Agentic web research tool — smarter than search, faster than deep research. Search, scrape, and synthesize web content using LLMs."
 authors = ["Riccardo Soldan", "Oleh Lokshyn"]
 license = "MIT"
@@ -40,7 +40,7 @@ scrapling = {version = ">=0.4.15", extras = ["fetchers"]}
 markdownify = ">=0.11"
 docling = ">=2.0"
 docling-core = ">=2.0"
-pdf-extractor-ai = ">=0.2.1"
+pdf-extractor-ai = ">=0.2.2"
 litellm = ">=1.104"
 pydantic-settings = ">=2.0"
 boto3 = "^1.43.61"

@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.1] - 2026-10-22
+
+### Changed
+
+- Updated `pdf-extractor-ai` to `>=0.2.2` so extraction does not fail on scanned PDFs with tables.
+
 ## [1.12.0] - 2026-10-21
 
 ### Added
