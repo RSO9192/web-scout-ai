@@ -1052,6 +1052,64 @@ def _outcome_followup_candidates(
     return _sanitize_followup_candidates(links, parent_url=parent_url)
 
 
+async def _follow_extractor_links(
+    *,
+    query: str,
+    iteration_result: SearchIterationResult,
+    depth: dict[str, int],
+    followup_model: Any,
+    followup_backend: str,
+    tracker: ResearchTracker,
+    scrape_tool: Any,
+    exclude_domains: Optional[frozenset[str]],
+) -> SearchIterationResult:
+    """Scrape one capped wave of links the extractor flagged on this round's pages (open search mode).
+
+    Candidates are pooled from every outcome in ``iteration_result``, including rejected pages, which
+    keep their links. Already-attempted, excluded-domain and parent URLs are dropped; the rest are ranked
+    with ``_rerank_followup_urls`` (cap ``depth["urls_followup"]``) against the first contributing page.
+    Returns the follow-up scrape result, empty when nothing was left to follow.
+    """
+    parent_urls = {ResearchTracker.normalize_url(url) for url in iteration_result.outcomes_by_url}
+    candidates: list[str] = []
+    seen: set[str] = set()
+    parent: Optional[ExtractorOutcome] = None
+    for url, outcome in iteration_result.outcomes_by_url.items():
+        contributed = False
+        for link in _outcome_followup_candidates(outcome, parent_url=url):
+            norm = ResearchTracker.normalize_url(link)
+            if (
+                norm in seen
+                or norm in parent_urls
+                or tracker.has_attempted_url(link)
+                or is_blocked_domain(link, exclude_domains=exclude_domains)
+            ):
+                continue
+            seen.add(norm)
+            candidates.append(link)
+            contributed = True
+        if contributed and parent is None:
+            parent = outcome
+
+    if parent is None:
+        return SearchIterationResult(extracted_contents=[], iter_results=[])
+
+    chosen = await _rerank_followup_urls(
+        query=query,
+        parent_url=parent.url,
+        parent_content=parent.rendered_text,
+        candidates=candidates,
+        cap=depth["urls_followup"],
+        model=followup_model,
+        selector=followup_backend,
+    )
+    if not chosen:
+        return SearchIterationResult(extracted_contents=[], iter_results=[])
+
+    logger.info("[pipeline] open-mode follow-up on %d links: %s", len(chosen), chosen)
+    return await _scrape_urls(scrape_tool, chosen, empty_log_message="")
+
+
 async def _run_direct_url_mode(
     *,
     query: str,
@@ -1219,6 +1277,18 @@ async def _run_search_mode_impl(
                 scrape_tool=scrape_tool,
                 iteration_result=iteration_result,
             )
+        else:
+            # Pages from this wave are not mined again: one follow-up wave per round.
+            await _follow_extractor_links(
+                query=query,
+                iteration_result=iteration_result,
+                depth=depth,
+                followup_model=followup_model,
+                followup_backend=followup_backend,
+                tracker=tracker,
+                scrape_tool=scrape_tool,
+                exclude_domains=exclude_domains,
+            )
 
         if iteration >= depth["max_iterations"] - 1:
             continue
@@ -1362,6 +1432,7 @@ __all__ = [
     "_collect_hub_results",
     "_deepen_domain_iteration",
     "_evaluate_search_coverage",
+    "_follow_extractor_links",
     "_gather_scrapes",
     "_rerank_followup_urls",
     "_run_direct_url_mode",

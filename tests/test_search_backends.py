@@ -442,12 +442,13 @@ async def test_run_search_mode_passes_effective_exclude_set_to_search():
     """The full effective exclude set (default blocklist or user list) is
     forwarded to the search iteration for backends with native exclusion."""
     from web_scout._pipeline_flow import _run_search_mode_impl
+    from web_scout._pipeline_types import SearchIterationResult
 
     captured = {}
 
     async def fake_iteration(**kwargs):
         captured.update(kwargs)
-        return "iteration-result"
+        return SearchIterationResult(extracted_contents=[], iter_results=[])
 
     await _run_search_mode_impl(
         query="q",
