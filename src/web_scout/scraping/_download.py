@@ -9,6 +9,7 @@ Each handler returns ``None`` to pass control to the next, or ``bytes`` on succe
 """
 
 import asyncio
+import base64
 import io
 import logging
 import os
@@ -126,31 +127,55 @@ class _UrllibDownloader(_Downloader):
             return None
 
 
+# Runs inside the page: fetch through Chromium's network stack (cookies,
+# Cloudflare clearance, TLS handling) and return the body as base64, or null
+# on HTTP error / over budget. readAsDataURL encodes natively, so large PDFs
+# avoid a JS-side string-building loop.
+_IN_PAGE_FETCH_JS = """async ([url, maxBytes]) => {
+    const response = await fetch(url, {credentials: "include"});
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    if (blob.size > maxBytes) return null;
+    const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+    });
+    return dataUrl.slice(dataUrl.indexOf(",") + 1);
+}"""
+
+
 class _StealthyBrowser(_Downloader):
     """Download via Scrapling's StealthyFetcher — bypasses JS-gated bot-protection 403s.
 
-    Note: this handler is effective when the server serves the PDF directly over
-    HTTPS but gates it behind a JavaScript challenge.  It retrieves the raw
-    response body, which contains the PDF bytes when the URL resolves directly to
-    a PDF file.
+    After navigation (and any Cloudflare solve), the bytes are fetched from inside
+    the page. The navigation response body cannot be used: Chromium shows PDFs in
+    its viewer, so Scrapling returns the viewer HTML instead of the file.
     """
 
     async def _attempt(self, url: str) -> Optional[bytes]:
+        encoded: list[Optional[str]] = []
+
+        async def read_pdf(page) -> None:
+            # page.url is the post-redirect URL: re-fetching the original URL
+            # fails CORS when it redirects to another origin (fao.org → openknowledge).
+            encoded.append(await page.evaluate(_IN_PAGE_FETCH_JS, [page.url, _max_document_bytes()]))
+
         try:
-            page = await stealthy_fetch(
+            await stealthy_fetch(
                 url,
+                wait_ready=False,
                 headless=True,
                 disable_resources=False,
-                network_idle=True,
                 solve_cloudflare=True,
                 timeout=ROUTING_HEURISTICS.browser_download_timeout_ms,
                 retries=1,
+                page_action=read_pdf,
             )
-            data = page.body
-            if not isinstance(data, bytes):
-                data = data.encode() if isinstance(data, str) else bytes(data)
-            if data[:4] != PDF_MAGIC_BYTES:
-                logger.debug("[download] stealthy browser: response body is not a PDF")
+            data = base64.b64decode(encoded[0]) if encoded and encoded[0] else b""
+            if not data.startswith(PDF_MAGIC_BYTES):
+                logger.debug("[download] stealthy browser: in-page fetch returned no PDF")
                 return None
             return data
         except Exception as exc:
@@ -182,7 +207,7 @@ async def download_pdf(url: str, *, needs_browser: bool = False) -> tuple[Option
 
     started = time.perf_counter()
     try:
-        async with asyncio.timeout(75), pdf_admission():
+        async with asyncio.timeout(ROUTING_HEURISTICS.pdf_download_deadline_s), pdf_admission():
             pdf_bytes = await chain.download(url)
     except TimeoutError:
         error = f"source_http_error: PDF download deadline exceeded: {url}"

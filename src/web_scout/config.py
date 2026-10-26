@@ -12,6 +12,13 @@ class RoutingHeuristics:
     validation_timeout: float = 20.0
     document_download_timeout: float = 45.0
     urllib_download_timeout: int = 45
+    # Whole PDF download chain. On slow statistical-office servers (KNBS: ~45-80
+    # KB/s) this covers PDFs up to ~10 MB. Raise it to fetch larger reports, at
+    # the cost of a slow download holding one of the two PDF admission slots
+    # for longer (see docs/performance.md).
+    pdf_download_deadline_s: float = 240.0
+    # Fetch work other than a PDF download (probes, browser render, resolvers).
+    fetch_deadline_s: float = 75.0
     short_html_text_chars: int = 150
     short_html_size_chars: int = 8000
     short_html_spa_script_count: int = 2

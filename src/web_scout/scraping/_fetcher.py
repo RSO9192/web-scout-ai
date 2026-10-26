@@ -107,7 +107,10 @@ class ScraplingFetcher(Fetcher):
     async def fetch(self, url: str, context: URLContext) -> FetchResult:
         started = time.perf_counter()
         try:
-            async with asyncio.timeout(75):
+            # _fetch may chain probes and a PDF download, each with its own deadline.
+            async with asyncio.timeout(
+                ROUTING_HEURISTICS.fetch_deadline_s + ROUTING_HEURISTICS.pdf_download_deadline_s
+            ):
                 return await self._fetch(url, context)
         except TimeoutError:
             return self._empty(url).model_copy(update={"error": "source_http_error: fetch deadline exceeded"})

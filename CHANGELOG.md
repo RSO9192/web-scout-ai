@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- PDFs behind incomplete TLS certificate chains or Cloudflare challenges (e.g. KNBS, ANSD, CONAP) now download. The browser fallback fetches the file inside the page instead of returning Chromium's PDF-viewer HTML, and it follows cross-origin redirects.
+
+### Changed
+
+- The PDF download deadline is now 240 seconds (was 75) and can be raised via `pdf_download_deadline_s`. The URL fetch deadline grows to match.
+
 ## [1.12.1] - 2026-10-22
 
 ### Changed

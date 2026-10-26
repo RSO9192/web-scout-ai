@@ -191,6 +191,28 @@ async def test_browser_wrapper_readies_before_action(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_browser_wrapper_can_skip_readiness_for_binary_pages(monkeypatch):
+    from web_scout.scraping import _scrapling
+
+    order = []
+
+    async def ready(*args, **kwargs):
+        order.append("ready")
+
+    async def action(page):
+        order.append("read")
+
+    async def fetch(url, **kwargs):
+        await kwargs["page_action"](object())
+        return "response"
+
+    monkeypatch.setattr("web_scout.scraping._readiness.wait_for_content", ready)
+    monkeypatch.setattr(_scrapling, "fetch_via_session", fetch)
+    await _scrapling.stealthy_fetch("https://a.test/report.pdf", page_action=action, wait_ready=False)
+    assert order == ["read"]
+
+
+@pytest.mark.asyncio
 async def test_interactive_browser_reuse_idle_eviction_and_active_shutdown(monkeypatch):
     from web_scout.scraping import _resources as pool
 

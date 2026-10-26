@@ -330,6 +330,64 @@ async def test_browser_preferred_pdf_download_retains_http_fallbacks(monkeypatch
     assert pdf_bytes == b"%PDF-1.7 mock data"
 
 
+class _FakePdfViewerPage:
+    """Page left on Chromium's PDF viewer after a redirect to the final PDF URL."""
+
+    def __init__(self, url, result):
+        self.url = url
+        self.result = result
+        self.calls = []
+
+    async def evaluate(self, script, arg):
+        self.calls.append(arg)
+        return self.result
+
+
+@pytest.mark.asyncio
+async def test_browser_pdf_download_fetches_final_url_inside_page(monkeypatch):
+    """The browser fallback reads PDF bytes in-page, not from the viewer HTML body."""
+    import base64
+
+    from web_scout.scraping import _download as dl
+
+    page = _FakePdfViewerPage(
+        "https://cdn.example.org/final.pdf",
+        base64.b64encode(b"%PDF-1.7 browser bytes").decode(),
+    )
+
+    async def fake_stealthy_fetch(url, **kwargs):
+        assert kwargs["wait_ready"] is False
+        await kwargs["page_action"](page)
+        return SimpleNamespace(status=200, body=b"<!doctype html><iframe></iframe>")
+
+    monkeypatch.setattr(dl, "stealthy_fetch", fake_stealthy_fetch)
+
+    data = await dl._StealthyBrowser()._attempt("https://example.org/report.pdf")
+
+    assert data == b"%PDF-1.7 browser bytes"
+    assert page.calls[0][0] == "https://cdn.example.org/final.pdf"
+
+
+@pytest.mark.asyncio
+async def test_browser_pdf_download_rejects_non_pdf_or_oversized(monkeypatch):
+    """No bytes (HTTP error / over budget) or non-PDF bytes fall through to the next handler."""
+    import base64
+
+    from web_scout.scraping import _download as dl
+
+    monkeypatch.setenv("WEB_SCOUT_MAX_PDF_BYTES", "1234")
+    for result in (None, base64.b64encode(b"<html>blocked</html>").decode()):
+        page = _FakePdfViewerPage("https://example.org/report.pdf", result)
+
+        async def fake_stealthy_fetch(url, **kwargs):
+            await kwargs["page_action"](page)
+            return SimpleNamespace(status=200, body=b"")
+
+        monkeypatch.setattr(dl, "stealthy_fetch", fake_stealthy_fetch)
+        assert await dl._StealthyBrowser()._attempt("https://example.org/report.pdf") is None
+        assert page.calls[0][1] == 1234
+
+
 @pytest.mark.asyncio
 async def test_pdf_download_streams_from_pooled_session(monkeypatch):
     from contextlib import asynccontextmanager

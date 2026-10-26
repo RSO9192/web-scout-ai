@@ -15,8 +15,12 @@ from ._stealth_session import fetch_via_session
 logger = logging.getLogger(__name__)
 
 
-async def stealthy_fetch(url: str, **kwargs: Any):
+async def stealthy_fetch(url: str, *, wait_ready: bool = True, **kwargs: Any):
     """Fetch *url* via the host's shared stealth session, ``solve_cloudflare=True``.
+
+    ``wait_ready=False`` skips the HTML content-readiness wait before
+    ``page_action``; use it for binary URLs (e.g. PDFs shown in Chromium's
+    viewer), which never render readable HTML content.
 
     Raises ``RuntimeError`` when the installed Scrapling version does not
     support ``solve_cloudflare`` (requires >= 0.4.9).
@@ -32,12 +36,13 @@ async def stealthy_fetch(url: str, **kwargs: Any):
     from ._readiness import wait_for_content
 
     async def ready(page):
-        await wait_for_content(
-            page,
-            selector=selector,
-            timeout_ms=kwargs.get("timeout", 15_000),
-            visual=not kwargs.get("disable_resources", True),
-        )
+        if wait_ready:
+            await wait_for_content(
+                page,
+                selector=selector,
+                timeout_ms=kwargs.get("timeout", 15_000),
+                visual=not kwargs.get("disable_resources", True),
+            )
         if action is not None:
             await action(page)
 
