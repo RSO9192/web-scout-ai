@@ -21,7 +21,7 @@ from web_scout._classification import backend as classification_backend
 from web_scout._classification import supported_evidence
 from web_scout.config import ROUTING_HEURISTICS
 from web_scout.scraping.types import PdfDocumentLayout, SourceArtifact
-from web_scout.utils import get_litellm_base_url
+from web_scout.utils import get_litellm_base_url, resolve_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -314,6 +314,7 @@ async def _llm_json(model: Any, prompt: str, schema: type[BaseModel]) -> BaseMod
                 messages=messages,
                 response_format=response_format,
                 api_base=api_base,
+                api_key=resolve_api_key(model),
             )
         content = response.choices[0].message.content
         raw = content.strip() if isinstance(content, str) else json.dumps(content)

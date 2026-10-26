@@ -24,6 +24,7 @@ from typing import Any, Optional, Tuple
 from pydantic import BaseModel, Field
 
 from web_scout.config import ROUTING_HEURISTICS
+from web_scout.utils import resolve_api_key
 
 from ._resources import model_admission
 from ._scrapling import stealthy_fetch
@@ -105,6 +106,7 @@ async def _call_vision_model(
                         ],
                     }
                 ],
+                api_key=resolve_api_key(vision_model),
             )
         content = (response.choices[0].message.content or "").strip()
         return (content, None) if content else ("", "Vision extraction returned empty content")
@@ -315,6 +317,7 @@ async def describe_section_visuals(
                 messages=[{"role": "user", "content": content}],
                 # Plain JSON mode let Gemini emit bare lists and invalid escapes (LaTeX, raw newlines).
                 response_format=SectionVisualSummaries,
+                api_key=resolve_api_key(vision_model),
             )
         raw = (response.choices[0].message.content or "").strip()
         if not raw:

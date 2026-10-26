@@ -1,7 +1,7 @@
 """Shared utilities for the web-scout-ai package."""
 
 import os
-from typing import Union
+from typing import Any, Union
 
 from agents.extensions.models.litellm_model import LitellmModel
 
@@ -27,6 +27,10 @@ _PROVIDER_ENV_KEYS: dict[str, list[str]] = {
     "bedrock_mantle": ["BEDROCK_MANTLE_API_KEY", "AWS_BEARER_TOKEN_BEDROCK"],
 }
 
+# Their mapped env vars are not api_keys: bedrock signs with SigV4 and vertex_ai uses
+# service-account credentials. LiteLLM would send any api_key as a bearer token.
+_NON_API_KEY_PROVIDERS = frozenset({"bedrock", "vertex_ai"})
+
 # Providers that are natively supported by the OpenAI Agents SDK
 # (passed as plain model name strings, not wrapped in LitellmModel).
 _NATIVE_OPENAI_PREFIXES = ("gpt-", "o1", "o3", "o4")
@@ -47,14 +51,39 @@ def _detect_provider(model_name: str) -> str | None:
     return None
 
 
+def _is_unexpanded_reference(value: str) -> bool:
+    """Return True for a literal ``${VAR}`` left by a .env loader that did not interpolate."""
+    return value.startswith("${") and value.endswith("}")
+
+
 def _find_api_key(provider: str) -> str | None:
     """Look up the API key for a provider from environment variables."""
     env_names = _PROVIDER_ENV_KEYS.get(provider, [])
     for name in env_names:
         key = os.getenv(name)
-        if key and not (key.startswith("${") and key.endswith("}")):
+        if key and not _is_unexpanded_reference(key):
             return key
     return None
+
+
+def resolve_api_key(model: Any) -> str | None:
+    """Return the API key to pass explicitly to a direct ``litellm.acompletion`` call.
+
+    ``model`` is a LiteLLM model string or an object with ``model`` and
+    ``api_key`` attributes (e.g. ``LitellmModel``). The object's own key wins
+    when set and not an unexpanded ``${VAR}`` placeholder; otherwise the key is
+    looked up from the provider's environment variables, as ``get_model`` does.
+    Returns ``None`` when no key is found, or for providers in
+    ``_NON_API_KEY_PROVIDERS``, leaving LiteLLM to its own credential lookup.
+    """
+    model_name = model if isinstance(model, str) else getattr(model, "model", None)
+    provider = _detect_provider(model_name) if isinstance(model_name, str) else None
+    if provider in _NON_API_KEY_PROVIDERS:
+        return None
+    own_key = getattr(model, "api_key", None)
+    if isinstance(own_key, str) and own_key and not _is_unexpanded_reference(own_key):
+        return own_key
+    return _find_api_key(provider) if provider else None
 
 
 def _prepare_bedrock_mantle_openai(model_name: str) -> None:
