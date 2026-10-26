@@ -1,0 +1,196 @@
+[
+  {
+    "id": "guatemala",
+    "title": "Guatemala hotspots",
+    "kind": "eval",
+    "query": "What are the main biodiversity hotspots in Guatemala?",
+    "hard": false,
+    "expected": null
+  },
+  {
+    "id": "senegal",
+    "title": "Senegal small pelagics",
+    "kind": "eval",
+    "query": "What are the main small-pelagic species landed in Senegal in the latest reported year, and what volumes did the national fisheries authorities publish?",
+    "hard": false,
+    "expected": null
+  },
+  {
+    "id": "owid_deforestation",
+    "kind": "dashboard",
+    "hard": false,
+    "query": "Which countries have the highest annual deforestation in the most recent period covered by FAO's Global Forest Resources Assessment, and how many hectares per year do they lose?",
+    "expected": {
+      "facts": [
+        "Most recent period is 2020-2025 (stored as year 2020; annual average over 2020-2025), source FAO Global Forest Resources Assessment 2025.",
+        "Brazil: 3,256,050 ha/year (largest of any country).",
+        "India: 588,000 ha/year (second).",
+        "Angola: 510,440 ha/year (third).",
+        "Next: Tanzania 469,000; Democratic Republic of Congo 283,500; China 274,000 ha/year.",
+        "World total: 8,490,110 ha/year in 2020-2025."
+      ],
+      "source_urls": [
+        "https://ourworldindata.org/grapher/annual-deforestation",
+        "https://ourworldindata.org/grapher/annual-deforestation.config.json",
+        "https://api.ourworldindata.org/v1/indicators/1129225.data.json",
+        "https://api.ourworldindata.org/v1/indicators/1129225.metadata.json"
+      ],
+      "checked_on": "2026-10-26",
+      "notes": "Ranked year-2020 records in the indicator data file after joining entity ids to names from the metadata file and excluding OWID aggregates (World, regions, income groups). Period mapping from the chart config note: '2020' = annual average 2020 to 2025. Indicator updated 2026-08-12."
+    }
+  },
+  {
+    "id": "worldbank_brazil_forest",
+    "kind": "dashboard",
+    "hard": false,
+    "query": "What share of Brazil's land area is covered by forest according to the latest World Bank figure, and how has it changed since 1990?",
+    "expected": {
+      "facts": [
+        "Latest value: 2024, 58.5468405650061% of land area (about 58.5%); 2025 is empty (null).",
+        "1990: 73.9929290488075% (about 74.0%).",
+        "2000: 67.0867405906099% (about 67.1%)."
+      ],
+      "source_urls": [
+        "https://data.worldbank.org/indicator/AG.LND.FRST.ZS?locations=BR",
+        "https://api.worldbank.org/v2/country/BRA/indicator/AG.LND.FRST.ZS?format=json&per_page=100"
+      ],
+      "checked_on": "2026-10-26",
+      "notes": "Indicator AG.LND.FRST.ZS (Forest area, % of land area), World Bank API lastupdated 2026-10-08. Latest non-null year is 2024."
+    }
+  },
+  {
+    "id": "eurostat_population",
+    "kind": "dashboard",
+    "hard": false,
+    "query": "What was the population of the European Union on 1 January 2026, and which member state had the largest population?",
+    "expected": {
+      "facts": [
+        "EU27 (from 2020) population on 1 January 2026: 451,990,314 (flag 'ep' = estimated, provisional); 1 January 2025: 451,284,558.",
+        "Germany is the most populous member state: 83,467,117 on 1 January 2026 (83,577,140 in 2025).",
+        "Next: France 69,112,309 (provisional), Italy 58,942,828 (provisional), Spain 49,590,099 (provisional)."
+      ],
+      "source_urls": [
+        "https://ec.europa.eu/eurostat/databrowser/view/tps00001/default/table?lang=en",
+        "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/tps00001?format=JSON&lang=en"
+      ],
+      "checked_on": "2026-10-26",
+      "notes": "Dataset tps00001 'Population on 1 January' (JSON-stat, updated 2026-09-30). Values read from the flat value index geo*12+time; ranked member states for 2026."
+    }
+  },
+  {
+    "id": "prodes_states",
+    "kind": "dashboard",
+    "hard": false,
+    "query": "Which Legal Amazon states had the most deforestation in the latest consolidated PRODES year, and how many square kilometres were cleared in each?",
+    "expected": {
+      "facts": [
+        "Latest consolidated year: PRODES 2025 (1 Aug 2024 - 31 Jul 2025). The 2026 period (Aug 2025 - Jul 2026) is the preliminary estimate.",
+        "Pará: 1953.0813510747153 km² (about 1,953.1 km²), the highest.",
+        "Mato Grosso: 1462.7169577546247 km² (about 1,462.7 km²), second.",
+        "Amazonas: 835.31966684098 km² (about 835.3 km²), third.",
+        "Then Roraima 278.11, Acre 275.46, Rondônia 216.50, Maranhão 192.45, Tocantins 27.61, Amapá 15.97 km².",
+        "For reference, preliminary 2026 period: Pará 1146.32, Mato Grosso 836.90, Amazonas 588.47 km² (same top three)."
+      ],
+      "source_urls": [
+        "https://terrabrasilis.dpi.inpe.br/app/dashboard/deforestation/biomes/legal_amazon/increments",
+        "https://terrabrasilis.dpi.inpe.br/app/prodes/dashboard/deforestation/files/data/prodes_legal_amazon.json?v=3.5.10",
+        "https://terrabrasilis.dpi.inpe.br/app/prodes/dashboard/deforestation/files/config/loinames/prodes_legal_amazon.json?v=3.5.10"
+      ],
+      "checked_on": "2026-10-26",
+      "notes": "Period with endDate 2025-07-31, features with loi 1 (uf/states), joined loiname gids to names; ranked area type 1 (dashboard increment area, km²). Treated 2026 as preliminary because INPE's 2026 figure is the estimate (Nota técnica Estimativa PRODES 2026, rate 3,335 km²); the 2026 increments in the file sum to 3,467 km². Answers citing 2026 as 'latest' should be noted but the top-3 order is the same."
+    }
+  },
+  {
+    "id": "sidra_soy_mt",
+    "kind": "dashboard",
+    "hard": true,
+    "query": "How much soybean did Mato Grosso produce in the latest year of IBGE's Municipal Agricultural Production survey?",
+    "expected": {
+      "facts": [
+        "Mato Grosso soybean (Soja em grão) quantity produced in 2025: 50,175,032 tonnes (about 50.2 million t)."
+      ],
+      "source_urls": [
+        "https://sidra.ibge.gov.br/tabela/1612",
+        "https://apisidra.ibge.gov.br/values/t/1612/n3/51/v/214/p/last/c81/2713"
+      ],
+      "checked_on": "2026-10-26",
+      "notes": "SIDRA table 1612 (Produção Agrícola Municipal, temporary crops), variable 214 'Quantidade produzida', product 2713, territory UF 51, period 'last' = 2025."
+    }
+  },
+  {
+    "id": "fpma_niamey_maize",
+    "kind": "dashboard",
+    "hard": true,
+    "query": "What was the latest retail price of white maize in Niamey, Niger, and how does it compare with a year earlier?",
+    "expected": {
+      "facts": [
+        "September 2026 (monthly): 15743.0 XOF per 100 kg (about 157 XOF/kg); USD equivalent stored as 27.63.",
+        "August 2026: 15884.0 XOF per 100 kg.",
+        "September 2025: 19478.0 XOF per 100 kg, so the September 2026 price is about 19% lower year on year.",
+        "Original source: Institut National de la Statistique du Niger."
+      ],
+      "source_urls": [
+        "https://fpma.fao.org/giews/fpmat4/#/dashboard/tool/domestic",
+        "https://fpma.fao.org/giews/v4/global/price_module/api/v1/FpmaSerie/?uuid__in=a9f822e6-faee-4a4e-9d48-da41e1c2b0f2",
+        "https://fpma.fao.org/giews/v4/global/price_module/api/v1/FpmaSeriePrice/a9f822e6-faee-4a4e-9d48-da41e1c2b0f2/"
+      ],
+      "checked_on": "2026-10-26",
+      "notes": "Series uuid a9f822e6-faee-4a4e-9d48-da41e1c2b0f2 (Niger, Niamey, Maize (white), RETAIL, XOF, 100 kg), found in FpmaSerieDomestic list; prices from FpmaSeriePrice datapoints (conversion_factor 0.01, so the tool may display per kg). Year-on-year change is my calculation for context only."
+    }
+  },
+  {
+    "id": "sofi2025_hunger",
+    "kind": "ordinary",
+    "hard": false,
+    "query": "How many people faced hunger worldwide in 2024 according to the 2025 edition of the UN's State of Food Security and Nutrition in the World report?",
+    "expected": {
+      "facts": [
+        "About 673 million people (point estimate), 8.2% of the global population, faced hunger in 2024; range 638 to 720 million.",
+        "Down from 8.5% in 2023 and 8.7% in 2022 (15 million fewer than 2023).",
+        "Africa: over 20% prevalence, 307 million people in 2024."
+      ],
+      "source_urls": [
+        "https://www.fao.org/newsroom/detail/global-hunger-declines--but-rises-in-africa-and-western-asia--un-report/en"
+      ],
+      "checked_on": "2026-10-26",
+      "notes": "FAO news release dated 28/07/2025 for SOFI 2025. Question pins the 2025 edition because SOFI 2026 has since been published."
+    }
+  },
+  {
+    "id": "grfc2025_acute",
+    "kind": "ordinary",
+    "hard": false,
+    "query": "According to the 2025 Global Report on Food Crises, how many people faced acute food insecurity in 2024 and in how many countries?",
+    "expected": {
+      "facts": [
+        "More than 295 million people across 53 countries and territories faced acute food insecurity in 2024, an increase of 13.7 million from 2023.",
+        "Prevalence: 22.6% of the population assessed.",
+        "People in Catastrophe (IPC/CH Phase 5): 1.9 million, the highest since tracking began in 2016."
+      ],
+      "source_urls": [
+        "https://www.fao.org/newsroom/detail/acute-food-insecurity-and-malnutrition-rise-for-sixth-consecutive-year-in-world-s-most-fragile-regions---new-report/en",
+        "https://www.fightfoodcrises.net/report/global-report-food-crises-2025/"
+      ],
+      "checked_on": "2026-10-26",
+      "notes": "Joint news release dated 16/05/2025. Edition pinned to 2025 because GRFC 2026 exists."
+    }
+  },
+  {
+    "id": "kenya_census2019",
+    "kind": "ordinary",
+    "hard": false,
+    "query": "What total population did Kenya's 2019 Population and Housing Census enumerate?",
+    "expected": {
+      "facts": [
+        "Total enumerated population: 47,564,296 (about 47.6 million).",
+        "Males 23,548,056; females 24,014,716; intersex 1,524.",
+        "Up from 37.7 million in 2009."
+      ],
+      "source_urls": [
+        "https://www.knbs.or.ke/2019-kenya-population-and-housing-census-results/"
+      ],
+      "checked_on": "2026-10-26",
+      "notes": "KNBS results page dated November 4, 2019."
+    }
+  }
+]

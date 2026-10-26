@@ -1,4 +1,4 @@
-"""Run two Web Scout versions on the same eval question and report the difference.
+"""Run two Web Scout versions on the same questions and report the difference.
 
 Subcommands:
     export-old  Extract ``src/`` of an older commit with ``git archive`` (no branch or worktree is created).
@@ -6,6 +6,8 @@ Subcommands:
                 fresh empty result cache, and save the run record as ``<out>/<label>.json``.
     report      Judge every run record in a directory with ``eval/judge.py`` and write ``report.md`` and
                 ``report.json``.
+    run-set     Run old then new on every question of a set, one run at a time, into ``<out>/<id>/``.
+    report-set  Run ``report`` in every question directory and write ``summary.md`` with regression flags.
 
 Usage:
     python scripts/compare_versions.py export-old --commit cb36b2b --dest /tmp/ws_compare/old
@@ -14,6 +16,9 @@ Usage:
     python scripts/compare_versions.py run --src "$PWD/src" --label new --question-id brazil \
         --out /tmp/ws_compare/brazil
     python scripts/compare_versions.py report --dir /tmp/ws_compare/brazil
+    python scripts/compare_versions.py run-set --questions scripts/compare_questions.json --include-eval \
+        --old-src /tmp/ws_compare/old/src --new-src "$PWD/src" --out /tmp/ws_compare/set
+    python scripts/compare_versions.py report-set --dir /tmp/ws_compare/set
 """
 
 from __future__ import annotations
@@ -25,6 +30,7 @@ import os
 import re
 import shutil
 import signal
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -33,9 +39,11 @@ import traceback
 from datetime import date, datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
+from urllib.parse import urlsplit
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 QUESTIONS_PATH = REPO_ROOT / "eval" / "questions.json"
+SET_QUESTIONS_PATH = REPO_ROOT / "scripts" / "compare_questions.json"
 # Every eval file the report imports or reads; eval.judge imports eval.metrics.
 EVAL_FILES = ("eval/judge.py", "eval/fetch.py", "eval/metrics.py", "eval/questions.json")
 DEFAULT_ENV_PATH = Path("/Users/riccardo/Library/CloudStorage/Dropbox/RIKI/FAO/tools/ESSapp/utils/web-scout-ai/.env")
@@ -50,6 +58,17 @@ URL_BUCKETS = (
     "blocked_by_policy",
     "snippet_only",
 )
+PDF_FAILED_BUCKETS = ("scrape_failed", "source_http_error", "bot_detected")
+# Download URLs that usually serve a PDF without a .pdf suffix (repositories, journal systems). Path text
+# matches anywhere, so "/bitstream" also covers "/bitstreams/" and "/download" covers "/article/download/".
+PDF_LIKE_PATH_PATTERNS = ("/bitstream", "/download")
+PDF_LIKE_QUERY_PATTERNS = ("format=pdf",)
+PDF_SUMMARY_KEYS = {
+    "pdf": ("pdf_urls_found", "pdf_scraped", "pdf_failed", "pdf_irrelevant"),
+    "pdf_like": ("pdf_like_found", "pdf_like_scraped", "pdf_like_failed", "pdf_like_irrelevant"),
+}
+# Old minus new supported-claim rate, in percentage points, above which a question is flagged.
+SUPPORTED_RATE_TOLERANCE = 10
 DATA_SUFFIXES = (".json", ".geojson", ".csv")
 RAW_TIMEOUT_SECONDS = 30
 
@@ -105,6 +124,88 @@ def parse_log_urls(log: str) -> dict[str, list[str]]:
 def bucket_summary(result: dict) -> dict[str, int]:
     """Count the URL entries in each non-empty bucket of a ``WebResearchResult`` dump."""
     return {bucket: len(result.get(bucket) or []) for bucket in URL_BUCKETS if result.get(bucket)}
+
+
+def pdf_counters(result: dict) -> dict[str, int]:
+    """Count distinct PDF and PDF-like URLs in a ``WebResearchResult`` dump.
+
+    ``pdf_*``: URL path ends in ``.pdf``. ``pdf_like_*``: any other URL whose path contains one of
+    ``PDF_LIKE_PATH_PATTERNS`` or whose query contains one of ``PDF_LIKE_QUERY_PATTERNS`` (disjoint sets).
+    The dump stores no content type, so other PDF URLs are not counted. ``found`` counts every bucket,
+    ``scraped`` the scraped bucket, ``failed`` scrape_failed, source_http_error and bot_detected together,
+    ``irrelevant`` scraped_irrelevant.
+    """
+
+    def kind(url: str) -> str | None:
+        parts = urlsplit(url.lower())
+        if parts.path.endswith(".pdf"):
+            return "pdf"
+        if any(p in parts.path for p in PDF_LIKE_PATH_PATTERNS) or any(
+            p in parts.query for p in PDF_LIKE_QUERY_PATTERNS
+        ):
+            return "pdf_like"
+        return None
+
+    groups = (URL_BUCKETS, ("scraped",), PDF_FAILED_BUCKETS, ("scraped_irrelevant",))
+    return {
+        key: len(
+            {entry["url"] for bucket in buckets for entry in result.get(bucket) or [] if kind(entry["url"]) == prefix}
+        )
+        for prefix, keys in PDF_SUMMARY_KEYS.items()
+        for key, buckets in zip(keys, groups)
+    }
+
+
+def data_sources_distinct(record: dict) -> int:
+    """Number of distinct data-source URLs a run record's log shows opened (zero for versions without them)."""
+    return len(set((record.get("log_urls") or {}).get("data_sources_opened") or []))
+
+
+def expected_matches(facts: list[str], answer: str) -> tuple[int, int]:
+    """Return how many distinct figures of the expected facts appear in the answer, and how many there are.
+
+    A figure appears when one of its readings (comma or dot as the decimal separator) equals a reading of a
+    figure in the answer. No rounding: an answer giving 58.5 does not match an expected 58.5468. Integers of
+    one or two digits are left out, since almost any answer contains them.
+    """
+    figures = list(
+        dict.fromkeys(
+            figure for fact in facts for figure in claim_figures(fact) if not (figure.isdigit() and len(figure) <= 2)
+        )
+    )
+    answer_values = set().union(*(_readings(token) for token in claim_figures(answer)))
+    return sum(bool(_readings(figure) & answer_values) for figure in figures), len(figures)
+
+
+def regression_reasons(old: dict, new: dict) -> list[str]:
+    """Return why ``new`` regressed against ``old``, or an empty list.
+
+    Each run is a summary with ``run_error`` and ``judge_error`` flags, ``completeness`` (score or None),
+    ``verdicts`` (claim verdicts), ``pdf_scraped`` and ``pdf_like_scraped``. A run error on either side is
+    the only reason given ("old run error", "new run error"): nothing else compares. A judge error on either
+    side skips the completeness and supported-rate checks; ``summary_row`` lists it separately. Otherwise
+    flags: lower completeness (a missing new score counts as lower when old has one); a supported-claim rate
+    more than ``SUPPORTED_RATE_TOLERANCE`` points lower (only when both runs have claims); fewer strict PDFs
+    scraped, unless strict plus PDF-like scraped did not drop (the PDF may now come from a download URL).
+    """
+    reasons = [f"{label} run error" for label, run in (("old", old), ("new", new)) if run["run_error"]]
+    if reasons:
+        return reasons
+    if not (old["judge_error"] or new["judge_error"]):
+        old_score, new_score = old["completeness"], new["completeness"]
+        if old_score is not None and (new_score is None or new_score < old_score):
+            reasons.append(f"completeness {old_score} -> {'none' if new_score is None else new_score}")
+        old_rate, new_rate = _supported_rate(old["verdicts"]), _supported_rate(new["verdicts"])
+        if old_rate is not None and new_rate is not None and old_rate - new_rate > SUPPORTED_RATE_TOLERANCE:
+            reasons.append(f"supported rate {old_rate:.0f}% -> {new_rate:.0f}%")
+    old_any, new_any = (run["pdf_scraped"] + run["pdf_like_scraped"] for run in (old, new))
+    if new["pdf_scraped"] < old["pdf_scraped"] and new_any < old_any:
+        reasons.append(f"pdf_scraped {old['pdf_scraped']} -> {new['pdf_scraped']}")
+    return reasons
+
+
+def _supported_rate(verdicts: list[str]) -> float | None:
+    return 100 * verdicts.count("supported") / len(verdicts) if verdicts else None
 
 
 def claim_figures(claim: str) -> list[str]:
@@ -165,12 +266,36 @@ def _matches(figure: Decimal, body_values: set[Decimal]) -> bool:
     )
 
 
-def load_question(question_id: str) -> dict:
-    """Return the eval question with this id from ``eval/questions.json``."""
-    for question in json.loads(QUESTIONS_PATH.read_text(encoding="utf-8")):
+def load_question(question_id: str, questions_path: Path = QUESTIONS_PATH) -> dict:
+    """Return the question with this id from ``questions_path`` (default ``eval/questions.json``)."""
+    for question in json.loads(questions_path.read_text(encoding="utf-8")):
         if question["id"] == question_id:
             return question
-    raise SystemExit(f"Unknown question id {question_id!r} in {QUESTIONS_PATH}.")
+    raise SystemExit(f"Unknown question id {question_id!r} in {questions_path}.")
+
+
+def set_questions(questions_path: Path, include_eval: bool) -> list[tuple[dict, Path]]:
+    """Return ``(question, file it came from)`` pairs for a run set, in run order.
+
+    With ``include_eval``, every eval question comes first, and questions of ``questions_path`` whose id is
+    already an eval question are dropped.
+    """
+    items = [(question, QUESTIONS_PATH) for question in json.loads(QUESTIONS_PATH.read_text(encoding="utf-8"))]
+    items = items if include_eval else []
+    seen = {question["id"] for question, _ in items}
+    for question in json.loads(questions_path.read_text(encoding="utf-8")):
+        if question["id"] not in seen:
+            items.append((question, questions_path))
+    return items
+
+
+def run_record_done(path: Path) -> bool:
+    """Whether a run record exists, parses and holds no error, so a resumed run set can skip that run."""
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return isinstance(record, dict) and "label" in record and not record.get("error")
 
 
 def export_old(commit: str, dest: Path) -> int:
@@ -196,15 +321,24 @@ def export_old(commit: str, dest: Path) -> int:
     return 0
 
 
-def run_version(*, src: Path, label: str, question_id: str, out: Path, env_file: Path, timeout_s: float) -> int:
+def run_version(
+    *,
+    src: Path,
+    label: str,
+    question_id: str,
+    out: Path,
+    env_file: Path,
+    timeout_s: float,
+    questions_path: Path = QUESTIONS_PATH,
+) -> int:
     """Run one research call in a child process and write ``<out>/<label>.json`` and ``<out>/<label>.log``.
 
-    A child still running after ``timeout_s`` is killed with its process group and recorded as an error.
+    The question is looked up in ``questions_path``. A child still running after ``timeout_s`` is killed with
+    its process group and recorded as an error.
     """
-    question = load_question(question_id)
+    question = load_question(question_id, questions_path)
     src = src.resolve()
-    if not (src / "web_scout" / "__init__.py").is_file():
-        print(f"{src} does not contain web_scout/__init__.py.", file=sys.stderr)
+    if not _is_package_src(src):
         return 2
     out.mkdir(parents=True, exist_ok=True)
     # A fresh empty cache per run, so neither version reuses pages the other fetched and timings compare.
@@ -287,6 +421,54 @@ def run_version(*, src: Path, label: str, question_id: str, out: Path, env_file:
     return 0 if exit_code == 0 and not record["error"] else 1
 
 
+def _is_package_src(src: Path) -> bool:
+    if (src / "web_scout" / "__init__.py").is_file():
+        return True
+    print(f"{src} does not contain web_scout/__init__.py.", file=sys.stderr)
+    return False
+
+
+def run_set(
+    *,
+    questions_path: Path,
+    include_eval: bool,
+    old_src: Path,
+    new_src: Path,
+    out: Path,
+    env_file: Path,
+    timeout_s: float,
+) -> int:
+    """Run old then new on every question of the set, one run at a time, into ``<out>/<id>/``.
+
+    Runs whose record already exists without error are skipped, so an interrupted set resumes. Prints one
+    ``[run-set]`` progress line per run.
+    """
+    if not (_is_package_src(old_src.resolve()) and _is_package_src(new_src.resolve())):
+        return 2
+    failed = 0
+    for question, source in set_questions(questions_path, include_eval):
+        question_id = question["id"]
+        for label, src in (("old", old_src), ("new", new_src)):
+            directory = out / question_id
+            if run_record_done(directory / f"{label}.json"):
+                print(f"[run-set] {question_id} {label} skipped: record exists", flush=True)
+                continue
+            started = time.perf_counter()
+            status = run_version(
+                src=src,
+                label=label,
+                question_id=question_id,
+                out=directory,
+                env_file=env_file,
+                timeout_s=timeout_s,
+                questions_path=source,
+            )
+            failed += status != 0
+            print(f"[run-set] {question_id} {label} exit={status} {time.perf_counter() - started:.0f}s", flush=True)
+    print(f"[run-set] finished; {failed} failed runs", flush=True)
+    return 1 if failed else 0
+
+
 def _source_revision(src: Path) -> str:
     marker = src.parent / EXPORT_MARKER
     if marker.is_file():
@@ -361,12 +543,15 @@ def child_main(*, src: Path, query: str, env_file: Path, result_path: Path) -> i
     return 0 if outcome["error"] is None else 1
 
 
-def write_report(directory: Path, env_file: Path) -> int:
-    """Judge every run record in ``directory`` and write ``report.json`` and ``report.md`` there."""
+def write_report(directory: Path, env_file: Path, judge: bool = True) -> int:
+    """Judge every run record in ``directory`` and write ``report.json`` and ``report.md`` there.
+
+    With ``judge`` false, no claim is judged or data-checked and no model or network call is made.
+    """
     from dotenv import load_dotenv
 
     load_dotenv(env_file)
-    if not os.environ.get("GEMINI_API_KEY"):
+    if judge and not os.environ.get("GEMINI_API_KEY"):
         print("GEMINI_API_KEY is not set. The eval judge uses Gemini.", file=sys.stderr)
         return 2
     if str(REPO_ROOT) not in sys.path:
@@ -417,7 +602,7 @@ def write_report(directory: Path, env_file: Path) -> int:
             "cited_urls": cited,
             "judgment": None,
         }
-        if answer.strip():
+        if judge and answer.strip():
             print(f"Judging {label}...", flush=True)
             try:
                 run["judgment"] = judge_record(
@@ -537,7 +722,7 @@ def format_report(report: dict) -> str:
                     f"{_cell(claim['claim'])} | {claim['checked_url']} | {_cell(claim['reason'])} |"
                 )
         else:
-            lines.append("(not judged: no answer)")
+            lines.append("(not judged)" if run["answer"].strip() else "(not judged: no answer)")
     return "\n".join(lines) + "\n"
 
 
@@ -572,6 +757,203 @@ def _metric_rows(runs: dict) -> list[tuple[str, list]]:
     return rows
 
 
+def report_set(directory: Path, env_file: Path, questions_path: Path, judge: bool) -> int:
+    """Write ``report`` in every question directory under ``directory``, then ``summary.md`` there.
+
+    Rows follow run order (eval questions, then ``questions_path``). ``kind`` comes from eval for eval ids,
+    ``expected`` from ``questions_path``. A question whose report fails is listed under "Report errors".
+    """
+    from_file = {question["id"]: question for question in json.loads(questions_path.read_text(encoding="utf-8"))}
+    questions = {
+        question["id"]: {**from_file.get(question["id"], {}), **question}
+        for question, _ in set_questions(questions_path, include_eval=True)
+    }
+    order = {question_id: index for index, question_id in enumerate(questions)}
+    directories = sorted(
+        (path for path in directory.iterdir() if path.is_dir() and _load_records(path)),
+        key=lambda path: (order.get(path.name, len(order)), path.name),
+    )
+    if not directories:
+        print(f"No question directories with run records in {directory}.", file=sys.stderr)
+        return 2
+    rows = []
+    for question_dir in directories:
+        print(f"[report-set] {question_dir.name}", flush=True)
+        question = questions.get(question_dir.name, {"id": question_dir.name})
+        try:
+            status = write_report(question_dir, env_file, judge=judge)
+            error = f"write_report exited with status {status}; see its output above" if status else None
+        except Exception as exc:
+            traceback.print_exc()
+            error = f"{type(exc).__name__}: {exc}"
+        if error:
+            rows.append(
+                {
+                    "id": question["id"],
+                    "kind": question.get("kind", "-"),
+                    "runs": dict.fromkeys(LABEL_ORDER),
+                    "regression": [],
+                    "judge_errors": [],
+                    "report_error": error,
+                }
+            )
+            continue
+        report = json.loads((question_dir / "report.json").read_text(encoding="utf-8"))
+        rows.append(summary_row(question, report, _load_records(question_dir)))
+    (directory / "summary.md").write_text(format_summary(rows), encoding="utf-8")
+    print(directory / "summary.md")
+    return 0
+
+
+def summary_row(question: dict, report: dict, records: dict[str, dict]) -> dict:
+    """Summarise one question's old and new runs for ``summary.md``; a missing run is None."""
+    facts = (question.get("expected") or {}).get("facts")
+    runs: dict[str, dict | None] = {}
+    for label in LABEL_ORDER:
+        record, run = records.get(label), report["runs"].get(label)
+        if record is None or run is None:
+            runs[label] = None
+            continue
+        judgment = run.get("judgment") or {}
+        counters = record.get("log_counters") or {}
+        runs[label] = {
+            "run_error": bool(record.get("error")),
+            "judge_error": bool(judgment.get("error")),
+            "completeness": (judgment.get("completeness") or {}).get("score"),
+            "verdicts": [claim["verdict"] for claim in judgment.get("claims") or []],
+            "cited_urls": len(run["cited_urls"]),
+            **pdf_counters(record.get("result") or {}),
+            "data_sources": data_sources_distinct(record),
+            "model_calls": record.get("model_calls"),
+            "followup_waves": counters.get("followup_waves", 0),
+            "followup_links": counters.get("followup_links", 0),
+            "wall_time_s": record.get("wall_time_s"),
+            "expected": expected_matches(facts, run["answer"]) if facts else None,
+        }
+    old, new = runs["old"], runs["new"]
+    return {
+        "id": question["id"],
+        "kind": question.get("kind", "-"),
+        "runs": runs,
+        "regression": regression_reasons(old, new) if old and new else [],
+        "judge_errors": [label for label, run in runs.items() if run and run["judge_error"]],
+    }
+
+
+def format_summary(rows: list[dict]) -> str:
+    """Render summary rows as markdown: one table row per question, totals, then regressions and errors."""
+
+    def pair(runs, key, fmt=str) -> str:
+        return " / ".join("-" if run is None or run[key] is None else fmt(run[key]) for run in runs)
+
+    def pdfs(run: dict | None, prefix: str) -> str:
+        return "-" if run is None else "/".join(str(run[key]) for key in PDF_SUMMARY_KEYS[prefix])
+
+    def rate(verdicts: list[str]) -> str:
+        value = _supported_rate(verdicts)
+        return "-" if value is None else f"{value:.0f}%"
+
+    def seconds(value: float) -> str:
+        return f"{value:.0f}"
+
+    def timed(run: dict | None) -> bool:
+        return run is not None and not run["run_error"] and run["wall_time_s"] is not None
+
+    lines = [
+        "# Web Scout old versus new: question set",
+        "",
+        "Cells read old / new. PDF cells are found/scraped/failed/irrelevant distinct URLs: found = any bucket, "
+        "failed = scrape_failed + source_http_error + bot_detected, irrelevant = scraped_irrelevant. PDF counts "
+        "URLs whose path ends in .pdf. PDF-like counts other URLs whose path contains "
+        + " or ".join(f"`{pattern}`" for pattern in PDF_LIKE_PATH_PATTERNS)
+        + " (covers `/bitstreams/` and `/article/download/`) or whose query contains "
+        + " or ".join(f"`{pattern}`" for pattern in PDF_LIKE_QUERY_PATTERNS)
+        + "; "
+        "a PDF at any other URL is in neither count. Expected = expected figures (3 or more digits, or with a "
+        "decimal) found in the answer / expected figures, new then old. Model calls and follow-up counts come "
+        "from each run record. Wall times in whole seconds.",
+        "",
+        "Regression: a run error on either side (no other check then); otherwise new completeness lower (or "
+        f"missing while old has one), supported rate more than {SUPPORTED_RATE_TOLERANCE} points lower, or fewer "
+        "PDFs scraped when PDF plus PDF-like scraped also dropped. A judge error on either side skips the "
+        "completeness and rate checks and is listed under Not judged instead.",
+        "",
+        "| id | kind | completeness | supported rate | cited URLs | PDF old | PDF new | PDF-like old | PDF-like new "
+        "| new data sources | model calls | follow-up waves | follow-up links | wall s | expected new / old "
+        "| regression |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for row in rows:
+        runs = [row["runs"]["old"], row["runs"]["new"]]
+        new = row["runs"]["new"]
+        expected = " / ".join(
+            "-" if run is None or run["expected"] is None else "{}/{}".format(*run["expected"]) for run in runs[::-1]
+        )
+        lines.append(
+            f"| {row['id']} | {row['kind']} | {pair(runs, 'completeness')} | {pair(runs, 'verdicts', rate)} | "
+            f"{pair(runs, 'cited_urls')} | {pdfs(runs[0], 'pdf')} | {pdfs(runs[1], 'pdf')} | "
+            f"{pdfs(runs[0], 'pdf_like')} | {pdfs(runs[1], 'pdf_like')} | "
+            f"{'-' if new is None else new['data_sources']} | {pair(runs, 'model_calls')} | "
+            f"{pair(runs, 'followup_waves')} | {pair(runs, 'followup_links')} | "
+            f"{pair(runs, 'wall_time_s', seconds)} | {expected} | {'yes' if row['regression'] else ''} |"
+        )
+    lines += ["", "## Totals", ""]
+    lines.append(f"Questions: {len(rows)}. Flagged regressions: {sum(bool(row['regression']) for row in rows)}.")
+    lines += ["", "| Measure | old | new |", "|---|---|---|"]
+    keys = ("cited_urls", "data_sources", "followup_waves", "followup_links", *PDF_SUMMARY_KEYS["pdf"])
+    for key in keys + PDF_SUMMARY_KEYS["pdf_like"]:
+        totals = [sum(row["runs"][label][key] for row in rows if row["runs"][label]) for label in LABEL_ORDER]
+        lines.append(f"| {key.replace('_', ' ')} | {totals[0]} | {totals[1]} |")
+    calls = [[row["runs"][label]["model_calls"] for row in rows if row["runs"][label]] for label in LABEL_ORDER]
+    lines.append(
+        "| model calls, runs with a count | "
+        + " | ".join(str(sum(value for value in values if isinstance(value, int))) for values in calls)
+        + " |"
+    )
+    walls = [
+        sum(row["runs"][label]["wall_time_s"] for row in rows if timed(row["runs"][label])) for label in LABEL_ORDER
+    ]
+    lines.append(f"| wall time (s), runs without error | {seconds(walls[0])} | {seconds(walls[1])} |")
+    both = [row for row in rows if timed(row["runs"]["old"]) and timed(row["runs"]["new"])]
+    medians = [
+        seconds(statistics.median(row["runs"][label]["wall_time_s"] for row in both)) if both else "-"
+        for label in LABEL_ORDER
+    ]
+    lines.append(f"| median wall time (s), questions where both ran | {medians[0]} | {medians[1]} |")
+    expected = [
+        [row["runs"][label]["expected"] for row in rows if row["runs"][label] and row["runs"][label]["expected"]]
+        for label in LABEL_ORDER
+    ]
+    lines.append(
+        "| expected figures found | "
+        + " | ".join(f"{sum(found for found, _ in pairs)}/{sum(total for _, total in pairs)}" for pairs in expected)
+        + " |"
+    )
+    excluded = [
+        sum(row["runs"][label] is not None and not timed(row["runs"][label]) for row in rows) for label in LABEL_ORDER
+    ]
+    lines += ["", f"Excluded from wall-time totals: old {excluded[0]}, new {excluded[1]}."]
+    lines += ["", "## Regressions", ""]
+    lines += [f"- {row['id']}: {'; '.join(row['regression'])}" for row in rows if row["regression"]] or ["(none)"]
+    judge_errors = [f"- {row['id']} {label}" for row in rows for label in row["judge_errors"]]
+    lines += ["", "## Not judged (judge error)", ""] + (judge_errors or ["(none)"])
+    run_errors = [
+        f"- {row['id']} {label}" for row in rows for label in LABEL_ORDER if (row["runs"][label] or {}).get("run_error")
+    ]
+    lines += ["", "## Run errors", ""] + (run_errors or ["(none)"])
+    report_errors = [f"- {row['id']}: {row['report_error']}" for row in rows if row.get("report_error")]
+    lines += ["", "## Report errors", ""] + (report_errors or ["(none)"])
+    missing = [
+        f"- {row['id']} {label}"
+        for row in rows
+        if not row.get("report_error")
+        for label in LABEL_ORDER
+        if row["runs"][label] is None
+    ]
+    lines += ["", "## Missing runs", ""] + (missing or ["(none)"])
+    return "\n".join(lines) + "\n"
+
+
 def _data_totals(claims: list[dict]) -> str:
     figures = [ok for claim in claims for ok in ((claim.get("data_check") or {}).get("figures") or {}).values()]
     return f"{sum(figures)} / {len(figures)}"
@@ -589,7 +971,7 @@ def _cell(text: str) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Compare two Web Scout versions on one eval question.")
+    parser = argparse.ArgumentParser(description="Compare two Web Scout versions on eval or set questions.")
     commands = parser.add_subparsers(dest="command", required=True)
 
     export = commands.add_parser("export-old", help="Extract src/ of an older commit with git archive.")
@@ -599,14 +981,30 @@ def main(argv: list[str] | None = None) -> int:
     run = commands.add_parser("run", help="Run one research call with the given src/ first on sys.path.")
     run.add_argument("--src", type=Path, required=True, help="Directory containing the web_scout package.")
     run.add_argument("--label", required=True, help="Run label, e.g. old or new.")
-    run.add_argument("--question-id", required=True, help="Question id from eval/questions.json.")
+    run.add_argument("--question-id", required=True, help="Question id from the questions file.")
+    run.add_argument("--questions", type=Path, default=QUESTIONS_PATH, help="Questions file (default: eval's).")
     run.add_argument("--out", type=Path, required=True)
     run.add_argument("--env-file", type=Path, default=DEFAULT_ENV_PATH)
     run.add_argument("--timeout", type=float, default=1800, help="Seconds before the child is killed.")
 
+    run_many = commands.add_parser("run-set", help="Run old then new on every question of a set, sequentially.")
+    run_many.add_argument("--questions", type=Path, required=True, help="Questions file, e.g. compare_questions.json.")
+    run_many.add_argument("--include-eval", action="store_true", help="Run every eval question first.")
+    run_many.add_argument("--old-src", type=Path, required=True)
+    run_many.add_argument("--new-src", type=Path, required=True)
+    run_many.add_argument("--out", type=Path, required=True, help="Writes <out>/<id>/old.json, new.json and logs.")
+    run_many.add_argument("--env-file", type=Path, default=DEFAULT_ENV_PATH)
+    run_many.add_argument("--timeout", type=float, default=1800, help="Seconds before each child is killed.")
+
     report = commands.add_parser("report", help="Judge the runs in a directory and write report.md/json.")
     report.add_argument("--dir", type=Path, required=True)
     report.add_argument("--env-file", type=Path, default=DEFAULT_ENV_PATH)
+
+    report_many = commands.add_parser("report-set", help="Report every question directory and write summary.md.")
+    report_many.add_argument("--dir", type=Path, required=True)
+    report_many.add_argument("--questions", type=Path, default=SET_QUESTIONS_PATH, help="For kind and expected.")
+    report_many.add_argument("--env-file", type=Path, default=DEFAULT_ENV_PATH)
+    report_many.add_argument("--no-judge", action="store_true", help="Skip the judge and data checks (no calls).")
 
     child = commands.add_parser("_child", help=argparse.SUPPRESS)
     child.add_argument("--src", type=Path, required=True)
@@ -625,9 +1023,22 @@ def main(argv: list[str] | None = None) -> int:
             out=args.out,
             env_file=args.env_file,
             timeout_s=args.timeout,
+            questions_path=args.questions,
+        )
+    if args.command == "run-set":
+        return run_set(
+            questions_path=args.questions,
+            include_eval=args.include_eval,
+            old_src=args.old_src,
+            new_src=args.new_src,
+            out=args.out,
+            env_file=args.env_file,
+            timeout_s=args.timeout,
         )
     if args.command == "report":
         return write_report(args.dir, args.env_file)
+    if args.command == "report-set":
+        return report_set(args.dir, args.env_file, args.questions, judge=not args.no_judge)
     return child_main(src=args.src, query=args.query, env_file=args.env_file, result_path=args.result)
 
 
