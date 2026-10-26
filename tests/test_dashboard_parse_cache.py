@@ -153,3 +153,34 @@ async def test_pages_cached_before_data_capture_are_refetched(monkeypatch):
 
     again, _ = await get_or_fetch_session_source_artifact(**kwargs)
     assert calls["n"] == 2 and again == cached
+
+
+def empty_parse_result(url: str, **kwargs) -> ParseResult:
+    artifact = SourceArtifact(kind="text", title="App", text_content="")
+    return ParseResult(url=url, title="App", text_content="", links=[], artifact=artifact, **kwargs)
+
+
+async def test_empty_text_dashboard_with_data_sources_is_cached(monkeypatch):
+    src = DataSource("D1", "https://t.org/a.json", "response_json", "application/json", '{"a": 1}', 8)
+
+    async def _fake_fetch(url, **kwargs):
+        return fetch_result(html="<div></div>", url=url), empty_parse_result(
+            url, data_sources=(src,), dashboard_kind="dashboard"
+        )
+
+    monkeypatch.setattr("web_scout.scraping.fetch_and_parse_url", _fake_fetch)
+    cached, error = await get_or_fetch_session_source_artifact(
+        url="https://t.org/empty-dashboard", wait_for=None, vision_model=None, exclude_domains=None, max_pdf_pages=50
+    )
+    assert error is None and cached.data_sources == (src,) and cached.text_content == ""
+
+
+async def test_empty_text_page_without_data_sources_still_fails(monkeypatch):
+    async def _fake_fetch(url, **kwargs):
+        return fetch_result(html="<div></div>", url=url), empty_parse_result(url)
+
+    monkeypatch.setattr("web_scout.scraping.fetch_and_parse_url", _fake_fetch)
+    cached, error = await get_or_fetch_session_source_artifact(
+        url="https://t.org/empty-page", wait_for=None, vision_model=None, exclude_domains=None, max_pdf_pages=50
+    )
+    assert cached is None and "Extraction returned empty content" in error

@@ -64,6 +64,7 @@ from .tools import (
     is_rendered_list_page,
     resolve_scrape_outcome,
 )
+from .tools.tracker import SCRAPE_LIMIT
 
 logger = logging.getLogger("web_scout.agent")
 
@@ -331,7 +332,11 @@ def _build_query_agents(
             "of entities, and each requested figure or value. Never return the whole question as a single "
             "requirement unless it asks for exactly one fact."
         )
-        + ("\nCoverage criteria: " + evaluator_extra_prompt if evaluator_extra_prompt else ""),
+        + (
+            "\nCoverage criteria: " + evaluator_extra_prompt
+            if evaluator_extra_prompt and classification_backend() == "jev"
+            else ""
+        ),
     )
     evaluator_agent = Agent(
         name="coverage_evaluator",
@@ -1056,7 +1061,7 @@ async def _follow_extractor_links(
     *,
     query: str,
     iteration_result: SearchIterationResult,
-    depth: dict[str, int],
+    cap: int,
     followup_model: Any,
     followup_backend: str,
     tracker: ResearchTracker,
@@ -1067,7 +1072,7 @@ async def _follow_extractor_links(
 
     Candidates are pooled from every outcome in ``iteration_result``, including rejected pages, which
     keep their links. Already-attempted, excluded-domain and parent URLs are dropped; the rest are ranked
-    with ``_rerank_followup_urls`` (cap ``depth["urls_followup"]``) against the first contributing page.
+    with ``_rerank_followup_urls`` (at most ``cap`` links) against the first contributing page.
     Returns the follow-up scrape result, empty when nothing was left to follow.
     """
     parent_urls = {ResearchTracker.normalize_url(url) for url in iteration_result.outcomes_by_url}
@@ -1099,7 +1104,7 @@ async def _follow_extractor_links(
         parent_url=parent.url,
         parent_content=parent.rendered_text,
         candidates=candidates,
-        cap=depth["urls_followup"],
+        cap=cap,
         model=followup_model,
         selector=followup_backend,
     )
@@ -1240,6 +1245,9 @@ async def _run_search_mode_impl(
         task.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
 
     for iteration in range(depth["max_iterations"]):
+        if tracker.scrape_count >= SCRAPE_LIMIT:
+            logger.info("[pipeline] scrape limit %d reached; skipping remaining search rounds", SCRAPE_LIMIT)
+            break
         logger.info("[pipeline] starting search iteration %d", iteration + 1)
 
         if iteration > 0 and not state.needs_new_searches:
@@ -1278,19 +1286,23 @@ async def _run_search_mode_impl(
                 iteration_result=iteration_result,
             )
         else:
-            # Pages from this wave are not mined again: one follow-up wave per round.
-            await _follow_extractor_links(
-                query=query,
-                iteration_result=iteration_result,
-                depth=depth,
-                followup_model=followup_model,
-                followup_backend=followup_backend,
-                tracker=tracker,
-                scrape_tool=scrape_tool,
-                exclude_domains=exclude_domains,
-            )
+            # Leave every later round its full search allowance so follow-ups never starve it.
+            reserve = depth["urls_followup"] * (depth["max_iterations"] - 1 - iteration)
+            cap = min(depth["urls_followup"], SCRAPE_LIMIT - tracker.scrape_count - reserve)
+            if cap > 0:
+                # Pages from this wave are not mined again: one follow-up wave per round.
+                await _follow_extractor_links(
+                    query=query,
+                    iteration_result=iteration_result,
+                    cap=cap,
+                    followup_model=followup_model,
+                    followup_backend=followup_backend,
+                    tracker=tracker,
+                    scrape_tool=scrape_tool,
+                    exclude_domains=exclude_domains,
+                )
 
-        if iteration >= depth["max_iterations"] - 1:
+        if iteration >= depth["max_iterations"] - 1 or tracker.scrape_count >= SCRAPE_LIMIT:
             continue
 
         if await evaluate_search_coverage(

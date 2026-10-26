@@ -23,6 +23,17 @@ def test_query_agent_always_lists_requirements(monkeypatch):
     assert qa.output_type is SearchQueryChecklist and "atomic requirement" in qa.instructions
 
 
+def test_coverage_criteria_reach_planner_only_on_jev(monkeypatch):
+    strict = "Be extremely strict."
+    monkeypatch.setenv("DISABLE_JEV", "true")
+    qa, ev = _build_query_agents("model", "model", None, evaluator_extra_prompt=strict)
+    assert strict not in qa.instructions and "atomic requirement" in qa.instructions
+    assert strict in ev.instructions
+    monkeypatch.setenv("DISABLE_JEV", "false")
+    qa, _ = _build_query_agents("model", "model", None, evaluator_extra_prompt=strict)
+    assert "Coverage criteria: " + strict in qa.instructions
+
+
 async def test_requirements_reach_tracker(monkeypatch):
     monkeypatch.setenv("DISABLE_JEV", "true")
     calls = []

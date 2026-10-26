@@ -14,7 +14,7 @@ Three input modes — all share a single linear pipeline:
 Two research depth presets control how aggressively the pipeline searches:
 
 - ``"standard"`` (default) — 2 iterations, up to ~10 sources.
-- ``"deep"`` — 3 iterations, more search queries, up to ~28 sources.
+- ``"deep"`` — 3 iterations, more search queries, up to 25 sources (the per-run scrape limit).
 
 Public API
 ----------

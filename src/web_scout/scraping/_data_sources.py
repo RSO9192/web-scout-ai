@@ -235,8 +235,9 @@ def is_data_response(url: str, content_type: str, page_url: str) -> bool:
     """Whether a background response is worth keeping as page data.
 
     True when the response is on the page's registrable site (last two host labels), has a JSON or
-    CSV content type, and its host and path carry no analytics, tag-manager, consent, translation,
-    auth or telemetry token.
+    CSV content type, its host and path carry no tag-manager, consent, translation, auth or telemetry
+    token (nor a named analytics vendor), and its host carries no generic analytics or tracking label
+    (``analytics``, ``collect``, ``track``, ``tracking``); those words are allowed in the path.
     """
     media_type = content_type.split(";", 1)[0].strip().lower()
     if "json" not in media_type and "csv" not in media_type:

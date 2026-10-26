@@ -34,6 +34,9 @@ _TRACKING_PARAMS: frozenset = frozenset(
 
 _BOT_BLOCK_THRESHOLD = 5
 
+# Per-run scrape circuit breaker: the scrape tool refuses new URLs once this many were scraped.
+SCRAPE_LIMIT = 25
+
 
 class ResearchTracker:
     """Accumulates URL and query records from tool calls."""

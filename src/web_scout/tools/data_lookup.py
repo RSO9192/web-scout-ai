@@ -31,6 +31,7 @@ _CONTEXT_DICT_MAX_KEYS = 8
 # Long strings (descriptions, notes) would be repeated in every record's context.
 _CONTEXT_STRING_MAX_CHARS = 200
 _CATALOG_FIELD_SAMPLE = 20
+_CATALOG_SAMPLE_RECORDS = 2
 # A truncated record keeps this much room for the ``_truncated`` marker naming omitted fields.
 _TRUNCATION_MARKER_RESERVE = 150
 # Context is repeated in every record of a container, so its size is capped.
@@ -614,7 +615,13 @@ def _format_size(size: int) -> str:
     return f"{size} B"
 
 
-def _catalog_line(source: DataSource) -> str:
+def _cut(text: str, limit: int) -> str:
+    return text if len(text) <= limit else text[: max(limit - 3, 0)] + "..."
+
+
+def _catalog_line(source: DataSource, budget: int) -> str:
+    if source.kind == "download_xlsx" and not source.body:
+        return _cut(f"{source.source_id} (spreadsheet, opened on demand) {source.url}", budget)
     records = records_from_source(source)
     fields = list(dict.fromkeys(key for record in records[:_CATALOG_FIELD_SAMPLE] for key in record))
     context = list(records[0].get("_context", {})) if records else []
@@ -623,20 +630,27 @@ def _catalog_line(source: DataSource) -> str:
         line += "; fields: " + ", ".join(str(field) for field in fields if field != "_context")
     if context:
         line += "; context: " + ", ".join(map(str, context))
-    return line
+    samples = [
+        _serialize({key: value for key, value in record.items() if key != "_context"})
+        for record in records[:_CATALOG_SAMPLE_RECORDS]
+    ]
+    if not samples:
+        return _cut(line, budget)
+    # Half of the share stays for samples, so long field lists cannot crowd them out.
+    line = _cut(line, budget // 2) + "; samples: "
+    room = (budget - len(line) - len(" | ") * (len(samples) - 1)) // len(samples)
+    return line + " | ".join(_cut(sample, room) for sample in samples)
 
 
 def render_catalog(sources: Sequence[DataSource]) -> str:
-    """List each source as one line: ID, kind, size, record count, URL, field and context names.
+    """List each source as one line: ID, kind, size, record count, URL, field and context names, and samples.
 
-    The whole catalog is at most 2,500 characters; each source gets an equal share and longer
-    lines are cut with ``...``.
+    Samples are the source's first two records (without ``_context``). A lazily opened spreadsheet
+    (``download_xlsx`` with no body yet) is listed as "spreadsheet, opened on demand". The whole catalog
+    is at most 2,500 characters; each source gets an equal share, half of it kept for samples, and
+    longer parts are cut with ``...``.
     """
     if not sources:
         return ""
     budget = (_MAX_CATALOG_CHARS + 1) // len(sources) - 1
-    lines = []
-    for source in sources:
-        line = _catalog_line(source)
-        lines.append(line if len(line) <= budget else line[: budget - 3] + "...")
-    return "\n".join(lines)
+    return "\n".join(_catalog_line(source, budget) for source in sources)

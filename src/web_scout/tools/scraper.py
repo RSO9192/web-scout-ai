@@ -30,7 +30,7 @@ from .page_analysis import prefetched_is_recoverable, render_cached_page_text
 from .pdf_extractor import extract_pdf_for_query, format_reference
 from .rendering import extract_primary_rendered_content, infer_rendered_outcome
 from .session_cache import get_or_fetch_session_source_artifact
-from .tracker import ResearchTracker
+from .tracker import SCRAPE_LIMIT, ResearchTracker
 from .types import DataQuote
 
 logger = logging.getLogger(__name__)
@@ -84,9 +84,9 @@ def create_scrape_and_extract_tool(
         norm = tracker.normalize_url(url) if tracker is not None else url
 
         if tracker is not None:
-            if tracker.scrape_count >= 25:
+            if tracker.scrape_count >= SCRAPE_LIMIT:
                 return (
-                    "CIRCUIT BREAKER: You have scraped 25 URLs. "
+                    f"CIRCUIT BREAKER: You have scraped {SCRAPE_LIMIT} URLs. "
                     "You MUST STOP scraping and synthesize your findings immediately."
                 )
             cached_response = tracker.cached_scrape_response(url)

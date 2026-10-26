@@ -92,6 +92,31 @@ def test_catalog_is_short():
     assert len(text) <= 2500 and "D1" in text
 
 
+def test_catalog_shows_first_two_records_as_samples():
+    body = json.dumps({"rows": [{"year": 2023, "area": 9001}, {"year": 2024, "area": 6288}, {"year": 2025, "area": 5}]})
+    text = render_catalog([src(body)])
+    assert '{"year": 2023, "area": 9001}' in text and '{"year": 2024, "area": 6288}' in text
+    assert "2025" not in text
+
+
+def test_catalog_samples_fit_the_cap_for_many_wide_sources():
+    wide = json.dumps({"rows": [{f"field_{k}": "x" * 40 for k in range(30)} for _ in range(50)]})
+    sources = [src(wide, source_id=f"D{i}") for i in range(1, 9)]
+    text = render_catalog(sources)
+    assert len(text) <= 2500
+    lines = text.split("\n")
+    assert len(lines) == 8 and all("samples: {" in line for line in lines)
+
+
+def test_catalog_labels_lazy_spreadsheet_as_opened_on_demand():
+    xlsx = DataSource(
+        "D2", "https://data.example.org/files/table.xlsx", "download_xlsx", "application/vnd.ms-excel", "", 0
+    )
+    text = render_catalog([src(json.dumps({"rows": [{"a": 1}]})), xlsx])
+    line = text.split("\n")[1]
+    assert "spreadsheet, opened on demand" in line and "0 B" not in line and "0 records" not in line
+
+
 # Controller rulings and constraint caps beyond the brief's examples.
 
 

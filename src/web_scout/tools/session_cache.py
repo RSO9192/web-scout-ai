@@ -94,7 +94,8 @@ async def _url_fetch_task(
         raise RuntimeError(fetch_result.error)
     if parse_result.error:
         raise RuntimeError(parse_result.error)
-    if not parse_result.text_content.strip() and parse_result.artifact.kind == "text":
+    # A dashboard's figures may live only in its data sources, so empty text with sources is still cached.
+    if not parse_result.text_content.strip() and parse_result.artifact.kind == "text" and not parse_result.data_sources:
         raise RuntimeError("Extraction returned empty content")
     return cacheable_from_parse_result(url, parse_result)
 

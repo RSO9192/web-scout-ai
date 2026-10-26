@@ -136,7 +136,7 @@ async def fetch_via_session(url: str, **kwargs: Any):
 
     Session-constructor kwargs (headless, retries, ...) apply on first
     creation for the host; per-fetch kwargs are passed to every fetch.
-    On fetch failure the session is closed and evicted so the next call
+    On fetch failure or cancellation the session is closed and evicted so the next call
     for this host starts fresh; the exception propagates to the caller.
     """
     host = urlparse(url).netloc.lower()
@@ -149,7 +149,8 @@ async def fetch_via_session(url: str, **kwargs: Any):
         entry = await _get_or_create(state, host, session_kwargs)
         try:
             return await entry.session.fetch(url, **fetch_kwargs)
-        except Exception:
+        except (Exception, asyncio.CancelledError):
+            # A cancelled render skips Scrapling's own page cleanup, so the pool may hold a mid-navigation page.
             entry.broken = True
             raise
         finally:

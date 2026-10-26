@@ -9,6 +9,7 @@ from web_scout import _pipeline_flow
 from web_scout._extractor_contract import ExtractorOutcome
 from web_scout._pipeline_types import SearchIterationResult
 from web_scout.tools import ResearchTracker
+from web_scout.tools.tracker import SCRAPE_LIMIT
 
 GOV = "https://www.gov.br/inpe/pt-br/assuntos/desmatamento"
 PDF1 = "https://www.gov.br/inpe/pt-br/assuntos/nota-tecnica-prodes-2024.pdf"
@@ -92,7 +93,7 @@ async def test_links_from_rejected_pages_are_followed_with_cap(monkeypatch):
     res = await _pipeline_flow._follow_extractor_links(
         query="q",
         iteration_result=it,
-        depth={"urls_followup": 4},
+        cap=4,
         followup_model=None,
         followup_backend="gpt",
         tracker=tracker,
@@ -112,7 +113,7 @@ async def test_no_candidates_scrapes_nothing_and_does_not_log(caplog):
         res = await _pipeline_flow._follow_extractor_links(
             query="q",
             iteration_result=it,
-            depth={"urls_followup": 4},
+            cap=4,
             followup_model=None,
             followup_backend="gpt",
             tracker=ResearchTracker(),
@@ -208,3 +209,100 @@ async def test_followed_pages_do_not_start_another_wave(monkeypatch, caplog):
     )
     assert calls.followup_waves == 1
     assert not any(url.endswith("-anexo.pdf") for url in calls.scraped)
+
+
+async def run_budget_loop(monkeypatch, caplog, *, rounds, urls_first, urls_followup, start_count=0):
+    """Run the open-mode loop with fakes that fill every cap and honour the scrape circuit breaker."""
+    tracker = ResearchTracker()
+    tracker.scrape_count = start_count
+    real, breaker, search_calls, coverage_calls = [], [], [], []
+
+    def outcome_for(url):
+        if url.endswith(".pdf"):
+            return success_outcome(url)
+        return failure_outcome(url, links=[f"{url}-doc{k}.pdf" for k in range(urls_first)])
+
+    class BreakerTool(RecordingTool):
+        async def __call__(self, url):
+            if tracker.scrape_count >= SCRAPE_LIMIT:
+                breaker.append(url)
+                return "CIRCUIT BREAKER"
+            tracker.scrape_count += 1
+            real.append(url)
+            return await super().__call__(url)
+
+    scrape_tool = BreakerTool([], tracker=tracker, outcome_for=outcome_for)
+
+    async def fake_search_and_scrape_iteration(*, iteration, **kwargs):
+        search_calls.append(iteration)
+        cap = urls_first if iteration == 0 else urls_followup
+        urls = [f"https://www.gov.br/inpe/r{iteration}-p{j}" for j in range(cap)]
+        return await _pipeline_flow._scrape_urls(scrape_tool, urls, empty_log_message="none")
+
+    async def fake_coverage(*, state, **kwargs):
+        coverage_calls.append(1)
+        state.needs_new_searches = True
+        return False
+
+    async def fake_prewarm(_url):
+        return None
+
+    monkeypatch.setattr("web_scout.scraping._stealth_session.prewarm_host", fake_prewarm)
+
+    with caplog.at_level(logging.INFO, logger="web_scout.agent"):
+        await _pipeline_flow._run_search_mode_impl(
+            query="desmatamento prodes",
+            include_domains=None,
+            search_backend="serper",
+            domain_expertise=None,
+            depth={"max_iterations": rounds, "urls_first": urls_first, "urls_followup": urls_followup},
+            query_gen_model=None,
+            evaluator_model=None,
+            followup_model=None,
+            followup_backend="gpt",
+            tracker=tracker,
+            scrape_tool=scrape_tool,
+            exclude_domains=None,
+            build_search_backend=lambda name: object(),
+            build_query_agents=lambda **kwargs: (None, None),
+            search_and_scrape_iteration=fake_search_and_scrape_iteration,
+            evaluate_search_coverage=fake_coverage,
+        )
+    return SimpleNamespace(
+        real=real, breaker=breaker, search_calls=search_calls, coverage_calls=coverage_calls, tracker=tracker
+    )
+
+
+@pytest.mark.asyncio
+async def test_deep_depth_never_sends_followups_into_the_breaker_and_round_3_searches(monkeypatch, caplog):
+    run = await run_budget_loop(monkeypatch, caplog, rounds=3, urls_first=12, urls_followup=8)
+    assert run.tracker.scrape_count <= SCRAPE_LIMIT
+    assert not any(url.endswith(".pdf") for url in run.breaker)
+    assert run.search_calls == [0, 1, 2]
+    assert any("/r2-" in url for url in run.real)
+
+
+@pytest.mark.asyncio
+async def test_followup_wave_skipped_when_budget_exhausted(monkeypatch, caplog):
+    run = await run_budget_loop(
+        monkeypatch, caplog, rounds=1, urls_first=1, urls_followup=4, start_count=SCRAPE_LIMIT - 1
+    )
+    assert run.real == ["https://www.gov.br/inpe/r0-p0"]
+    assert run.breaker == []
+    assert LOG_PREFIX not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_later_rounds_skipped_once_breaker_reached(monkeypatch, caplog):
+    run = await run_budget_loop(
+        monkeypatch, caplog, rounds=3, urls_first=1, urls_followup=4, start_count=SCRAPE_LIMIT - 1
+    )
+    assert run.search_calls == [0]
+    assert run.coverage_calls == []
+
+
+@pytest.mark.asyncio
+async def test_standard_depth_budget_unchanged(monkeypatch, caplog):
+    run = await run_budget_loop(monkeypatch, caplog, rounds=2, urls_first=6, urls_followup=4)
+    assert len(run.real) == 6 + 4 + 4 + 4
+    assert run.breaker == []
