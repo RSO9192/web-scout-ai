@@ -7,9 +7,9 @@
 [![Python Versions](https://img.shields.io/pypi/pyversions/web-scout-ai)](https://pypi.org/project/web-scout-ai/)
 [![License](https://img.shields.io/github/license/RSO9192/web-scout-ai)](LICENSE)
 
-**Web research that actually reads the sources.**
+**Thorough web research you can verify.**
 
-`web-scout-ai` is an agentic Python research pipeline that searches the web, opens and extracts the sources it finds, follows up when evidence is incomplete, and returns a cited answer together with a full audit trail of what it could — and could not — read.
+`web-scout-ai` is an agentic Python research pipeline that searches the web, reads the pages and documents it finds, follows up when evidence is incomplete, and returns a cited answer together with the evidence behind it and a full audit trail of what it could — and could not — read.
 
 Give it a question or a URL:
 
@@ -22,7 +22,7 @@ print(result.synthesis)
 print(f"Read {len(result.scraped)} sources across {len(result.queries)} searches")
 ```
 
-Instead of treating search snippets as evidence, `web-scout-ai` tries to **read the underlying source itself** before allowing it to support the final answer.
+It cites only sources it actually read, and returns what it extracted from each one, so **every claim can be checked against its source** without redoing the research.
 
 <details open>
 <summary><strong>Example output</strong> (excerpt)</summary>
@@ -488,6 +488,7 @@ Use `web-scout-ai` when your application needs the contents of real pages and do
 
 Compared with a hosted web-search tool, which returns an answer and a list of links, `web-scout-ai` also gives you:
 
+- **Coverage, not first hits.** It checks whether the collected evidence answers every part of the question, then scrapes promising follow-up links or runs targeted searches—also in the language of the country you ask about—to fill the gaps.
 - **The evidence, per source.** `result.scraped` holds the query-relevant extract from every page and document it read, with page references for PDFs, so each claim can be checked without fetching the pages again.
 - **An account of every URL.** Sources that failed, were blocked, returned a bot wall, or turned out to be irrelevant are listed with the reason, instead of disappearing.
 - **Citations that point at what was read.** A deterministic check rejects citations to invented or snippet-only URLs before the answer is returned.
