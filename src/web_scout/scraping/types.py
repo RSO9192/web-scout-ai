@@ -3,6 +3,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from ._data_sources import DashboardKind, DataSource
+
 
 @dataclass(frozen=True)
 class PdfPageSpan:
@@ -62,6 +64,9 @@ class FetchResult(BaseModel):
     used_browser: bool
     page: Any = None  # Scrapling page object (for CSS selector access in Parser)
     error: str | None = None  # set when fetch failed or URL was blocked before network call
+    dashboard_kind: DashboardKind = ""
+    data_sources: tuple[DataSource, ...] = ()  # data files behind a dashboard page, numbered D1..Dn
+    rendered_text: str = ""  # browser-rendered visible text, set only for dashboards
 
 
 class ParseResult(BaseModel):

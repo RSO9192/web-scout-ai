@@ -17,6 +17,15 @@ from urllib.parse import urlparse
 
 from web_scout.config import ROUTING_HEURISTICS
 
+from . import _capture
+from ._capture import NetworkCapture, download_sources
+from ._data_sources import (
+    _MAX_SOURCES_PER_PAGE,
+    DashboardAssessment,
+    assess_dashboard,
+    cap_sources,
+    inline_json_sources,
+)
 from .constants import BINARY_CONTENT_TYPES, IMAGE_CONTENT_TYPES, PDF_MAGIC_BYTES
 from .context import URLContext
 from .page_classifier import looks_like_pdf_resource
@@ -158,6 +167,12 @@ class ScraplingFetcher(Fetcher):
         resp = None
         used_browser = False
         needs_browser_retry = False
+        fast_assessment = DashboardAssessment("", ())
+        # Fast response kept when only the dashboard verdict sent us to the browser, so a browser
+        # failure still returns the page.
+        dashboard_fallback = None
+        capture: NetworkCapture | None = None
+        dashboard: dict = {}
 
         host = urlparse(url).netloc.lower()
         cached_browser = _BROWSER_HOSTS.get(host, 0) > time.monotonic()
@@ -185,8 +200,11 @@ class ScraplingFetcher(Fetcher):
                 # Thin-content heuristic: if the fast HTTP response has very few
                 # visible text chars it is likely a SPA shell → use the browser.
                 html = resp.html_content or ""
+                is_html = normalize_content_type(resp.headers.get("content-type", "")).startswith("text/html")
+                if is_html and html and resp.status < 400:
+                    fast_assessment = assess_dashboard(url, html)
                 if (
-                    normalize_content_type(resp.headers.get("content-type", "")).startswith("text/html")
+                    is_html
                     and html
                     and len(extract_text_from_html(html)) < ROUTING_HEURISTICS.html_fast_thin_content_chars
                     and "<script" in html.lower()
@@ -216,6 +234,10 @@ class ScraplingFetcher(Fetcher):
                                 used_browser=False,
                             )
                     needs_browser_retry = True
+                elif fast_assessment.is_dashboard:
+                    # Dashboards keep their numbers in background data files, which only a render loads.
+                    needs_browser_retry = True
+                    dashboard_fallback = resp
         except _KnownBrowserHost:
             needs_browser_retry = True
         except Exception as e:
@@ -238,23 +260,49 @@ class ScraplingFetcher(Fetcher):
                 )
                 if context.wait_for:
                     kwargs["wait_selector"] = context.wait_for
+                capture = NetworkCapture(url, dashboard=fast_assessment.is_dashboard)
+                kwargs["page_setup"] = capture.page_setup
+                kwargs["page_action"] = capture.page_action
+                # Only renders forced by the dashboard verdict are bounded; the others keep today's timeouts.
+                render_deadline = (
+                    asyncio.get_running_loop().time() + _capture.DASHBOARD_RENDER_BUDGET_S
+                    if dashboard_fallback is not None
+                    else None
+                )
                 try:
-                    resp = await stealthy_fetch(url, **kwargs)
-                    if resp.status < 400:
+                    async with asyncio.timeout_at(render_deadline):
+                        resp = await stealthy_fetch(url, **kwargs)
+                        if resp.status >= 400 and dashboard_fallback is not None:
+                            raise RuntimeError(f"browser returned HTTP {resp.status}")
+                        if resp.html_content:
+                            dashboard = await _dashboard_data(url, resp.html_content, fast_assessment, capture)
+                    # A dashboard-forced render says nothing about whether the host needs a browser.
+                    if resp.status < 400 and dashboard_fallback is None:
                         if len(_BROWSER_HOSTS) >= 128:
                             _BROWSER_HOSTS.pop(next(iter(_BROWSER_HOSTS)))
                         _BROWSER_HOSTS[host] = time.monotonic() + 300
                 except Exception as e:
-                    logger.debug(
-                        "[fetcher] StealthyFetcher failed (%s), trying AsyncFetcher: %s",
-                        type(e).__name__,
-                        url,
-                    )
+                    if dashboard_fallback is None:
+                        logger.debug(
+                            "[fetcher] StealthyFetcher failed (%s), trying AsyncFetcher: %s",
+                            type(e).__name__,
+                            url,
+                        )
                     raise
+                finally:
+                    capture.detach()
             except Exception as e:
                 exc_str = str(e)
+                if dashboard_fallback is not None:
+                    logger.debug(
+                        "[fetcher] dashboard render failed, keeping fast HTML (%s: %s): %s",
+                        type(e).__name__,
+                        exc_str,
+                        url,
+                    )
+                    resp, used_browser, capture, dashboard = dashboard_fallback, False, None, {}
                 # Check for download signal (browser navigating to a file download)
-                if _is_download_navigation_error(exc_str):
+                elif _is_download_navigation_error(exc_str):
                     # Return a minimal FetchResult that triggers parse_document
                     return self._empty(url).model_copy(
                         update={
@@ -263,13 +311,14 @@ class ScraplingFetcher(Fetcher):
                             "error": _DOWNLOAD_SIGNAL,
                         }
                     )
-                error_prefix = "source_http_error: " if is_network_error(e) else ""
-                return self._empty(url).model_copy(
-                    update={
-                        "used_browser": True,
-                        "error": f"{error_prefix}browser fetch failed: {type(e).__name__}: {exc_str}",
-                    }
-                )
+                else:
+                    error_prefix = "source_http_error: " if is_network_error(e) else ""
+                    return self._empty(url).model_copy(
+                        update={
+                            "used_browser": True,
+                            "error": f"{error_prefix}browser fetch failed: {type(e).__name__}: {exc_str}",
+                        }
+                    )
 
         if resp is None:
             return self._empty(url).model_copy(update={"error": "fetch returned no response"})
@@ -299,6 +348,11 @@ class ScraplingFetcher(Fetcher):
         if ct == "application/pdf" and not normalize_content_type(headers.get("content-type", "")):
             headers["content-type"] = "application/pdf"
 
+        if is_binary:
+            dashboard = {}
+        elif html_content and capture is None and fast_assessment.is_dashboard:
+            dashboard = await _dashboard_data(url, html_content, fast_assessment, None)
+
         return FetchResult(
             url=url,
             status=resp.status,
@@ -309,7 +363,34 @@ class ScraplingFetcher(Fetcher):
             headers=headers,
             used_browser=used_browser,
             page=resp,
+            **dashboard,
         )
+
+
+async def _dashboard_data(
+    url: str, html: str, fast_assessment: DashboardAssessment, capture: NetworkCapture | None
+) -> dict:
+    """Return the ``FetchResult`` dashboard fields for a page, or ``{}`` when neither assessment is a dashboard.
+
+    ``capture`` is the browser capture, or ``None`` when the fast HTML is the final page.
+    Sources keep page order (captured responses, inline JSON, downloads) within the per-page caps.
+    """
+    if capture is None:
+        page_url, rendered = url, fast_assessment
+    else:
+        page_url = capture.final_url
+        rendered = capture.assessment or assess_dashboard(page_url, html)
+    kind = fast_assessment.kind or rendered.kind
+    if not kind:
+        return {}
+    sources = (capture.sources if capture is not None else []) + inline_json_sources(html, page_url)
+    if capture is not None:
+        sources += await download_sources(html, page_url, limit=_MAX_SOURCES_PER_PAGE - len(sources))
+    return {
+        "dashboard_kind": kind,
+        "data_sources": cap_sources(sources),
+        "rendered_text": capture.rendered_text if capture is not None else "",
+    }
 
 
 async def fetch(
