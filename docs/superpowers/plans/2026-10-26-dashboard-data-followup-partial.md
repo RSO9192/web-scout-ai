@@ -4,7 +4,7 @@
 
 **Goal:** Let Web Scout quote figures that dashboard-style sources display or store, follow extractor links in open search, and keep pages that answer part of a question, then prove the gain on real old-versus-new runs.
 
-**Architecture:** A deterministic detector marks dashboard-like pages. Those pages are rendered in the shared Scrapling browser while a network listener captures same-site JSON and CSV responses. Inline script JSON and CSV/XLSX download links are collected too. The captured sources travel in the cached fetch artifact to the extractor, which sees a short catalog and a lookup tool, and reports quoted figures that a verbatim check confirms. Open search gains one capped follow-up wave per round. The query planner always produces requirements, which the page extractor uses to keep partial answers.
+**Architecture:** A deterministic detector marks dashboard-like pages. Those pages are rendered in the shared Scrapling browser while a network listener captures same-site JSON and CSV responses. Inline script JSON and CSV/XLSX download links are collected too. The captured sources travel in the cached fetch artifact to the extractor, which sees a short catalog and a lookup tool that can filter and rank stored records, and reports which data file each quoted figure came from. Open search gains one capped follow-up wave per round. The query planner always produces requirements, which the page extractor uses to keep partial answers.
 
 **Tech Stack:** Python 3.13, Scrapling 0.5 / Playwright, openai-agents, litellm, Prefect cache, pytest with pytest-asyncio.
 
@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Quote rule: report only numbers the source displays or stores verbatim in its own data files, citing that file. Never sum, sort, average or rank. Looking up the label behind an ID is allowed.
+- Quote rule, revised by the user: report numbers as the source displays or stores them, citing the data file. Ranking records from a source's own data file is allowed; summing and averaging are not offered. Looking up the label behind an ID is allowed. No deterministic verbatim check (dropped by the user).
 - Latency for dashboard handling: at most about 5 to 15 extra seconds per search round, only when the round contains dashboard-like pages. Runs without them must not change.
 - No new dependencies. Never run install commands.
 - Do not modify anything under `eval/`. In `src/web_scout/tools/pdf_extractor.py`, change only the no-evidence prompt rule (Task 7).
@@ -27,7 +27,7 @@
 ## Review Focus
 
 1. A cached artifact written before this change has no data-source fields. Loading it must not fail, and dashboard pages must not reuse it. Test in Task 4.
-2. Figures written with Portuguese or other locale separators, such as `3.335` for three thousand. The verbatim check must accept them, and still reject an invented figure. Test in Task 5.
+2. Numeric values stored as locale strings, such as `"4,210"` in a `;` CSV. Ranking must order them by numeric value. Test in Task 5.
 3. Lookup terms with accents or different case, such as `labrea` for `Lábrea`. Test in Task 5.
 4. A Power BI or Tableau page when no vision model is configured. It must fall back to its page text without raising. Test in Task 4.
 5. Follow-up candidates that point back to the parent page, to pages already tried, or to excluded domains. They must be dropped, and a follow-up wave must not start another. Test in Task 8.
@@ -318,7 +318,7 @@ git add src/web_scout/scraping src/web_scout/tools/types.py src/web_scout/tools/
 git commit -m "feat: carry dashboard data sources through parse and cache"
 ```
 
-### Task 5: Records, lookup, catalog and verbatim check
+### Task 5: Records, lookup with ranking, and catalog
 
 **Files:**
 - Create: `src/web_scout/tools/data_lookup.py`
@@ -331,7 +331,7 @@ git commit -m "feat: carry dashboard data sources through parse and cache"
   - `@dataclass(frozen=True) class LookupResult: source_id: str; url: str; total_matches: int; records: list[dict]`
   - `lookup_records(source: DataSource, term: str, limit: int = 30) -> LookupResult`
   - `render_catalog(sources: Sequence[DataSource]) -> str`
-  - `figure_in_source(figure: str, source_text: str) -> bool`
+  - Revised by the user mid-task: `lookup_records(source, term="", limit=30, rank_by=None, descending=True)` can order matching records by one numeric field (top-level or in `_context`); `LookupResult` gains `ranked_by` and `descending`. `figure_in_source` was removed with the verbatim check.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -398,21 +398,23 @@ Expected: PASS.
 
 ```bash
 git add src/web_scout/tools/data_lookup.py tests/test_data_lookup.py
-git commit -m "feat: look up records in captured data sources with a verbatim check"
+git commit -m "feat: look up and rank records in captured data sources"
 ```
 
 ### Task 6: Extractor integration, quote verification and citations
 
 **Files:**
 - Modify: `src/web_scout/tools/types.py` (`ExtractorOutput`, new `DataQuote`)
+
+Revised by the user: there is no verbatim figure check. `DataQuote` records which data file a fact came from so it can be cited; a quote whose `source_id` is not in the page's sources is dropped. The `figures` field and the invented-figure test below are superseded.
 - Modify: `src/web_scout/tools/extractor.py` (`build_extractor_agent`, instructions)
 - Modify: `src/web_scout/tools/scraper.py` (`scrape_and_extract`)
 - Test: `tests/test_dashboard_extraction.py`
 
 **Interfaces:**
-- Consumes: `CachedSourceArtifact.data_sources` and `.dashboard_kind` from Task 4; `lookup_records`, `render_catalog`, `figure_in_source` from Task 5.
+- Consumes: `CachedSourceArtifact.data_sources` and `.dashboard_kind` from Task 4; `lookup_records` (with `rank_by`), `render_catalog` from Task 5.
 - Produces:
-  - `class DataQuote(BaseModel): source_id: str; quote: str; figures: list[str]`
+  - `class DataQuote(BaseModel): source_id: str; quote: str`
   - `ExtractorOutput.data_quotes: list[DataQuote] = []`
   - `build_extractor_agent(..., data_sources: Sequence[DataSource] = (), is_dashboard: bool = False)`. When sources exist it adds a function tool `open_data_source(source_id: str, lookup: str) -> str` that returns `LookupResult` as compact JSON lines. `is_dashboard` allows the click tools regardless of page shape.
 
@@ -432,17 +434,17 @@ async def test_catalog_and_tool_reach_the_extractor(monkeypatch):
 async def test_verified_data_quote_is_recorded_as_its_own_source(monkeypatch):
     install_fake_extractor(monkeypatch, output=ExtractorOutput(title="t", has_evidence=False,
         relevant_content="[No relevant content found for this query]",
-        data_quotes=[DataQuote(source_id="D2", quote="Altamira (gid 19124), 2025-2026: area 155.8 km2", figures=["155.8"])]))
+        data_quotes=[DataQuote(source_id="D2", quote="Altamira (gid 19124), 2025-2026: area 155.8 km2")]))
     cache_artifact(monkeypatch, dashboard_kind="dashboard", data_sources=(NAMES_SRC, DATA_SRC))
     tracker = ResearchTracker()
     await make_tool(tracker)(DASH_URL)
     assert tracker.action_for(DATA_SRC.url) == "scraped"
     assert tracker.action_for(DASH_URL) == "scraped_irrelevant"
 
-async def test_invented_figure_is_dropped(monkeypatch):
+async def test_quote_with_unknown_source_is_dropped(monkeypatch):
     install_fake_extractor(monkeypatch, output=ExtractorOutput(title="t", has_evidence=False,
         relevant_content="[No relevant content found for this query]",
-        data_quotes=[DataQuote(source_id="D2", quote="Altamira: 999.9 km2", figures=["999.9"])]))
+        data_quotes=[DataQuote(source_id="D9", quote="Altamira: 155.8 km2")]))
     cache_artifact(monkeypatch, dashboard_kind="dashboard", data_sources=(NAMES_SRC, DATA_SRC))
     tracker = ResearchTracker()
     await make_tool(tracker)(DASH_URL)
@@ -462,7 +464,7 @@ Expected: FAIL.
 
 - [ ] **Step 3: Implement**
 
-The scrape tool appends `render_catalog` under a `## Data sources` heading to the page text it sends, only when sources exist. Extractor instructions gain a data-source section: use `open_data_source` to find exact records, put data-derived facts in `data_quotes` with the exact figures, never compute, and label lookups across sources are allowed. After extraction, drop figures that fail `figure_in_source` against the source body, and drop quotes left with no figures, logging each drop at INFO. Record each surviving quote with `tracker.record_scrape(source.url, title, quote_text, reference=title)`, where the title names the page title and the data file. The outcome is a success when the page has evidence or any quote survives. The page itself is recorded as scraped only when it has evidence. Log `[extract] data_source_opened` and `[extract] data_quote_kept|dropped` lines so the comparison can count them.
+The scrape tool appends `render_catalog` under a `## Data sources` heading to the page text it sends, only when sources exist. Extractor instructions gain a data-source section: use `open_data_source` to find or rank exact records, put data-derived facts in `data_quotes` with values as stored, rankings from a cited data file are allowed, never sum or average, and label lookups across sources are allowed. `open_data_source` takes `source_id`, `lookup` and optional `rank_by`. After extraction, drop quotes whose `source_id` is unknown, logging each drop at INFO. Record each surviving quote with `tracker.record_scrape(source.url, title, quote_text, reference=title)`, where the title names the page title and the data file. The outcome is a success when the page has evidence or any quote is recorded. The page itself is recorded as scraped only when it has evidence. Log `[extract] data_source_opened <source_id> <url>`, `[extract] data_quote_recorded <source_id> <url>` and `[extract] data_quote_dropped <source_id> unknown source` lines so the comparison can count them.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -473,7 +475,7 @@ Expected: PASS.
 
 ```bash
 git add src/web_scout/tools tests/test_dashboard_extraction.py
-git commit -m "feat: let the extractor quote verified figures from dashboard data"
+git commit -m "feat: let the extractor quote and rank dashboard data"
 ```
 
 ### Task 7: Requirements for partial answers (Part C)

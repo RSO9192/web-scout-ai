@@ -124,7 +124,7 @@ Cross-cutting findings:
 5. Allow the click tools on detected dashboards.
 6. Fall back to a screenshot read by the vision model for Power BI and
    Tableau pages.
-7. Enforce the quote rule below for every figure taken from these channels.
+7. Apply the quote rule below to every figure taken from these channels.
 8. In open search, follow the links the extractor flags, within a cap.
 9. Split the question into requirements and keep any page that satisfies at
    least one of them, for the requirements it satisfies.
@@ -132,31 +132,24 @@ Cross-cutting findings:
 
 ## The quote rule
 
-Decided by the user:
+Revised by the user on 2026-10-26, replacing the first, stricter version:
 
-- Web Scout reports only numbers the source displays or stores. It never
-  sums, sorts, averages, ranks or otherwise derives new figures.
-- A number stored verbatim in the source's own data file counts as displayed
-  by the source, provided the answer quotes it exactly and cites that file's
-  URL.
-
-My call, stated to the user and not objected to:
-
+- Web Scout reports numbers as the source displays or stores them. A number
+  stored in the source's own data file counts as displayed by the source,
+  provided the answer quotes it as stored and cites that file's URL.
+- Ranking records from a source's own data file is allowed. Example: the ten
+  municipalities with the largest deforested area in the latest period,
+  ordered from the stored per-municipality values. The values in the ranking
+  stay exactly as stored, and the answer cites the data file.
+- Summing, averaging or otherwise deriving new figures is still not offered.
 - Looking up the label behind an ID, such as a municipality name for a
   municipality ID, counts as quoting, not computing.
 
-Consequence: a question like "which municipalities had the highest
-deforestation" can be answered only from a view or document that already
-shows that ranking. Examples are the dashboard's municipal view or a page
-that prints the ranking. Web Scout must not produce a ranking by sorting raw
-records.
-
-My call on enforcement: the prompt contract alone is not enough. After
-extraction, a deterministic check confirms that each figure attributed to a
-data source appears verbatim in that source. A normalised string match is
-enough, allowing for thousand separators and decimal commas. Figures that fail
-the check are dropped and the drop is logged. The existing PDF claim check is
-the nearest precedent in the codebase.
+Enforcement is by the extractor's prompt and the lookup tool's design: the
+tool returns stored values and can order records, but offers no arithmetic.
+The user dropped the earlier deterministic verbatim check after review. The
+old-versus-new comparison measures unsupported figures with the eval's
+independent checker.
 
 ## Non-goals
 
@@ -172,8 +165,8 @@ the nearest precedent in the codebase.
 These would make the work a failure even if it technically runs:
 
 - Any reported figure that does not appear in the source. This includes
-  rankings produced by sorting, totals produced by summing, and rounding that
-  changes a value.
+  totals produced by summing and rounding that changes a value. Rankings of
+  stored values from a cited data file are allowed.
 - Slowing down runs that contain no dashboard-like pages.
 - Accepted extracts padded with statements about what a page lacks. Those
   are not evidence.
@@ -258,7 +251,9 @@ page text.
 A new extractor tool opens one source by ID with a lookup term, such as
 "Brazil" or a municipality name. It returns the matching records verbatim,
 with a row cap and a total count, plus any label lookup the source provides.
-It offers no sorting, summing or aggregation.
+It can order the matching records by one numeric field, so the extractor can
+answer ranking questions from stored values. It offers no summing or other
+aggregation.
 
 Records must keep the meaning of each value. For list-of-object JSON a record
 is one object. For dimension-indexed formats such as Eurostat's JSON-stat,
@@ -397,8 +392,8 @@ reviewed:
 
 - The new answer quotes the official PRODES 2026 Legal Amazon figure with
   an INPE citation. The old answer did not.
-- Any municipal figure appears verbatim in its cited source, and any ranking
-  comes from a source that displays it.
+- Any municipal figure appears as stored in its cited source. A ranking may
+  come from a cited data file.
 - No quoted figure fails the independent check.
 - Added time stays within the agreed budget for part A, and part B's cost
   is reported.
@@ -423,7 +418,6 @@ Still required alongside the runs:
 
 - Dashboard detection fires on the survey dashboards and not on the gov.br
   news page or other article pages from the existing tests.
-- The verbatim check drops a deliberately invented figure.
 - Existing tests keep passing.
 
 ## Left to the builder
