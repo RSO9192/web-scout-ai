@@ -7,7 +7,8 @@ Subcommands:
     report      Judge every run record in a directory with ``eval/judge.py`` and write ``report.md`` and
                 ``report.json``.
     run-set     Run old then new on every question of a set, one run at a time, into ``<out>/<id>/``.
-    report-set  Run ``report`` in every question directory and write ``summary.md`` with regression flags.
+    report-set  Run ``report`` in every question directory, judge new against old head to head, optionally judge a
+                saved OpenAI eval answer as a reference, and write ``summary.md`` with regression flags.
 
 Usage:
     python scripts/compare_versions.py export-old --commit cb36b2b --dest /tmp/ws_compare/old
@@ -18,7 +19,8 @@ Usage:
     python scripts/compare_versions.py report --dir /tmp/ws_compare/brazil
     python scripts/compare_versions.py run-set --questions scripts/compare_questions.json --include-eval \
         --old-src /tmp/ws_compare/old/src --new-src "$PWD/src" --out /tmp/ws_compare/set
-    python scripts/compare_versions.py report-set --dir /tmp/ws_compare/set
+    python scripts/compare_versions.py report-set --dir /tmp/ws_compare/set \
+        --reference-dir eval/results/2026-10-26-full
 """
 
 from __future__ import annotations
@@ -543,10 +545,20 @@ def child_main(*, src: Path, query: str, env_file: Path, result_path: Path) -> i
     return 0 if outcome["error"] is None else 1
 
 
-def write_report(directory: Path, env_file: Path, judge: bool = True) -> int:
+def write_report(
+    directory: Path,
+    env_file: Path,
+    judge: bool = True,
+    pairwise: bool = False,
+    reference: dict | None = None,
+) -> int:
     """Judge every run record in ``directory`` and write ``report.json`` and ``report.md`` there.
 
-    With ``judge`` false, no claim is judged or data-checked and no model or network call is made.
+    With ``pairwise``, ``report.json`` gets ``preference``: new against old by ``judge_pair`` when both have an
+    answer (``{"winner": "new" | "old" | "tie", "reasons": [...]}``, ``{"error": ...}`` on a judge exception),
+    else None. ``reference`` is a ``load_reference`` result; it is stored as ``reference`` with a ``judgment``
+    from the same ``judge_record`` call and page cache as the runs. With ``judge`` false, nothing is judged or
+    data-checked and no model or network call is made.
     """
     from dotenv import load_dotenv
 
@@ -559,7 +571,7 @@ def write_report(directory: Path, env_file: Path, judge: bool = True) -> int:
     import httpx
 
     from eval.fetch import USER_AGENT, fetch_page
-    from eval.judge import judge_record
+    from eval.judge import judge_pair, judge_record
     from eval.metrics import markdown_link_urls
 
     records = _load_records(directory)
@@ -621,6 +633,32 @@ def write_report(directory: Path, env_file: Path, judge: bool = True) -> int:
                     claim["data_check"] = {"urls": [], "figures": {}, "errors": [f"{type(exc).__name__}: {exc}"]}
         runs[label] = run
 
+    preference = None
+    old_answer, new_answer = ((runs.get(label) or {}).get("answer", "").strip() for label in LABEL_ORDER)
+    if pairwise and judge and old_answer and new_answer:
+        print("Judging new against old...", flush=True)
+        try:
+            winner, reasons = judge_pair(
+                query=records["new"]["query"], answer=new_answer, baseline_answer=old_answer, today=today
+            )
+            preference = {"winner": {"system": "new", "baseline": "old"}.get(winner, "tie"), "reasons": reasons}
+        except Exception as exc:
+            preference = {"error": f"{exc}\n{traceback.format_exc()}"}
+    if reference is not None:
+        reference = {**reference, "judgment": None}
+        if judge and reference["answer"].strip():
+            print(f"Judging reference from {reference['run']}...", flush=True)
+            try:
+                # The run records' query, so all three answers are judged against the same question text.
+                reference["judgment"] = judge_record(
+                    query=next(iter(records.values()))["query"],
+                    record={"answer": reference["answer"], "cited_urls": reference["cited_urls"]},
+                    today=today,
+                    get_page=get_page,
+                )
+            except Exception as exc:
+                reference["judgment"] = {"error": f"{exc}\n{traceback.format_exc()}"}
+
     report = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "question_id": next(iter(records.values())).get("question_id"),
@@ -628,11 +666,34 @@ def write_report(directory: Path, env_file: Path, judge: bool = True) -> int:
         "eval_sha256": eval_files_sha256(),
         "run_eval_sha256": {label: record.get("eval_sha256") for label, record in records.items()},
         "runs": runs,
+        "preference": preference,
+        "reference": reference,
     }
     (directory / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     (directory / "report.md").write_text(format_report(report), encoding="utf-8")
     print(directory / "report.md")
     return 0
+
+
+def load_reference(reference_dir: Path, question_id: str) -> dict | None:
+    """Return the first non-error OpenAI record of ``<reference_dir>/<question_id>.json``, or None.
+
+    The file is a saved eval result (top-level ``query``, ``runs.openai`` records with ``answer``,
+    ``cited_urls`` and ``error``); it is only read. A missing file or no non-error record gives None.
+    """
+    path = reference_dir / f"{question_id}.json"
+    if not path.is_file():
+        return None
+    data = json.loads(path.read_text(encoding="utf-8"))
+    for record in (data.get("runs") or {}).get("openai") or []:
+        if not record.get("error"):
+            return {
+                "run": reference_dir.name,
+                "query": data.get("query"),
+                "answer": record.get("answer") or "",
+                "cited_urls": record.get("cited_urls") or [],
+            }
+    return None
 
 
 def _load_records(directory: Path) -> dict[str, dict]:
@@ -757,11 +818,15 @@ def _metric_rows(runs: dict) -> list[tuple[str, list]]:
     return rows
 
 
-def report_set(directory: Path, env_file: Path, questions_path: Path, judge: bool) -> int:
+def report_set(
+    directory: Path, env_file: Path, questions_path: Path, judge: bool, reference_dir: Path | None = None
+) -> int:
     """Write ``report`` in every question directory under ``directory``, then ``summary.md`` there.
 
     Rows follow run order (eval questions, then ``questions_path``). ``kind`` comes from eval for eval ids,
     ``expected`` from ``questions_path``. A question whose report fails is listed under "Report errors".
+    Each report includes the new-versus-old preference; with ``reference_dir`` (a saved eval result
+    directory, only read), also the judged OpenAI reference answer for each question found there.
     """
     from_file = {question["id"]: question for question in json.loads(questions_path.read_text(encoding="utf-8"))}
     questions = {
@@ -781,7 +846,8 @@ def report_set(directory: Path, env_file: Path, questions_path: Path, judge: boo
         print(f"[report-set] {question_dir.name}", flush=True)
         question = questions.get(question_dir.name, {"id": question_dir.name})
         try:
-            status = write_report(question_dir, env_file, judge=judge)
+            reference = load_reference(reference_dir, question_dir.name) if reference_dir else None
+            status = write_report(question_dir, env_file, judge=judge, pairwise=True, reference=reference)
             error = f"write_report exited with status {status}; see its output above" if status else None
         except Exception as exc:
             traceback.print_exc()
@@ -794,13 +860,16 @@ def report_set(directory: Path, env_file: Path, questions_path: Path, judge: boo
                     "runs": dict.fromkeys(LABEL_ORDER),
                     "regression": [],
                     "judge_errors": [],
+                    "preference": None,
+                    "reference": None,
                     "report_error": error,
                 }
             )
             continue
         report = json.loads((question_dir / "report.json").read_text(encoding="utf-8"))
         rows.append(summary_row(question, report, _load_records(question_dir)))
-    (directory / "summary.md").write_text(format_summary(rows), encoding="utf-8")
+    summary = format_summary(rows, reference_run=reference_dir.name if reference_dir else None)
+    (directory / "summary.md").write_text(summary, encoding="utf-8")
     print(directory / "summary.md")
     return 0
 
@@ -831,17 +900,31 @@ def summary_row(question: dict, report: dict, records: dict[str, dict]) -> dict:
             "expected": expected_matches(facts, run["answer"]) if facts else None,
         }
     old, new = runs["old"], runs["new"]
+    preference = report.get("preference")
+    reference = report.get("reference")
+    judgment = (reference or {}).get("judgment") or {}
     return {
         "id": question["id"],
         "kind": question.get("kind", "-"),
         "runs": runs,
         "regression": regression_reasons(old, new) if old and new else [],
         "judge_errors": [label for label, run in runs.items() if run and run["judge_error"]],
+        "preference": None if preference is None else preference.get("winner", "pairwise error"),
+        "reference": None
+        if reference is None
+        else {
+            "judge_error": bool(judgment.get("error")),
+            "completeness": (judgment.get("completeness") or {}).get("score"),
+            "verdicts": [claim["verdict"] for claim in judgment.get("claims") or []],
+        },
     }
 
 
-def format_summary(rows: list[dict]) -> str:
-    """Render summary rows as markdown: one table row per question, totals, then regressions and errors."""
+def format_summary(rows: list[dict], reference_run: str | None = None) -> str:
+    """Render summary rows as markdown: one table row per question, totals, then regressions and errors.
+
+    With ``reference_run`` (the reference directory's name), two OpenAI reference columns are added.
+    """
 
     def pair(runs, key, fmt=str) -> str:
         return " / ".join("-" if run is None or run[key] is None else fmt(run[key]) for run in runs)
@@ -878,10 +961,31 @@ def format_summary(rows: list[dict]) -> str:
         "PDFs scraped when PDF plus PDF-like scraped also dropped. A judge error on either side skips the "
         "completeness and rate checks and is listed under Not judged instead.",
         "",
+        "Preference: the eval's pairwise judge compares the new answer with the old one twice, order swapped; "
+        "new or old only when both orders agree, else tie. pairwise error = the judge failed (not a loss); "
+        "- = not judged or a side has no answer. The preference is not part of the regression flag, which is "
+        "unchanged.",
+    ]
+    if reference_run:
+        lines += [
+            "",
+            f"OpenAI (reference, run {reference_run}): the first non-error OpenAI answer saved by that eval run, "
+            "judged here with the same judge and page cache as old and new. It comes from a different run on a "
+            "different day, is shown as a reference point only, and is not part of the regression decision. "
+            "- = no reference answer for the question.",
+        ]
+    reference_header = (
+        f" OpenAI completeness (reference, run {reference_run}) | OpenAI supported rate (reference, run "
+        f"{reference_run}) |"
+        if reference_run
+        else ""
+    )
+    lines += [
+        "",
         "| id | kind | completeness | supported rate | cited URLs | PDF old | PDF new | PDF-like old | PDF-like new "
         "| new data sources | model calls | follow-up waves | follow-up links | wall s | expected new / old "
-        "| regression |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "| regression | preference |" + reference_header,
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|" + ("---|---|" if reference_run else ""),
     ]
     for row in rows:
         runs = [row["runs"]["old"], row["runs"]["new"]]
@@ -889,16 +993,35 @@ def format_summary(rows: list[dict]) -> str:
         expected = " / ".join(
             "-" if run is None or run["expected"] is None else "{}/{}".format(*run["expected"]) for run in runs[::-1]
         )
+        reference = row.get("reference")
+        reference_cells = ""
+        if reference_run:
+            if reference is None or (reference["completeness"] is None and not reference["judge_error"]):
+                reference_cells = " - | - |"
+            elif reference["judge_error"]:
+                reference_cells = " judge error | judge error |"
+            else:
+                reference_cells = f" {reference['completeness']} | {rate(reference['verdicts'])} |"
         lines.append(
             f"| {row['id']} | {row['kind']} | {pair(runs, 'completeness')} | {pair(runs, 'verdicts', rate)} | "
             f"{pair(runs, 'cited_urls')} | {pdfs(runs[0], 'pdf')} | {pdfs(runs[1], 'pdf')} | "
             f"{pdfs(runs[0], 'pdf_like')} | {pdfs(runs[1], 'pdf_like')} | "
             f"{'-' if new is None else new['data_sources']} | {pair(runs, 'model_calls')} | "
             f"{pair(runs, 'followup_waves')} | {pair(runs, 'followup_links')} | "
-            f"{pair(runs, 'wall_time_s', seconds)} | {expected} | {'yes' if row['regression'] else ''} |"
+            f"{pair(runs, 'wall_time_s', seconds)} | {expected} | {'yes' if row['regression'] else ''} | "
+            f"{row.get('preference') or '-'} |" + reference_cells
         )
     lines += ["", "## Totals", ""]
     lines.append(f"Questions: {len(rows)}. Flagged regressions: {sum(bool(row['regression']) for row in rows)}.")
+    preferences = [row.get("preference") for row in rows]
+    if any(preferences):
+        lines += [
+            "",
+            f"Head-to-head: new {preferences.count('new')} wins, {preferences.count('tie')} ties, "
+            f"{preferences.count('old')} losses. Pairwise errors: {preferences.count('pairwise error')}.",
+        ]
+    else:
+        lines += ["", "Head-to-head: not judged."]
     lines += ["", "| Measure | old | new |", "|---|---|---|"]
     keys = ("cited_urls", "data_sources", "followup_waves", "followup_links", *PDF_SUMMARY_KEYS["pdf"])
     for key in keys + PDF_SUMMARY_KEYS["pdf_like"]:
@@ -1005,6 +1128,12 @@ def main(argv: list[str] | None = None) -> int:
     report_many.add_argument("--questions", type=Path, default=SET_QUESTIONS_PATH, help="For kind and expected.")
     report_many.add_argument("--env-file", type=Path, default=DEFAULT_ENV_PATH)
     report_many.add_argument("--no-judge", action="store_true", help="Skip the judge and data checks (no calls).")
+    report_many.add_argument(
+        "--reference-dir",
+        type=Path,
+        help="Saved eval result directory (<id>.json); its first non-error OpenAI answer is judged as a reference. "
+        "Only read.",
+    )
 
     child = commands.add_parser("_child", help=argparse.SUPPRESS)
     child.add_argument("--src", type=Path, required=True)
@@ -1038,7 +1167,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "report":
         return write_report(args.dir, args.env_file)
     if args.command == "report-set":
-        return report_set(args.dir, args.env_file, args.questions, judge=not args.no_judge)
+        return report_set(
+            args.dir, args.env_file, args.questions, judge=not args.no_judge, reference_dir=args.reference_dir
+        )
     return child_main(src=args.src, query=args.query, env_file=args.env_file, result_path=args.result)
 
 

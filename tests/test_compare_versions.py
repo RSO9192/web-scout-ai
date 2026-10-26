@@ -393,3 +393,152 @@ def test_run_set_skips_done_runs(tmp_path, monkeypatch):
     )
     assert status == 0
     assert calls == [("guatemala", "old", questions), ("guatemala", "new", questions), ("owid", "new", questions)]
+
+
+def _write_question_dir(base, question_id, old_answer="old answer", new_answer="new answer"):
+    directory = base / question_id
+    directory.mkdir(parents=True)
+    for label, answer in (("old", old_answer), ("new", new_answer)):
+        record = {**_record(label), "question_id": question_id, "query": f"Q {question_id}"}
+        record["result"]["synthesis"] = answer
+        (directory / f"{label}.json").write_text(json.dumps(record), encoding="utf-8")
+    return directory
+
+
+def _write_reference(directory, question_id, openai_runs):
+    directory.mkdir(parents=True, exist_ok=True)
+    data = {"id": question_id, "query": f"Q {question_id}", "runs": {"web_scout": [], "openai": openai_runs}}
+    (directory / f"{question_id}.json").write_text(json.dumps(data), encoding="utf-8")
+
+
+def _stub_judges(monkeypatch, winners=None):
+    """Stub eval.judge so no model is called; answers judged get completeness 3 and one supported claim."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    import eval.judge
+
+    judged, paired = [], []
+
+    def fake_judge_record(*, query, record, today, get_page):
+        judged.append(record["answer"])
+        claim = {"claim": "c", "urls": [], "verdict": "supported", "reason": "", "checked_url": ""}
+        return {"completeness": {"score": 3, "reason": "r"}, "claims": [claim]}
+
+    def fake_judge_pair(*, query, answer, baseline_answer, today):
+        paired.append((query, answer, baseline_answer))
+        winner = (winners or {}).get(query, "tie")
+        if isinstance(winner, Exception):
+            raise winner
+        return winner, ["first", "second"]
+
+    monkeypatch.setattr(eval.judge, "judge_record", fake_judge_record)
+    monkeypatch.setattr(eval.judge, "judge_pair", fake_judge_pair)
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    return judged, paired
+
+
+def _questions_file(tmp_path, ids):
+    path = tmp_path / "q.json"
+    path.write_text(json.dumps([{"id": i, "kind": "deep", "query": f"Q {i}"} for i in ids]), encoding="utf-8")
+    return path
+
+
+def test_report_set_counts_head_to_head_preference(tmp_path, monkeypatch):
+    ids = ["qa", "qb", "qc", "qd", "qe"]
+    out = tmp_path / "set"
+    for question_id in ids[:4]:
+        _write_question_dir(out, question_id)
+    _write_question_dir(out, "qe", old_answer="")
+    winners = {"Q qa": "system", "Q qb": "baseline", "Q qc": "tie", "Q qd": RuntimeError("judge down")}
+    _, paired = _stub_judges(monkeypatch, winners)
+    status = compare_versions.report_set(out, tmp_path / ".env", _questions_file(tmp_path, ids), judge=True)
+    assert status == 0
+    assert ("Q qa", "new answer", "old answer") in paired and len(paired) == 4
+    reports = {i: json.loads((out / i / "report.json").read_text(encoding="utf-8")) for i in ids}
+    assert reports["qa"]["preference"] == {"winner": "new", "reasons": ["first", "second"]}
+    assert reports["qb"]["preference"]["winner"] == "old"
+    assert reports["qc"]["preference"]["winner"] == "tie"
+    assert "judge down" in reports["qd"]["preference"]["error"]
+    assert reports["qe"]["preference"] is None
+    summary = (out / "summary.md").read_text(encoding="utf-8")
+    assert "| preference |" in summary
+    rows = {line.split(" | ")[0].strip("| "): line for line in summary.splitlines() if line.startswith("| q")}
+    assert rows["qa"].endswith("| new |") and rows["qb"].endswith("| old |") and rows["qc"].endswith("| tie |")
+    assert rows["qd"].endswith("| pairwise error |") and rows["qe"].endswith("| - |")
+    assert "Head-to-head: new 1 wins, 1 ties, 1 losses." in summary
+    assert "Pairwise errors: 1." in summary
+
+
+def test_report_set_no_judge_skips_preference_and_reference(tmp_path, monkeypatch):
+    out = tmp_path / "set"
+    _write_question_dir(out, "qa")
+    reference = tmp_path / "ref"
+    _write_reference(reference, "qa", [{"answer": "openai answer", "cited_urls": [], "error": None}])
+    judged, paired = _stub_judges(monkeypatch)
+    status = compare_versions.report_set(
+        out, tmp_path / ".env", _questions_file(tmp_path, ["qa"]), judge=False, reference_dir=reference
+    )
+    assert status == 0 and judged == [] and paired == []
+    report = json.loads((out / "qa" / "report.json").read_text(encoding="utf-8"))
+    assert report["preference"] is None and report["reference"]["judgment"] is None
+    summary = (out / "summary.md").read_text(encoding="utf-8")
+    assert "Head-to-head: not judged." in summary
+    assert "OpenAI completeness (reference, run ref)" in summary
+
+
+def test_load_reference_picks_first_non_error_openai_record(tmp_path):
+    reference = tmp_path / "2026-10-26-full"
+    _write_reference(
+        reference,
+        "qa",
+        [
+            {"answer": "", "cited_urls": [], "error": "timeout"},
+            {"answer": "second", "cited_urls": ["https://a.org"], "error": None},
+            {"answer": "third", "cited_urls": [], "error": None},
+        ],
+    )
+    _write_reference(reference, "qb", [{"answer": "", "cited_urls": [], "error": "timeout"}])
+    assert compare_versions.load_reference(reference, "qa") == {
+        "run": "2026-10-26-full",
+        "query": "Q qa",
+        "answer": "second",
+        "cited_urls": ["https://a.org"],
+    }
+    assert compare_versions.load_reference(reference, "qb") is None
+    assert compare_versions.load_reference(reference, "missing") is None
+
+
+def test_report_set_judges_reference_without_writing_into_its_dir(tmp_path, monkeypatch):
+    out = tmp_path / "set"
+    _write_question_dir(out, "qa")
+    _write_question_dir(out, "qb")
+    reference = tmp_path / "2026-10-26-full"
+    _write_reference(reference, "qa", [{"answer": "openai answer", "cited_urls": [], "error": None}])
+    before = {path.name: path.stat().st_mtime_ns for path in reference.iterdir()}
+    reference.chmod(0o555)
+    try:
+        judged, _ = _stub_judges(monkeypatch)
+        status = compare_versions.report_set(
+            out, tmp_path / ".env", _questions_file(tmp_path, ["qa", "qb"]), judge=True, reference_dir=reference
+        )
+    finally:
+        reference.chmod(0o755)
+    assert status == 0
+    assert "openai answer" in judged
+    assert {path.name: path.stat().st_mtime_ns for path in reference.iterdir()} == before
+    report = json.loads((out / "qa" / "report.json").read_text(encoding="utf-8"))
+    assert report["reference"]["run"] == "2026-10-26-full"
+    assert report["reference"]["judgment"]["completeness"]["score"] == 3
+    assert json.loads((out / "qb" / "report.json").read_text(encoding="utf-8"))["reference"] is None
+    summary = (out / "summary.md").read_text(encoding="utf-8")
+    assert "OpenAI completeness (reference, run 2026-10-26-full)" in summary
+    assert "OpenAI supported rate (reference, run 2026-10-26-full)" in summary
+    rows = {line.split(" | ")[0].strip("| "): line for line in summary.splitlines() if line.startswith("| q")}
+    assert rows["qa"].endswith("| 3 | 100% |") and rows["qb"].endswith("| - | - |")
+    assert "not part of the regression decision" in summary
+
+
+def test_summary_without_reference_has_no_reference_columns():
+    row = _row("q", _record("old"), _record("new"), _report_run(4, ["supported"]), _report_run(4, ["supported"]))
+    summary = format_summary([row])
+    assert "OpenAI" not in summary
+    assert "| q | deep |" in summary
