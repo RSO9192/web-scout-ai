@@ -762,3 +762,45 @@ Expected: FAIL with `ImportError` for `resolve_api_key`.
 
 Run: `conda run -p /Users/riccardo/.local/share/mamba/envs/web-scout pytest tests/test_direct_llm_api_keys.py tests/test_pdf_structured_output.py tests/test_pdf_has_evidence.py tests/test_model_routing.py tests/test_document_visuals.py -v`
 Expected: PASS.
+
+### Task 12: Batch lookups in one tool call (added after the Brazil gate)
+
+Added at the user's request on 2026-10-26. In the Brazil gate the extractor called `open_data_source` 21 times, 12 of them to look up one municipality name per call, which took most of the 54 extra seconds.
+
+**Files:**
+- Modify: `src/web_scout/tools/data_lookup.py` (`lookup_records` `where` values)
+- Modify: `src/web_scout/tools/extractor.py` (`FieldFilter`, tool docstring, instructions)
+- Test: `tests/test_data_lookup.py`, `tests/test_dashboard_extraction.py`
+
+**Interfaces:**
+- `lookup_records(..., where: Mapping[str, str | int | float | Sequence[str | int | float]] | None)`: a list or tuple value matches when the field equals any of the listed values, using the same numeric and accent-insensitive comparison as single values.
+- `FieldFilter` gains `any_of: list[str] | None`; exactly one of `value` or `any_of` must be given; the strict JSON schema must still build.
+- Extractor instructions tell the model to look up several IDs or labels in one call with `any_of`, and that one call can return up to 30 records.
+
+- [ ] **Step 1: Write the failing tests**
+
+```python
+def test_where_any_of_matches_listed_values():
+    body = json.dumps({"lois": [{"gid": 1, "loiname": "Lábrea"}, {"gid": 2, "loiname": "Altamira"}, {"gid": 3, "loiname": "Apuí"}]})
+    res = lookup_records(src(body), where={"gid": ["1", 3]})
+    assert [r["gid"] for r in res.records] == [1, 3] and res.total_matches == 2
+
+def test_open_data_source_any_of_batches_name_lookup(monkeypatch):
+    # The tool called once with any_of over three IDs returns all three name records,
+    # and logs exactly one `[extract] data_source_opened` line.
+    ...
+
+def test_field_filter_requires_exactly_one_of_value_or_any_of():
+    ...
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `conda run -p /Users/riccardo/.local/share/mamba/envs/web-scout pytest tests/test_data_lookup.py tests/test_dashboard_extraction.py -v`
+Expected: FAIL.
+
+- [ ] **Step 3: Implement**
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run the same command plus `tests/test_requirements_extraction.py`. Expected: PASS.

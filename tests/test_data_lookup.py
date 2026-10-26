@@ -380,3 +380,20 @@ def test_rank_mixed_floats_and_numeric_strings():
     ]
     res = lookup_records(src(json.dumps({"rows": rows})), rank_by="v")
     assert [r["n"] for r in res.records] == ["c", "e", "b", "a", "d"]
+
+
+def test_where_any_of_matches_listed_values():
+    body = json.dumps(
+        {"lois": [{"gid": 1, "loiname": "Lábrea"}, {"gid": 2, "loiname": "Altamira"}, {"gid": 3, "loiname": "Apuí"}]}
+    )
+    res = lookup_records(src(body), where={"gid": ["1", 3]})
+    assert [r["gid"] for r in res.records] == [1, 3] and res.total_matches == 2
+    assert [r["gid"] for r in lookup_records(src(body), where={"loiname": ("LABREA", "apui")}).records] == [1, 3]
+    assert lookup_records(src(body), where={"gid": []}).total_matches == 0
+
+
+def test_where_any_of_is_stored_as_a_copy():
+    values = ["1", "2"]
+    res = lookup_records(src(json.dumps({"rows": [{"gid": 1}, {"gid": 2}]})), where={"gid": values})
+    values.append("3")
+    assert res.where == {"gid": ["1", "2"]}

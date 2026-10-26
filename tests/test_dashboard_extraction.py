@@ -214,9 +214,10 @@ def test_open_data_source_schema_is_strict():
     item = schema["$defs"]["FieldFilter"]
     assert item["properties"] == {
         "field": {"title": "Field", "type": "string"},
-        "value": {"title": "Value", "type": "string"},
+        "value": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Value"},
+        "any_of": {"anyOf": [{"items": {"type": "string"}, "type": "array"}, {"type": "null"}], "title": "Any Of"},
     }
-    assert item["required"] == ["field", "value"] and item["additionalProperties"] is False
+    assert item["required"] == ["field", "value", "any_of"] and item["additionalProperties"] is False
 
 
 async def test_open_data_source_filters_and_ranks(caplog):
@@ -379,3 +380,48 @@ async def test_open_data_source_rejects_conflicting_filters_on_one_field():
     args = {"source_id": "D2", "lookup": "", "rank_by": None, "descending": True, "where": where}
     result = await tool.on_invoke_tool(_ctx(), json.dumps(args))
     assert "conflicting values for field 'gid'" in result
+
+
+async def test_open_data_source_any_of_batches_name_lookup(caplog):
+    tool = _data_tool((NAMES_SRC, DATA_SRC))
+    where = [{"field": "gid", "value": None, "any_of": ["19124", "19125", "19126"]}]
+    args = {"source_id": "D1", "lookup": "", "rank_by": None, "descending": True, "where": where}
+    with caplog.at_level(logging.INFO):
+        result = await tool.on_invoke_tool(_ctx(), json.dumps(args))
+    lines = [json.loads(line) for line in result.splitlines()]
+    assert lines[0]["total_matches"] == 3 and lines[0]["where"] == {"gid": ["19124", "19125", "19126"]}
+    assert [record["name"] for record in lines[1:]] == ["Altamira", "Lábrea", "Apuí"]
+    opened = [m for m in caplog.messages if m.startswith("[extract] data_source_opened")]
+    assert opened == [f"[extract] data_source_opened D1 {NAMES_SRC.url}"]
+
+
+async def test_field_filter_requires_exactly_one_of_value_or_any_of(caplog):
+    tool = _data_tool((NAMES_SRC, DATA_SRC))
+    cases = {
+        "neither": [{"field": "gid", "value": None, "any_of": None}],
+        "both": [{"field": "gid", "value": "19124", "any_of": ["19125"]}],
+        "empty any_of": [{"field": "gid", "value": None, "any_of": []}],
+        "value and any_of across filters": [
+            {"field": "gid", "value": "19124", "any_of": None},
+            {"field": "gid", "value": None, "any_of": ["19125"]},
+        ],
+        "two any_of": [
+            {"field": "gid", "value": None, "any_of": ["19124"]},
+            {"field": "gid", "value": None, "any_of": ["19125"]},
+        ],
+    }
+    with caplog.at_level(logging.INFO):
+        for name, where in cases.items():
+            args = {"source_id": "D1", "lookup": "", "rank_by": None, "descending": True, "where": where}
+            result = await tool.on_invoke_tool(_ctx(), json.dumps(args))
+            assert result.startswith("[open_data_source error:") and "'gid'" in result, name
+    assert not any(m.startswith("[extract] data_source_opened") for m in caplog.messages)
+    # One value repeated, and one any_of next to a filter on another field, are fine.
+    where = [
+        {"field": "gid", "value": None, "any_of": ["19124", "19125"]},
+        {"field": "name", "value": "Lábrea", "any_of": None},
+        {"field": "name", "value": "Lábrea", "any_of": None},
+    ]
+    args = {"source_id": "D1", "lookup": "", "rank_by": None, "descending": True, "where": where}
+    lines = (await tool.on_invoke_tool(_ctx(), json.dumps(args))).splitlines()
+    assert json.loads(lines[0])["total_matches"] == 1 and json.loads(lines[1])["gid"] == 19125

@@ -51,7 +51,7 @@ class LookupResult:
     ``records`` holds at most 30 of them, each serialising to at most 600 characters: in source
     order when ``ranked_by`` is ``None``, otherwise ordered by that field (``descending`` or
     ascending), leaving out records where the field is missing or not numeric. ``where`` is a
-    copy of the exact-match filter applied, or ``None``.
+    copy of the exact-match filter applied (lists of accepted values as lists), or ``None``.
     """
 
     source_id: str
@@ -60,7 +60,7 @@ class LookupResult:
     records: list[dict]
     ranked_by: str | None
     descending: bool
-    where: dict[str, str | int | float] | None
+    where: dict[str, str | int | float | list[str | int | float]] | None
 
 
 def _is_scalar(value: Any) -> bool:
@@ -540,15 +540,16 @@ def lookup_records(
     limit: int = 30,
     rank_by: str | None = None,
     descending: bool = True,
-    where: Mapping[str, str | int | float] | None = None,
+    where: Mapping[str, str | int | float | Sequence[str | int | float]] | None = None,
     *,
     records: Sequence[dict] | None = None,
 ) -> LookupResult:
     """Find every record of ``source`` whose serialised text contains each word of ``term`` as a whole token.
 
-    ``where`` first keeps only records where every given field equals the given value (fields
-    resolved as for ``rank_by``; numbers compared numerically so ``2 == 2.0 == "2"``, text
-    compared ignoring case and accents; a record missing a field is excluded). Term words may
+    ``where`` first keeps only records where every given field equals the given value, or any of
+    the values when given a list or tuple (fields resolved as for ``rank_by``; numbers compared
+    numerically so ``2 == 2.0 == "2"``, text compared ignoring case and accents; a record missing
+    a field is excluded; an empty list matches no record). Term words may
     appear in any order and any field; matching ignores case and accents and searches all
     remaining records; an empty term matches every record. Ambiguous separators (``1.500``) are
     read per field: as decimal marks if any value of that field uses them so, else as thousands.
@@ -566,10 +567,19 @@ def lookup_records(
     if records is None:
         records = records_from_source(source)
     # Ambiguous separators are read per field, from evidence across all of the source's records.
-    conditions = [(field, expected, _decimal_marks(records, field)) for field, expected in (where or {}).items()]
+    filters = {
+        field: list(value) if isinstance(value, (list, tuple)) else value for field, value in (where or {}).items()
+    }
+    conditions = [
+        (field, expected if isinstance(expected, list) else [expected], _decimal_marks(records, field))
+        for field, expected in filters.items()
+    ]
     matches = []
     for record in records:
-        if not all(_field_equals(record, field, expected, marks) for field, expected, marks in conditions):
+        if not all(
+            any(_field_equals(record, field, value, marks) for value in accepted)
+            for field, accepted, marks in conditions
+        ):
             continue
         if patterns:
             text = _fold(_serialize(record))
@@ -592,7 +602,7 @@ def lookup_records(
         returned,
         rank_by,
         descending,
-        dict(where) if where is not None else None,
+        filters if where is not None else None,
     )
 
 

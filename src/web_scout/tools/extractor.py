@@ -191,10 +191,15 @@ that the page's charts, maps or tables display.
 
 Call `open_data_source(source_id, lookup, rank_by, descending, where)` to read records from one file:
 - `lookup`: words that must all appear in a record (a place name, an ID, a year); "" matches every record.
-- `where`: exact field filters, e.g. [{"field": "year", "value": "2025"}]; null for none.
+- `where`: exact field filters, e.g. [{"field": "year", "value": "2025", "any_of": null}]; null for none.
+  To match several values of one field, set `any_of` instead of `value`, e.g.
+  [{"field": "gid", "value": null, "any_of": ["19137", "19101", "19116"]}].
 - `rank_by`: a numeric field to order records by, largest first unless `descending` is false, for questions
   such as "which municipality had the largest area"; null keeps source order.
 The first line of the result reports `total_matches`; at most 30 records follow, values exactly as stored.
+- Look up several IDs or labels in one call with `any_of` (up to 30 records come back per call), not one
+  call per ID.
+- Do not repeat a call with the same arguments; its result will not change.
 
 Quote rules for data:
 - Report figures exactly as stored in the data file. Never sum, average or otherwise compute new numbers.
@@ -300,10 +305,40 @@ async def run_with_retry(agent: Agent, input_text: str, max_turns: int = 30) -> 
 
 
 class FieldFilter(BaseModel):
-    """One exact-match filter of ``open_data_source``: records whose ``field`` equals ``value``."""
+    """One exact-match filter of ``open_data_source``: records whose ``field`` equals ``value`` or any of ``any_of``.
+
+    Exactly one of ``value`` and ``any_of`` must be given; the tool checks this and reports a violation.
+    """
 
     field: str
-    value: str
+    value: Optional[str] = None
+    any_of: Optional[list[str]] = None
+
+
+def _where_conditions(where: Sequence[FieldFilter]) -> tuple[dict[str, str | list[str]], str | None]:
+    """Merge ``open_data_source`` filters into ``lookup_records``' ``where``, or return an error message.
+
+    Repeating an identical filter is allowed; two different values, a ``value`` and an ``any_of``, or two
+    different ``any_of`` lists for one field are rejected, as is a filter with neither or both set or an
+    empty ``any_of``.
+    """
+    conditions: dict[str, str | list[str]] = {}
+    for condition in where:
+        field = condition.field
+        if (condition.value is None) == (condition.any_of is None):
+            return {}, f"give exactly one of value or any_of for field {field!r}"
+        if condition.any_of is not None and not condition.any_of:
+            return {}, f"any_of for field {field!r} must list at least one value"
+        wanted = condition.value if condition.value is not None else list(condition.any_of)
+        previous = conditions.setdefault(field, wanted)
+        if previous == wanted:
+            continue
+        if isinstance(previous, list) and isinstance(wanted, list):
+            return {}, f"give one any_of list for field {field!r}, not several"
+        if isinstance(previous, list) or isinstance(wanted, list):
+            return {}, f"field {field!r} has both value and any_of; put every accepted value in one any_of"
+        return {}, f"conflicting values for field {field!r} in where"
+    return conditions, None
 
 
 def _render_lookup(result: Any) -> str:
@@ -638,15 +673,16 @@ def build_extractor_agent(
             lookup: Words that must all appear in a record (case and accents ignored); "" matches every record.
             rank_by: Numeric field to order records by; null keeps source order.
             descending: Largest values first when ranking; false for smallest first.
-            where: Exact field filters, all of which a record must meet; null for none.
+            where: Exact field filters, all of which a record must meet; null for none. Each filter
+                sets either `value` (one value) or `any_of` (a list of values, matching any of them)
+                and leaves the other null.
         """
         source = sources_by_id.get(source_id)
         if source is None:
             return f"[open_data_source error: unknown source_id {source_id!r}; available: {', '.join(sources_by_id)}]"
-        conditions: dict[str, str] = {}
-        for condition in where or ():
-            if conditions.setdefault(condition.field, condition.value) != condition.value:
-                return f"[open_data_source error: conflicting values for field {condition.field!r} in where]"
+        conditions, error = _where_conditions(where or ())
+        if error:
+            return f"[open_data_source error: {error}]"
         logger.info("[extract] data_source_opened %s %s", source_id, source.url)
         if source.kind == "download_xlsx" and not source.body:
             # Spreadsheets are captured without a body; their markdown export is fetched on first use.
