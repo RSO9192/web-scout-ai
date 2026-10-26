@@ -1,0 +1,74 @@
+[
+  {
+    "id": "guatemala",
+    "title": "Guatemala hotspots",
+    "kind": "deep",
+    "query": "What are the main biodiversity hotspots in Guatemala?"
+  },
+  {
+    "id": "brazil",
+    "title": "Brazil, Legal Amazon",
+    "kind": "deep",
+    "query": "Which municipalities in the Legal Amazon recorded the highest deforestation in the latest official year, and what figures does the national monitoring system give?"
+  },
+  {
+    "id": "senegal",
+    "title": "Senegal small pelagics",
+    "kind": "deep",
+    "query": "What are the main small-pelagic species landed in Senegal in the latest reported year, and what volumes did the national fisheries authorities publish?"
+  },
+  {
+    "id": "indonesia",
+    "title": "Raja Ampat rules",
+    "kind": "deep",
+    "query": "What fishing restrictions apply in the Raja Ampat marine protected areas, according to the official zoning rules?"
+  },
+  {
+    "id": "peru",
+    "title": "Peru anchoveta quota",
+    "kind": "deep",
+    "query": "What anchoveta catch quota did Peru's Ministry of Production set for the most recent first fishing season in the north-central zone, and under which ministerial resolution?"
+  },
+  {
+    "id": "eudr",
+    "title": "EUDR country benchmarking",
+    "kind": "deep",
+    "query": "Under the EU Deforestation Regulation, which countries are classified as low risk and high risk in the latest country benchmarking implementing regulation?"
+  },
+  {
+    "id": "kenya",
+    "title": "Kenya maize statistics",
+    "kind": "deep",
+    "query": "What maize production and yield figures did the Kenya National Bureau of Statistics publish for the latest year in its Economic Survey?"
+  },
+  {
+    "id": "cotedivoire",
+    "title": "Côte d'Ivoire forest inventory",
+    "kind": "deep",
+    "query": "What forest cover and annual forest loss figures does Côte d'Ivoire report in its latest national forest inventory?"
+  },
+  {
+    "id": "bangladesh",
+    "title": "Bangladesh hilsa ban",
+    "kind": "deep",
+    "query": "What hilsa fishing ban periods and areas does Bangladesh's Department of Fisheries set, and what support is given to affected fishers?"
+  },
+  {
+    "id": "fao_dg",
+    "title": "FAO Director-General",
+    "kind": "control",
+    "query": "Who is the Director-General of FAO and when did they take office?"
+  },
+  {
+    "id": "ifad_hq",
+    "title": "IFAD headquarters",
+    "kind": "control",
+    "query": "In which city is the headquarters of the International Fund for Agricultural Development?"
+  },
+  {
+    "id": "ffpi",
+    "title": "FAO Food Price Index",
+    "kind": "control",
+    "query": "What was the FAO Food Price Index value in the latest monthly release?"
+  }
+]

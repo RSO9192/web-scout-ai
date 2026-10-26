@@ -27,6 +27,7 @@ Thumbs.db
 .coverage
 htmlcov/
 tests/benchmark_results/
+eval/results/
 
 # Ruff
 .ruff_cache/

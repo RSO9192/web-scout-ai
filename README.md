@@ -471,9 +471,27 @@ question
                                citation validation
 ```
 
+## Evaluation
+
+Web Scout and OpenAI's built-in web search (`gpt-6-astra`, high reasoning effort) answer the same deep-research and control questions. Every page each answer cites is fetched independently, and each claim is checked against the page it cites.
+
+| Questions | Claims supported by cited page | Completeness (1–5) | Preferred answer |
+| --- | --- | --- | --- |
+| Deep research | _pending_ | _pending_ | _pending_ |
+| Control | _pending_ | _pending_ | _pending_ |
+
+Cells will read Web Scout / OpenAI. Reproduce with `python eval/compare_search.py`.
+
 ## Where it fits
 
 Use `web-scout-ai` when your application needs the contents of real pages and documents—not only search snippets—and you want the source successes and failures returned as structured data.
+
+Compared with a hosted web-search tool, which returns an answer and a list of links, `web-scout-ai` also gives you:
+
+- **The evidence, per source.** `result.scraped` holds the query-relevant extract from every page and document it read, with page references for PDFs, so each claim can be checked without fetching the pages again.
+- **An account of every URL.** Sources that failed, were blocked, returned a bot wall, or turned out to be irrelevant are listed with the reason, instead of disappearing.
+- **Citations that point at what was read.** A deterministic check rejects citations to invented or snippet-only URLs before the answer is returned.
+- **Your own stack.** Choose the models and provider, restrict or exclude domains, cache sources, and let it search in the language of the country you ask about.
 
 It is intentionally a bounded research component. If you only need search links, use a search API directly. If you need an open-ended autonomous research process with human checkpoints, put this package inside a broader agent workflow.
 
