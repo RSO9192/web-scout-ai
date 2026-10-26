@@ -541,6 +541,8 @@ def lookup_records(
     rank_by: str | None = None,
     descending: bool = True,
     where: Mapping[str, str | int | float] | None = None,
+    *,
+    records: Sequence[dict] | None = None,
 ) -> LookupResult:
     """Find every record of ``source`` whose serialised text contains each word of ``term`` as a whole token.
 
@@ -556,11 +558,13 @@ def lookup_records(
     order; records without a numeric value for it are left out. Values are returned exactly as
     stored. At most ``min(limit, 30)`` records are returned, each truncated to at most 600
     serialised characters with a ``_truncated`` field naming omitted fields; the ranked and
-    filtered fields are kept.
+    filtered fields are kept. ``records`` are ``records_from_source(source)`` already parsed by the
+    caller, so repeated lookups on one source parse it once.
     """
     limit = min(limit, _MAX_LOOKUP_RECORDS)
     patterns = [_term_pattern(word) for word in _fold(term).split()]
-    records = records_from_source(source)
+    if records is None:
+        records = records_from_source(source)
     # Ambiguous separators are read per field, from evidence across all of the source's records.
     conditions = [(field, expected, _decimal_marks(records, field)) for field, expected in (where or {}).items()]
     matches = []

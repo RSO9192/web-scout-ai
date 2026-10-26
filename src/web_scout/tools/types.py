@@ -36,6 +36,20 @@ class CachedSourceArtifact:
     data_sources: tuple[DataSource, ...] = ()
 
 
+class DataQuote(BaseModel):
+    """A fact the extractor took from one of the page's data files, citable as that file."""
+
+    source_id: str = Field(
+        description='ID of the data source the fact came from, as listed in the catalog (e.g. "D2").'
+    )
+    quote: str = Field(
+        description=(
+            "The fact with its figures exactly as stored in that data source, including the labels, "
+            "period and units needed to read it."
+        )
+    )
+
+
 class ExtractorOutput(BaseModel):
     """Structured output from the content extractor sub-agent."""
 
@@ -77,5 +91,12 @@ class ExtractorOutput(BaseModel):
             "additional specific information for the research query. "
             "If page_type is 'list', treat each visible item's detail-page link as a candidate "
             "and rank by relevance to the query. Return up to 15."
+        ),
+    )
+    data_quotes: List[DataQuote] = Field(
+        default_factory=list,
+        description=(
+            "Facts taken from the page's data sources via open_data_source, one per fact, each naming "
+            "the source_id it came from. Leave empty when the page lists no data sources."
         ),
     )

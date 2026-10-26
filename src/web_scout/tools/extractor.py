@@ -6,18 +6,25 @@ The agent optionally has access to:
 
 - ``scrape_linked_document``   — fetch one primary document linked from the page
 - ``list_interactive_elements`` / ``click_element`` — drive a Playwright browser
-  for SPA/thin pages
+  for SPA/thin pages and dashboards
+- ``open_data_source`` — look up records in the page's captured data sources
 """
 
 import asyncio
+import dataclasses
+import json
 import logging
+from collections.abc import Sequence
 from typing import Any, Dict, Optional
 
 import litellm
 from agents import Agent, ModelSettings, Runner, function_tool
+from pydantic import BaseModel
 
 from web_scout.config import EXTRACTOR_HEURISTICS
+from web_scout.scraping._data_sources import DataSource
 
+from .data_lookup import lookup_records, records_from_source
 from .page_analysis import (
     prefetched_allows_interaction,
     prefetched_allows_linked_document,
@@ -155,6 +162,39 @@ After listing elements:
 - If content remains thin after all promising clicks, proceed with what you have.
 """
 
+_DASHBOARD_INSTRUCTIONS = """\
+
+Dashboard:
+This page is a dashboard: its figures may appear only after choosing a filter, tab, period or region.
+The interaction tools are available even though the supplied content may look rich. When the page text
+and any data sources do not answer the query, use them to select the view that shows the queried figures.
+"""
+
+_DATA_SOURCE_INSTRUCTIONS = """\
+
+Data sources:
+The page content ends with a "## Data sources" catalog of the data files behind this page (IDs D1, D2, ...),
+listing each file's kind, size, record count, URL and field names. These files often hold the exact figures
+that the page's charts, maps or tables display.
+
+Call `open_data_source(source_id, lookup, rank_by, descending, where)` to read records from one file:
+- `lookup`: words that must all appear in a record (a place name, an ID, a year); "" matches every record.
+- `where`: exact field filters, e.g. [{"field": "year", "value": "2025"}]; null for none.
+- `rank_by`: a numeric field to order records by, largest first unless `descending` is false, for questions
+  such as "which municipality had the largest area"; null keeps source order.
+The first line of the result reports `total_matches`; at most 30 records follow, values exactly as stored.
+
+Quote rules for data:
+- Report figures exactly as stored in the data file. Never sum, average or otherwise compute new numbers.
+- Ranking a data file's records by a stored field (with `rank_by`) is allowed; report the stored values.
+- Looking up the label behind an ID in another data source (for example a municipality ID to its name)
+  is allowed.
+- Put every fact taken from a data file in `data_quotes`, one entry per fact, with the `source_id` it came
+  from and a `quote` giving the figures as stored with the labels, period and units needed to read them.
+- Keep data-file facts out of `relevant_content`: it covers only what the page text itself shows. If the
+  page text has no evidence, apply the no-evidence rule even when `data_quotes` is not empty.
+"""
+
 _LINKED_DOCUMENT_INSTRUCTIONS = """\
 
 Primary document tool:
@@ -182,11 +222,17 @@ def _build_extractor_instructions(
     include_interaction: bool,
     domain_expertise: Optional[str] = None,
     extractor_guidance: Optional[str] = None,
+    include_data_sources: bool = False,
+    is_dashboard: bool = False,
 ) -> str:
     """Build runtime instructions that mention only tools exposed to the agent."""
     instructions = _BASE_EXTRACTOR_INSTRUCTIONS
+    if is_dashboard:
+        instructions += _DASHBOARD_INSTRUCTIONS
     if include_interaction:
         instructions += _INTERACTION_INSTRUCTIONS
+    if include_data_sources:
+        instructions += _DATA_SOURCE_INSTRUCTIONS
     if include_linked_document:
         instructions += _LINKED_DOCUMENT_INSTRUCTIONS
     if domain_expertise:
@@ -229,6 +275,27 @@ async def run_with_retry(agent: Agent, input_text: str, max_turns: int = 30) -> 
     raise last_exc  # unreachable, satisfies type checkers
 
 
+class FieldFilter(BaseModel):
+    """One exact-match filter of ``open_data_source``: records whose ``field`` equals ``value``."""
+
+    field: str
+    value: str
+
+
+def _render_lookup(result: Any) -> str:
+    """A ``LookupResult`` as JSON lines: a summary line, then one line per record."""
+    summary = {
+        "source_id": result.source_id,
+        "url": result.url,
+        "total_matches": result.total_matches,
+        "returned": len(result.records),
+        "ranked_by": result.ranked_by,
+        "descending": result.descending,
+        "where": result.where,
+    }
+    return "\n".join(json.dumps(line, ensure_ascii=False, default=str) for line in (summary, *result.records))
+
+
 def build_extractor_agent(
     model: Any,
     query: str,
@@ -247,6 +314,8 @@ def build_extractor_agent(
     pre_fetched_content: str = "",
     short_pdf_max_chars: int = 24_000,
     verify_pdf_claims: bool = False,
+    data_sources: Sequence[DataSource] = (),
+    is_dashboard: bool = False,
 ) -> tuple:
     """Build a content extractor sub-agent with a URL-locked scraping tool.
 
@@ -254,6 +323,10 @@ def build_extractor_agent(
     primary source document (PDF, DOCX …) linked from the page, which is
     essential for metadata/catalogue pages (e.g. FAOLEX law records) where
     the page itself only contains a summary and the full text is in a document.
+
+    When ``data_sources`` is non-empty the agent also gets ``open_data_source``
+    to look up records in them. ``is_dashboard`` exposes the click tools
+    regardless of the pre-fetched page shape.
     """
     from web_scout.scraping._parser import materialize_parse_result
     from web_scout.scraping.page_classifier import (
@@ -271,7 +344,9 @@ def build_extractor_agent(
 
     legacy_direct_agent = not pre_fetched_content
     page_shape = classify_prefetched_page_shape(pre_fetched_content) if pre_fetched_content else None
-    allow_interaction = legacy_direct_agent or prefetched_allows_interaction(pre_fetched_content, page_shape)
+    allow_interaction = (
+        legacy_direct_agent or is_dashboard or prefetched_allows_interaction(pre_fetched_content, page_shape)
+    )
     allow_linked_document = legacy_direct_agent or prefetched_allows_linked_document(pre_fetched_content, page_shape)
     linked_document_called = False
 
@@ -517,16 +592,80 @@ def build_extractor_agent(
         except Exception as e:
             return f"[click_element failed: {e}]"
 
+    # --- captured data sources ---
+    sources_by_id = {source.source_id: source for source in data_sources}
+    parsed_records: dict[str, list[dict]] = {}
+
+    @function_tool
+    async def open_data_source(
+        source_id: str,
+        lookup: str = "",
+        rank_by: Optional[str] = None,
+        descending: bool = True,
+        where: Optional[list[FieldFilter]] = None,
+    ) -> str:
+        """Look up records in one of the page's data sources listed under "## Data sources".
+
+        Returns JSON lines: a summary line with total_matches, then at most 30
+        matching records with values exactly as stored.
+
+        Args:
+            source_id: ID of the data source from the catalog, e.g. "D2".
+            lookup: Words that must all appear in a record (case and accents ignored); "" matches every record.
+            rank_by: Numeric field to order records by; null keeps source order.
+            descending: Largest values first when ranking; false for smallest first.
+            where: Exact field filters, all of which a record must meet; null for none.
+        """
+        source = sources_by_id.get(source_id)
+        if source is None:
+            return f"[open_data_source error: unknown source_id {source_id!r}; available: {', '.join(sources_by_id)}]"
+        conditions: dict[str, str] = {}
+        for condition in where or ():
+            if conditions.setdefault(condition.field, condition.value) != condition.value:
+                return f"[open_data_source error: conflicting values for field {condition.field!r} in where]"
+        logger.info("[extract] data_source_opened %s %s", source_id, source.url)
+        if source.kind == "download_xlsx" and not source.body:
+            # Spreadsheets are captured without a body; their markdown export is fetched on first use.
+            cached, error = await get_or_fetch_session_source_artifact(
+                url=source.url,
+                wait_for=None,
+                vision_model=vision_model,
+                exclude_domains=exclude_domains,
+                max_pdf_pages=max_pdf_pages,
+            )
+            if error or cached is None or not cached.text_content.strip():
+                return f"[open_data_source failed: could not read {source.url}: {error or 'empty document'}]"
+            source = dataclasses.replace(source, body=cached.text_content)
+            sources_by_id[source_id] = source
+        records = parsed_records.get(source_id)
+        if records is None:
+            records = await asyncio.to_thread(records_from_source, source)
+            parsed_records[source_id] = records
+        result = await asyncio.to_thread(
+            lookup_records,
+            source,
+            lookup,
+            rank_by=rank_by or None,
+            descending=descending,
+            where=conditions or None,
+            records=records,
+        )
+        return _render_lookup(result)
+
     agent_tools = []
     if allow_linked_document:
         agent_tools.append(scrape_linked_document)
     if allow_interaction:
         agent_tools.extend([list_interactive_elements, click_element])
+    if data_sources:
+        agent_tools.append(open_data_source)
     instructions = _build_extractor_instructions(
         include_linked_document=allow_linked_document,
         include_interaction=allow_interaction,
         domain_expertise=domain_expertise,
         extractor_guidance=extractor_guidance,
+        include_data_sources=bool(data_sources),
+        is_dashboard=is_dashboard,
     )
     logger.debug(
         "[extract] extractor_agent tools=%s chars=%d linked_doc=%s interaction=%s shape=%s doc_links=%s metadata_markers=%s url=%s",
