@@ -81,3 +81,5 @@ class ParseResult(BaseModel):
     artifact: SourceArtifact  # full artifact for vision/binary use downstream
     raw_html: str | None = None  # original HTML from Fetcher (for Crawler; avoids re-fetch)
     error: str | None = None
+    dashboard_kind: DashboardKind = ""
+    data_sources: tuple[DataSource, ...] = ()

@@ -5,6 +5,7 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from web_scout.scraping._data_sources import DashboardKind, DataSource
 from web_scout.scraping.types import PdfDocumentLayout
 
 
@@ -30,6 +31,9 @@ class CachedSourceArtifact:
     layout: Optional[PdfDocumentLayout] = None
     raw_html: str = ""
     error: str = ""
+    # Defaults keep artifacts pickled before dashboard capture loadable.
+    dashboard_kind: DashboardKind = ""
+    data_sources: tuple[DataSource, ...] = ()
 
 
 class ExtractorOutput(BaseModel):

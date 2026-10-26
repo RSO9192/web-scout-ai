@@ -34,8 +34,17 @@ def cacheable_from_parse_result(url: str, parse_result: object) -> CachedSourceA
     artifact = getattr(parse_result, "artifact", None)
     title = getattr(parse_result, "title", "") or ""
     raw_html = getattr(parse_result, "raw_html", None) or ""
+    dashboard_kind = getattr(parse_result, "dashboard_kind", "")
+    data_sources = getattr(parse_result, "data_sources", ())
     if artifact is None:
-        return CachedSourceArtifact(url=url, title=title, artifact_kind="text", raw_html=raw_html)
+        return CachedSourceArtifact(
+            url=url,
+            title=title,
+            artifact_kind="text",
+            raw_html=raw_html,
+            dashboard_kind=dashboard_kind,
+            data_sources=data_sources,
+        )
     return CachedSourceArtifact(
         url=url,
         title=title,
@@ -45,6 +54,8 @@ def cacheable_from_parse_result(url: str, parse_result: object) -> CachedSourceA
         mime_type=artifact.mime_type,
         layout=getattr(artifact, "layout", None),
         raw_html=raw_html,
+        dashboard_kind=dashboard_kind,
+        data_sources=data_sources,
     )
 
 
@@ -56,8 +67,13 @@ async def _url_fetch_task(
     vision_model: str,
     exclude_domains: tuple[str, ...],
     fetch_max_pdf_pages: int,
+    data_capture_version: int,
 ) -> CachedSourceArtifact:
-    """Fetch one URL. ``fetch_max_pdf_pages`` is excluded from the cache key."""
+    """Fetch one URL. ``fetch_max_pdf_pages`` is excluded from the cache key.
+
+    ``data_capture_version`` only shapes the cache key: bumping it stops reuse of pages
+    cached before dashboard data capture existed.
+    """
     from web_scout.scraping import fetch_and_parse_url
 
     fetch_result, parse_result = await fetch_and_parse_url(
@@ -113,6 +129,7 @@ async def get_or_fetch_session_source_artifact(
             vision_model=vision_model or "",
             exclude_domains=tuple(sorted(exclude_domains or ())),
             fetch_max_pdf_pages=max_pdf_pages,
+            data_capture_version=1,
         )
     except Exception as exc:
         return None, str(exc)
