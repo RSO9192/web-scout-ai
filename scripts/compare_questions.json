@@ -1,21 +1,5 @@
 [
   {
-    "id": "guatemala",
-    "title": "Guatemala hotspots",
-    "kind": "eval",
-    "query": "What are the main biodiversity hotspots in Guatemala?",
-    "hard": false,
-    "expected": null
-  },
-  {
-    "id": "senegal",
-    "title": "Senegal small pelagics",
-    "kind": "eval",
-    "query": "What are the main small-pelagic species landed in Senegal in the latest reported year, and what volumes did the national fisheries authorities publish?",
-    "hard": false,
-    "expected": null
-  },
-  {
     "id": "owid_deforestation",
     "kind": "dashboard",
     "hard": false,
@@ -173,24 +157,6 @@
       ],
       "checked_on": "2026-10-26",
       "notes": "Joint news release dated 16/05/2025. Edition pinned to 2025 because GRFC 2026 exists."
-    }
-  },
-  {
-    "id": "kenya_census2019",
-    "kind": "ordinary",
-    "hard": false,
-    "query": "What total population did Kenya's 2019 Population and Housing Census enumerate?",
-    "expected": {
-      "facts": [
-        "Total enumerated population: 47,564,296 (about 47.6 million).",
-        "Males 23,548,056; females 24,014,716; intersex 1,524.",
-        "Up from 37.7 million in 2009."
-      ],
-      "source_urls": [
-        "https://www.knbs.or.ke/2019-kenya-population-and-housing-census-results/"
-      ],
-      "checked_on": "2026-10-26",
-      "notes": "KNBS results page dated November 4, 2019."
     }
   }
 ]
