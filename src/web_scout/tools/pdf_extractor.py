@@ -31,10 +31,18 @@ _NO_RELEVANT = "[No relevant content found for this query]"
 _PAGE_START_RE = re.compile(r"^========== page (\d+) start ==========$")
 
 _NO_EVIDENCE_RULE = (
-    "If the document contains no facts that answer the research query — "
-    "including when the query asks about a specific country or region the "
-    "document does not cover — set has_evidence to false. Generic guidance, "
-    "methodology, definitions, or 'how to assess' content is not evidence. "
+    "When the query lists research requirements, the document is evidence if it contains facts "
+    "satisfying at least one requirement: extract the facts for every requirement it satisfies, "
+    "leave unsatisfied requirements out, and set has_evidence to true. A requirement about a "
+    "country or region the document does not cover is unsatisfied, not a reason to reject the "
+    "document. A requirement is satisfied only by a fact the document states, such as a figure, "
+    "a name or a date; naming the source, programme or units alone does not satisfy it unless the "
+    "requirement explicitly asks for that name. Set has_evidence to false only when no requirement "
+    "is satisfied. When the query lists no requirements and the document contains no facts that "
+    "answer the research query — including when the query asks about a specific country or region "
+    "the document does not cover — set has_evidence to false. Statements about what the document "
+    "lacks are not evidence. Generic guidance, methodology, definitions, or 'how to assess' content "
+    "is not evidence. "
 )
 
 _PDF_RESULT_OUTPUT_CONTRACT = (

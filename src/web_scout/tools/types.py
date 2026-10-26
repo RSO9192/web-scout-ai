@@ -61,6 +61,7 @@ class ExtractorOutput(BaseModel):
         default=True,
         description=(
             "False when the page contains no facts that answer the research query. "
+            "When the query lists research requirements, true if the page satisfies at least one of them. "
             "Statements about where the answer might be found, or descriptions of "
             "what the page links to, are NOT evidence. relevant_links may still be "
             "returned when has_evidence is false."

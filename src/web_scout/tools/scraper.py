@@ -24,7 +24,7 @@ from web_scout.config import EXTRACTOR_HEURISTICS, ROUTING_HEURISTICS
 from web_scout.scraping._data_sources import DataSource
 
 from .data_lookup import render_catalog
-from .extractor import ExtractorOutput, build_extractor_agent, run_with_retry
+from .extractor import ExtractorOutput, build_extractor_agent, format_research_query, run_with_retry
 from .outcomes import build_failure_outcome, build_success_outcome, classify_failure_action
 from .page_analysis import prefetched_is_recoverable, render_cached_page_text
 from .pdf_extractor import extract_pdf_for_query, format_reference
@@ -251,10 +251,11 @@ def create_scrape_and_extract_tool(
                 if tracker is not None and classification_backend() == "jev":
                     tracker._source_text[norm] = content
 
+                research_query = format_research_query(query, tracker.requirements if tracker is not None else ())
                 if pdf_artifact is not None:
                     pdf_title, pdf_content, used_pages = await extract_pdf_for_query(
                         artifact=pdf_artifact,
-                        query=query,
+                        query=research_query,
                         model=extractor_model,
                         short_pdf_max_chars=short_pdf_max_chars,
                         verify_pdf_claims=verify_pdf_claims,
@@ -295,7 +296,7 @@ def create_scrape_and_extract_tool(
 
                 extractor_agent, extractor_cleanup = build_extractor_agent(
                     extractor_model,
-                    query,
+                    research_query,
                     url,
                     _wait_for,
                     vision_model=vision_model,
@@ -320,7 +321,7 @@ def create_scrape_and_extract_tool(
                     page_for_extractor += f"\n\n## Data sources\n{catalog}"
 
                 input_text = (
-                    f"Research query: {query}\n"
+                    f"Research query: {research_query}\n"
                     f"URL: {url}\n\n"
                     f"Here is the page content that has already been fetched for you:\n"
                     f"==== PAGE CONTENT ====\n"

@@ -141,6 +141,18 @@ This applies to both page types. Set `has_evidence` to false even when you
 return `relevant_links`: promising links do not make the page itself evidence.
 Statements like "the page does not display X" or "X can be retrieved from
 the linked datasets" count as no evidence.
+
+Research requirements rule:
+When the research query is followed by a numbered list of research requirements,
+the page is evidence when it contains facts satisfying at least one requirement.
+Extract the facts for every requirement it satisfies, and leave unsatisfied
+requirements out. Set `has_evidence` to true in that case. A requirement is
+satisfied only by a fact the page itself states, such as a figure, a name or a
+date. Naming the source, platform, monitoring system or units, or describing what
+data the page or its tools offer, does not satisfy a requirement on its own,
+unless the requirement explicitly asks for that name.
+Do not write what the page lacks (for example "the page does not give municipal
+figures"): such statements are not evidence and do not belong in `relevant_content`.
 """
 
 _INTERACTION_INSTRUCTIONS = """\
@@ -256,6 +268,18 @@ _EXTRACTOR_INSTRUCTIONS = _build_extractor_instructions(
     include_linked_document=True,
     include_interaction=True,
 )
+
+
+def format_research_query(query: str, requirements: Sequence[str]) -> str:
+    """Return the research query with its atomic requirements appended as a numbered list.
+
+    The query is returned unchanged when there are no requirements or the only
+    requirement is the query itself, so extractor inputs stay as before.
+    """
+    if not requirements or list(requirements) == [query]:
+        return query
+    numbered = "\n".join(f"{index}. {requirement}" for index, requirement in enumerate(requirements, 1))
+    return f"{query}\nResearch requirements:\n{numbered}"
 
 
 async def run_with_retry(agent: Agent, input_text: str, max_turns: int = 30) -> Any:

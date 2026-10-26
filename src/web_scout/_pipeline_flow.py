@@ -315,19 +315,23 @@ def _build_query_agents(
         name="query_generator",
         model=query_gen_model,
         model_settings=_research_model_settings(),
-        output_type=SearchQueryChecklist if classification_backend() == "jev" else SearchQueryGeneration,
+        # The first round also lists the query's requirements, used by every backend's extractors;
+        # _generate_search_queries switches to plain query planning afterwards.
+        output_type=SearchQueryChecklist,
         instructions=QUERY_GENERATOR_INSTRUCTIONS
         + suffix
         + (
-            (
-                "\nAlso list every atomic requirement needed to answer the ORIGINAL query. Preserve all "
-                "requested geography, dates, units, entities, comparisons and numerical details; do not "
-                "invent extra requirements."
-            )
-            + ("\nCoverage criteria: " + evaluator_extra_prompt if evaluator_extra_prompt else "")
-            if classification_backend() == "jev"
-            else ""
-        ),
+            "\nAlso list every atomic requirement needed to answer the ORIGINAL query. Preserve all "
+            "requested geography, dates, units, entities, comparisons and numerical details; do not "
+            "invent extra requirements. Each requirement names facts a source must state (figures, names, "
+            "dates or findings); do not list instructions about citing sources, naming the data provider or "
+            "monitoring system, or stating units, unless the original query itself asks for them. Make each "
+            "requirement self-contained, so that a source can satisfy it on its own. Split a compound question "
+            "into separate requirements: the reporting period or latest year to identify, each requested set "
+            "of entities, and each requested figure or value. Never return the whole question as a single "
+            "requirement unless it asks for exactly one fact."
+        )
+        + ("\nCoverage criteria: " + evaluator_extra_prompt if evaluator_extra_prompt else ""),
     )
     evaluator_agent = Agent(
         name="coverage_evaluator",
@@ -393,7 +397,7 @@ async def _generate_search_queries(
             gen_res = await Runner.run(query_gen_agent, prompt)
         generated = gen_res.final_output_as(SearchQueryGeneration)
         search_queries = generated.queries
-        if iteration == 0 and classification_backend() == "jev":
+        if iteration == 0:
             query_gen_agent._research_requirements = list(getattr(generated, "requirements", []) or [query])
             query_gen_agent.output_type = SearchQueryGeneration
             query_gen_agent.instructions = query_gen_agent.instructions.split("\nAlso list", 1)[0]
@@ -661,6 +665,9 @@ async def _search_and_scrape_iteration(
         missing_info=missing_info,
         query_gen_agent=query_gen_agent,
     )
+    requirements = getattr(query_gen_agent, "_research_requirements", None)
+    if tracker is not None and requirements:
+        tracker.requirements = list(requirements)
     search_results = await _execute_searches(
         backend=backend,
         search_queries=search_queries,
