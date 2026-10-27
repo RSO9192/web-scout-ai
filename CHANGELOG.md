@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Follow-up waves respect the 25-scrape limit and reserve room for later rounds, and rounds stop once the limit is reached.
 - The URL cache key gains a data-capture version, so pages cached by earlier versions are fetched once more after upgrading.
 - `ExtractorOutput` gains `data_quotes`, which names the data file behind each data-derived fact. It is empty for ordinary pages.
+- When sources give a newer estimate and the most recent final figure for the same measure, answers report both, newest first, each labelled as the source states it and cited separately. The extractor looks up both periods in a data file.
+- Parsed-PDF and URL cache entries are keyed on the installed `pdf-extractor-ai` version, so a converter upgrade refreshes cached conversions. Existing entries miss once after upgrading.
 - The PDF download deadline is now 240 seconds (was 75) and can be raised via `pdf_download_deadline_s`. The URL fetch deadline grows to match.
 
 ### Fixed
