@@ -204,6 +204,8 @@ The first line of the result reports `total_matches`; at most 30 records follow,
 Quote rules for data:
 - Report figures exactly as stored in the data file. Never sum, average or otherwise compute new numbers.
 - Ranking a data file's records by a stored field (with `rank_by`) is allowed; report the stored values.
+- When a data file holds the most recent final period and a newer estimated period, look up and quote both,
+  each labelled with its period and its status as the source states it.
 - Looking up the label behind an ID in another data source (for example a municipality ID to its name)
   is allowed.
 - Put every fact taken from a data file in `data_quotes`, one entry per fact, with the `source_id` it came

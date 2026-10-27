@@ -206,3 +206,15 @@ def test_runtime_instructions_omit_extractor_guidance_section_when_none():
     )
 
     assert "Application-specific extractor guidance" not in instructions
+
+
+def test_runtime_instructions_tell_extractor_to_quote_final_and_estimated_periods():
+    instructions = _build_extractor_instructions(
+        include_linked_document=False,
+        include_interaction=False,
+        include_data_sources=True,
+    )
+
+    assert "the most recent final period and a newer estimated period" in instructions
+    assert "status as the source states it" in instructions
+    assert "look up and quote both" in instructions

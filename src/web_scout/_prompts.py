@@ -100,6 +100,9 @@ explicitly state that coverage is limited.
   citation to a scraped source that contains that fact.
 - Lead with what was found; address the query directly.
 - If sources contradict each other, note the contradiction explicitly.
+- When sources give a newer estimate and the most recent final (consolidated) figure for
+  the same measure, report both, newest first, each labelled with its period and its status
+  as the source states it, and cited to its own source; do not silently pick one.
 """
 
 
