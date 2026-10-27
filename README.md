@@ -1,30 +1,42 @@
 # web-scout-ai
 
-![web-scout-ai logo](assets/web-scout-logo.svg)
+![web-scout-ai logo](https://raw.githubusercontent.com/RSO9192/web-scout-ai/main/assets/web-scout-logo.svg)
 
 [![PyPI Version](https://img.shields.io/pypi/v/web-scout-ai)](https://pypi.org/project/web-scout-ai/)
 [![Downloads](https://static.pepy.tech/badge/web-scout-ai/month)](https://pepy.tech/project/web-scout-ai)
 [![Python Versions](https://img.shields.io/pypi/pyversions/web-scout-ai)](https://pypi.org/project/web-scout-ai/)
-[![License](https://img.shields.io/github/license/RSO9192/web-scout-ai)](LICENSE)
+[![License](https://img.shields.io/github/license/RSO9192/web-scout-ai)](https://github.com/RSO9192/web-scout-ai/blob/main/LICENSE)
 
-**Thorough web research you can verify.**
+**The web research tool for your agent: cited answers, with the evidence behind every claim.**
 
-`web-scout-ai` is an agentic Python research pipeline that searches the web, reads the pages and documents it finds, follows up when evidence is incomplete, and returns a cited answer together with the evidence behind it and a full audit trail of what it could — and could not — read.
+Give your agent one tool call. `web-scout-ai` searches the web, reads the pages and documents it finds, follows up when evidence is incomplete, and returns a cited answer together with what it extracted from each source and an account of every URL it could not read.
 
-Give it a question or a URL:
+**On document-heavy research questions, 91% of Web Scout's claims were backed by a page it cites, against 78% for OpenAI web search, with a third fewer unsupported claims per answer** ([evaluation](#evaluation)).
 
 ```python
+from agents import Agent, Runner, function_tool
 from web_scout import run_web_research
 
-result = await run_web_research("Indonesia biodiversity hotspots current status and recent trend")
 
-print(result.synthesis)
-print(f"Read {len(result.scraped)} sources across {len(result.queries)} searches")
+@function_tool
+async def web_research(question: str) -> str:
+    """Research a question on the web and return an answer with inline citations."""
+    result = await run_web_research(question)
+    return result.synthesis
+
+
+agent = Agent(
+    name="Analyst",
+    instructions="Use web_research whenever you need facts from web sources.",
+    tools=[web_research],
+)
+result = await Runner.run(agent, "Indonesia biodiversity hotspots: current status and recent trend")
+print(result.final_output)
 ```
 
-It cites only sources it actually read, and returns what it extracted from each one, so **every claim can be checked against its source** without redoing the research.
+The example uses the [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/), which `web-scout-ai` already depends on. `run_web_research()` is a plain async function, so it wraps the same way as a tool in LangChain, pydantic-ai or any other framework.
 
-<details open>
+<details>
 <summary><strong>Example output</strong> (excerpt)</summary>
 
 Query: `Indonesia biodiversity hotspots current status and recent trend`
@@ -63,27 +75,19 @@ Query: `Indonesia biodiversity hotspots current status and recent trend`
 This is a fraction of what that call returned. The full synthesis was 10,055 characters; `result.scraped` also held extracted evidence from all 9 sources (~34,000 characters)—including a ScienceDirect review, a Conservation Biology paper, a Nature paper, a CEPF ecosystem profile, an interactive UNEP country fiche, and WRI's 2025 forest-loss analysis—plus an audit trail of the 3 searches, 1 irrelevant fetch, and 13 snippet-only hits that were not used as citations. The run took 188.7 seconds. Results and timing vary with the query, sources, model, and network.
 
 </details>
+## Why Web Scout
 
-## What it actually does
+A hosted web-search tool gives your agent an answer and a list of links. Web Scout also gives it:
 
-`web-scout-ai` is an async Python research pipeline, not a search-result wrapper. It searches, opens the selected sources, routes each response to the right extractor, evaluates whether the collected evidence is sufficient, and synthesizes only from sources it successfully read.
+- **The evidence, per source.** `result.scraped` holds the query-relevant extract from every page and document it read, with page references for PDFs, so each claim can be checked without fetching the pages again.
+- **Citations only to what it read.** A deterministic check rejects citations to invented or snippet-only URLs before the answer is returned.
+- **Coverage, not first hits.** It checks whether the evidence answers every part of the question, then follows promising links or runs targeted searches, also in the language of the country you ask about.
+- **An account of every URL.** Sources that failed, were blocked, hit a bot wall or turned out to be irrelevant are listed with the reason instead of disappearing.
+- **Your own stack.** Choose the models and provider, restrict or exclude domains, and cache sources.
 
-| Input encountered | What the pipeline does |
-| --- | --- |
-| Static HTML | Uses a fast HTTP fetch and converts the page to clean Markdown |
-| JS-heavy pages and SPA shells | Escalates to a stealth Chromium browser and can interact with page controls |
-| Cloudflare or similar bot challenges | Retries with Scrapling's stealth browser and Cloudflare challenge handling |
-| PDF, DOCX, PPTX, XLSX | Downloads and converts the document with Docling |
-| Scanned PDFs, charts, maps, images | Uses the configured vision model when text extraction is insufficient |
-| JSON endpoints | Converts structured payloads into readable evidence |
-| List, index, and database pages | Ranks detail links, follows them, and can take one pagination hop |
-| Thin or incomplete evidence | Scrapes promising backlog URLs or generates targeted follow-up searches |
-
-The browser fallback can pass many JS-gated and Cloudflare-protected pages, but it is not a guarantee: sites can still block automation. Those URLs are reported in `result.bot_detected` instead of disappearing or being presented as evidence. Use the package only where you have permission and in accordance with the source site's terms.
+If you only need search links, use a search API directly. Web Scout is a bounded research component: put it inside your agent when the agent needs to read real sources.
 
 ## Quick start
-
-### 1. Install
 
 ```bash
 pip install web-scout-ai
@@ -92,9 +96,7 @@ web-scout-setup
 
 `web-scout-setup` installs the Patchright-managed Chromium browser and its system dependencies. It may request `sudo` for OS-level browser libraries.
 
-### 2. Configure keys
-
-The default research models run on Amazon Bedrock Mantle. Vision fallback still uses Gemini, and open-web discovery uses Serper:
+The default research models run on Amazon Bedrock Mantle, vision fallback uses Gemini, and open-web search uses Serper:
 
 ```bash
 export AWS_BEARER_TOKEN_BEDROCK="your-bedrock-api-key"
@@ -102,38 +104,7 @@ export GEMINI_API_KEY="your-gemini-api-key"
 export SERPER_API_KEY="your-serper-api-key"
 ```
 
-`BEDROCK_MANTLE_API_KEY` is accepted as an alias for the bearer token. OpenAI models on Mantle, including GPT-5.6 and GPT-6 Luna, use LiteLLM's route in `us-east-1`.
-
-To use the Exa search backend instead (`search_backend="exa"`):
-
-```bash
-export EXA_API_KEY="your-exa-api-key"
-```
-
-To use [Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp)
-for free web search without a search-provider account or API key, select
-`search_backend="parallel"`:
-
-```python
-result = await run_web_research(
-    "What are the main threats to coral reefs worldwide?",
-    search_backend="parallel",
-)
-```
-
-Parallel uses anonymous Fast-mode search over Streamable HTTP. No additional
-package or search key is needed; keep the keys for your configured research
-models. Anonymous access has usage limits, and search failures are handled by
-the existing pipeline. Domain filters are enforced locally on returned URLs;
-domain and country/language hints also guide the search, but do not guarantee
-that it will find enough matching results. Source reading still uses the
-existing scraping pipeline. Serper remains the default.
-
-Direct-URL mode does not use a search backend, so it only needs the API key for your configured model provider.
-
-`TYPESAFE_API_KEY` is only needed if you opt in to Jev classification (see [Jev classification](#jev-classification-optional)).
-
-### 3. Run research
+Exa and keyless [Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp) are also supported, and any [LiteLLM](https://docs.litellm.ai/docs/providers) model can replace the defaults; see [Configuration](https://github.com/RSO9192/web-scout-ai/blob/main/docs/configuration.md).
 
 ```python
 import asyncio
@@ -142,10 +113,7 @@ from web_scout import run_web_research
 
 
 async def main():
-    result = await run_web_research(
-        query="What are the main threats to coral reefs worldwide?",
-        cache=True,
-    )
+    result = await run_web_research("What are the main threats to coral reefs worldwide?")
 
     print(result.synthesis)
 
@@ -160,41 +128,29 @@ async def main():
 asyncio.run(main())
 ```
 
-## Three ways to use it
-
-### Open-web research
-
-Generate several searches, read the strongest results in parallel, evaluate coverage, and search again if important evidence is missing.
+Restrict discovery to trusted domains, or skip search and start from a page, document, API endpoint or database listing:
 
 ```python
+result = await run_web_research("Latest evidence on sea-level rise", include_domains=["ipcc.ch", "nasa.gov"])
+
 result = await run_web_research(
-    query="What is driving the global adaptation finance gap?",
-)
-```
-
-### Domain-restricted research
-
-Keep discovery and hub deepening focused on authoritative domains.
-
-```python
-result = await run_web_research(
-    query="Latest evidence on sea-level rise",
-    include_domains=["ipcc.ch", "nasa.gov"],
-)
-```
-
-### Direct URL extraction
-
-Skip search and start from a page, document, API endpoint, image, or database listing.
-
-```python
-result = await run_web_research(
-    query="Extract the recommended adaptation measures and supporting evidence",
+    "Extract the recommended adaptation measures and supporting evidence",
     direct_url="https://example.org/report.pdf",
 )
 ```
 
-For a document, the pipeline reads that document without wandering into site navigation. For a list or database page, it can rank and follow relevant records and their linked primary documents.
+## Evaluation
+
+Web Scout (default settings) and OpenAI web search (`gpt-6-astra`, high reasoning effort) answered 11 questions, twice each: 8 document-heavy questions whose answers sit inside official documents and data, and 3 simple lookups a search snippet can answer. An independent fetcher downloaded every page each answer cites, and a Gemini judge split each answer into claims and checked them against those pages.
+
+| Web Scout / OpenAI web search | Document-heavy (8) | Simple lookups (3) |
+| --- | --- | --- |
+| Verified claims: cited and backed by the cited pages | **91% / 78%** | 100% / 100% |
+| Unsupported or contradicted claims per answer | **0.7 / 1.1** | 0.0 / 0.0 |
+| Claims with a citation | **99% / 87%** | 100% / 100% |
+| Completeness (1–5) | 4.4 / 4.3 | 5.0 / 5.0 |
+
+Run on 2026-10-27 with v1.13.0. Per-question results, scoring rules and limitations are in [docs/evaluation.md](https://github.com/RSO9192/web-scout-ai/blob/main/docs/evaluation.md); reproduce with `python eval/compare_search.py`.
 
 ## The return value is an audit trail
 
@@ -230,226 +186,7 @@ class WebResearchResult(BaseModel):
 
 The synthesizer is instructed to use scraped evidence only. A deterministic final check rejects citations to invented or snippet-only URLs and retries the synthesis with feedback.
 
-## Research depth
-
-```python
-# Faster default
-await run_web_research(query="...", research_depth="standard")
-
-# More searches and sources, with a stricter coverage threshold
-await run_web_research(query="...", research_depth="deep")
-```
-
-| Budget | Standard | Deep |
-| --- | ---: | ---: |
-| Maximum search iterations | 2 | 3 |
-| Initial search queries | 3 | 5 |
-| Follow-up search queries | 2 | 4 |
-| URLs selected in the first round | 6 | 12 |
-| URLs selected in a follow-up round | 4 | 8 |
-| Hub/detail-page cap | 10 | 15 |
-
-The coverage evaluator can stop early when the evidence already answers the question. You can add your own acceptance conditions with `coverage_criteria`:
-
-```python
-result = await run_web_research(
-    query="Compare national methane policies",
-    coverage_criteria="Include at least one primary government source per country.",
-)
-```
-
-## Custom extractor guidance
-
-Use `extractor_guidance` to refine what each per-source extractor keeps and how it
-organizes evidence. The guidance applies only to extraction; it does not alter search
-query generation, coverage evaluation, or final synthesis.
-
-```python
-result = await run_web_research(
-    query="Tunisia agricultural trends",
-    extractor_guidance="""
-Country of interest: Tunisia
-
-- Keep findings explicitly about Tunisia.
-- Also keep regional findings whose stated scope includes Tunisia, even when the
-  source does not name Tunisia; label them with the source's scope, such as
-  "North Africa:".
-- Discard purely global findings and findings about geographies that do not
-  include Tunisia.
-""",
-)
-```
-
-Guidance augments rather than replaces WebScout's extractor instructions. The base
-contract always takes precedence for source grounding, tool constraints, output
-fields, page-type handling, and the exact no-evidence sentinel.
-
-## Configuration
-
-### Models
-
-Pass `models` to choose the LLM for each stage. Model IDs follow [LiteLLM provider naming](https://docs.litellm.ai/docs/providers), so each stage can use a different provider. Any key you omit keeps its default. These are the defaults:
-
-```python
-models = {
-    # Query generation, search-result ranking, coverage evaluation and synthesis,
-    # unless overridden below
-    "web_researcher": "bedrock_mantle/openai.gpt-6-luna",
-    # Reads and extracts each source
-    "content_extractor": "bedrock_mantle/openai.gpt-6-luna",
-    # Chooses which follow-up links to open
-    "followup_selector": "bedrock_mantle/openai.gpt-6-luna",
-    # Describes scanned pages, charts, maps and images
-    "vision_fallback": "gemini/gemini-3.7-flash",
-    # Optional per-stage overrides; each falls back to "web_researcher"
-    # "query_generator": "...",
-    # "search_result_selector": "...",  # ranks search results before scraping (unused when Jev is on)
-    # "coverage_evaluator": "...",
-    # "synthesiser": "...",
-}
-
-result = await run_web_research(query="...", models=models)
-```
-
-For example, to keep the defaults but extract sources with Gemini:
-
-```python
-result = await run_web_research(
-    query="...",
-    models={"content_extractor": "gemini/gemini-3.7-flash"},
-)
-```
-
-Provider credentials are read from their standard environment variables, such as `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, or AWS credentials for Bedrock.
-
-### All options
-
-```python
-result = await run_web_research(
-    query="latest IPCC findings on sea-level rise",
-    models=None,  # optional; GPT-6 Luna defaults, Gemini vision
-    search_backend="serper",  # "serper" (default), "exa", or "parallel" (keyless MCP)
-    research_depth="standard",  # "standard", "deep", or a custom dict
-    include_domains=["ipcc.ch"],  # optional discovery restriction
-    direct_url=None,  # optional; skips search when set
-    domain_expertise="climate science",  # optional prompt context
-    exclude_domains=None,  # optional blocklist; nothing is blocked
-    # by default. See "Domain policy" below.
-    max_pdf_pages=50,  # pages converted from each PDF
-    max_content_chars=30_000,  # characters passed to the extractor per source
-    verify_pdf_claims=False,  # extra claim-support check on PDF extracts
-    cache=False,  # accepted; URL and PDF caches stay on
-    cache_storage=None,  # Prefect block, e.g. a GCS bucket
-    refresh_pdf_cache=False,  # recompute cached PDF parses
-    refresh_url_cache=False,  # recompute cached URL fetches
-    coverage_criteria=None,  # extra evidence requirements
-    extractor_guidance=None,  # optional per-source extraction guidance
-)
-```
-
-For country-specific questions, the query planner identifies the canonical country
-name and automatically combines English queries with queries in the country's principal
-publication language. Web Scout resolves the country name through its internal ISO 3166-1
-registry before any code reaches a search backend. Serper maps the validated code and
-planned language to its country and language options; Exa maps the country to
-`userLocation` and relies on the translated query text for language targeting.
-Both initial and gap-directed follow-up searches use the same multilingual policy.
-The search-result selector also treats requested geography as part of relevance,
-favoring sources with substantive place-specific coverage without hard-coding any
-country or excluding stronger international evidence. It runs on the
-`search_result_selector` model (default: `web_researcher`), or on Jev when
-`DISABLE_JEV=false`, and never sees URLs from `exclude_domains`. If the GPT call fails
-it falls back to backend rank order. Localization is fully automatic;
-there are no public country or language parameters. Final syntheses are always written
-in English, including when evidence was retrieved from non-English sources.
-
-### Jev classification (optional)
-
-Five steps make yes/no judgments rather than generate text: search-result selection, crawler link selection, follow-up link selection, search coverage evaluation, and (when `verify_pdf_claims=True`) PDF claim verification. By default they use the GPT models above. Set `DISABLE_JEV=false` to run all five on TypeSafe Jev instead:
-
-```bash
-export DISABLE_JEV=false
-export TYPESAFE_API_KEY="your-typesafe-api-key"
-```
-
-| `DISABLE_JEV` | Classification steps use | Needs `TYPESAFE_API_KEY` |
-| --- | --- | --- |
-| unset or `true` (default) | GPT models from `models` | No |
-| `false` | Jev | Yes; `run_web_research()` raises `ClassificationError` without it |
-
-The value is case-insensitive. Query generation, extraction, vision and synthesis always use your configured models. Jev failures raise errors; there is no automatic GPT fallback.
-
-### Fetching a single URL
-
-Fetch one URL and get a `FetchResult`. This uses the same Scrapling fetcher as the research pipeline (fast HTTP, then a stealth browser when the page looks blocked or JavaScript-rendered):
-
-```python
-from web_scout import PDF_MAGIC_BYTES, fetch
-
-result = await fetch("https://example.org/report.pdf")
-page = await fetch("https://example.org/article", wait_for="article")
-```
-
-`result.body` is the raw response bytes for binary payloads such as PDFs and images. HTML and other text responses leave `body` as `None` and put the decoded page in `result.html_content`. Failures do not raise: `result.error` is set when the URL is rejected or the fetch fails, and `result.status` is outside the 2xx range for HTTP errors. Pass `exclude_domains` to skip hosts before any network call.
-
-`PDF_MAGIC_BYTES` is `b"%PDF"`, the four-byte header every PDF file starts with. Check the body against it when you need to know whether the fetch returned a PDF. That is more reliable than `result.content_type`, which download URLs often report as `application/octet-stream`:
-
-```python
-is_pdf = bool(result.body and result.body.startswith(PDF_MAGIC_BYTES))
-if is_pdf:
-    pdf_bytes = result.body
-```
-
-`fetch_pdf` is a thin wrapper around `fetch` that does this check and returns the PDF bytes. It raises `RuntimeError` when the fetch fails or the body does not start with `PDF_MAGIC_BYTES`:
-
-```python
-from web_scout import fetch_pdf
-
-pdf_bytes = await fetch_pdf("https://openknowledge.fao.org/bitstreams/c1caede2-ea98-46b0-b663-4cae429e05d3/download")
-```
-
-### Domain policy
-
-Nothing is blocked by default: `exclude_domains=None` means every domain is eligible for search and scraping. To block domains, pass a list explicitly. A curated list of platforms that waste the scrape budget (social/video sites with no scrapeable text, bot-blocked search engines, hard-paywalled publishers) is exported as `RECOMMENDED_EXCLUDE_DOMAINS`:
-
-```python
-from web_scout import run_web_research, RECOMMENDED_EXCLUDE_DOMAINS
-
-# Opt in to the curated list
-result = await run_web_research(
-    query="...",
-    exclude_domains=RECOMMENDED_EXCLUDE_DOMAINS,
-)
-
-# Curated list plus your own additions
-result = await run_web_research(
-    query="...",
-    exclude_domains=[*RECOMMENDED_EXCLUDE_DOMAINS, "statista.com"],
-)
-```
-
-Exclusions are applied natively by search backends that support them (Exa's `excludeDomains`); backends without native support (Serper) rely on the post-search URL filter, which always runs. Contradictions fail fast: a domain appearing in both `include_domains` and `exclude_domains`, or a `direct_url` whose host is excluded, raises `ValueError`.
-
-### Source caching
-
-URL fetches and PDF parses are cached with Prefect. A second request for the same URL reuses the stored page or document. A second request for the same PDF bytes reuses the parse even when the URL is different. Query-specific extraction and synthesis still run each time.
-
-By default the cache is on disk at `~/.cache/web-scout` and survives a new process. Pass `cache_storage` to store both caches in a caller-supplied Prefect block, such as a GCS bucket:
-
-```python
-from prefect_gcp.cloud_storage import GcsBucket
-
-result = await run_web_research(
-    query="...",
-    cache_storage=GcsBucket(bucket="my-cache"),
-    refresh_pdf_cache=False,
-    refresh_url_cache=False,
-)
-```
-
-`refresh_pdf_cache=True` and `refresh_url_cache=True` recompute those entries. `cache=True` is still accepted and does not turn the cache off. Failed scrapes, final answers, query-specific summaries, and click-driven browser sessions are not cached. Concurrent workers wait rather than fetching or parsing the same URL or PDF at the same time.
-
-## Pipeline, in one view
+## How it works
 
 ```text
 question
@@ -471,54 +208,47 @@ question
                                citation validation
 ```
 
-## Evaluation
+| Input encountered | What the pipeline does |
+| --- | --- |
+| Static HTML | Uses a fast HTTP fetch and converts the page to clean Markdown |
+| JS-heavy pages and SPA shells | Escalates to a stealth Chromium browser and can interact with page controls |
+| Cloudflare or similar bot challenges | Retries with Scrapling's stealth browser and Cloudflare challenge handling |
+| PDF, DOCX, PPTX, XLSX | Downloads and converts the document with Docling |
+| Scanned PDFs, charts, maps, images | Uses the configured vision model when text extraction is insufficient |
+| JSON endpoints | Converts structured payloads into readable evidence |
+| List, index, and database pages | Ranks detail links, follows them, and can take one pagination hop |
+| Thin or incomplete evidence | Scrapes promising backlog URLs or generates targeted follow-up searches |
 
-Web Scout and OpenAI's built-in web search (`gpt-6-astra`, high reasoning effort) answer the same deep-research and control questions. Every page each answer cites is fetched independently, and each claim is checked against the page it cites.
+The browser fallback can pass many JS-gated and Cloudflare-protected pages, but it is not a guarantee: sites can still block automation. Those URLs are reported in `result.bot_detected` instead of disappearing or being presented as evidence. Use the package only where you have permission and in accordance with the source site's terms.
 
-| Questions | Claims supported by cited page | Completeness (1–5) | Preferred answer |
-| --- | --- | --- | --- |
-| Deep research | _pending_ | _pending_ | _pending_ |
-| Control | _pending_ | _pending_ | _pending_ |
+## Main options
 
-Cells will read Web Scout / OpenAI. Reproduce with `python eval/compare_search.py`.
+| Option | Default | What it does |
+| --- | --- | --- |
+| `research_depth` | `"standard"` | `"deep"` runs more searches and reads more sources |
+| `include_domains` | `None` | Restricts discovery to these domains |
+| `exclude_domains` | `None` | Blocks domains; `RECOMMENDED_EXCLUDE_DOMAINS` is a curated list |
+| `direct_url` | `None` | Skips search and starts from this URL |
+| `search_backend` | `"serper"` | `"exa"` or `"parallel"` (keyless) |
+| `models` | GPT-6 Luna, Gemini vision | LLM per stage, using LiteLLM model IDs |
+| `coverage_criteria` | `None` | Extra conditions the evidence must meet |
+| `extractor_guidance` | `None` | Refines what each source extractor keeps |
 
-## Where it fits
-
-Use `web-scout-ai` when your application needs the contents of real pages and documents—not only search snippets—and you want the source successes and failures returned as structured data.
-
-Compared with a hosted web-search tool, which returns an answer and a list of links, `web-scout-ai` also gives you:
-
-- **Coverage, not first hits.** It checks whether the collected evidence answers every part of the question, then scrapes promising follow-up links or runs targeted searches—also in the language of the country you ask about—to fill the gaps.
-- **The evidence, per source.** `result.scraped` holds the query-relevant extract from every page and document it read, with page references for PDFs, so each claim can be checked without fetching the pages again.
-- **An account of every URL.** Sources that failed, were blocked, returned a bot wall, or turned out to be irrelevant are listed with the reason, instead of disappearing.
-- **Citations that point at what was read.** A deterministic check rejects citations to invented or snippet-only URLs before the answer is returned.
-- **Your own stack.** Choose the models and provider, restrict or exclude domains, cache sources, and let it search in the language of the country you ask about.
-
-It is intentionally a bounded research component. If you only need search links, use a search API directly. If you need an open-ended autonomous research process with human checkpoints, put this package inside a broader agent workflow.
+Every option, the single-URL `fetch()` helper, source caching and resource cleanup are documented in [Configuration](https://github.com/RSO9192/web-scout-ai/blob/main/docs/configuration.md). See the [performance report](https://github.com/RSO9192/web-scout-ai/blob/main/docs/performance.md) for measurements and limits.
 
 ## Requirements
 
 - Python 3.13
 - An API key for the configured LLM provider
-- A Serper or Exa API key for search mode
+- A Serper or Exa API key for search mode (Parallel needs none)
 - Chromium setup for rendered pages, interactive sites, and browser fallbacks
-
-## Resource reuse
-
-CPU PDF pipelines initialize on the first document and are reused. Browser and HTTP resources are reused on the same event loop; after requests finish, call `await web_scout.scraping.close_resources()` at application shutdown. See the [performance report](docs/performance.md) for measurements, limits, benchmark commands and compatibility details.
-
-## Orchestrator link selection
-
-`Orchestrator` uses `DefaultCrawler`, which selects links from already-parsed content with the same selectors as the research pipeline, so `DISABLE_JEV` applies to it too. With GPT it uses the default `followup_selector` model unless you pass a custom `llm_config`.
-
-`Crawl4AICrawler` remains an alias for `DefaultCrawler` to preserve existing imports. `llm_config=None` requests heuristic-only selection. Config objects with `provider`, `api_token` and `base_url` are accepted for custom GPT connections. No Crawl4AI package, browser or setup is required.
 
 ## Contributing
 
-The main extension point is [`SearchBackend`](src/web_scout/search_backends.py). New backends should implement the async `search()` contract and return normalized results (title, url, snippet).
+The main extension point is [`SearchBackend`](https://github.com/RSO9192/web-scout-ai/blob/main/src/web_scout/search_backends.py). New backends should implement the async `search()` contract and return normalized results (title, url, snippet).
 
 Bug reports and focused pull requests are welcome at [github.com/RSO9192/web-scout-ai](https://github.com/RSO9192/web-scout-ai).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/RSO9192/web-scout-ai/blob/main/LICENSE)
