@@ -13,6 +13,8 @@ Give your agent one tool call. `web-scout-ai` searches the web, reads the pages 
 
 **On document-heavy research questions, 91% of Web Scout's claims were backed by a page it cites, against 78% for OpenAI web search, with a third fewer unsupported claims per answer** ([evaluation](#evaluation)).
 
+![A sentence from result.synthesis linked to the extract in result.scraped that backs it, above the audit-trail counts for the same call](https://raw.githubusercontent.com/RSO9192/web-scout-ai/main/assets/web-scout-evidence.svg)
+
 ```python
 from agents import Agent, Runner, function_tool
 from web_scout import run_web_research
@@ -41,38 +43,37 @@ The example uses the [OpenAI Agents SDK](https://openai.github.io/openai-agents-
 
 Query: `Indonesia biodiversity hotspots current status and recent trend`
 
-> Indonesia remains one of the world's most important centres of biodiversity,
-> but the available evidence indicates a negative overall status and trend. The
-> UNEP country fiche describes Indonesia as one of 17 megadiverse countries,
-> containing two globally recognised biodiversity hotspots; it reports
-> approximately 31,750 plant species, 732 mammals, 1,711 birds, 750 reptiles,
-> 403 amphibians and 1,236 freshwater fish.
-> [Biodiversity / Indonesia | Interactive Country Fiches](https://dicf.unepgrid.ch/indonesia/biodiversity)
+> Indonesia’s two recognized biodiversity hotspots are Sundaland and Wallacea
+> [Threatened Biodiversity Hotspots in
+> Indonesia](https://www.kew.org/science/our-science/projects/indonesia-biodiversity-hotspot-old).
+> The clearest recent national-level indicator—not a hotspot-by-hotspot
+> measure—is the Red List Index: it fell from 0.77 in 2018 to 0.75 in 2024;
+> Indonesia’s 2025–2029 strategic plan sets a target of 0.76 by 2029 [Deputy
+> Minister: Biodiversity Status Documents Become a Compass for Indonesia’s
+> Conservation
+> Policy](https://www.kehutanan.go.id/pers/wamenhut-dokumen-status-keanekaragaman-hayati-jadi-kompas-kebijakan-konservasi-indonesia).
+> The index is described as an aggregate indicator of species extinction risk
+> [Deputy Minister: Biodiversity Status Documents Become a Compass for
+> Indonesia’s Conservation
+> Policy](https://www.kehutanan.go.id/pers/wamenhut-dokumen-status-keanekaragaman-hayati-jadi-kompas-kebijakan-konservasi-indonesia).
 >
-> A 2024 review reports that, according to Ministry of Environment and Forestry
-> data for 2020, Indonesia retained 86.9 million hectares of forest, including
-> 45.3 million hectares of primary forest. In Sundaland, 70.6% of the region
-> had an intense human-footprint score (2009 dataset); among 308 lowland-forest
-> bird species assessed, 273, or 88.6%, experienced a reduction in suitable
-> range between 2000 and 2015.
-> [Forest fragmentation in Indonesia](https://www.sciencedirect.com/science/article/pii/S2351989424001227),
-> [Severe human pressures in the Sundaland biodiversity hotspot](https://conbio.onlinelibrary.wiley.com/doi/10.1111/csp2.169)
->
-> The most recent forest-loss signal is mixed but concerning. WRI/University of
-> Maryland analysis reports that Indonesia's tropical primary-forest loss
-> increased 14% from 2024 to 2025, although it remained below the high levels
-> of the mid-2010s. A global land-use analysis covering 1995–2022 found that
-> Indonesia accounted for 22% of global biodiversity losses attributed to
-> land-use change, the largest national share in the study.
-> [Tropical rainforest loss slowed in 2025](https://gfr.wri.org/latest-analysis-deforestation-trends),
-> [Biodiversity impacts of recent land-use change](https://www.nature.com/articles/s41893-024-01433-4)
->
-> Comparisons should be made cautiously because the sources use different
-> indicators and years: human-footprint data end in 2009, bird-range data in
-> 2015, several forest assessments in 2020–2022, and primary-forest-loss data
-> in 2025.
+> For Wallacea, the available detailed profile is dated: its latest
+> biodiversity-status data were compiled through November 1, 2013. It recorded
+> 560 globally threatened species—308 terrestrial or freshwater and 252
+> marine—including 35 critically endangered, 108 endangered, and 417 vulnerable
+> species [Wallacea Biodiversity Hotspot, pp. 5, 9–10,
+> 20](https://www.cepf.net/resources/calls-for-proposals/ecosystem-profile-technical-summary-1).
+> Forest cover was reported as 17.7 million hectares, about half of Wallacea’s
+> land area, in 2011 [Wallacea Biodiversity Hotspot, pp. 5, 9–10,
+> 20](https://www.cepf.net/resources/calls-for-proposals/ecosystem-profile-technical-summary-1).
+> For 2000–2011, annual deforestation rates in Key Biodiversity Areas were 0.09%
+> in protected areas, 0.21% in unprotected areas, and 0.29% in partially
+> protected areas [Wallacea Biodiversity Hotspot, pp. 5, 9–10,
+> 20](https://www.cepf.net/resources/calls-for-proposals/ecosystem-profile-technical-summary-1).
+> These figures show documented pressures but are too old to establish
+> Wallacea’s current status.
 
-This is a fraction of what that call returned. The full synthesis was 10,055 characters; `result.scraped` also held extracted evidence from all 9 sources (~34,000 characters)—including a ScienceDirect review, a Conservation Biology paper, a Nature paper, a CEPF ecosystem profile, an interactive UNEP country fiche, and WRI's 2025 forest-loss analysis—plus an audit trail of the 3 searches, 1 irrelevant fetch, and 13 snippet-only hits that were not used as citations. The run took 188.7 seconds. Results and timing vary with the query, sources, model, and network.
+This is a fraction of what that call returned. The full synthesis was 4,804 characters; `result.scraped` also held the extract from each of the 8 sources it read (~6,700 characters)—including a CEPF ecosystem profile, a 2024 national biodiversity status report, Indonesia's Ministry of Forestry and UNEP's country fiche—plus an audit trail of the 3 searches, 3 irrelevant fetches, 1 source error and 17 snippet-only hits that were not used as citations. Results vary with the query, sources, model, and network.
 
 </details>
 ## Why Web Scout
@@ -141,10 +142,11 @@ result = await run_web_research(
 
 ## Evaluation
 
-Web Scout (default settings) and OpenAI web search (`gpt-6-astra`, high reasoning effort) answered 11 questions, twice each: 8 document-heavy questions whose answers sit inside official documents and data, and 3 simple lookups a search snippet can answer. An independent fetcher downloaded every page each answer cites, and a Gemini judge split each answer into claims and checked them against those pages.
+Web Scout (default settings) and OpenAI web search (`gpt-6-astra`, high reasoning effort) answered 11 questions, twice each: 8 document-heavy questions whose answers sit inside official documents and data, and 3 simple lookups a search snippet can answer. An independent fetcher downloaded every page each answer cites, and a Gemini judge split each answer into claims and checked them against those pages. Only the final answers were scored; Web Scout's per-source extracts come on top.
 
 | Web Scout / OpenAI web search | Document-heavy (8) | Simple lookups (3) |
 | --- | --- | --- |
+| Evidence returned with the answer | **Extract from every source read / links only** | **Extract from every source read / links only** |
 | Verified claims: cited and backed by the cited pages | **91% / 78%** | 100% / 100% |
 | Unsupported or contradicted claims per answer | **0.7 / 1.1** | 0.0 / 0.0 |
 | Claims with a citation | **99% / 87%** | 100% / 100% |

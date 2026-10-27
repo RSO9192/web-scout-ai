@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
   <title id="title">web-scout-ai social card</title>
-  <desc id="desc">Web research that reads the sources. Search and extract web content into cited answers with a complete source audit trail.</desc>
+  <desc id="desc">Web research your agent can verify. Search and read web content into cited answers with the evidence behind each claim.</desc>
   <defs>
     <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0d1d17"/>
@@ -41,10 +41,10 @@
 
   <text x="566" y="232" fill="#effff7" font-size="59"
         font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-        font-weight="700" letter-spacing="-1.5">Web research that</text>
+        font-weight="700" letter-spacing="-1.5">Web research your</text>
   <text x="566" y="302" fill="url(#brand)" font-size="59"
         font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-        font-weight="700" letter-spacing="-1.5">reads the sources.</text>
+        font-weight="700" letter-spacing="-1.5">agent can verify.</text>
 
   <text x="568" y="366" fill="#a6bdb3" font-size="22"
         font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
@@ -52,7 +52,7 @@
   </text>
   <text x="568" y="400" fill="#a6bdb3" font-size="22"
         font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
-    Return cited answers and a complete source audit trail.
+    Return cited answers with the evidence behind each claim.
   </text>
 
   <g transform="translate(566,454)">
@@ -65,8 +65,8 @@
   <g transform="translate(568,556)" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="14" font-weight="600" letter-spacing="1.4">
     <text x="0" y="14" fill="#4ade80">SEARCH</text>
     <circle cx="79" cy="9" r="3" fill="#55756a"/>
-    <text x="96" y="14" fill="#6ee7b7">EXTRACT</text>
-    <circle cx="189" cy="9" r="3" fill="#55756a"/>
-    <text x="206" y="14" fill="#22d3ee">CITE</text>
+    <text x="96" y="14" fill="#6ee7b7">READ</text>
+    <circle cx="153" cy="9" r="3" fill="#55756a"/>
+    <text x="170" y="14" fill="#22d3ee">VERIFY</text>
   </g>
 </svg>

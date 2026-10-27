@@ -8,6 +8,7 @@ Web Scout (v1.13.0, default settings) and OpenAI web search (`gpt-6-astra`, high
 - A judge (`gemini/gemini-3.1-pro-preview`) splits each answer into factual claims and checks each one against the text of the pages that answer cites. A claim counts as supported when the information is in those pages, even if its link points at a neighbouring source.
 - **Verified claims** is the share of all claims that cite a page and are supported by the cited pages. Uncited and unsupported claims count against it. Claims whose cited page the fetcher could not read are left out.
 - **Completeness** (1–5) is scored without the system's name.
+- Only the final answers are scored. Web Scout also returns the extract it took from every source it read (`result.scraped`); OpenAI web search returns links and titles only, with no source text, so there is nothing to compare there.
 - There is no overall "which answer is better" vote: that kind of judgment mostly rewards writing style, not whether the claims hold up.
 
 ## Results
