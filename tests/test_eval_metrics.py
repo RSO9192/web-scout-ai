@@ -139,10 +139,13 @@ def test_fetch_page_caches_and_does_not_refetch(tmp_path):
     assert second == first and len(calls) == 1
 
 
-def test_fetch_page_marks_403_and_short_text_as_unfetchable(tmp_path):
+def test_fetch_page_marks_403_and_short_text_as_unfetchable(tmp_path, monkeypatch):
     import httpx
 
+    import eval.fetch as fetch
     from eval.fetch import fetch_page
+
+    monkeypatch.setattr(fetch, "render_text", lambda url: "")
 
     blocked = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(403, text="blocked")))
     page = fetch_page("https://x.org", tmp_path, client=blocked)
@@ -155,6 +158,23 @@ def test_fetch_page_marks_403_and_short_text_as_unfetchable(tmp_path):
     )
     page = fetch_page("https://y.org", tmp_path, client=shell)
     assert page["ok"] is False and page["error"]
+
+
+def test_fetch_page_renders_javascript_shell_in_browser(tmp_path, monkeypatch):
+    import httpx
+
+    import eval.fetch as fetch
+
+    rendered = []
+    monkeypatch.setattr(fetch, "render_text", lambda url: rendered.append(url) or "Taxas de desmatamento " * 20)
+    shell = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda r: httpx.Response(200, headers={"content-type": "text/html"}, text="<app-root></app-root>")
+        )
+    )
+    page = fetch.fetch_page("https://terrabrasilis.dpi.inpe.br/app/dashboard", tmp_path, client=shell)
+    assert page["ok"] and page["text"].startswith("Taxas de desmatamento")
+    assert rendered == ["https://terrabrasilis.dpi.inpe.br/app/dashboard"]
 
 
 def test_fetch_page_routes_octet_stream_pdf_to_pdf_converter(tmp_path, monkeypatch):
@@ -197,10 +217,19 @@ def _fake_complete(*, check_indices=None, pair_winners=None, captured=None):
                 ]
             )
         if schema is judge.ClaimChecks:
-            numbers = [int(n) for n in re.findall(r"^(\d+)\. ", user, flags=re.M)]
-            keep = numbers if check_indices is None else check_indices
+            claims_part, page_text = user.split("Page text:")
+            numbered = [(int(n), text) for n, text in re.findall(r"^(\d+)\. (.*)$", claims_part, flags=re.M)]
             return judge.ClaimChecks(
-                checks=[judge.ClaimCheck(index=n, verdict="supported", reason="on page") for n in keep]
+                checks=[
+                    judge.ClaimCheck(
+                        index=n,
+                        verdict="supported" if text in page_text else "not_supported",
+                        reason="on page",
+                        url="https://a.org" if text in page_text else "",
+                    )
+                    for n, text in numbered
+                    if check_indices is None or n in check_indices
+                ]
             )
         if schema is judge.ScoreReason:
             return judge.ScoreReason(score=4, reason="Names the reserves.")
@@ -306,7 +335,8 @@ def test_summarize_runs_excludes_unfetchable_uncited_and_judge_errors_from_rate(
     summary = summarize_runs([run, {"error": "boom"}])
 
     assert summary["supported_rate"] == 0.5
-    assert summary["unsupported"] == 2 and summary["uncited"] == 1 and summary["unfetchable"] == 1
+    assert summary["unsupported"] == 2 and summary["cited_rate"] == 5 / 6
+    assert summary["verified_rate"] == 2 / 5 and summary["unfetchable"] == 1
     assert summary["completeness"] == 4 and summary["pages"] == 2 and summary["errors"] == 1
 
 
@@ -353,11 +383,10 @@ def test_report_has_kind_totals_pairwise_and_error_cells():
     md = format_report(_report_rows(), run_date=TODAY, systems=["web_scout", "openai"], labels=_LABELS)
 
     assert (
-        "| Question | Kind | Completeness | Claims supported by cited page | Unsupported or contradicted "
-        "| Uncited claims | Pages cited |" in md
+        "| Question | Kind | Verified claims | Completeness | Claims with a citation | Claims supported by cited pages "
+        "| Unsupported or contradicted | Pages cited |" in md
     )
-    assert "| Guatemala hotspots | deep | 4.5 / 3.0 | 75% / 50% |" in md
-    assert "| IFAD headquarters | control | 5.0 / error |" in md
+    assert "| IFAD headquarters | control | 100% / error | 5.0 / error |" in md
     assert "| **Deep questions** |" in md and "| **Control questions** |" in md
     assert "Web Scout vs OpenAI web search: 1 win, 1 tie, 0 losses" in md
 
@@ -503,7 +532,7 @@ def test_select_passages_default_keeps_a_long_non_english_document_whole():
     assert select_passages(document, ["Traditional bubu traps require permission"]) == document
 
 
-def test_judge_record_tries_every_cited_page_before_not_supported(monkeypatch):
+def test_judge_record_supports_claims_found_on_another_cited_page(monkeypatch):
     import re
 
     from eval import judge
@@ -512,21 +541,22 @@ def test_judge_record_tries_every_cited_page_before_not_supported(monkeypatch):
         if schema is judge.ExtractedClaims:
             return judge.ExtractedClaims(
                 claims=[
-                    judge.ExtractedClaim(claim="no-go zone", urls=["https://a.org", "https://d.org"]),
-                    judge.ExtractedClaim(claim="absent everywhere", urls=["https://a.org", "https://d.org"]),
+                    judge.ExtractedClaim(claim="no-go zone", urls=["https://a.org"]),
+                    judge.ExtractedClaim(claim="absent everywhere", urls=["https://a.org"]),
                 ]
             )
         if schema is judge.ClaimChecks:
-            numbers = [(int(n), text) for n, text in re.findall(r"^(\d+)\. (.*)$", user, flags=re.M)]
-            on_d = "Page text:\nD page" in user
+            assert "Page https://a.org:\nA page" in user and "Page https://d.org:\nD page" in user
+            numbered = re.findall(r"^(\d+)\. (.*)$", user, flags=re.M)
             return judge.ClaimChecks(
                 checks=[
                     judge.ClaimCheck(
-                        index=n,
-                        verdict="supported" if on_d and text == "no-go zone" else "not_supported",
-                        reason="d" if on_d else "a",
+                        index=int(n),
+                        verdict="supported" if text == "no-go zone" else "not_supported",
+                        reason="",
+                        url="https://d.org" if text == "no-go zone" else "",
                     )
-                    for n, text in numbers
+                    for n, text in numbered
                 ]
             )
         return judge.ScoreReason(score=3, reason="")
@@ -544,7 +574,6 @@ def test_judge_record_tries_every_cited_page_before_not_supported(monkeypatch):
     assert by_claim["no-go zone"]["verdict"] == "supported"
     assert by_claim["no-go zone"]["checked_url"] == "https://d.org"
     assert by_claim["absent everywhere"]["verdict"] == "not_supported"
-    assert by_claim["absent everywhere"]["checked_url"] == "https://a.org"
 
 
 # --- Final review fixes ---
@@ -583,38 +612,25 @@ def test_blind_judges_never_see_tracking_params(monkeypatch):
     assert captured and not any("utm_source" in user for user in captured)
 
 
-def test_judge_record_keeps_other_pages_when_one_check_call_fails(monkeypatch):
-    import re
-
+def test_judge_record_keeps_completeness_when_the_check_call_fails(monkeypatch):
     from eval import judge
 
     def complete(system, user, schema):
         if schema is judge.ExtractedClaims:
-            return judge.ExtractedClaims(
-                claims=[
-                    judge.ExtractedClaim(claim="on a", urls=["https://a.org"]),
-                    judge.ExtractedClaim(claim="on d", urls=["https://d.org"]),
-                ]
-            )
+            return judge.ExtractedClaims(claims=[judge.ExtractedClaim(claim="on a", urls=["https://a.org"])])
         if schema is judge.ClaimChecks:
-            if "Page text:\nD page" in user:
-                raise RuntimeError("context length exceeded")
-            numbers = [int(n) for n in re.findall(r"^(\d+)\. ", user, flags=re.M)]
-            return judge.ClaimChecks(
-                checks=[judge.ClaimCheck(index=n, verdict="supported", reason="") for n in numbers]
-            )
+            raise RuntimeError("context length exceeded")
         return judge.ScoreReason(score=3, reason="")
 
-    pages = {"https://a.org": {"ok": True, "text": "A page"}, "https://d.org": {"ok": True, "text": "D page"}}
     monkeypatch.setattr(judge, "_complete", complete)
-    record = {"answer": "x", "cited_urls": ["https://a.org", "https://d.org"], "error": None}
+    record = {"answer": "x", "cited_urls": ["https://a.org"], "error": None}
 
-    judgment = judge.judge_record(query="q", record=record, today=TODAY, get_page=pages.__getitem__)
+    judgment = judge.judge_record(
+        query="q", record=record, today=TODAY, get_page=lambda url: {"ok": True, "text": "A page"}
+    )
 
-    by_claim = {claim["claim"]: claim for claim in judgment["claims"]}
-    assert by_claim["on a"]["verdict"] == "supported"
-    assert by_claim["on d"]["verdict"] == "judge_error"
-    assert "context length exceeded" in by_claim["on d"]["reason"]
+    assert judgment["claims"][0]["verdict"] == "judge_error"
+    assert "context length exceeded" in judgment["claims"][0]["reason"]
     assert judgment["completeness"]["score"] == 3
 
 
@@ -676,7 +692,7 @@ def test_report_shows_unfetchable_claims_and_runs_judged():
 
     assert "| Pages cited | Unfetchable claims | Runs judged |" in md
     assert (
-        "| IFAD headquarters | control | 5.0 / error | 100% / error | 0.0 / error | 0.0 / error | 2.0 / error "
+        "| IFAD headquarters | control | 100% / error | 5.0 / error | 100% / error | 100% / error | 0.0 / error | 2.0 / error "
         "| 0.0 / error | 1/1 / 0/1 |" in md
     )
     assert "(2 of 2 run pairs judged)" in md

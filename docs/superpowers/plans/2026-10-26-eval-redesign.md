@@ -307,7 +307,6 @@ def test_score_row_skips_error_runs_in_pairwise(monkeypatch):
 | eudr | deep | Under the EU Deforestation Regulation, which countries are classified as low risk and high risk in the latest country benchmarking implementing regulation? |
 | kenya | deep | What maize production and yield figures did the Kenya National Bureau of Statistics publish for the latest year in its Economic Survey? |
 | cotedivoire | deep | What forest cover and annual forest loss figures does Côte d'Ivoire report in its latest national forest inventory? |
-| bangladesh | deep | What hilsa fishing ban periods and areas does Bangladesh's Department of Fisheries set, and what support is given to affected fishers? |
 | fao_dg | control | Who is the Director-General of FAO and when did they take office? |
 | ifad_hq | control | In which city is the headquarters of the International Fund for Agricultural Development? |
 | ffpi | control | What was the FAO Food Price Index value in the latest monthly release? |

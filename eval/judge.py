@@ -15,7 +15,6 @@ JUDGE_MODEL = "gemini/gemini-3.1-pro-preview"
 PASSAGE_CHAR_LIMIT = 1_000_000
 _WINDOW_CHARS = 1_500
 _SEPARATOR = "\n…\n"
-_VERDICT_RANK = {"unfetchable": 0, "judge_error": 1, "not_supported": 2, "contradicted": 3, "supported": 4}
 
 EXTRACT_INSTRUCTIONS = """\
 Split the answer into atomic factual claims: one name, figure, date, rule, or relation per claim.
@@ -29,16 +28,18 @@ Use an empty list when the claim has no link.
 """
 
 CHECK_INSTRUCTIONS = """\
-You check numbered claims against the text of one web page.
+You check numbered claims against the text of the web pages one answer cites.
 Judge only from the page text. Do not use your own knowledge.
-supported: the page states the claim or it follows directly from what the page states; paraphrase, rounding,
+A claim may draw on any of the pages, or on several together, whichever page it was cited to.
+supported: the pages state the claim or it follows directly from what they state; paraphrase, rounding,
 translation, and summary wording are fine.
-A claim about a group is supported when the page supports it for the group as a whole; not every member needs
+A claim about a group is supported when the pages support it for the group as a whole; not every member needs
 every feature.
-not_supported: the page text does not contain the claim.
-contradicted: the page states something incompatible with the claim.
-unreadable: the page text is garbled or binary, a bot, consent, or login wall, or lacks the page's main content.
-Return one check per claim number with a one-sentence reason quoting or naming the passage.
+not_supported: the pages do not contain the claim.
+contradicted: a page states something incompatible with the claim.
+unreadable: the relevant page is garbled or binary, a bot, consent, or login wall, or lacks its main content.
+Return one check per claim number with a one-sentence reason quoting or naming the passage, and the URL of the
+page it comes from (empty when no page applies).
 """
 
 COMPLETENESS_INSTRUCTIONS = """\
@@ -72,15 +73,16 @@ class ExtractedClaims(BaseModel):
 
 
 class ClaimCheck(BaseModel):
-    """Verdict for one numbered claim against one page."""
+    """Verdict for one numbered claim against the cited pages."""
 
     index: int
     verdict: Literal["supported", "not_supported", "contradicted", "unreadable"]
     reason: str
+    url: str = ""
 
 
 class ClaimChecks(BaseModel):
-    """Verdicts for the claims sent with one page."""
+    """Verdicts for the claims sent with the cited pages."""
 
     checks: list[ClaimCheck]
 
@@ -106,7 +108,7 @@ def judge_record(*, query: str, record: dict, today: str, get_page: Callable[[st
     extracted = _complete(EXTRACT_INSTRUCTIONS, _user(today, f"Answer:\n{answer}"), ExtractedClaims)
 
     claims = []
-    remaining: dict[int, list[str]] = {}
+    checkable = []
     for item in extracted.claims:
         urls = []
         for url in item.urls:
@@ -116,31 +118,24 @@ def judge_record(*, query: str, record: dict, today: str, get_page: Callable[[st
         verdict = "unfetchable" if urls else "uncited"
         claims.append({"claim": item.claim, "urls": urls, "verdict": verdict, "reason": "", "checked_url": ""})
         if urls:
-            remaining[len(claims) - 1] = list(urls)
+            checkable.append(len(claims) - 1)
 
-    # A claim citing several pages counts as supported if any of them supports it, so each round checks
-    # the next fetchable page for every claim not yet supported, and keeps its most informative verdict.
-    while remaining:
-        groups: dict[str, list[int]] = {}
-        for index, urls in list(remaining.items()):
-            while urls and not get_page(urls[0]).get("ok"):
-                urls.pop(0)
-            if not urls:
-                del remaining[index]
-                continue
-            groups.setdefault(urls.pop(0), []).append(index)
-        for url, indices in groups.items():
-            try:
-                results = _check_claims([claims[index]["claim"] for index in indices], get_page(url)["text"], today)
-            except Exception as exc:
-                # One failed call (oversized page, invalid output) must not discard the rest of the run.
-                results = [("judge_error", f"{type(exc).__name__}: {exc}")] * len(indices)
-            for index, (verdict, reason) in zip(indices, results):
-                claim = claims[index]
-                if not claim["checked_url"] or _VERDICT_RANK[verdict] > _VERDICT_RANK[claim["verdict"]]:
-                    claim.update(verdict=verdict, reason=reason, checked_url=url)
-                if verdict == "supported":
-                    remaining.pop(index, None)
+    # A claim is checked against every page the answer cites, not only its own links: information that is in
+    # the cited documents counts as supported even when the link points at a neighbouring source.
+    pages = {url: get_page(url) for url in dict.fromkeys(record.get("cited_urls") or [])}
+    readable = [(url, page["text"]) for url, page in pages.items() if page.get("ok")]
+    if checkable and readable:
+        try:
+            results = _check_claims([claims[index]["claim"] for index in checkable], readable, today)
+        except Exception as exc:
+            # A failed call (oversized pages, invalid output) must not discard the completeness score.
+            results = [("judge_error", f"{type(exc).__name__}: {exc}", "")] * len(checkable)
+        for index, (verdict, reason, url) in zip(checkable, results):
+            claim = claims[index]
+            # A cited page the judge could not read may hold the claim, so it is not counted against the answer.
+            if verdict == "not_supported" and any(not pages[link].get("ok") for link in claim["urls"]):
+                verdict = "unfetchable"
+            claim.update(verdict=verdict, reason=reason, checked_url=url)
 
     completeness = _complete(
         COMPLETENESS_INSTRUCTIONS, _user(today, f"Question:\n{query}\n\nAnswer:\n{answer}"), ScoreReason
@@ -181,21 +176,22 @@ def select_passages(text: str, claims: list[str], limit: int = PASSAGE_CHAR_LIMI
     return _SEPARATOR.join(windows[index] for index in sorted(chosen))
 
 
-def _check_claims(claims: list[str], page_text: str, today: str) -> list[tuple[str, str]]:
+def _check_claims(claims: list[str], pages: list[tuple[str, str]], today: str) -> list[tuple[str, str, str]]:
     numbered = "\n".join(f"{number}. {claim}" for number, claim in enumerate(claims, start=1))
-    passages = select_passages(page_text, claims)
+    text = "\n\n".join(f"Page {url}:\n{page_text}" for url, page_text in pages)
+    passages = select_passages(text, claims)
     checks = _complete(CHECK_INSTRUCTIONS, _user(today, f"Claims:\n{numbered}\n\nPage text:\n{passages}"), ClaimChecks)
     by_index = {check.index: check for check in checks.checks}
     results = []
     for number in range(1, len(claims) + 1):
         check = by_index.get(number)
         if check is None:
-            results.append(("judge_error", ""))
+            results.append(("judge_error", "", ""))
         elif check.verdict == "unreadable":
             # A garbled extraction says nothing about the claim, so it counts with pages that could not be fetched.
-            results.append(("unfetchable", check.reason))
+            results.append(("unfetchable", check.reason, check.url))
         else:
-            results.append((check.verdict, check.reason))
+            results.append((check.verdict, check.reason, check.url))
     return results
 
 

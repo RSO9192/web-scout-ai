@@ -21,6 +21,7 @@ def summarize_runs(records: list[dict]) -> dict:
             if claim.get("verdict") in counts:
                 counts[claim["verdict"]] += 1
     checked = sum(counts[verdict] for verdict in _CHECKED)
+    total = sum(counts.values())
     scores = [
         record["judgment"]["completeness"]["score"]
         for record in judged
@@ -29,8 +30,10 @@ def summarize_runs(records: list[dict]) -> dict:
     return {
         "completeness": _mean(scores),
         "supported_rate": counts["supported"] / checked if checked else None,
+        # Uncited claims count against it: a claim with no source cannot be traced.
+        "verified_rate": counts["supported"] / (checked + counts["uncited"]) if checked + counts["uncited"] else None,
         "unsupported": (counts["not_supported"] + counts["contradicted"]) / len(judged) if judged else None,
-        "uncited": counts["uncited"] / len(judged) if judged else None,
+        "cited_rate": 1 - counts["uncited"] / total if total else None,
         "unfetchable": counts["unfetchable"] / len(judged) if judged else None,
         "pages": _mean([len(record.get("cited_urls") or []) for record in ok]),
         "errors": len(records) - len(ok),
@@ -49,15 +52,17 @@ def format_report(rows: list[dict], *, run_date: str, systems: list[str], labels
         "",
         "Every page an answer cites is downloaded by an independent fetcher that shares no code with Web Scout. "
         "A judge (`gemini/gemini-3.1-pro-preview`, given today's date) splits each answer into claims and checks "
-        "each claim against the text of the page it cites. Claims on pages that could not be fetched are reported "
-        "separately and left out of the supported rate. Completeness (1–5) is scored without the system's name. "
+        "each claim against the text of the pages the answer cites, so a claim backed by a different cited page "
+        "than the one it links still counts. Claims that could not be checked because a cited page could not be "
+        "fetched are reported separately and left out of the supported rate. Verified claims are the share of all "
+        "claims that cite a page and are supported by the cited pages, so uncited claims count against it. Completeness (1–5) is scored without the system's name. "
         "The pairwise preference shows both answers twice with the order swapped; only a consistent verdict counts "
         "as a win. Deep questions need facts from inside documents; control questions can be answered from a "
         "search snippet. Unfetchable claims and runs judged show what each figure rests on.",
         "",
-        "| Question | Kind | Completeness | Claims supported by cited page | Unsupported or contradicted "
-        "| Uncited claims | Pages cited | Unfetchable claims | Runs judged |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Question | Kind | Verified claims | Completeness | Claims with a citation | Claims supported by cited pages "
+        "| Unsupported or contradicted | Pages cited | Unfetchable claims | Runs judged |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for row in rows:
         summaries = [summarize_runs(row["runs"].get(system) or []) for system in systems]
@@ -79,10 +84,11 @@ def format_report(rows: list[dict], *, run_date: str, systems: list[str], labels
 
 def _table_row(title: str, kind: str, summaries: list[dict]) -> str:
     cells = [
+        _cells(summaries, "verified_rate", lambda value: f"{value:.0%}"),
         _cells(summaries, "completeness", lambda value: f"{value:.1f}"),
+        _cells(summaries, "cited_rate", lambda value: f"{value:.0%}"),
         _cells(summaries, "supported_rate", lambda value: f"{value:.0%}"),
         _cells(summaries, "unsupported", lambda value: f"{value:.1f}"),
-        _cells(summaries, "uncited", lambda value: f"{value:.1f}"),
         _cells(summaries, "pages", lambda value: f"{value:.1f}"),
         _cells(summaries, "unfetchable", lambda value: f"{value:.1f}"),
         " / ".join(f"{summary['judged']}/{summary['runs']}" for summary in summaries),

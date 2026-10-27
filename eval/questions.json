@@ -48,12 +48,6 @@
     "query": "What forest cover and annual forest loss figures does Côte d'Ivoire report in its latest national forest inventory?"
   },
   {
-    "id": "bangladesh",
-    "title": "Bangladesh hilsa ban",
-    "kind": "deep",
-    "query": "What hilsa fishing ban periods and areas does Bangladesh's Department of Fisheries set, and what support is given to affected fishers?"
-  },
-  {
     "id": "fao_dg",
     "title": "FAO Director-General",
     "kind": "control",
