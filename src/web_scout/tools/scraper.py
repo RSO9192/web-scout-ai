@@ -12,21 +12,26 @@
 import asyncio
 import logging
 import re
+from collections.abc import Sequence
 from contextlib import nullcontext
 from typing import Any, Dict, Optional
+from urllib.parse import urlsplit
 
 from web_scout._classification import ClassificationError
 from web_scout._classification import backend as classification_backend
 from web_scout._extractor_contract import ExtractorOutcome
 from web_scout.config import EXTRACTOR_HEURISTICS, ROUTING_HEURISTICS
+from web_scout.scraping._data_sources import DataSource
 
-from .extractor import ExtractorOutput, build_extractor_agent, run_with_retry
+from .data_lookup import render_catalog
+from .extractor import ExtractorOutput, build_extractor_agent, format_research_query, run_with_retry
 from .outcomes import build_failure_outcome, build_success_outcome, classify_failure_action
 from .page_analysis import prefetched_is_recoverable, render_cached_page_text
 from .pdf_extractor import extract_pdf_for_query, format_reference
 from .rendering import extract_primary_rendered_content, infer_rendered_outcome
 from .session_cache import get_or_fetch_session_source_artifact
-from .tracker import ResearchTracker
+from .tracker import SCRAPE_LIMIT, ResearchTracker
+from .types import DataQuote
 
 logger = logging.getLogger(__name__)
 
@@ -79,9 +84,9 @@ def create_scrape_and_extract_tool(
         norm = tracker.normalize_url(url) if tracker is not None else url
 
         if tracker is not None:
-            if tracker.scrape_count >= 25:
+            if tracker.scrape_count >= SCRAPE_LIMIT:
                 return (
-                    "CIRCUIT BREAKER: You have scraped 25 URLs. "
+                    f"CIRCUIT BREAKER: You have scraped {SCRAPE_LIMIT} URLs. "
                     "You MUST STOP scraping and synthesize your findings immediately."
                 )
             cached_response = tracker.cached_scrape_response(url)
@@ -118,6 +123,8 @@ def create_scrape_and_extract_tool(
                 is_failure = False
                 pdf_artifact = None
                 source_url = url
+                data_sources: tuple[DataSource, ...] = ()
+                is_dashboard = False
 
                 from web_scout.scraping.utils import resolve_primary_pdf_url
 
@@ -157,9 +164,14 @@ def create_scrape_and_extract_tool(
                         max_content_chars=max_content_chars,
                     )
                     title = cached_artifact.title
+                    data_sources = cached_artifact.data_sources
+                    is_dashboard = bool(cached_artifact.dashboard_kind)
                     if error:
                         page_rendered = f"[Scrape failed: {error}]"
                         is_failure = True
+                    elif not content.strip() and data_sources:
+                        # A dashboard's figures may live only in its data sources, so empty text still goes on.
+                        page_rendered = render_cached_page_text(url, title, content)
                     elif not content.strip() and artifact.kind == "text" and artifact.layout is None:
                         page_rendered = "[Page returned empty content]"
                         is_failure = True
@@ -239,10 +251,11 @@ def create_scrape_and_extract_tool(
                 if tracker is not None and classification_backend() == "jev":
                     tracker._source_text[norm] = content
 
+                research_query = format_research_query(query, tracker.requirements if tracker is not None else ())
                 if pdf_artifact is not None:
                     pdf_title, pdf_content, used_pages = await extract_pdf_for_query(
                         artifact=pdf_artifact,
-                        query=query,
+                        query=research_query,
                         model=extractor_model,
                         short_pdf_max_chars=short_pdf_max_chars,
                         verify_pdf_claims=verify_pdf_claims,
@@ -283,7 +296,7 @@ def create_scrape_and_extract_tool(
 
                 extractor_agent, extractor_cleanup = build_extractor_agent(
                     extractor_model,
-                    query,
+                    research_query,
                     url,
                     _wait_for,
                     vision_model=vision_model,
@@ -297,14 +310,22 @@ def create_scrape_and_extract_tool(
                     pre_fetched_content=page_rendered,
                     short_pdf_max_chars=short_pdf_max_chars,
                     verify_pdf_claims=verify_pdf_claims,
+                    data_sources=data_sources,
+                    is_dashboard=is_dashboard,
                 )
 
+                page_for_extractor = page_rendered
+                if data_sources:
+                    # Parsing every source for the catalog is CPU-bound (up to 12 MB per page).
+                    catalog = await asyncio.to_thread(render_catalog, data_sources)
+                    page_for_extractor += f"\n\n## Data sources\n{catalog}"
+
                 input_text = (
-                    f"Research query: {query}\n"
+                    f"Research query: {research_query}\n"
                     f"URL: {url}\n\n"
                     f"Here is the page content that has already been fetched for you:\n"
                     f"==== PAGE CONTENT ====\n"
-                    f"{page_rendered}\n"
+                    f"{page_for_extractor}\n"
                     f"======================\n\n"
                     f"Please extract the relevant content."
                 )
@@ -397,7 +418,9 @@ def create_scrape_and_extract_tool(
                     or ("skipped" in _content_lower and "http" in _content_lower and _short)
                 )
 
-                if is_failure:
+                quotes = _keep_data_quotes(output.data_quotes, data_sources)
+
+                if is_failure and not quotes:
                     outcome = _handle_failure(
                         url,
                         content or "",
@@ -411,12 +434,24 @@ def create_scrape_and_extract_tool(
                     return outcome.rendered_text
 
                 if tracker is not None:
-                    tracker.record_scrape(url, title, content, reference=title)
+                    # Inline JSON sources share the page URL, so their quotes become the page's own evidence.
+                    inline_quotes = [text for source, text in quotes if tracker.normalize_url(source.url) == norm]
+                    if is_failure and not inline_quotes:
+                        # Data-file quotes make the scrape a success, but the page itself stays uncitable.
+                        _record_by_action(tracker, classify_failure_action(content), url, content)
+                    else:
+                        page_evidence = ([] if is_failure else [content]) + inline_quotes
+                        tracker.record_scrape(url, title, "\n\n".join(page_evidence), reference=title)
+                    _record_data_files(tracker, quotes, title, norm)
+                outcome_content = content
+                if quotes:
+                    quote_block = _render_data_quotes(quotes)
+                    outcome_content = quote_block if is_failure else f"{content}\n\n{quote_block}"
                 count_scraped = tracker.count_for_action("scraped") if tracker is not None else None
                 outcome = build_success_outcome(
                     url=url,
                     title=title,
-                    content=content,
+                    content=outcome_content,
                     page_type=output.page_type,
                     links=links,
                     count_scraped=count_scraped,
@@ -502,6 +537,56 @@ def _handle_failure(
     outcome_cache[norm] = outcome
     logger.debug("[extract] extractor_outcome status=failure failure_kind=%s url=%s", action, url)
     return outcome
+
+
+def _data_file_title(page_title: str, source: DataSource) -> str:
+    name = urlsplit(source.url).path.rsplit("/", 1)[-1] or source.url
+    return f"{page_title} (data file: {name})" if page_title else f"Data file: {name}"
+
+
+def _keep_data_quotes(quotes: Sequence[DataQuote], data_sources: Sequence[DataSource]) -> list[tuple[DataSource, str]]:
+    """The ``(source, quote)`` pairs, in output order, whose ``source_id`` names one of the page's data sources.
+
+    Quotes naming an unknown source are dropped.
+    """
+    sources_by_id = {source.source_id: source for source in data_sources}
+    kept: list[tuple[DataSource, str]] = []
+    for quote in quotes:
+        source = sources_by_id.get(quote.source_id)
+        if source is None:
+            logger.info("[extract] data_quote_dropped %s unknown source", quote.source_id)
+            continue
+        logger.info("[extract] data_quote_recorded %s %s", source.source_id, source.url)
+        # One line per quote, so quotes appended to a data file's entry can be de-duplicated by line.
+        kept.append((source, " ".join(quote.quote.split())))
+    return kept
+
+
+def _record_data_files(
+    tracker: ResearchTracker, quotes: Sequence[tuple[DataSource, str]], page_title: str, page_norm: str
+) -> None:
+    """Record each quoted data file other than the page itself as a scraped source holding its quotes.
+
+    ``record_scrape`` replaces an entry's content, so quotes are appended to those already recorded for
+    the file (by this or another page), without duplicates; the first title recorded is kept.
+    """
+    for source, text in quotes:
+        if tracker.normalize_url(source.url) == page_norm:
+            continue
+        entry = tracker.entry_for(source.url)
+        if entry is not None and tracker.action_for(source.url) == "scraped":
+            lines = entry.content.split("\n")
+            if text not in lines:
+                lines.append(text)
+            tracker.record_scrape(source.url, entry.title, "\n".join(lines), reference=entry.reference)
+        else:
+            file_title = _data_file_title(page_title, source)
+            tracker.record_scrape(source.url, file_title, text, reference=file_title)
+
+
+def _render_data_quotes(quotes: Sequence[tuple[DataSource, str]]) -> str:
+    lines = [f"- [{source.source_id}] {text} (Source: {source.url})" for source, text in quotes]
+    return "Facts from the page's data files:\n" + "\n".join(lines)
 
 
 def _record_by_action(tracker: ResearchTracker, action: str, url: str, content: str) -> None:

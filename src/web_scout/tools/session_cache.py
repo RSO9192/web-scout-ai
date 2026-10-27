@@ -34,8 +34,17 @@ def cacheable_from_parse_result(url: str, parse_result: object) -> CachedSourceA
     artifact = getattr(parse_result, "artifact", None)
     title = getattr(parse_result, "title", "") or ""
     raw_html = getattr(parse_result, "raw_html", None) or ""
+    dashboard_kind = getattr(parse_result, "dashboard_kind", "")
+    data_sources = getattr(parse_result, "data_sources", ())
     if artifact is None:
-        return CachedSourceArtifact(url=url, title=title, artifact_kind="text", raw_html=raw_html)
+        return CachedSourceArtifact(
+            url=url,
+            title=title,
+            artifact_kind="text",
+            raw_html=raw_html,
+            dashboard_kind=dashboard_kind,
+            data_sources=data_sources,
+        )
     return CachedSourceArtifact(
         url=url,
         title=title,
@@ -45,6 +54,8 @@ def cacheable_from_parse_result(url: str, parse_result: object) -> CachedSourceA
         mime_type=artifact.mime_type,
         layout=getattr(artifact, "layout", None),
         raw_html=raw_html,
+        dashboard_kind=dashboard_kind,
+        data_sources=data_sources,
     )
 
 
@@ -56,8 +67,15 @@ async def _url_fetch_task(
     vision_model: str,
     exclude_domains: tuple[str, ...],
     fetch_max_pdf_pages: int,
+    data_capture_version: int,
+    converter_version: str,
 ) -> CachedSourceArtifact:
-    """Fetch one URL. ``fetch_max_pdf_pages`` is excluded from the cache key."""
+    """Fetch one URL. ``fetch_max_pdf_pages`` is excluded from the cache key.
+
+    ``data_capture_version`` only shapes the cache key: bumping it stops reuse of pages
+    cached before dashboard data capture existed. ``converter_version`` likewise stops
+    reuse of PDFs converted by an older pdf-extractor-ai.
+    """
     from web_scout.scraping import fetch_and_parse_url
 
     fetch_result, parse_result = await fetch_and_parse_url(
@@ -78,7 +96,8 @@ async def _url_fetch_task(
         raise RuntimeError(fetch_result.error)
     if parse_result.error:
         raise RuntimeError(parse_result.error)
-    if not parse_result.text_content.strip() and parse_result.artifact.kind == "text":
+    # A dashboard's figures may live only in its data sources, so empty text with sources is still cached.
+    if not parse_result.text_content.strip() and parse_result.artifact.kind == "text" and not parse_result.data_sources:
         raise RuntimeError("Extraction returned empty content")
     return cacheable_from_parse_result(url, parse_result)
 
@@ -93,7 +112,7 @@ async def get_or_fetch_session_source_artifact(
     cache_pdf_pages: bool = False,
 ) -> tuple[Optional[CachedSourceArtifact], Optional[str]]:
     """Load or fetch a query-agnostic source artifact."""
-    from web_scout.result_cache import call_cached_task, refresh_url_cache_enabled
+    from web_scout.result_cache import call_cached_task, pdf_converter_version, refresh_url_cache_enabled
 
     key = make_source_cache_key(
         url=url,
@@ -113,6 +132,10 @@ async def get_or_fetch_session_source_artifact(
             vision_model=vision_model or "",
             exclude_domains=tuple(sorted(exclude_domains or ())),
             fetch_max_pdf_pages=max_pdf_pages,
+            data_capture_version=1,
+            # Keyed for every URL, not only PDFs: the URL is not known to be a PDF before
+            # fetching, so a converter upgrade refreshes the whole URL cache once.
+            converter_version=pdf_converter_version(),
         )
     except Exception as exc:
         return None, str(exc)

@@ -208,9 +208,10 @@ async def _pdf_parse_task(
     max_pages: int,
     vision_model: str,
     filename: str,
+    converter_version: str,
 ) -> tuple[str, PdfDocumentLayout]:
-    """Parse one PDF. The cache key is the hash, page limit, and vision model."""
-    del pdf_sha256  # Identity for the Prefect cache key; the bytes are excluded from it.
+    """Parse one PDF. The cache key is the hash, page limit, vision model, and converter version."""
+    del pdf_sha256, converter_version  # Identity for the Prefect cache key; the bytes are excluded from it.
     return await _convert_pdf_bytes(pdf_bytes, max_pages, vision_model or None, filename)
 
 
@@ -222,7 +223,7 @@ async def _convert_pdf_to_markdown(
     vision_model: str | None = None,
 ) -> tuple[str, PdfDocumentLayout]:
     """Convert PDF bytes to markdown plus layout metadata."""
-    from web_scout.result_cache import call_cached_task, refresh_pdf_cache_enabled
+    from web_scout.result_cache import call_cached_task, pdf_converter_version, refresh_pdf_cache_enabled
 
     fetch_logger = logging.getLogger("web_scout.fetch")
     digest = hashlib.sha256(pdf_bytes).hexdigest()
@@ -244,6 +245,7 @@ async def _convert_pdf_to_markdown(
         max_pages=max_pages,
         vision_model=vision_model or "",
         filename=filename,
+        converter_version=pdf_converter_version(),
     )
     title = layout.document_title or _filename_title(url)
     if title != layout.document_title:

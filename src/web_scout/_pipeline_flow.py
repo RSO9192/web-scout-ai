@@ -64,6 +64,7 @@ from .tools import (
     is_rendered_list_page,
     resolve_scrape_outcome,
 )
+from .tools.tracker import SCRAPE_LIMIT
 
 logger = logging.getLogger("web_scout.agent")
 
@@ -315,17 +316,25 @@ def _build_query_agents(
         name="query_generator",
         model=query_gen_model,
         model_settings=_research_model_settings(),
-        output_type=SearchQueryChecklist if classification_backend() == "jev" else SearchQueryGeneration,
+        # The first round also lists the query's requirements, used by every backend's extractors;
+        # _generate_search_queries switches to plain query planning afterwards.
+        output_type=SearchQueryChecklist,
         instructions=QUERY_GENERATOR_INSTRUCTIONS
         + suffix
         + (
-            (
-                "\nAlso list every atomic requirement needed to answer the ORIGINAL query. Preserve all "
-                "requested geography, dates, units, entities, comparisons and numerical details; do not "
-                "invent extra requirements."
-            )
-            + ("\nCoverage criteria: " + evaluator_extra_prompt if evaluator_extra_prompt else "")
-            if classification_backend() == "jev"
+            "\nAlso list every atomic requirement needed to answer the ORIGINAL query. Preserve all "
+            "requested geography, dates, units, entities, comparisons and numerical details; do not "
+            "invent extra requirements. Each requirement names facts a source must state (figures, names, "
+            "dates or findings); do not list instructions about citing sources, naming the data provider or "
+            "monitoring system, or stating units, unless the original query itself asks for them. Make each "
+            "requirement self-contained, so that a source can satisfy it on its own. Split a compound question "
+            "into separate requirements: the reporting period or latest year to identify, each requested set "
+            "of entities, and each requested figure or value. Never return the whole question as a single "
+            "requirement unless it asks for exactly one fact."
+        )
+        + (
+            "\nCoverage criteria: " + evaluator_extra_prompt
+            if evaluator_extra_prompt and classification_backend() == "jev"
             else ""
         ),
     )
@@ -393,7 +402,7 @@ async def _generate_search_queries(
             gen_res = await Runner.run(query_gen_agent, prompt)
         generated = gen_res.final_output_as(SearchQueryGeneration)
         search_queries = generated.queries
-        if iteration == 0 and classification_backend() == "jev":
+        if iteration == 0:
             query_gen_agent._research_requirements = list(getattr(generated, "requirements", []) or [query])
             query_gen_agent.output_type = SearchQueryGeneration
             query_gen_agent.instructions = query_gen_agent.instructions.split("\nAlso list", 1)[0]
@@ -661,6 +670,9 @@ async def _search_and_scrape_iteration(
         missing_info=missing_info,
         query_gen_agent=query_gen_agent,
     )
+    requirements = getattr(query_gen_agent, "_research_requirements", None)
+    if tracker is not None and requirements:
+        tracker.requirements = list(requirements)
     search_results = await _execute_searches(
         backend=backend,
         search_queries=search_queries,
@@ -1045,6 +1057,64 @@ def _outcome_followup_candidates(
     return _sanitize_followup_candidates(links, parent_url=parent_url)
 
 
+async def _follow_extractor_links(
+    *,
+    query: str,
+    iteration_result: SearchIterationResult,
+    cap: int,
+    followup_model: Any,
+    followup_backend: str,
+    tracker: ResearchTracker,
+    scrape_tool: Any,
+    exclude_domains: Optional[frozenset[str]],
+) -> SearchIterationResult:
+    """Scrape one capped wave of links the extractor flagged on this round's pages (open search mode).
+
+    Candidates are pooled from every outcome in ``iteration_result``, including rejected pages, which
+    keep their links. Already-attempted, excluded-domain and parent URLs are dropped; the rest are ranked
+    with ``_rerank_followup_urls`` (at most ``cap`` links) against the first contributing page.
+    Returns the follow-up scrape result, empty when nothing was left to follow.
+    """
+    parent_urls = {ResearchTracker.normalize_url(url) for url in iteration_result.outcomes_by_url}
+    candidates: list[str] = []
+    seen: set[str] = set()
+    parent: Optional[ExtractorOutcome] = None
+    for url, outcome in iteration_result.outcomes_by_url.items():
+        contributed = False
+        for link in _outcome_followup_candidates(outcome, parent_url=url):
+            norm = ResearchTracker.normalize_url(link)
+            if (
+                norm in seen
+                or norm in parent_urls
+                or tracker.has_attempted_url(link)
+                or is_blocked_domain(link, exclude_domains=exclude_domains)
+            ):
+                continue
+            seen.add(norm)
+            candidates.append(link)
+            contributed = True
+        if contributed and parent is None:
+            parent = outcome
+
+    if parent is None:
+        return SearchIterationResult(extracted_contents=[], iter_results=[])
+
+    chosen = await _rerank_followup_urls(
+        query=query,
+        parent_url=parent.url,
+        parent_content=parent.rendered_text,
+        candidates=candidates,
+        cap=cap,
+        model=followup_model,
+        selector=followup_backend,
+    )
+    if not chosen:
+        return SearchIterationResult(extracted_contents=[], iter_results=[])
+
+    logger.info("[pipeline] open-mode follow-up on %d links: %s", len(chosen), chosen)
+    return await _scrape_urls(scrape_tool, chosen, empty_log_message="")
+
+
 async def _run_direct_url_mode(
     *,
     query: str,
@@ -1175,6 +1245,9 @@ async def _run_search_mode_impl(
         task.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
 
     for iteration in range(depth["max_iterations"]):
+        if tracker.scrape_count >= SCRAPE_LIMIT:
+            logger.info("[pipeline] scrape limit %d reached; skipping remaining search rounds", SCRAPE_LIMIT)
+            break
         logger.info("[pipeline] starting search iteration %d", iteration + 1)
 
         if iteration > 0 and not state.needs_new_searches:
@@ -1212,8 +1285,24 @@ async def _run_search_mode_impl(
                 scrape_tool=scrape_tool,
                 iteration_result=iteration_result,
             )
+        else:
+            # Leave every later round its full search allowance so follow-ups never starve it.
+            reserve = depth["urls_followup"] * (depth["max_iterations"] - 1 - iteration)
+            cap = min(depth["urls_followup"], SCRAPE_LIMIT - tracker.scrape_count - reserve)
+            if cap > 0:
+                # Pages from this wave are not mined again: one follow-up wave per round.
+                await _follow_extractor_links(
+                    query=query,
+                    iteration_result=iteration_result,
+                    cap=cap,
+                    followup_model=followup_model,
+                    followup_backend=followup_backend,
+                    tracker=tracker,
+                    scrape_tool=scrape_tool,
+                    exclude_domains=exclude_domains,
+                )
 
-        if iteration >= depth["max_iterations"] - 1:
+        if iteration >= depth["max_iterations"] - 1 or tracker.scrape_count >= SCRAPE_LIMIT:
             continue
 
         if await evaluate_search_coverage(
@@ -1355,6 +1444,7 @@ __all__ = [
     "_collect_hub_results",
     "_deepen_domain_iteration",
     "_evaluate_search_coverage",
+    "_follow_extractor_links",
     "_gather_scrapes",
     "_rerank_followup_urls",
     "_run_direct_url_mode",

@@ -201,3 +201,15 @@ async def test_fetch_live_pdf_by_extension():
     strategy = _classify_fetch_result(fetch_result)
     assert fetch_result.used_browser is False
     assert strategy == "document", f"Expected 'document', got {strategy!r} (status={fetch_result.status})"
+
+
+@pytest.mark.asyncio
+async def test_live_terrabrasilis_captures_dashboard_data():
+    """A dashboard render captures the data files its charts load in the background."""
+    from web_scout import fetch
+
+    result = await fetch("https://terrabrasilis.dpi.inpe.br/app/dashboard/deforestation/biomes/legal_amazon/increments")
+    urls = [s.url for s in result.data_sources]
+    assert result.dashboard_kind == "dashboard" and result.used_browser
+    assert any("files/data/prodes_legal_amazon.json" in u for u in urls), urls
+    assert any("loinames/prodes_legal_amazon.json" in u for u in urls), urls

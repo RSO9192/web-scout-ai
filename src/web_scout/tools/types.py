@@ -5,6 +5,7 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from web_scout.scraping._data_sources import DashboardKind, DataSource
 from web_scout.scraping.types import PdfDocumentLayout
 
 
@@ -30,6 +31,23 @@ class CachedSourceArtifact:
     layout: Optional[PdfDocumentLayout] = None
     raw_html: str = ""
     error: str = ""
+    # Defaults keep artifacts pickled before dashboard capture loadable.
+    dashboard_kind: DashboardKind = ""
+    data_sources: tuple[DataSource, ...] = ()
+
+
+class DataQuote(BaseModel):
+    """A fact the extractor took from one of the page's data files, citable as that file."""
+
+    source_id: str = Field(
+        description='ID of the data source the fact came from, as listed in the catalog (e.g. "D2").'
+    )
+    quote: str = Field(
+        description=(
+            "The fact with its figures exactly as stored in that data source, including the labels, "
+            "period and units needed to read it."
+        )
+    )
 
 
 class ExtractorOutput(BaseModel):
@@ -43,6 +61,7 @@ class ExtractorOutput(BaseModel):
         default=True,
         description=(
             "False when the page contains no facts that answer the research query. "
+            "When the query lists research requirements, true if the page satisfies at least one of them. "
             "Statements about where the answer might be found, or descriptions of "
             "what the page links to, are NOT evidence. relevant_links may still be "
             "returned when has_evidence is false."
@@ -73,5 +92,12 @@ class ExtractorOutput(BaseModel):
             "additional specific information for the research query. "
             "If page_type is 'list', treat each visible item's detail-page link as a candidate "
             "and rank by relevance to the query. Return up to 15."
+        ),
+    )
+    data_quotes: List[DataQuote] = Field(
+        default_factory=list,
+        description=(
+            "Facts taken from the page's data sources via open_data_source, one per fact, each naming "
+            "the source_id it came from. Leave empty when the page lists no data sources."
         ),
     )

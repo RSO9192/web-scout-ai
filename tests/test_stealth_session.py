@@ -108,6 +108,22 @@ async def test_fetch_error_evicts_session():
 
 
 @pytest.mark.asyncio
+async def test_cancelled_fetch_evicts_session():
+    await ss.fetch_via_session("https://example.org/ok")
+    FakeSession.instances[0].fetch_gate = asyncio.Event()
+    task = asyncio.create_task(ss.fetch_via_session("https://example.org/slow"))
+    while len(FakeSession.instances[0].fetches) < 2:
+        await asyncio.sleep(0)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert FakeSession.instances[0].closed
+    await ss.fetch_via_session("https://example.org/again")
+    assert len(FakeSession.instances) == 2
+    await ss.close_stealthy_sessions()
+
+
+@pytest.mark.asyncio
 async def test_start_failure_closes_and_evicts_session(monkeypatch):
     def failing_factory(**kw):
         session = FakeSession(**kw)

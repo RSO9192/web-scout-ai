@@ -8,13 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+### Added
 
-- PDFs behind incomplete TLS certificate chains or Cloudflare challenges (e.g. KNBS, ANSD, CONAP) now download. The browser fallback fetches the file inside the page instead of returning Chromium's PDF-viewer HTML, and it follows cross-origin redirects.
+- Dashboard-style pages can now be read. Pages that look like dashboards (known dashboard and BI hosts, chart libraries, large inline data, little prose) are rendered in the browser even when the plain download looks complete, and the same-site JSON and CSV data the page loads is captured, together with inline script JSON and linked CSV/XLSX files. On the Brazil eval question this reaches INPE's TerraBrasilis PRODES data that earlier versions never saw.
+- The content extractor sees a short catalog of a dashboard's data files and an `open_data_source` tool that searches records, filters on exact field values (including several values at once with `any_of`) and ranks records by a numeric field. Values are returned as stored; the tool does no arithmetic. Each data file quoted becomes its own citable source.
+- Click tools are offered on detected dashboards, and Power BI and Tableau pages are read from a screenshot with the vision model.
+- Open search now follows the links the extractor flags on scraped pages, including rejected ones, in one capped wave per round (`urls_followup` from the depth preset), before the coverage check.
+- Multi-part questions are split into requirements by the query planner. The page extractor, the PDF extractor and linked documents keep a source that answers at least one requirement, so pages with part of the answer (such as the national PRODES total for a municipal question) are no longer discarded.
+- `scripts/compare_versions.py` runs a question set on an old and a new version (cold cache, sequential, resumable) and reports claim support, completeness, a head-to-head preference, PDF and data-source counts, model calls and wall time. `scripts/compare_questions.json` adds eight hand-checked dashboard and report questions to the eval's twelve.
 
 ### Changed
 
+- Dashboard renders forced by detection are capped at 15 seconds and fall back to the plain response, and they no longer mark the whole host as browser-only.
+- Follow-up waves respect the 25-scrape limit and reserve room for later rounds, and rounds stop once the limit is reached.
+- The URL cache key gains a data-capture version, so pages cached by earlier versions are fetched once more after upgrading.
+- `ExtractorOutput` gains `data_quotes`, which names the data file behind each data-derived fact. It is empty for ordinary pages.
+- When sources give a newer estimate and the most recent final figure for the same measure, answers report both, newest first, each labelled as the source states it and cited separately. The extractor looks up both periods in a data file.
+- Parsed-PDF and URL cache entries are keyed on the installed `pdf-extractor-ai` version, so a converter upgrade refreshes cached conversions. Existing entries miss once after upgrading.
+- Requires `pdf-extractor-ai>=0.2.3`, which renders tables without padding. A 50-page statistical report with a dotted table of contents no longer converts to millions of characters; on the Kenya eval question extraction calls fell from about 1,140 to 230.
+- Answers round numbers with long decimals to two places instead of printing raw stored values.
 - The PDF download deadline is now 240 seconds (was 75) and can be raised via `pdf_download_deadline_s`. The URL fetch deadline grows to match.
+
+### Fixed
+
+- PDFs behind incomplete TLS certificate chains or Cloudflare challenges (e.g. KNBS, ANSD, CONAP) now download. The browser fallback fetches the file inside the page instead of returning Chromium's PDF-viewer HTML, and it follows cross-origin redirects.
+- The PDF extractor and the vision fallback pass a resolved API key to LiteLLM, so an unexpanded `${AWS_BEARER_TOKEN_BEDROCK}` placeholder no longer reaches Bedrock as an invalid bearer token. Providers that sign requests without an API key (`bedrock`, `vertex_ai`) are left to LiteLLM's own credentials.
+- A browser render cancelled by a timeout marks its shared session broken instead of returning a half-loaded page to the pool.
 
 ## [1.12.1] - 2026-10-22
 

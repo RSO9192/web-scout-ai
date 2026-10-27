@@ -50,6 +50,22 @@ def test_instructions_forbid_snippets_as_factual_context():
     assert "do not use them for factual claims or supporting context" in lower
 
 
+def test_instructions_report_newer_estimate_and_latest_final_figure():
+    lower = SYNTHESISER_INSTRUCTIONS.lower()
+    assert "the most recent final (consolidated) figure for" in lower
+    assert "as the source states it" in lower
+    assert "report both, newest first" in lower
+    assert "do not silently pick one" in lower
+
+
+def test_instructions_round_long_stored_decimals_for_display():
+    lower = SYNTHESISER_INSTRUCTIONS.lower()
+    assert (
+        "round numbers with long decimals to two decimal places when presenting them; "
+        "do not print long machine decimals." in lower
+    )
+
+
 def test_synth_prompt_includes_source_count():
     scraped = [_make_entry("https://a.com", "content a")]
     prompt = _build_synth_prompt(

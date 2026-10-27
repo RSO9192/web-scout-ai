@@ -34,6 +34,9 @@ _TRACKING_PARAMS: frozenset = frozenset(
 
 _BOT_BLOCK_THRESHOLD = 5
 
+# Per-run scrape circuit breaker: the scrape tool refuses new URLs once this many were scraped.
+SCRAPE_LIMIT = 25
+
 
 class ResearchTracker:
     """Accumulates URL and query records from tool calls."""
@@ -46,6 +49,8 @@ class ResearchTracker:
         self._consecutive_empty: Dict[str, int] = {}
         self._domain_bot_counts: Dict[str, int] = {}
         self._bot_blocked_domains: set[str] = set()
+        # Atomic requirements of the research query, planned once in the first search round.
+        self.requirements: List[str] = []
 
         self.search_count = 0
         self.scrape_count = 0

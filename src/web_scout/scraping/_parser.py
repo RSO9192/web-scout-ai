@@ -50,6 +50,8 @@ logger = logging.getLogger(__name__)
 # Sentinel value set by ScraplingFetcher when the browser triggered a file download.
 _DOWNLOAD_SIGNAL = "__DOWNLOAD_REDIRECT__"
 
+_NUMERIC_TOKEN = re.compile(r"\d+(?:[.,]\d+)*")
+
 
 # ---------------------------------------------------------------------------
 # Internal routing helper (replaces plan._classify_response)
@@ -99,6 +101,11 @@ def _classify_fetch_result(result: FetchResult) -> str:
         return "skip"
 
     return "html"
+
+
+def _count_numeric_tokens(text: str) -> int:
+    """Count number-like tokens such as ``2024``, ``11.7`` or ``41,203``."""
+    return len(_NUMERIC_TOKEN.findall(text))
 
 
 def _extract_absolute_links(base_url: str, page, content: str, *, html: str = "") -> list[str]:
@@ -257,6 +264,8 @@ class DefaultParser(Parser):
             )
 
         links = _extract_absolute_links(result.url, page, content, html=html)
+        if result.dashboard_kind:
+            content = await self._dashboard_content(result, content)
         artifact = SourceArtifact(kind="text", title=title, text_content=content)
 
         # Vision fallback for pages that rendered empty (SPA race condition, etc.)
@@ -272,7 +281,22 @@ class DefaultParser(Parser):
             links=links,
             artifact=artifact,
             raw_html=html or None,
+            dashboard_kind=result.dashboard_kind,
+            data_sources=result.data_sources,
         )
+
+    async def _dashboard_content(self, result: FetchResult, content: str) -> str:
+        """Return the page text for a dashboard: vision text for BI reports, else richer rendered text appended."""
+        if result.dashboard_kind == "bi" and self._vision_model:
+            # Power BI / Tableau draw their numbers on a canvas, so the HTML holds only the app shell.
+            artifact, error = await _vision.scrape_url_via_vision(result.url, query="", vision_model=self._vision_model)
+            if not error and artifact.text_content.strip():
+                return artifact.text_content
+            logger.debug("[parser] BI vision failed for %s: %s", result.url, error)
+        rendered_numbers = _count_numeric_tokens(result.rendered_text)
+        if rendered_numbers and rendered_numbers >= 2 * _count_numeric_tokens(content):
+            return f"{content}\n\n## Rendered page text\n\n{result.rendered_text}"
+        return content
 
     # ------------------------------------------------------------------
     # parse_json

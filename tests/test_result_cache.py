@@ -4,6 +4,7 @@ import asyncio
 
 import pytest
 
+import web_scout.result_cache as result_cache
 import web_scout.scraping._document as document_module
 from web_scout.result_cache import use_result_cache
 from web_scout.scraping import FetchResult, ParseResult
@@ -274,3 +275,76 @@ async def test_filesystem_block_can_be_cache_storage(monkeypatch, tmp_path):
     assert error is None
     assert artifact is not None
     assert artifact.text_content == "Block content"
+
+
+@pytest.mark.asyncio
+async def test_pdf_cache_refreshes_after_converter_upgrade(monkeypatch):
+    calls = {"n": 0}
+    layout = PdfDocumentLayout(document_title="Report")
+
+    async def _fake_convert(pdf_bytes, max_pages, vision_model, filename):
+        calls["n"] += 1
+        return f"conversion {calls['n']}", layout
+
+    monkeypatch.setattr(document_module, "_convert_pdf_bytes", _fake_convert)
+    pdf = b"%PDF-1.7 converter-upgrade"
+    url = "https://example.org/report.pdf"
+
+    monkeypatch.setattr(result_cache, "pdf_converter_version", lambda: "0.2.2")
+    assert await _convert_pdf_to_markdown(pdf, url, 5) == ("conversion 1", layout)
+    assert await _convert_pdf_to_markdown(pdf, url, 5) == ("conversion 1", layout)
+    assert calls["n"] == 1
+
+    monkeypatch.setattr(result_cache, "pdf_converter_version", lambda: "0.2.3")
+    assert await _convert_pdf_to_markdown(pdf, url, 5) == ("conversion 2", layout)
+    assert await _convert_pdf_to_markdown(pdf, url, 5) == ("conversion 2", layout)
+    assert calls["n"] == 2
+
+
+@pytest.mark.asyncio
+async def test_url_cache_refreshes_after_converter_upgrade(monkeypatch):
+    calls = {"n": 0}
+    url = "https://example.org/upgrade.pdf"
+
+    async def _fake_fetch(url, **kwargs):
+        calls["n"] += 1
+        return FetchResult(
+            url=url,
+            status=200,
+            content_type="application/pdf",
+            content_disposition="",
+            html_content=None,
+            body=b"%PDF",
+            headers={},
+            used_browser=False,
+        ), _parse_result(url, f"conversion {calls['n']}")
+
+    monkeypatch.setattr("web_scout.scraping.fetch_and_parse_url", _fake_fetch)
+    kwargs = dict(url=url, wait_for=None, vision_model=None, exclude_domains=None, max_pdf_pages=50)
+
+    monkeypatch.setattr(result_cache, "pdf_converter_version", lambda: "0.2.2")
+    first, _ = await get_or_fetch_session_source_artifact(**kwargs)
+    again, _ = await get_or_fetch_session_source_artifact(**kwargs)
+    assert calls["n"] == 1 and again == first and first.text_content == "conversion 1"
+
+    monkeypatch.setattr(result_cache, "pdf_converter_version", lambda: "0.2.3")
+    upgraded, error = await get_or_fetch_session_source_artifact(**kwargs)
+    assert error is None and upgraded.text_content == "conversion 2"
+    await get_or_fetch_session_source_artifact(**kwargs)
+    assert calls["n"] == 2
+
+
+def test_pdf_converter_version_reads_installed_metadata(monkeypatch):
+    from importlib import metadata
+
+    result_cache.pdf_converter_version.cache_clear()
+    monkeypatch.setattr(metadata, "version", lambda name: "9.9.9" if name == "pdf-extractor-ai" else "")
+    assert result_cache.pdf_converter_version() == "9.9.9"
+
+    def _missing(name):
+        raise metadata.PackageNotFoundError(name)
+
+    result_cache.pdf_converter_version.cache_clear()
+    monkeypatch.setattr(metadata, "version", _missing)
+    assert result_cache.pdf_converter_version() == "unknown"
+    result_cache.pdf_converter_version.cache_clear()
