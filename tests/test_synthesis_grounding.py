@@ -58,6 +58,14 @@ def test_instructions_report_newer_estimate_and_latest_final_figure():
     assert "do not silently pick one" in lower
 
 
+def test_instructions_round_long_stored_decimals_for_display():
+    lower = SYNTHESISER_INSTRUCTIONS.lower()
+    assert (
+        "round numbers with long decimals to two decimal places when presenting them; "
+        "do not print long machine decimals." in lower
+    )
+
+
 def test_synth_prompt_includes_source_count():
     scraped = [_make_entry("https://a.com", "content a")]
     prompt = _build_synth_prompt(
