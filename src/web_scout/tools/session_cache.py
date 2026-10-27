@@ -68,11 +68,13 @@ async def _url_fetch_task(
     exclude_domains: tuple[str, ...],
     fetch_max_pdf_pages: int,
     data_capture_version: int,
+    converter_version: str,
 ) -> CachedSourceArtifact:
     """Fetch one URL. ``fetch_max_pdf_pages`` is excluded from the cache key.
 
     ``data_capture_version`` only shapes the cache key: bumping it stops reuse of pages
-    cached before dashboard data capture existed.
+    cached before dashboard data capture existed. ``converter_version`` likewise stops
+    reuse of PDFs converted by an older pdf-extractor-ai.
     """
     from web_scout.scraping import fetch_and_parse_url
 
@@ -110,7 +112,7 @@ async def get_or_fetch_session_source_artifact(
     cache_pdf_pages: bool = False,
 ) -> tuple[Optional[CachedSourceArtifact], Optional[str]]:
     """Load or fetch a query-agnostic source artifact."""
-    from web_scout.result_cache import call_cached_task, refresh_url_cache_enabled
+    from web_scout.result_cache import call_cached_task, pdf_converter_version, refresh_url_cache_enabled
 
     key = make_source_cache_key(
         url=url,
@@ -131,6 +133,9 @@ async def get_or_fetch_session_source_artifact(
             exclude_domains=tuple(sorted(exclude_domains or ())),
             fetch_max_pdf_pages=max_pdf_pages,
             data_capture_version=1,
+            # Keyed for every URL, not only PDFs: the URL is not known to be a PDF before
+            # fetching, so a converter upgrade refreshes the whole URL cache once.
+            converter_version=pdf_converter_version(),
         )
     except Exception as exc:
         return None, str(exc)

@@ -13,6 +13,7 @@ caller's commit.
 
 from __future__ import annotations
 
+import functools
 import os
 import uuid
 from contextlib import asynccontextmanager, contextmanager
@@ -37,6 +38,20 @@ def _lock_manager():
 
         _LOCK_MANAGER = MemoryLockManager()
     return _LOCK_MANAGER
+
+
+@functools.cache
+def pdf_converter_version() -> str:
+    """Return the installed pdf-extractor-ai version, or ``"unknown"`` without metadata.
+
+    Cache keys include it so a converter upgrade stops reuse of older conversions.
+    """
+    from importlib import metadata
+
+    try:
+        return metadata.version("pdf-extractor-ai")
+    except metadata.PackageNotFoundError:
+        return "unknown"
 
 
 def refresh_pdf_cache_enabled() -> bool:

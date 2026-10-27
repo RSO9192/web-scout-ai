@@ -1,6 +1,6 @@
 """Dashboard data sources carried through the parser and the URL cache."""
 
-from web_scout.result_cache import call_cached_task
+from web_scout.result_cache import call_cached_task, pdf_converter_version
 from web_scout.scraping import _vision
 from web_scout.scraping._data_sources import DataSource
 from web_scout.scraping._parser import DefaultParser
@@ -143,6 +143,7 @@ async def test_pages_cached_before_data_capture_are_refetched(monkeypatch):
         exclude_domains=(),
         fetch_max_pdf_pages=50,
         data_capture_version=0,
+        converter_version=pdf_converter_version(),
     )
     assert calls["n"] == 1
 
