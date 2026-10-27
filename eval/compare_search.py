@@ -82,6 +82,14 @@ SYSTEMS = {"web_scout": run_web_scout, "openai": run_openai}
 
 def score_row(row: dict, *, today: str, pages_dir: Path) -> dict:
     """Attach a judgment to every non-error run and the pairwise verdicts per run index."""
+    pages: dict[str, dict] = {}
+
+    # Transient failures are not cached on disk, so without this a slow server is retried once per claim.
+    def get_page(url: str) -> dict:
+        if url not in pages:
+            pages[url] = fetch_page(url, pages_dir)
+        return pages[url]
+
     for records in row["runs"].values():
         for record in records:
             if record.get("error"):
@@ -91,7 +99,7 @@ def score_row(row: dict, *, today: str, pages_dir: Path) -> dict:
                     query=row["query"],
                     record=record,
                     today=today,
-                    get_page=lambda url: fetch_page(url, pages_dir),
+                    get_page=get_page,
                 )
             except Exception as exc:
                 record["judgment"] = {"error": f"{exc}\n{traceback.format_exc()}"}

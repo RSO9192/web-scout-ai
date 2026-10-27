@@ -711,3 +711,27 @@ def test_check_instructions_accept_direct_inference_but_not_outside_knowledge():
     supported = next(line for line in CHECK_INSTRUCTIONS.splitlines() if line.startswith("supported:"))
     assert "follows directly" in supported
     assert "own knowledge" in CHECK_INSTRUCTIONS
+
+
+def test_score_row_fetches_each_url_once_even_when_it_keeps_failing(monkeypatch, tmp_path):
+    from eval import compare_search
+
+    fetches = []
+
+    def fake_fetch(url, pages_dir):
+        fetches.append(url)
+        return {"url": url, "ok": False, "text": "", "error": "timeout"}
+
+    def fake_judge_record(*, query, record, today, get_page):
+        for _ in range(5):
+            get_page("https://www.knbs.or.ke/slow.pdf")
+        return {"completeness": {"score": 3, "reason": ""}, "claims": []}
+
+    monkeypatch.setattr(compare_search, "fetch_page", fake_fetch)
+    monkeypatch.setattr(compare_search, "judge_record", fake_judge_record)
+    monkeypatch.setattr(compare_search, "judge_pair", lambda **kwargs: ("tie", ["", ""]))
+    row = {"id": "x", "query": "q", "runs": {"web_scout": [_ok_record("a")], "openai": [_ok_record("b")]}}
+
+    compare_search.score_row(row, today=TODAY, pages_dir=tmp_path)
+
+    assert fetches == ["https://www.knbs.or.ke/slow.pdf"]
