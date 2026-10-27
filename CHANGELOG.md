@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ExtractorOutput` gains `data_quotes`, which names the data file behind each data-derived fact. It is empty for ordinary pages.
 - When sources give a newer estimate and the most recent final figure for the same measure, answers report both, newest first, each labelled as the source states it and cited separately. The extractor looks up both periods in a data file.
 - Parsed-PDF and URL cache entries are keyed on the installed `pdf-extractor-ai` version, so a converter upgrade refreshes cached conversions. Existing entries miss once after upgrading.
+- Requires `pdf-extractor-ai>=0.2.3`, which renders tables without padding. A 50-page statistical report with a dotted table of contents no longer converts to millions of characters; on the Kenya eval question extraction calls fell from about 1,140 to 230.
+- Answers round numbers with long decimals to two places instead of printing raw stored values.
 - The PDF download deadline is now 240 seconds (was 75) and can be raised via `pdf_download_deadline_s`. The URL fetch deadline grows to match.
 
 ### Fixed
