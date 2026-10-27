@@ -76,6 +76,7 @@ Query: `Indonesia biodiversity hotspots current status and recent trend`
 This is a fraction of what that call returned. The full synthesis was 4,804 characters; `result.scraped` also held the extract from each of the 8 sources it read (~6,700 characters)—including a CEPF ecosystem profile, a 2024 national biodiversity status report, Indonesia's Ministry of Forestry and UNEP's country fiche—plus an audit trail of the 3 searches, 3 irrelevant fetches, 1 source error and 17 snippet-only hits that were not used as citations. Results vary with the query, sources, model, and network.
 
 </details>
+
 ## Why Web Scout
 
 A hosted web-search tool gives your agent an answer and a list of links. Web Scout also gives it:
@@ -142,17 +143,28 @@ result = await run_web_research(
 
 ## Evaluation
 
-Web Scout (default settings) and OpenAI web search (`gpt-6-astra`, high reasoning effort) answered 11 questions, twice each: 8 document-heavy questions whose answers sit inside official documents and data, and 3 simple lookups a search snippet can answer. An independent fetcher downloaded every page each answer cites, and a Gemini judge split each answer into claims and checked them against those pages. Only the final answers were scored; Web Scout's per-source extracts come on top.
+Web Scout (default settings) and OpenAI web search (`gpt-6-astra`, high reasoning effort) answered 11 questions, twice each: 8 document-heavy questions whose answers sit inside official documents and data, and 3 simple lookups a search snippet can answer. An independent fetcher downloaded every page each answer cites, and a Gemini judge split each answer into claims and checked them against those pages. Only the final answers were scored.
 
 | Web Scout / OpenAI web search | Document-heavy (8) | Simple lookups (3) |
 | --- | --- | --- |
-| Evidence returned with the answer | **Extract from every source read / links only** | **Extract from every source read / links only** |
 | Verified claims: cited and backed by the cited pages | **91% / 78%** | 100% / 100% |
 | Unsupported or contradicted claims per answer | **0.7 / 1.1** | 0.0 / 0.0 |
 | Claims with a citation | **99% / 87%** | 100% / 100% |
 | Completeness (1–5) | 4.4 / 4.3 | 5.0 / 5.0 |
 
 Run on 2026-10-27 with v1.13.0. Per-question results, scoring rules and limitations are in [docs/evaluation.md](https://github.com/RSO9192/web-scout-ai/blob/main/docs/evaluation.md); reproduce with `python eval/compare_search.py`.
+
+The scores cover the answer alone. OpenAI web search returns the answer and its links; Web Scout also returns the evidence it extracted from every source it read. In the [example above](#web-scout-ai), that was 8 sources and about 6,700 characters, roughly 840 per source. One entry, excerpted:
+
+```python
+entry = result.scraped[i]
+entry.url      # "https://www.kehutanan.go.id/pers/wamenhut-dokumen-status-keanekaragaman-hayati-jadi-kompas-kebijakan-konservasi-indonesia"
+entry.content  # "Indonesia's Red List Index (RLI), an aggregate indicator of species extinction risk and SDG
+               #  indicator 15.5.1, fell from 0.77 in 2018 to 0.75 in 2024. The Ministry's 2025–2029 strategic
+               #  plan sets a target for the RLI to rise to 0.76 by 2029. …"
+```
+
+The result is a Pydantic model, so `result.model_dump_json()` stores the extracts with the answer. Keep them to check a claim later, answer follow-up questions or build your own corpus, without fetching the pages again.
 
 ## The return value is an audit trail
 
@@ -183,8 +195,7 @@ class WebResearchResult(BaseModel):
 | `snippet_only` | Search results discovered but not opened; snippets are never valid citation targets |
 | `queries` | Every search query executed, its result count, domain restrictions, country, and language |
 
-`UrlEntry` contains `url`, `title`, and `content`. `SearchQuery` contains `query`,
-`num_results_returned`, `domains_restricted`, `country_code`, and `language_code`.
+`UrlEntry` contains `url`, `title`, `content`, and `reference` (the citation label, with page ranges for PDFs). `SearchQuery` contains `query`, `num_results_returned`, `domains_restricted`, `country_code`, and `language_code`.
 
 The synthesizer is instructed to use scraped evidence only. A deterministic final check rejects citations to invented or snippet-only URLs and retries the synthesis with feedback.
 
@@ -199,7 +210,7 @@ question
    │      static HTML ────────┐                    fetch in parallel
    │      JS / bot challenge ─┤                          │
    │      documents ──────────┼─ route + extract ◀───────┘
-   │      JSON / images ──────┘          │
+   │      JSON / images ──────┘         │
    │                                    ▼
    └─ follow-up search ◀── evaluate evidence coverage
                                         │ sufficient
@@ -241,13 +252,13 @@ Every option, the single-URL `fetch()` helper, source caching and resource clean
 ## Requirements
 
 - Python 3.13
-- An API key for the configured LLM provider
+- API keys for the configured model providers (Bedrock and Gemini with the default models)
 - A Serper or Exa API key for search mode (Parallel needs none)
 - Chromium setup for rendered pages, interactive sites, and browser fallbacks
 
 ## Contributing
 
-The main extension point is [`SearchBackend`](https://github.com/RSO9192/web-scout-ai/blob/main/src/web_scout/search_backends.py). New backends should implement the async `search()` contract and return normalized results (title, url, snippet).
+The main extension point is [`SearchBackend`](https://github.com/RSO9192/web-scout-ai/blob/main/src/web_scout/search_backends.py). New backends should implement the async `search()` contract and return a `SearchResponse` of normalized `SearchResult`s (title, url, snippet).
 
 Bug reports and focused pull requests are welcome at [github.com/RSO9192/web-scout-ai](https://github.com/RSO9192/web-scout-ai).
 
