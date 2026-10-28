@@ -33,7 +33,9 @@ from .types import SourceArtifact
 logger = logging.getLogger(__name__)
 
 _MIN_SCREENSHOT_CHARS = 400
-_SECTION_VISUAL_REASONING_EFFORT: Optional[str] = None
+# Low thinking cost 43% less and ran 2x faster on 30 charts/maps/tables (2026-10-28)
+# without losing labels, units, series or readable values in a manual read.
+_SECTION_VISUAL_REASONING_EFFORT: Optional[str] = "low"
 
 
 class VisualSummary(BaseModel):

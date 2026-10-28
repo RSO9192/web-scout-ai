@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- PDF figure descriptions ask the vision model for low reasoning effort (passed only to models that support it). On 30 charts, maps and tables this cost 43% less and ran twice as fast as Gemini 3.8 Flash's default, with no lost labels, units, series or readable values.
+
 ## [1.13.0] - 2026-10-27
 
 ### Added
