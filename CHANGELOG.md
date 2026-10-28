@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.1] - 2026-10-28
+
+### Changed
+
+- Requires `pdf-extractor-ai>=0.3.1`. Its picture filter now uses Docling's public classifier API, a custom classifier returning the wrong number of labels no longer fails a PDF, and if the classifier cannot load, one warning says the filter is off and every picture is sent to the vision model.
+
 ## [1.14.0] - 2026-10-28
 
 ### Changed

@@ -4711,14 +4711,14 @@ re2 = ["google-re2 (>=1.1)"]
 
 [[package]]
 name = "pdf-extractor-ai"
-version = "0.3.0"
+version = "0.3.1"
 description = "Extract PDF bytes into a Docling document, optionally summarize figures, and serialize to markdown."
 optional = false
 python-versions = ">=3.13"
 groups = ["main"]
 files = [
-    {file = "pdf_extractor_ai-0.3.0-py3-none-any.whl", hash = "sha256:f129872e8b312a7f62af8fc012219583cccc75403c935f211a39e41f0d7fe70b"},
-    {file = "pdf_extractor_ai-0.3.0.tar.gz", hash = "sha256:eb961259cd6912c3c34ab2f15bc74f6288400971e20f8fe3a272d1233846e24e"},
+    {file = "pdf_extractor_ai-0.3.1-py3-none-any.whl", hash = "sha256:0f776a5a2924cdc456e2e694baee18d9dec29ff91ae95bfaab86a38378e1a19a"},
+    {file = "pdf_extractor_ai-0.3.1.tar.gz", hash = "sha256:0f9ad24d6165abb10f01d1033e4b02083354204a8cf3584d39dba19b908aa891"},
 ]
 
 [package.dependencies]
@@ -8394,4 +8394,4 @@ type = ["pytest-mypy (>=1.0.1) ; platform_python_implementation != \"PyPy\""]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<3.14"
-content-hash = "cc49a9fcba9f869f97802358b5ebe4931dfeeb51f397c391e5bafdff2325a39f"
+content-hash = "5cf1b7bbb0e6b6c026a01635cdc5911d446da9327602dab1c5f2c2bd9168304a"
