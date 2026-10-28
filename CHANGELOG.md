@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- PDF figure descriptions ask the vision model for low reasoning effort (passed only to models that support it). On 30 charts, maps and tables this cost 43% less and ran twice as fast as Gemini 3.8 Flash's default, with no lost labels, units, series or readable values.
+- PDF figure descriptions ask Gemini vision models for low reasoning effort (other providers are left at their default). On 30 charts, maps and tables this cost 43% less and ran twice as fast as Gemini Flash's default, with no lost labels, units, series or readable values. Measured on `gemini-3.8-flash`, which Google also serves for requests to the default `gemini-3.7-flash`.
 
 ## [1.13.0] - 2026-10-27
 

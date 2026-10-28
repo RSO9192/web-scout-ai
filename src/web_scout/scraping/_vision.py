@@ -223,14 +223,14 @@ async def scrape_url_via_vision(
 
 
 def _reasoning_kwargs(model: str, effort: Optional[str]) -> dict[str, str]:
-    """Return ``reasoning_effort`` for models that accept it, else nothing.
+    """Return ``reasoning_effort`` for Gemini models that accept it, else nothing.
 
-    The vision model is user-configurable, so the parameter must not reach
-    providers that reject it.
+    Only Gemini was measured. LiteLLM maps the same value to *enabling* thinking
+    on Claude (with a small output cap), so other providers get nothing.
     """
     import litellm
 
-    if not effort:
+    if not effort or "gemini" not in model.lower():
         return {}
     try:
         supported = litellm.supports_reasoning(model=model)

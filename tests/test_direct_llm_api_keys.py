@@ -125,3 +125,11 @@ async def test_section_visuals_omit_reasoning_effort_when_none(monkeypatch):
     seen = capture_acompletion(monkeypatch, litellm, content='{"request_id":"","visuals":[]}')
     await _describe_one("gemini/gemini-3.8-flash", reasoning_effort=None)
     assert "reasoning_effort" not in seen[0]
+
+
+async def test_section_visuals_omit_reasoning_effort_for_claude(monkeypatch):
+    # LiteLLM maps "low" to *enabling* Claude thinking with a small max_tokens cap.
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "a")
+    seen = capture_acompletion(monkeypatch, litellm, content='{"request_id":"","visuals":[]}')
+    await _describe_one("anthropic/claude-sonnet-4-5", reasoning_effort="low")
+    assert "reasoning_effort" not in seen[0]
