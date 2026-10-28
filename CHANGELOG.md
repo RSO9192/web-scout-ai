@@ -6,10 +6,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.14.0] - 2026-10-28
 
 ### Changed
 
+- Requires `pdf-extractor-ai>=0.3.0`, which no longer sends icons, photographs, logos, barcodes, signatures, stamps or tiny images to the vision model when it describes PDF figures. Charts, maps, tables and diagrams are still described. On deep eval runs, Gemini calls per PDF fell 58% and Gemini cost per PDF fell 52–69%, with the same key answer facts.
 - PDF figure descriptions ask Gemini vision models for low reasoning effort (other providers are left at their default). On 30 charts, maps and tables this cost 43% less and ran twice as fast as Gemini Flash's default, with no lost labels, units, series or readable values. Measured on `gemini-3.8-flash`, which Google also serves for requests to the default `gemini-3.7-flash`.
 
 ## [1.13.0] - 2026-10-27
