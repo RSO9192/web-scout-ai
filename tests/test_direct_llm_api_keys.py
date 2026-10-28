@@ -95,3 +95,33 @@ async def test_section_visuals_call_passes_resolved_key(monkeypatch):
         vision_model="gemini/gemini-3.7-flash",
     )
     assert seen[0]["api_key"] == "g"
+
+
+async def _describe_one(model: str, **kwargs) -> None:
+    await _vision.describe_section_visuals(
+        section_markdown="<!-- visual:s0-v0 -->",
+        visuals=[{"visual_id": "s0-v0", "png_bytes": b"x"}],
+        vision_model=model,
+        **kwargs,
+    )
+
+
+async def test_section_visuals_pass_reasoning_effort_when_supported(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    seen = capture_acompletion(monkeypatch, litellm, content='{"request_id":"","visuals":[]}')
+    await _describe_one("gemini/gemini-3.8-flash", reasoning_effort="low")
+    assert seen[0]["reasoning_effort"] == "low"
+
+
+async def test_section_visuals_omit_reasoning_effort_when_unsupported(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "o")
+    seen = capture_acompletion(monkeypatch, litellm, content='{"request_id":"","visuals":[]}')
+    await _describe_one("openai/gpt-4o-mini", reasoning_effort="low")
+    assert "reasoning_effort" not in seen[0]
+
+
+async def test_section_visuals_omit_reasoning_effort_when_none(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    seen = capture_acompletion(monkeypatch, litellm, content='{"request_id":"","visuals":[]}')
+    await _describe_one("gemini/gemini-3.8-flash", reasoning_effort=None)
+    assert "reasoning_effort" not in seen[0]

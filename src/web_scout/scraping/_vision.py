@@ -33,6 +33,7 @@ from .types import SourceArtifact
 logger = logging.getLogger(__name__)
 
 _MIN_SCREENSHOT_CHARS = 400
+_SECTION_VISUAL_REASONING_EFFORT: Optional[str] = None
 
 
 class VisualSummary(BaseModel):
@@ -219,6 +220,23 @@ async def scrape_url_via_vision(
     return SourceArtifact(kind="text", title="", text_content=content), None
 
 
+def _reasoning_kwargs(model: str, effort: Optional[str]) -> dict[str, str]:
+    """Return ``reasoning_effort`` for models that accept it, else nothing.
+
+    The vision model is user-configurable, so the parameter must not reach
+    providers that reject it.
+    """
+    import litellm
+
+    if not effort:
+        return {}
+    try:
+        supported = litellm.supports_reasoning(model=model)
+    except Exception:
+        supported = False
+    return {"reasoning_effort": effort} if supported else {}
+
+
 def _extract_json_object(text: str) -> dict[str, Any]:
     text = text.strip()
     if text.startswith("```"):
@@ -233,6 +251,7 @@ async def describe_section_visuals(
     visuals: list[dict[str, Any]],
     vision_model: str,
     section_title: str = "",
+    reasoning_effort: Optional[str] = _SECTION_VISUAL_REASONING_EFFORT,
 ) -> Tuple[dict[str, str], Optional[str]]:
     """Describe all visuals in one section with a single multimodal LLM call.
 
@@ -318,6 +337,7 @@ async def describe_section_visuals(
                 # Plain JSON mode let Gemini emit bare lists and invalid escapes (LaTeX, raw newlines).
                 response_format=SectionVisualSummaries,
                 api_key=resolve_api_key(vision_model),
+                **_reasoning_kwargs(vision_model, reasoning_effort),
             )
         raw = (response.choices[0].message.content or "").strip()
         if not raw:
