@@ -13,8 +13,6 @@ Give your agent one tool call. `web-scout-ai` searches the web, reads the pages 
 
 **On document-heavy research questions, 91% of Web Scout's claims were backed by a page it cites, against 78% for OpenAI web search, with a third fewer unsupported claims per answer** ([evaluation](#evaluation)).
 
-![A sentence from result.synthesis linked to the extract in result.scraped that backs it, above the audit-trail counts for the same call](https://raw.githubusercontent.com/RSO9192/web-scout-ai/main/assets/web-scout-evidence.svg)
-
 ```python
 from agents import Agent, Runner, function_tool
 from web_scout import run_web_research
