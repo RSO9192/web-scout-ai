@@ -16,6 +16,7 @@ Give your agent one tool call. `web-scout-ai` searches the web, reads the pages 
 ```python
 from agents import Agent, Runner, function_tool
 from web_scout import run_web_research
+from web_scout.utils import get_model
 
 
 @function_tool
@@ -27,6 +28,7 @@ async def web_research(question: str) -> str:
 
 agent = Agent(
     name="Analyst",
+    model=get_model("bedrock_mantle/openai.gpt-6-luna"),
     instructions="Use web_research whenever you need facts from web sources.",
     tools=[web_research],
 )
@@ -34,7 +36,7 @@ result = await Runner.run(agent, "Indonesia biodiversity hotspots: current statu
 print(result.final_output)
 ```
 
-The example uses the [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/), which `web-scout-ai` already depends on. `run_web_research()` is a plain async function, so it wraps the same way as a tool in LangChain, pydantic-ai or any other framework.
+The example uses the [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/), which `web-scout-ai` already depends on. `Agent` needs a `model`: `get_model()` turns a [LiteLLM](https://docs.litellm.ai/docs/providers) id into one, including the default `bedrock_mantle/openai.gpt-6-luna`. A native OpenAI model name such as `"gpt-5.4"` can be passed as a string instead. `run_web_research()` is a plain async function, so it wraps the same way as a tool in LangChain, pydantic-ai or any other framework.
 
 <details>
 <summary><strong>Example output</strong> (excerpt)</summary>
