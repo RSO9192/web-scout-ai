@@ -26,7 +26,8 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -84,18 +85,22 @@ _MAX_RETRIES = 3
 _BASE_DELAY = 1.0  # seconds; doubles each retry
 
 
-async def _post_with_retries(url: str, headers: Dict[str, str], payload: dict, label: str) -> dict:
+async def _post_with_retries(
+    url: str, headers: Dict[str, str], payload: dict, label: str, client: Any = None, timeout: float = 45
+) -> dict:
     """POST ``payload`` to ``url``, retrying transient failures with backoff.
 
     Retries up to ``_MAX_RETRIES`` times on HTTP 429 or 5xx, raises on any
-    other error status, and returns the decoded JSON body.
+    other error status, and returns the decoded JSON body.  Uses the shared
+    search client unless ``client`` is given; ``timeout`` (seconds) bounds
+    the whole retry loop.
     """
 
     from .scraping._resources import search_client
 
     started = time.perf_counter()
-    client = search_client()
-    async with asyncio.timeout(45):
+    client = client or search_client()
+    async with asyncio.timeout(timeout):
         for attempt in range(_MAX_RETRIES):
             resp = await client.post(url, headers=headers, json=payload)
             if resp.status_code in _RETRY_STATUSES and attempt < _MAX_RETRIES - 1:
@@ -128,6 +133,54 @@ async def _post_with_retries(url: str, headers: Dict[str, str], payload: dict, l
             logger.debug("[search-timing] backend=%s seconds=%.3f", label, time.perf_counter() - started)
             return resp.json()
     return {}
+
+
+_RESOLVE_PASSES = 2
+_RESOLVE_TIMEOUT = 60.0  # seconds, per pass; /resolve took up to ~25 s per call in live tests
+_MAX_RETRY_AFTER = 30.0  # seconds; Serper says links all redirect ~30 s after the search
+
+
+def _is_goto_link(link: str) -> bool:
+    parts = urlparse(link)
+    return parts.netloc in ("google.com", "www.google.com") and parts.path == "/goto"
+
+
+async def _resolve_goto_links(data: dict, headers: Dict[str, str]) -> dict:
+    """Return the Serper response ``data`` with Google goto links replaced by real URLs.
+
+    Since 2026-10-30 Google may return ``google.com/goto`` redirect links for
+    results after the top ~3.  Serper's free ``/resolve`` endpoint takes the
+    search response and returns it with real links; links not ready yet stay
+    goto links and the response carries ``retryAfter`` seconds, after which
+    a second pass is sent.  Links still unresolved afterwards, or all goto
+    links if ``/resolve`` fails, are dropped: a google.com link defeats
+    domain filters, dedup and citations.
+    """
+    from .scraping._resources import resolve_client
+
+    for attempt in range(_RESOLVE_PASSES):
+        if not any(_is_goto_link(item.get("link", "")) for item in data.get("organic", [])):
+            break
+        try:
+            if attempt:
+                await asyncio.sleep(min(float(data.get("retryAfter") or 0), _MAX_RETRY_AFTER))
+            data = await _post_with_retries(
+                "https://google.serper.dev/resolve",
+                headers=headers,
+                payload=data,
+                label="Serper resolve",
+                client=resolve_client(),
+                timeout=_RESOLVE_TIMEOUT,
+            )
+        except Exception as exc:
+            logger.warning("[Serper] /resolve failed: %s", exc)
+            break
+
+    organic = data.get("organic", [])
+    kept = [item for item in organic if not _is_goto_link(item.get("link", ""))]
+    if len(kept) < len(organic):
+        logger.warning("[Serper] dropping %d unresolved goto links", len(organic) - len(kept))
+    return {**data, "organic": kept}
 
 
 class SerperBackend(SearchBackend):
@@ -166,15 +219,17 @@ class SerperBackend(SearchBackend):
         if language_code:
             payload["hl"] = language_code.lower()
 
+        headers = {
+            "X-API-KEY": self._api_key,
+            "Content-Type": "application/json",
+        }
         data = await _post_with_retries(
             "https://google.serper.dev/search",
-            headers={
-                "X-API-KEY": self._api_key,
-                "Content-Type": "application/json",
-            },
+            headers=headers,
             payload=payload,
             label="Serper",
         )
+        data = await _resolve_goto_links(data, headers)
 
         results = [
             SearchResult(

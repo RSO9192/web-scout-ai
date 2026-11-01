@@ -18,6 +18,7 @@ class _Resources:
     http_manager: object = None
     http_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     search_client: object = None
+    resolve_client: object = None
     binary_session: object = None
     browser: object = None
     playwright: object = None
@@ -78,6 +79,20 @@ def search_client():
             timeout=15, limits=httpx.Limits(max_connections=12, max_keepalive_connections=6)
         )
     return state.search_client
+
+
+def resolve_client():
+    """Client for Serper's /resolve, which can wait ~25 s on Google per call.
+
+    Kept apart from ``search_client`` so slow resolves from parallel runs never
+    hold the search pool's connections.
+    """
+    import httpx
+
+    state = resources()
+    if state.resolve_client is None:
+        state.resolve_client = httpx.AsyncClient(timeout=60)
+    return state.resolve_client
 
 
 @asynccontextmanager
@@ -144,6 +159,8 @@ async def close_resources():
         await state.http_manager.__aexit__(None, None, None)
     if state.search_client is not None:
         await state.search_client.aclose()
+    if state.resolve_client is not None:
+        await state.resolve_client.aclose()
     if state.binary_session is not None:
         await state.binary_session.close()
     if state.browser is not None:
