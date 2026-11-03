@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.2] - 2026-11-03
+
+### Fixed
+
+- Serper's Google `/goto` result links are resolved to destination URLs before domain filtering, exclusions, deduplication, diversification, PDF detection and citation handling. Searches whose results already contain real URLs make no extra request.
+- Unresolved links are retried once after Serper's `retryAfter` delay, capped at 30 seconds, then dropped if still unresolved. Resolution failures, including malformed retry hints, preserve resolved links without failing the search.
+- Serper link resolution uses a dedicated HTTP client with a 60-second timeout, keeping slow resolves out of the search connection pool shared by concurrent research runs.
+
 ## [1.14.1] - 2026-10-28
 
 ### Changed
