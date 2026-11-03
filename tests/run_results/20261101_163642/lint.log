@@ -1,0 +1,14 @@
+$ /Users/riccardo/.local/share/mamba/envs/web-scout/bin/python -m ruff check src tests
+
+E501 Line too long (127 > 120)
+   --> tests/test_eval_metrics.py:695:121
+    |
+693 |     assert "| Pages cited | Unfetchable claims | Runs judged |" in md
+694 |     assert (
+695 |         "| IFAD headquarters | control | 100% / error | 5.0 / error | 100% / error | 100% / error | 0.0 / error | 2.0 / error "
+    |                                                                                                                         ^^^^^^^
+696 |         "| 0.0 / error | 1/1 / 0/1 |" in md
+697 |     )
+    |
+
+Found 1 error.

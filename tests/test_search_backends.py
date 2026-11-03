@@ -2,6 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 from web_scout._country_codes import resolve_country_code
@@ -262,6 +263,130 @@ async def test_retries_on_5xx_then_succeeds():
 
     assert client.post.call_count == 2
     assert result.results[0].title == "OK"
+
+
+# ---------------------------------------------------------------------------
+# Google goto link resolution
+# ---------------------------------------------------------------------------
+
+_GOTO = "https://www.google.com/goto?url=CAES{}&gsessionid=abc"
+
+
+def _serp(*links: str) -> dict:
+    return {"organic": [{"title": f"T{i}", "link": link, "snippet": ""} for i, link in enumerate(links)]}
+
+
+async def _search_with_responses(*payloads):
+    """Run a Serper search where successive POSTs return ``payloads``; return (urls, client, sleep)."""
+    backend = SerperBackend(api_key="test-key")
+    client = AsyncMock()
+    client.post = AsyncMock(side_effect=[p if isinstance(p, Exception) else _mock_http_response(p) for p in payloads])
+    with (
+        patch("web_scout.scraping._resources.search_client", return_value=client),
+        patch("web_scout.scraping._resources.resolve_client", return_value=client),
+        patch("asyncio.sleep", new_callable=AsyncMock) as sleep,
+    ):
+        result = await backend.search("fish", max_results=10)
+    return [r.url for r in result.results], client, sleep
+
+
+@pytest.mark.asyncio
+async def test_goto_links_are_resolved_via_serper_resolve():
+    """The search response is sent as-is to /resolve and its real links are returned."""
+    search = _serp("https://fao.org/a", _GOTO.format(1))
+    urls, client, _ = await _search_with_responses(search, _serp("https://fao.org/a", "https://knbs.or.ke/b"))
+
+    assert urls == ["https://fao.org/a", "https://knbs.or.ke/b"]
+    resolve_call = client.post.call_args_list[1]
+    assert resolve_call.args[0] == "https://google.serper.dev/resolve"
+    assert resolve_call.kwargs["json"] == search
+
+
+@pytest.mark.asyncio
+async def test_resolve_skipped_when_no_goto_links():
+    urls, client, _ = await _search_with_responses(_serp("https://fao.org/a"))
+
+    assert urls == ["https://fao.org/a"]
+    assert client.post.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_resolve_uses_its_own_client():
+    """A slow /resolve (~25 s) must not hold connections of the search pool shared by parallel runs."""
+    backend = SerperBackend(api_key="test-key")
+    search = AsyncMock()
+    search.post = AsyncMock(return_value=_mock_http_response(_serp(_GOTO.format(1))))
+    resolve = AsyncMock()
+    resolve.post = AsyncMock(return_value=_mock_http_response(_serp("https://fao.org/a")))
+    with (
+        patch("web_scout.scraping._resources.search_client", return_value=search),
+        patch("web_scout.scraping._resources.resolve_client", return_value=resolve),
+    ):
+        result = await backend.search("fish")
+
+    assert [r.url for r in result.results] == ["https://fao.org/a"]
+    assert search.post.call_count == 1
+    assert resolve.post.call_args.args[0] == "https://google.serper.dev/resolve"
+
+
+@pytest.mark.asyncio
+async def test_resolve_client_outlasts_slow_resolve():
+    """/resolve took up to ~25 s live, longer than the search client's 15 s timeout."""
+    from web_scout.scraping._resources import resolve_client
+
+    assert resolve_client().timeout.read >= 45
+
+
+@pytest.mark.asyncio
+async def test_links_left_by_first_resolve_are_resolved_again():
+    first = _serp("https://fao.org/a", _GOTO.format(2))
+    urls, client, _ = await _search_with_responses(
+        _serp(_GOTO.format(1), _GOTO.format(2)), first, _serp("https://fao.org/a", "https://fao.org/b")
+    )
+
+    assert urls == ["https://fao.org/a", "https://fao.org/b"]
+    assert client.post.call_args_list[2].kwargs["json"] == first
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("retry_after", "expected_delay"), [(7, 7), (100, 30)])
+async def test_second_resolve_waits_for_retry_after(retry_after, expected_delay):
+    """/resolve marks links not ready yet with ``retryAfter`` seconds; re-sending sooner would fail again."""
+    first = {**_serp("https://fao.org/a", _GOTO.format(2)), "retryAfter": retry_after}
+    _, _, sleep = await _search_with_responses(
+        _serp(_GOTO.format(1), _GOTO.format(2)), first, _serp("https://fao.org/a", "https://fao.org/b")
+    )
+
+    sleep.assert_awaited_once_with(expected_delay)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("retry_after", ["invalid", {"seconds": 7}])
+async def test_invalid_retry_after_keeps_resolved_links(retry_after):
+    """A malformed delay must preserve links resolved by the first pass without failing the search."""
+    first = {**_serp("https://fao.org/a", _GOTO.format(2)), "retryAfter": retry_after}
+    urls, client, sleep = await _search_with_responses(_serp(_GOTO.format(1), _GOTO.format(2)), first)
+
+    assert urls == ["https://fao.org/a"]
+    assert client.post.call_count == 2
+    sleep.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_unresolvable_goto_links_are_dropped():
+    """A goto link that survives every resolve pass would defeat domain filters and citations."""
+    leftover = _serp("https://fao.org/a", _GOTO.format(2))
+    urls, _, _ = await _search_with_responses(_serp(_GOTO.format(1), _GOTO.format(2)), leftover, leftover)
+
+    assert urls == ["https://fao.org/a"]
+
+
+@pytest.mark.asyncio
+async def test_resolve_failure_keeps_real_links():
+    """A failing /resolve must not fail the search: real links survive, goto links are dropped."""
+    urls, _, _ = await _search_with_responses(_serp("https://fao.org/a", _GOTO.format(1)), httpx.ReadTimeout("slow"))
+
+    assert urls == ["https://fao.org/a"]
 
 
 # ---------------------------------------------------------------------------
