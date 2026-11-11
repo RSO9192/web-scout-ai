@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.3] - 2026-11-11
+
+### Changed
+
+- Requires `docling>=2.150.0`, `docling-parse>=7.25.0`, and `pdf-extractor-ai>=0.3.2`. The lock file was regenerated. Resolved versions include Docling 2.150.0, docling-core 2.106.0, docling-parse 7.25.0, pdf-extractor-ai 0.3.2, LiteLLM 1.109.0, openai-agents 0.24.0, Scrapling 0.5.1, and Prefect 3.9.2.
+
 ## [1.14.2] - 2026-11-03
 
 ### Fixed
