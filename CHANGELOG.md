@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.4] - 2026-11-16
+
+### Fixed
+
+- A Jev `ClassificationError` during one scrape now fails only that scrape. The URL is recorded as `scrape_failed`, the other URLs in the batch are kept, and the research continues. This covers the content extractor, a waiter on that same URL, and PDF claim checks. Jev failures during search-result selection, follow-up selection, and coverage evaluation still stop the research.
+- Network errors name the request that failed: URL, HTTP method, and headers. Credential and cookie headers are redacted, so a traceback such as `HTTP 403` says which request failed without printing secrets.
+- A PDF body sent as `application/octet-stream` is recognized as a PDF, the same as a response that omits `Content-Type`.
+
+### Changed
+
+- Development installs include `mypy>=1.14`. `.githooks/pre-commit` runs ruff, mypy, and pytest, omitting tests marked `integration`, once linked as `.git/hooks/pre-commit`.
+
 ## [1.14.3] - 2026-11-11
 
 ### Changed
