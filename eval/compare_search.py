@@ -234,7 +234,7 @@ def _call_openai(query: str) -> dict:
     try:
         from openai import OpenAI
 
-        response = OpenAI().responses.create(
+        response = OpenAI().responses.create(  # type: ignore[call-overload]
             model=OPENAI_MODEL,
             reasoning={"effort": REASONING_EFFORT},
             tools=[{"type": "web_search", "search_context_size": "high", "return_token_budget": "unlimited"}],

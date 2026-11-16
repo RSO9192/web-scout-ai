@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Callable, Literal
+from typing import Callable, Literal, TypedDict, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -101,13 +101,21 @@ class PairVerdict(BaseModel):
     reason: str
 
 
+class _JudgedClaim(TypedDict):
+    claim: str
+    urls: list[str]
+    verdict: str
+    reason: str
+    checked_url: str
+
+
 def judge_record(*, query: str, record: dict, today: str, get_page: Callable[[str], dict]) -> dict:
     """Return ``{"completeness": {...}, "claims": [...]}`` for one non-error record."""
     answer = strip_tracking(record["answer"])
     cited = set(record.get("cited_urls") or [])
     extracted = _complete(EXTRACT_INSTRUCTIONS, _user(today, f"Answer:\n{answer}"), ExtractedClaims)
 
-    claims = []
+    claims: list[_JudgedClaim] = []
     checkable = []
     for item in extracted.claims:
         urls = []
@@ -135,7 +143,9 @@ def judge_record(*, query: str, record: dict, today: str, get_page: Callable[[st
             # A cited page the judge could not read may hold the claim, so it is not counted against the answer.
             if verdict == "not_supported" and any(not pages[link].get("ok") for link in claim["urls"]):
                 verdict = "unfetchable"
-            claim.update(verdict=verdict, reason=reason, checked_url=url)
+            claim["verdict"] = verdict
+            claim["reason"] = reason
+            claim["checked_url"] = url
 
     completeness = _complete(
         COMPLETENESS_INSTRUCTIONS, _user(today, f"Question:\n{query}\n\nAnswer:\n{answer}"), ScoreReason
@@ -161,7 +171,7 @@ def select_passages(text: str, claims: list[str], limit: int = PASSAGE_CHAR_LIMI
     claim_tokens = set(_tokens(" ".join(claims)))
     windows = [text[start : start + _WINDOW_CHARS] for start in range(0, len(text), _WINDOW_CHARS)]
     scored = [(len(claim_tokens & set(_tokens(window))), index) for index, window in enumerate(windows)]
-    chosen = []
+    chosen: list[int] = []
     used = 0
     for score, index in sorted(scored, key=lambda item: (-item[0], item[1])):
         if score == 0:
@@ -207,7 +217,10 @@ def _tokens(text: str) -> list[str]:
     return re.findall(r"\w{3,}", text.lower())
 
 
-def _complete(system: str, user: str, schema: type[BaseModel]) -> BaseModel:
+ModelT = TypeVar("ModelT", bound=BaseModel)
+
+
+def _complete(system: str, user: str, schema: type[ModelT]) -> ModelT:
     import litellm
 
     response = litellm.completion(

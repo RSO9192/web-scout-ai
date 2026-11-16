@@ -7,7 +7,7 @@ for both successful and failed scrapes.
 import re
 from typing import Literal, Optional
 
-from web_scout._extractor_contract import ExtractorOutcome
+from web_scout._extractor_contract import ExtractorFailureKind, ExtractorOutcome
 from web_scout.config import EXTRACTOR_HEURISTICS
 
 from .rendering import RENDERED_LIST_PAGE_MARKER, RENDERED_RELEVANT_LINKS_HEADING
@@ -15,7 +15,7 @@ from .rendering import RENDERED_LIST_PAGE_MARKER, RENDERED_RELEVANT_LINKS_HEADIN
 _HTTP_ERROR_RE = re.compile(r"\bHTTP\s+\d{3}\b", re.IGNORECASE)
 
 
-def classify_failure_action(content: str) -> str:
+def classify_failure_action(content: str) -> ExtractorFailureKind:
     """Map failure content to the canonical action label."""
     lower = content.lower()
     if "bot_detected:" in lower:
@@ -91,7 +91,7 @@ def build_failure_outcome(
     url: str,
     content: str,
     count_scraped: Optional[int],
-    failure_kind: str,
+    failure_kind: ExtractorFailureKind,
     page_type: Literal["list", "content"] = "content",
     links: Optional[list[str]] = None,
 ) -> ExtractorOutcome:

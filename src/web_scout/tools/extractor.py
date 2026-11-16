@@ -18,7 +18,7 @@ from collections.abc import Sequence
 from typing import Any, Dict, Optional
 
 import litellm
-from agents import Agent, ModelSettings, Runner, function_tool
+from agents import Agent, ModelSettings, Runner, Tool, function_tool
 from pydantic import BaseModel
 
 from web_scout.config import EXTRACTOR_HEURISTICS
@@ -327,11 +327,16 @@ def _where_conditions(where: Sequence[FieldFilter]) -> tuple[dict[str, str | lis
     conditions: dict[str, str | list[str]] = {}
     for condition in where:
         field = condition.field
-        if (condition.value is None) == (condition.any_of is None):
+        value = condition.value
+        any_of = condition.any_of
+        if value is not None and any_of is None:
+            wanted: str | list[str] = value
+        elif any_of is not None and value is None:
+            if not any_of:
+                return {}, f"any_of for field {field!r} must list at least one value"
+            wanted = list(any_of)
+        else:
             return {}, f"give exactly one of value or any_of for field {field!r}"
-        if condition.any_of is not None and not condition.any_of:
-            return {}, f"any_of for field {field!r} must list at least one value"
-        wanted = condition.value if condition.value is not None else list(condition.any_of)
         previous = conditions.setdefault(field, wanted)
         if previous == wanted:
             continue
@@ -714,7 +719,7 @@ def build_extractor_agent(
         )
         return _render_lookup(result)
 
-    agent_tools = []
+    agent_tools: list[Tool] = []
     if allow_linked_document:
         agent_tools.append(scrape_linked_document)
     if allow_interaction:

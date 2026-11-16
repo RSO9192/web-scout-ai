@@ -18,7 +18,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 from itertools import islice
-from typing import Any
+from typing import Any, cast
 
 from web_scout.scraping._data_sources import DataSource, _decode_json
 
@@ -37,6 +37,7 @@ _TRUNCATION_MARKER_RESERVE = 150
 # Context is repeated in every record of a container, so its size is capped.
 _CONTEXT_MAX_CHARS = 300
 
+_WhereScalar = str | int | float
 _COMBINING_MARKS = re.compile(r"[\u0300-\u036f]")
 _MARKDOWN_SEPARATOR_ROW = re.compile(r"^\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)*\|?\s*$")
 _MARKDOWN_HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*#*\s*$")
@@ -333,8 +334,8 @@ def _fold(text: str) -> str:
     return _COMBINING_MARKS.sub("", unicodedata.normalize("NFKD", text))
 
 
-def _serialize(record: dict) -> str:
-    return json.dumps(record, ensure_ascii=False, default=str)
+def _serialize(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, default=str)
 
 
 def _field_chars(key: Any, value: Any) -> int:
@@ -568,9 +569,12 @@ def lookup_records(
     if records is None:
         records = records_from_source(source)
     # Ambiguous separators are read per field, from evidence across all of the source's records.
-    filters = {
-        field: list(value) if isinstance(value, (list, tuple)) else value for field, value in (where or {}).items()
-    }
+    filters: dict[str, _WhereScalar | list[_WhereScalar]] = {}
+    for field, value in (where or {}).items():
+        if isinstance(value, (list, tuple)):
+            filters[field] = cast("list[_WhereScalar]", list(value))
+        else:
+            filters[field] = cast("_WhereScalar", value)
     conditions = [
         (field, expected if isinstance(expected, list) else [expected], _decimal_marks(records, field))
         for field, expected in filters.items()
@@ -590,7 +594,9 @@ def lookup_records(
     selected = matches
     if rank_by is not None:
         marks = _decimal_marks(records, rank_by)
-        keyed = [(value, record) for record in matches if (value := _rank_value(record, rank_by, marks)) is not None]
+        keyed = [
+            (rank, record) for record in matches if (rank := _rank_value(record, rank_by, marks)) is not None
+        ]
         # ``sorted`` is stable, also with ``reverse=True``, so ties keep source order.
         keyed = sorted(keyed, key=lambda pair: pair[0], reverse=descending)
         selected = [record for _, record in keyed]

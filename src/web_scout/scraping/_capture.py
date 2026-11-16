@@ -17,6 +17,7 @@ from ._data_sources import (
     _MAX_BYTES_PER_SOURCE,
     DashboardAssessment,
     DataSource,
+    DataSourceKind,
     _site,
     assess_dashboard,
     is_data_body,
@@ -107,7 +108,7 @@ class NetworkCapture:
             body = raw.decode("utf-8", "replace")
             if not is_data_body(body, content_type):
                 return
-            kind = "response_json" if "json" in _media_type(content_type) else "response_csv"
+            kind: DataSourceKind = "response_json" if "json" in _media_type(content_type) else "response_csv"
             self._stored_bytes += len(raw)
             self._captured[order] = DataSource("", response.url, kind, _media_type(content_type), body, len(raw))
         except Exception as exc:  # bodies of redirected or aborted requests are unavailable
@@ -166,18 +167,23 @@ class NetworkCapture:
                 pass
 
 
-def _download_links(html: str, page_url: str) -> list[tuple[str, str]]:
+def _download_links(html: str, page_url: str) -> list[tuple[str, DataSourceKind]]:
     """Same-site ``.csv`` and ``.xlsx`` links in page order, as ``(url, kind)``."""
     site = _site(urlsplit(page_url).hostname or "")
-    links: list[tuple[str, str]] = []
+    links: list[tuple[str, DataSourceKind]] = []
     for href in _HREF.findall(html):
         url = urljoin(page_url, unescape(href.strip()))
         parts = urlsplit(url)
         if parts.scheme not in ("http", "https") or _site(parts.hostname or "") != site:
             continue
         path = parts.path.lower()
-        kind = "download_csv" if path.endswith(".csv") else "download_xlsx" if path.endswith(".xlsx") else ""
-        if kind and all(url != seen for seen, _ in links):
+        if path.endswith(".csv"):
+            kind: DataSourceKind = "download_csv"
+        elif path.endswith(".xlsx"):
+            kind = "download_xlsx"
+        else:
+            continue
+        if all(url != seen for seen, _ in links):
             links.append((url, kind))
     return links
 
@@ -232,7 +238,7 @@ async def download_sources(html: str, page_url: str, *, limit: int) -> list[Data
             return None
         return DataSource("", url, "download_csv", "text/csv", body, len(raw))
 
-    async def build(url: str, kind: str) -> DataSource | None:
+    async def build(url: str, kind: DataSourceKind) -> DataSource | None:
         if kind == "download_xlsx":
             return DataSource("", url, kind, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "", 0)
         return await fetch_csv(url)

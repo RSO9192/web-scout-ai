@@ -1,13 +1,15 @@
 """Public fetch() returns the ScraplingFetcher FetchResult."""
 
+from typing import Any
+
 import pytest
 
 from web_scout import PDF_MAGIC_BYTES, fetch, fetch_pdf
 from web_scout.scraping import FetchResult, ScraplingFetcher
 
 
-def _result(url: str, **overrides) -> FetchResult:
-    payload = dict(
+def _result(url: str, **overrides: Any) -> FetchResult:
+    payload: dict[str, Any] = dict(
         url=url,
         status=200,
         content_type="text/html",

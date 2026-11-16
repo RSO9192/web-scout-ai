@@ -14,7 +14,9 @@ from typesafe_sdk import AsyncTypeSafeClient, Noul, RetryPolicy, TypeSafeError
 logger = logging.getLogger(__name__)
 JEV_MODEL = "jev-1.13.0"
 ACCEPT = 0.8
-_clients = WeakKeyDictionary()
+_clients: WeakKeyDictionary[asyncio.AbstractEventLoop, dict[tuple[str, str], AsyncTypeSafeClient]] = (
+    WeakKeyDictionary()
+)
 
 
 class ClassificationError(RuntimeError):

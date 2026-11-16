@@ -174,6 +174,7 @@ def _numbers_near(text: str, target: int, tol: int) -> bool:
 
 
 pytestmark = [
+    pytest.mark.integration,
     pytest.mark.skipif(not _ENABLED, reason="Set RUN_PDF_PAGE_SPAN_INTEGRATION=1 to enable"),
     pytest.mark.skipif(_MISSING_KEY, reason="GEMINI_API_KEY not set"),
 ]

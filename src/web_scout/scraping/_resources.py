@@ -28,7 +28,7 @@ class _Resources:
     browser_idle_handle: object = None
 
 
-_resources = WeakKeyDictionary()
+_resources: WeakKeyDictionary[asyncio.AbstractEventLoop, _Resources] = WeakKeyDictionary()
 _pdf_admitted = ContextVar("web_scout_pdf_admitted", default=False)
 _model_admitted = ContextVar("web_scout_model_admitted", default=False)
 

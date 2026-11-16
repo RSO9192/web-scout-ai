@@ -7,6 +7,8 @@ from web_scout.scraping._parser import _classify_fetch_result
 
 MDPI_PDF = "https://www.mdpi.com/2072-4292/15/7/1816/pdf"
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.mark.asyncio
 async def test_fetch_mdpi_pdf():

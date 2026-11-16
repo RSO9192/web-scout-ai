@@ -6,6 +6,7 @@ function in ``_parser.py``) and ``FetchResult`` instead of the removed
 """
 
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -23,8 +24,8 @@ from web_scout.scraping.utils import trim_json_value
 # ---------------------------------------------------------------------------
 
 
-def _make_result(url: str, **kwargs) -> FetchResult:
-    defaults = dict(
+def _make_result(url: str, **kwargs: Any) -> FetchResult:
+    defaults: dict[str, Any] = dict(
         status=200,
         content_type="text/html",
         content_disposition="",
@@ -505,17 +506,19 @@ async def test_fetcher_reports_pdf_when_content_type_header_is_missing(monkeypat
 
 
 @pytest.mark.asyncio
-async def test_fetcher_keeps_content_type_header_for_pdf_body(monkeypatch):
-    """A Content-Type sent with a %PDF body is left unchanged."""
+async def test_fetcher_reports_pdf_when_content_type_is_octet_stream(monkeypatch):
+    """A %PDF body sent as octet-stream is application/pdf."""
     url = "https://publisher.example/article/1816/pdf"
     pdf = b"%PDF-1.7 paper"
-    sent = "application/octet-stream"
 
     class _Response:
         status = 200
         body = pdf
         html_content = ""
-        headers = {"content-type": sent, "content-disposition": 'attachment; filename="paper.pdf"'}
+        headers = {
+            "content-type": "application/octet-stream",
+            "content-disposition": 'attachment; filename="paper.pdf"',
+        }
 
     async def _get(requested, **kwargs):
         return _Response()
@@ -524,8 +527,8 @@ async def test_fetcher_keeps_content_type_header_for_pdf_body(monkeypatch):
 
     result = await ScraplingFetcher().fetch(url, URLContext(url=url, depth=0))
 
-    assert result.content_type == sent
-    assert result.headers["content-type"] == sent
+    assert result.content_type == "application/pdf"
+    assert result.headers["content-type"] == "application/pdf"
     assert result.body == pdf
 
 

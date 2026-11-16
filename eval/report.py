@@ -17,7 +17,7 @@ def summarize_runs(records: list[dict]) -> dict:
     judged = [record for record in ok if _claims(record) is not None]
     counts = {verdict: 0 for verdict in (*_CHECKED, "uncited", "unfetchable")}
     for record in judged:
-        for claim in _claims(record):
+        for claim in _claims(record) or []:
             if claim.get("verdict") in counts:
                 counts[claim["verdict"]] += 1
     checked = sum(counts[verdict] for verdict in _CHECKED)
@@ -55,7 +55,8 @@ def format_report(rows: list[dict], *, run_date: str, systems: list[str], labels
         "each claim against the text of the pages the answer cites, so a claim backed by a different cited page "
         "than the one it links still counts. Claims that could not be checked because a cited page could not be "
         "fetched are reported separately and left out of the supported rate. Verified claims are the share of all "
-        "claims that cite a page and are supported by the cited pages, so uncited claims count against it. Completeness (1–5) is scored without the system's name. "
+        "claims that cite a page and are supported by the cited pages, so uncited claims count against it. "
+        "Completeness (1–5) is scored without the system's name. "
         "The pairwise preference shows both answers twice with the order swapped; only a consistent verdict counts "
         "as a win. Deep questions need facts from inside documents; control questions can be answered from a "
         "search snippet. Unfetchable claims and runs judged show what each figure rests on.",
@@ -154,12 +155,13 @@ def _append_notes(lines: list[str], rows: list[dict], systems: list[str], labels
                     continue
                 completeness = judgment.get("completeness") or {}
                 lines.append(f"{prefix} completeness {completeness.get('score')}: {completeness.get('reason', '')}")
+                claims = _claims(record) or []
                 unfetchable = sorted(
-                    {url for claim in _claims(record) if claim["verdict"] == "unfetchable" for url in claim["urls"]}
+                    {url for claim in claims if claim["verdict"] == "unfetchable" for url in claim["urls"]}
                 )
                 if unfetchable:
                     lines.append(f"  - Unfetchable: {', '.join(unfetchable)}")
-                for claim in _claims(record):
+                for claim in claims:
                     if claim["verdict"] == "contradicted":
                         lines.append(
                             f"  - Contradicted: “{claim['claim']}” ({claim['checked_url']}): {claim['reason']}"

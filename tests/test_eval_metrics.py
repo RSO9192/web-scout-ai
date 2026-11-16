@@ -692,8 +692,8 @@ def test_report_shows_unfetchable_claims_and_runs_judged():
 
     assert "| Pages cited | Unfetchable claims | Runs judged |" in md
     assert (
-        "| IFAD headquarters | control | 100% / error | 5.0 / error | 100% / error | 100% / error | 0.0 / error | 2.0 / error "
-        "| 0.0 / error | 1/1 / 0/1 |" in md
+        "| IFAD headquarters | control | 100% / error | 5.0 / error | 100% / error | 100% / error | "
+        "0.0 / error | 2.0 / error | 0.0 / error | 1/1 / 0/1 |" in md
     )
     assert "(2 of 2 run pairs judged)" in md
 

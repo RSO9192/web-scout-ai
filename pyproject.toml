@@ -52,6 +52,7 @@ prefect = ">=3.4,<4"
 pytest = ">=8.0"
 pytest-asyncio = ">=0.23"
 ruff = ">=0.4"
+mypy = ">=1.14"
 ipykernel = "^7.3.0"
 
 [build-system]
@@ -84,3 +85,12 @@ select = ["E", "F", "I", "W"]
 addopts = "--durations=15"
 asyncio_mode = "auto"
 pythonpath = ["src"]
+markers = [
+    "integration: live network or external-service test; omitted by the pre-commit hook",
+]
+
+[tool.mypy]
+python_version = "3.13"
+mypy_path = "src"
+files = ["src", "tests"]
+ignore_missing_imports = true

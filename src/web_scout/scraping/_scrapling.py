@@ -69,7 +69,8 @@ async def stealthy_fetch(url: str, *, wait_ready: bool = True, **kwargs: Any):
         log_fetch(url, status="error", via="browser", error=f"{type(exc).__name__}: {exc}")
         raise _annotate(exc)
 
-    status = getattr(response, "status", None) or getattr(response, "status_code", "?")
+    raw_status = getattr(response, "status", None) or getattr(response, "status_code", "?")
+    status: int | str = raw_status if isinstance(raw_status, (int, str)) else "?"
     body = getattr(response, "body", None)
     html = getattr(response, "html_content", None) or ""
     size = len(body) if isinstance(body, (bytes, bytearray)) else len(html)

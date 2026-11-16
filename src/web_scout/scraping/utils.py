@@ -1,7 +1,7 @@
 import json
 import logging
 import re
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from email.message import Message
 from typing import Any, Optional
 from urllib.parse import urlparse
@@ -253,7 +253,7 @@ def explain_request_failure(
     )
 
 
-def is_blocked_domain(url: str, exclude_domains: Optional[frozenset] = None) -> bool:
+def is_blocked_domain(url: str, exclude_domains: Optional[Iterable[str]] = None) -> bool:
     """Return True when *url*'s host is in the caller-supplied exclude list.
 
     Nothing is blocked implicitly: ``None`` or an empty set blocks nothing.
@@ -527,7 +527,7 @@ def trim_json_value(
 
     if isinstance(value, dict):
         items = list(value.items())
-        trimmed = {
+        trimmed_mapping = {
             str(k): trim_json_value(
                 v,
                 depth=depth + 1,
@@ -538,11 +538,11 @@ def trim_json_value(
             for k, v in items[:max_items]
         }
         if len(items) > max_items:
-            trimmed["..."] = f"{len(items) - max_items} more keys omitted"
-        return trimmed
+            trimmed_mapping["..."] = f"{len(items) - max_items} more keys omitted"
+        return trimmed_mapping
 
     if isinstance(value, list):
-        trimmed = [
+        trimmed_items = [
             trim_json_value(
                 v,
                 depth=depth + 1,
@@ -553,8 +553,8 @@ def trim_json_value(
             for v in value[:max_items]
         ]
         if len(value) > max_items:
-            trimmed.append(f"... {len(value) - max_items} more items omitted")
-        return trimmed
+            trimmed_items.append(f"... {len(value) - max_items} more items omitted")
+        return trimmed_items
 
     if isinstance(value, str) and len(value) > max_string_chars:
         return value[:max_string_chars] + f"... [truncated, original length {len(value)}]"

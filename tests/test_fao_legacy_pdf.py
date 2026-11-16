@@ -15,6 +15,8 @@ from web_scout.scraping._parser import _classify_fetch_result
 
 FAO_LEGACY_PDF = "https://www.fao.org/3/ca9825en/CA9825EN.pdf"
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.mark.asyncio
 async def test_fetch_fao_legacy_pdf():

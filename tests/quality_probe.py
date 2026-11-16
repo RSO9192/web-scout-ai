@@ -13,6 +13,7 @@ import asyncio
 import re
 import time
 from dataclasses import dataclass
+from typing import Any, TypedDict
 
 from web_scout.agent import (
     DEFAULT_WEB_RESEARCH_MODELS,
@@ -22,7 +23,15 @@ from web_scout.agent import (
 
 MODELS = DEFAULT_WEB_RESEARCH_MODELS
 
-TASKS = [
+
+class _ProbeTask(TypedDict):
+    mode: str
+    label: str
+    query: str
+    kwargs: dict[str, Any]
+
+
+TASKS: list[_ProbeTask] = [
     {
         "mode": "open-web",
         "label": "Global fish capture production trends 2022",

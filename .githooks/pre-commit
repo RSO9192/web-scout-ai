@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Run ruff, mypy, and pytest before each commit.
+#
+# Git does not run this file until it is installed as .git/hooks/pre-commit:
+#   ln -sfn ../../.githooks/pre-commit .git/hooks/pre-commit
+#
+# Activate the project conda env first. This repo sets Poetry
+# virtualenvs.create = false, so the tools have to be on PATH.
+
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+if ! command -v python >/dev/null 2>&1; then
+  echo "pre-commit: python not found. Activate the project environment." >&2
+  exit 1
+fi
+
+missing=()
+for module in ruff mypy pytest; do
+  if ! python -c "import ${module}" >/dev/null 2>&1; then
+    missing+=("${module}")
+  fi
+done
+if ((${#missing[@]})); then
+  echo "pre-commit: missing ${missing[*]} in $(python -c 'import sys; print(sys.executable)'). Activate the project environment and run poetry install." >&2
+  exit 1
+fi
+
+echo "pre-commit: ruff check"
+python -m ruff check src tests
+
+echo "pre-commit: mypy"
+python -m mypy
+
+echo "pre-commit: pytest"
+python -m pytest -m "not integration"

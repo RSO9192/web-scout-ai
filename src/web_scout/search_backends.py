@@ -391,7 +391,8 @@ class ParallelBackend(SearchBackend):
         try:
             result = await asyncio.create_task(call_search())
         except asyncio.CancelledError as exc:
-            if asyncio.current_task().cancelling():
+            current = asyncio.current_task()
+            if current is not None and current.cancelling():
                 raise
             from .scraping.utils import with_request_context
 

@@ -8,6 +8,8 @@ Uses stable, low-traffic URLs (example.com, iana.org, jsonplaceholder.typicode.c
 httpbin.org) to avoid hitting production systems unnecessarily.
 """
 
+from typing import Any
+
 import pytest
 
 from web_scout.scraping import DefaultParser, FetchResult, ScraplingFetcher, URLContext, materialize_parse_result
@@ -41,8 +43,8 @@ def test_reddit_unblocked_when_dropped_from_exclude_domains():
 # ---------------------------------------------------------------------------
 
 
-def _make_result(url: str, **kwargs) -> FetchResult:
-    defaults = dict(
+def _make_result(url: str, **kwargs: Any) -> FetchResult:
+    defaults: dict[str, Any] = dict(
         status=200,
         content_type="text/html",
         content_disposition="",
@@ -115,6 +117,7 @@ async def _scrape(
     return content, parse_result.title, effective_error
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_scrape_live_example_com_returns_content():
     """Scraping a static HTML page returns non-empty content."""
@@ -126,6 +129,7 @@ async def test_scrape_live_example_com_returns_content():
     assert "example" in content.lower() or "example" in (title or "").lower()
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_scrape_live_blocked_domain_returns_error():
     """A domain on the recommended exclude list is rejected before any request."""
@@ -140,6 +144,7 @@ async def test_scrape_live_blocked_domain_returns_error():
     assert content == ""
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_scrape_live_404_returns_error_or_skip():
     """A 404 URL returns an error or empty content."""
@@ -149,6 +154,7 @@ async def test_scrape_live_404_returns_error_or_skip():
     assert error is not None or not content.strip(), f"Expected error or empty content for 404, got content={content!r}"
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_scrape_live_content_under_max_chars():
     """Returned content does not exceed max_content_chars."""
@@ -165,6 +171,7 @@ async def test_scrape_live_content_under_max_chars():
         )
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_scrape_live_returns_string_types():
     """Pipeline always returns (str, str, str|None) — never None for content or title."""
@@ -176,6 +183,7 @@ async def test_scrape_live_returns_string_types():
     assert len(content) > 0
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_scrape_live_fao_fishery_page():
     """A real FAO fishery page returns meaningful content."""
@@ -190,6 +198,7 @@ async def test_scrape_live_fao_fishery_page():
         assert isinstance(error, str)
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_fetch_live_pdf_by_extension():
     """Fetching a PDF URL sets used_browser=False and routes to 'document'."""
@@ -203,6 +212,7 @@ async def test_fetch_live_pdf_by_extension():
     assert strategy == "document", f"Expected 'document', got {strategy!r} (status={fetch_result.status})"
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_live_terrabrasilis_captures_dashboard_data():
     """A dashboard render captures the data files its charts load in the background."""

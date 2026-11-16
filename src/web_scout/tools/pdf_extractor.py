@@ -178,7 +178,7 @@ def pages_from_evidence(evidence: list[PdfEvidenceItem]) -> list[int]:
     return sorted(set(pages))
 
 
-def _slice_markdown(markdown: str, start_line: int, end_line: int) -> str:
+def _slice_markdown(markdown: str | list[str], start_line: int, end_line: int) -> str:
     lines = markdown.splitlines() if isinstance(markdown, str) else markdown
     start = max(1, start_line) - 1
     end = min(len(lines), end_line)

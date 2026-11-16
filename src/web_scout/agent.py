@@ -93,7 +93,7 @@ logging.getLogger("LiteLLM").setLevel(logging.WARNING)
 logging.getLogger("litellm").setLevel(logging.WARNING)
 
 
-_DEPTH_PRESETS = {
+_DEPTH_PRESETS: dict[str, dict[str, Any]] = {
     "standard": {
         "max_iterations": 2,
         "queries_first": 3,

@@ -114,6 +114,7 @@ async def test_orchestrator_assembles_full_pipeline_and_crawls_followups():
     assert all(result.text_content for result in results)
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_orchestrator_live_full_pipeline_starts_search():
     """Live network test — default Fetcher, Parser, and Crawler via Orchestrator."""

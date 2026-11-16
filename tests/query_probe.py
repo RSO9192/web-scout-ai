@@ -20,10 +20,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from web_scout.scraping.plan import _validate_url
-
 from web_scout import configure_logging
-from web_scout.scraping import scrape_url
+from web_scout.scraping import fetch_and_parse_url
 from web_scout.search_backends import SerperBackend
 
 DEFAULT_QUERIES = [
@@ -74,8 +72,16 @@ async def _probe_query(query: str, max_results: int, max_scrapes: int) -> ProbeQ
 
     for idx, result in enumerate(response.results[:max_scrapes], start=1):
         u0 = time.perf_counter()
-        verdict, detail = await _validate_url(result.url)
-        content, title, error = await scrape_url(result.url, query=query)
+        fetch_result, parse_result = await fetch_and_parse_url(result.url)
+        content = parse_result.text_content
+        title = parse_result.title
+        error = parse_result.error or fetch_result.error
+        if fetch_result.error:
+            verdict, detail = "error", fetch_result.error
+        elif fetch_result.status >= 400:
+            verdict, detail = "http_error", f"HTTP {fetch_result.status}"
+        else:
+            verdict, detail = "ok", fetch_result.content_type
         elapsed = time.perf_counter() - u0
         urls.append(
             ProbeUrlResult(

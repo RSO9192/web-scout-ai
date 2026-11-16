@@ -46,7 +46,7 @@ from .utils import (
 )
 
 logger = logging.getLogger(__name__)
-_BROWSER_HOSTS = {}
+_BROWSER_HOSTS: dict[str, float] = {}
 
 
 class _KnownBrowserHost(Exception):
@@ -63,7 +63,7 @@ def _as_bytes(value: object) -> bytes | None:
     if isinstance(value, str):
         return value.encode()
     try:
-        return bytes(value)  # type: ignore[arg-type]
+        return bytes(value)  # type: ignore[call-overload]
     except Exception:
         return None
 
@@ -236,19 +236,19 @@ class ScraplingFetcher(Fetcher):
                     # Repository SPA shells often expose the primary PDF via
                     # citation_pdf_url or the DSpace item API. Prefer that binary
                     # over a browser render of the landing page.
-                    pdf_url = await asyncio.to_thread(resolve_primary_pdf_url, url, html)
-                    if pdf_url:
+                    primary_pdf: str | None = await asyncio.to_thread(resolve_primary_pdf_url, url, html)
+                    if primary_pdf:
                         from ._download import download_pdf
 
-                        pdf_bytes, pdf_error = await download_pdf(pdf_url)
+                        pdf_bytes, pdf_error = await download_pdf(primary_pdf)
                         if pdf_bytes and not pdf_error:
                             logger.debug(
                                 "[fetcher] thin SPA shell → primary PDF %s from %s",
-                                pdf_url,
+                                primary_pdf,
                                 url,
                             )
                             return FetchResult(
-                                url=pdf_url,
+                                url=primary_pdf,
                                 status=200,
                                 content_type="application/pdf",
                                 content_disposition="",
@@ -370,8 +370,8 @@ class ScraplingFetcher(Fetcher):
         cd = resp.headers.get("content-disposition", "")
 
         raw_body = _as_bytes(getattr(resp, "body", None))
-        # Some hosts, including MDPI, send a PDF with no Content-Type header.
-        if not ct and raw_body and raw_body.startswith(PDF_MAGIC_BYTES):
+        # MDPI and similar hosts send a PDF with no Content-Type, or as octet-stream.
+        if raw_body and raw_body.startswith(PDF_MAGIC_BYTES) and ct in ("", "application/octet-stream"):
             ct = "application/pdf"
 
         # Classify as binary or text
@@ -389,7 +389,10 @@ class ScraplingFetcher(Fetcher):
             except Exception:
                 pass
         method, request_headers = request_method_and_headers(resp)
-        if ct == "application/pdf" and not normalize_content_type(headers.get("content-type", "")):
+        if ct == "application/pdf" and normalize_content_type(headers.get("content-type", "")) in (
+            "",
+            "application/octet-stream",
+        ):
             headers["content-type"] = "application/pdf"
 
         if is_binary:

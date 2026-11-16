@@ -5,6 +5,7 @@ import json
 import logging
 import os
 from collections import OrderedDict
+from collections.abc import Sequence
 from datetime import date
 from typing import Any, Optional
 from urllib.parse import urlparse
@@ -405,7 +406,9 @@ async def _generate_search_queries(
         if iteration == 0:
             query_gen_agent._research_requirements = list(getattr(generated, "requirements", []) or [query])
             query_gen_agent.output_type = SearchQueryGeneration
-            query_gen_agent.instructions = query_gen_agent.instructions.split("\nAlso list", 1)[0]
+            instructions = query_gen_agent.instructions
+            if isinstance(instructions, str):
+                query_gen_agent.instructions = instructions.split("\nAlso list", 1)[0]
     except Exception as exc:
         logger.error("[pipeline] query generation failed: %s", exc)
         search_queries = []
@@ -424,7 +427,7 @@ async def _generate_search_queries(
 async def _execute_searches(
     *,
     backend: Any,
-    search_queries: list[PlannedSearchQuery | str],
+    search_queries: Sequence[PlannedSearchQuery | str],
     include_domains: Optional[list[str]],
     exclude_domains: Optional[list[str]] = None,
     tracker: ResearchTracker,
@@ -478,7 +481,7 @@ def _select_search_urls(
     search_results: list[Any],
     exclude_domains: Optional[list[str]] = None,
 ) -> list[str]:
-    unique_urls = OrderedDict()
+    unique_urls: OrderedDict[str, str] = OrderedDict()
     max_urls_to_scrape = depth["urls_first"] if iteration == 0 else depth["urls_followup"]
     idx = 0
     max_results_len = max([len(resp.results) for resp in search_results if resp] + [0])
@@ -580,14 +583,16 @@ async def _select_search_urls_with_model(
         return fallback
 
     cap = depth["urls_first"] if iteration == 0 else depth["urls_followup"]
+    selected: list[str]
     if use_jev:
         selected = await _select_search_urls_with_jev(query=query, candidates=candidates)
     else:
-        selected = await _select_search_urls_with_gpt(
+        gpt_selected = await _select_search_urls_with_gpt(
             query=query, candidates=candidates, cap=cap, selector_model=selector_model
         )
-        if selected is None:
+        if gpt_selected is None:
             return fallback
+        selected = gpt_selected
 
     allowed = {tracker.normalize_url(item["url"]): item["url"] for item in candidates}
     chosen: list[str] = []

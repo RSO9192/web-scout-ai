@@ -6,10 +6,11 @@ artifact. A blocked domain is stored as a policy skip so it does not fail this
 task. Other failures are not stored.
 """
 
-from typing import Optional
+from typing import Optional, cast
 
 from prefect import task
 
+from web_scout.scraping._data_sources import DashboardKind
 from web_scout.scraping.utils import explain_request_failure
 
 from .tracker import ResearchTracker
@@ -31,12 +32,18 @@ def make_source_cache_key(
     )
 
 
+def _dashboard_kind(value: object) -> DashboardKind:
+    if isinstance(value, str) and value in ("", "dashboard", "bi"):
+        return cast(DashboardKind, value)
+    return ""
+
+
 def cacheable_from_parse_result(url: str, parse_result: object) -> CachedSourceArtifact:
     """Convert a ``ParseResult`` into the cached representation."""
     artifact = getattr(parse_result, "artifact", None)
     title = getattr(parse_result, "title", "") or ""
     raw_html = getattr(parse_result, "raw_html", None) or ""
-    dashboard_kind = getattr(parse_result, "dashboard_kind", "")
+    dashboard_kind = _dashboard_kind(getattr(parse_result, "dashboard_kind", ""))
     data_sources = getattr(parse_result, "data_sources", ())
     if artifact is None:
         return CachedSourceArtifact(

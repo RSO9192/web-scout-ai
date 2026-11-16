@@ -388,7 +388,7 @@ def build_markdown_report(results: list[ToolResult], queries: list[str]) -> str:
         "|-------|------|---------|----------|----------|---------------|-------------------|-----------|---------|"
     )
 
-    by_query = {}
+    by_query: dict[str, list[ToolResult]] = {}
     for r in results:
         by_query.setdefault(r.query, []).append(r)
 

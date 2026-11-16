@@ -149,7 +149,8 @@ async def _outside_caller_transaction() -> AsyncIterator[None]:
     """
     from prefect.transactions import BaseTransaction
 
-    token = BaseTransaction.__var__.set(None)
+    # Prefect types the transaction ContextVar as always set. None detaches this cache task from the caller.
+    token = BaseTransaction.__var__.set(None)  # type: ignore[arg-type]
     try:
         yield
     finally:
@@ -158,11 +159,11 @@ async def _outside_caller_transaction() -> AsyncIterator[None]:
 
 async def call_cached_task(task: Any, *, kind: str, refresh: bool, exclude: tuple[str, ...] = (), **kwargs: Any):
     """Run a Prefect task with this process's lock and the resolved storage."""
-    from prefect.cache_policies import INPUTS
+    from prefect.cache_policies import INPUTS, CachePolicy
     from prefect.transactions import IsolationLevel
 
     records, results = cache_locations(kind)
-    policy = INPUTS
+    policy: CachePolicy = INPUTS
     for name in exclude:
         policy = policy - name
     policy = policy.configure(
