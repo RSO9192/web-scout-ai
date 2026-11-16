@@ -60,8 +60,10 @@ async def http_get(url, **kwargs):
             if next_url:
                 response = await state.http_session.get(next_url, **kwargs)
         except Exception as exc:
+            from .utils import annotate_network_error
+
             log_fetch(url, status="error", via="http", error=f"{type(exc).__name__}: {exc}")
-            raise
+            raise annotate_network_error(exc, url=url, method="GET", headers=kwargs.get("headers"))
         status = getattr(response, "status", None) or getattr(response, "status_code", "?")
         body = getattr(response, "body", None)
         html = getattr(response, "html_content", None) or ""

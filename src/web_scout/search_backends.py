@@ -97,12 +97,16 @@ async def _post_with_retries(
     """
 
     from .scraping._resources import search_client
+    from .scraping.utils import annotate_network_error
 
     started = time.perf_counter()
     client = client or search_client()
     async with asyncio.timeout(timeout):
         for attempt in range(_MAX_RETRIES):
-            resp = await client.post(url, headers=headers, json=payload)
+            try:
+                resp = await client.post(url, headers=headers, json=payload)
+            except Exception as exc:
+                raise annotate_network_error(exc, url=url, method="POST", headers=headers)
             if resp.status_code in _RETRY_STATUSES and attempt < _MAX_RETRIES - 1:
                 delay = _BASE_DELAY * (2**attempt)
                 retry_after = resp.headers.get("retry-after", "")
@@ -126,7 +130,10 @@ async def _post_with_retries(
                 )
                 await asyncio.sleep(delay)
                 continue
-            resp.raise_for_status()
+            try:
+                resp.raise_for_status()
+            except Exception as exc:
+                raise annotate_network_error(exc, url=url, method="POST", headers=headers)
             from .scraping.utils import log_fetch
 
             log_fetch(url, status=resp.status_code, via=f"search:{label}", bytes_=len(resp.content))
@@ -386,18 +393,45 @@ class ParallelBackend(SearchBackend):
         except asyncio.CancelledError as exc:
             if asyncio.current_task().cancelling():
                 raise
-            raise RuntimeError("Parallel MCP transport cancelled the search") from exc
+            from .scraping.utils import with_request_context
+
+            raise RuntimeError(
+                with_request_context(
+                    "Parallel MCP transport cancelled the search",
+                    url="https://search.parallel.ai/mcp",
+                    method="POST",
+                    headers={"User-Agent": "web-scout-ai (+https://github.com/RSO9192/web-scout-ai)"},
+                )
+            ) from exc
 
         text = "\n".join(block.text for block in result.content if block.type == "text")
         if result.is_error:
-            raise RuntimeError(f"Parallel search failed: {text}")
+            from .scraping.utils import with_request_context
+
+            raise RuntimeError(
+                with_request_context(
+                    f"Parallel search failed: {text}",
+                    url="https://search.parallel.ai/mcp",
+                    method="POST",
+                    headers={"User-Agent": "web-scout-ai (+https://github.com/RSO9192/web-scout-ai)"},
+                )
+            )
         data = result.structured_content
         if data is None:
             data = json.loads(text)
         if not isinstance(data, dict) or not isinstance(data.get("results"), list):
             raise ValueError("Parallel search returned an invalid results payload")
         if data.get("errors"):
-            raise RuntimeError(f"Parallel search failed: {data['errors']}")
+            from .scraping.utils import with_request_context
+
+            raise RuntimeError(
+                with_request_context(
+                    f"Parallel search failed: {data['errors']}",
+                    url="https://search.parallel.ai/mcp",
+                    method="POST",
+                    headers={"User-Agent": "web-scout-ai (+https://github.com/RSO9192/web-scout-ai)"},
+                )
+            )
 
         def matches(host: str, domain: str) -> bool:
             domain = domain.strip().lower().strip(".").removeprefix("www.")

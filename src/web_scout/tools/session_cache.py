@@ -10,6 +10,8 @@ from typing import Optional
 
 from prefect import task
 
+from web_scout.scraping.utils import explain_request_failure
+
 from .tracker import ResearchTracker
 from .types import CachedSourceArtifact, SourceCacheKey
 
@@ -59,6 +61,17 @@ def cacheable_from_parse_result(url: str, parse_result: object) -> CachedSourceA
     )
 
 
+def _request_failure(message: str, fetch_result: object) -> str:
+    """Attach the failed request so a raised error names its URL, method, and headers."""
+    return explain_request_failure(
+        message,
+        url=getattr(fetch_result, "url", ""),
+        method=getattr(fetch_result, "method", None) or "GET",
+        headers=getattr(fetch_result, "request_headers", None),
+        response_headers=getattr(fetch_result, "headers", None),
+    )
+
+
 @task(name="web-scout-url-fetch")
 async def _url_fetch_task(
     url: str,
@@ -93,9 +106,9 @@ async def _url_fetch_task(
             error="skipped: blocked domain",
         )
     if fetch_result.error and fetch_result.error != "__DOWNLOAD_REDIRECT__":
-        raise RuntimeError(fetch_result.error)
+        raise RuntimeError(_request_failure(fetch_result.error, fetch_result))
     if parse_result.error:
-        raise RuntimeError(parse_result.error)
+        raise RuntimeError(_request_failure(parse_result.error, fetch_result))
     # A dashboard's figures may live only in its data sources, so empty text with sources is still cached.
     if not parse_result.text_content.strip() and parse_result.artifact.kind == "text" and not parse_result.data_sources:
         raise RuntimeError("Extraction returned empty content")

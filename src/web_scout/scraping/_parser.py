@@ -38,11 +38,13 @@ from .page_classifier import (
 from .types import FetchResult, ParseResult, SourceArtifact
 from .utils import (
     is_json,
+    is_request_failure_message,
     normalize_content_type,
     sniff_document_payload,
     trim_json_value,
     truncate_content,
     unsupported_legacy_document_reason,
+    with_request_context,
 )
 
 logger = logging.getLogger(__name__)
@@ -197,7 +199,24 @@ class Parser(ABC):
             return await self.parse_image(result, context)
 
         # "skip"
-        reason = result.error or (f"HTTP {result.status}" if result.status else "unsupported content")
+        if result.status >= 400 and not result.error:
+            reason = with_request_context(
+                f"HTTP {result.status}",
+                url=result.url,
+                method=result.method or "GET",
+                headers=result.request_headers,
+                response_headers=result.headers,
+            )
+        else:
+            reason = result.error or "unsupported content"
+            if result.error and is_request_failure_message(result.error):
+                reason = with_request_context(
+                    result.error,
+                    url=result.url,
+                    method=result.method or "GET",
+                    headers=result.request_headers,
+                    response_headers=result.headers,
+                )
         return ParseResult(
             url=result.url,
             title="",

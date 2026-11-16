@@ -31,15 +31,18 @@ from .context import URLContext
 from .page_classifier import looks_like_pdf_resource
 from .types import FetchResult
 from .utils import (
+    explain_request_failure,
     extract_text_from_html,
     invalid_http_url_reason,
     is_blocked_domain,
     is_network_error,
     normalize_content_type,
+    request_method_and_headers,
     resolve_document_download_url,
     resolve_primary_pdf_url,
     sniff_document_payload,
     unsupported_legacy_document_reason,
+    with_request_context,
 )
 
 logger = logging.getLogger(__name__)
@@ -122,7 +125,15 @@ class ScraplingFetcher(Fetcher):
             ):
                 return await self._fetch(url, context)
         except TimeoutError:
-            return self._empty(url).model_copy(update={"error": "source_http_error: fetch deadline exceeded"})
+            return self._empty(url).model_copy(
+                update={
+                    "error": with_request_context(
+                        "source_http_error: fetch deadline exceeded",
+                        url=url,
+                        method="GET",
+                    )
+                }
+            )
         finally:
             logger.debug("[fetch-timing] seconds=%.3f url=%s", time.perf_counter() - started, url)
 
@@ -187,8 +198,21 @@ class ScraplingFetcher(Fetcher):
                 timeout=ROUTING_HEURISTICS.validation_timeout,
             )
             if resp.status == 429:
+                method, request_headers = request_method_and_headers(resp)
                 return self._empty(url).model_copy(
-                    update={"status": 429, "headers": dict(resp.headers), "error": "source_http_error: rate limited"}
+                    update={
+                        "status": 429,
+                        "headers": dict(resp.headers),
+                        "method": method,
+                        "request_headers": request_headers,
+                        "error": with_request_context(
+                            "source_http_error: rate limited",
+                            url=url,
+                            method=method,
+                            headers=request_headers,
+                            response_headers=resp.headers,
+                        ),
+                    }
                 )
             if resp.status in {403, 503}:
                 html = resp.html_content or ""
@@ -242,7 +266,13 @@ class ScraplingFetcher(Fetcher):
             needs_browser_retry = True
         except Exception as e:
             return self._empty(url).model_copy(
-                update={"error": f"source_http_error: HTTP fetch failed: {type(e).__name__}: {e}"}
+                update={
+                    "error": with_request_context(
+                        f"source_http_error: HTTP fetch failed: {type(e).__name__}: {e}",
+                        url=url,
+                        method="GET",
+                    )
+                }
             )
 
         # Step 2: browser fallback (Cloudflare bypass)
@@ -273,7 +303,16 @@ class ScraplingFetcher(Fetcher):
                     async with asyncio.timeout_at(render_deadline):
                         resp = await stealthy_fetch(url, **kwargs)
                         if resp.status >= 400 and dashboard_fallback is not None:
-                            raise RuntimeError(f"browser returned HTTP {resp.status}")
+                            method, request_headers = request_method_and_headers(resp)
+                            raise RuntimeError(
+                                with_request_context(
+                                    f"browser returned HTTP {resp.status}",
+                                    url=url,
+                                    method=method,
+                                    headers=request_headers,
+                                    response_headers=getattr(resp, "headers", None),
+                                )
+                            )
                         if resp.html_content:
                             dashboard = await _dashboard_data(url, resp.html_content, fast_assessment, capture)
                     # A dashboard-forced render says nothing about whether the host needs a browser.
@@ -316,7 +355,11 @@ class ScraplingFetcher(Fetcher):
                     return self._empty(url).model_copy(
                         update={
                             "used_browser": True,
-                            "error": f"{error_prefix}browser fetch failed: {type(e).__name__}: {exc_str}",
+                            "error": with_request_context(
+                                f"{error_prefix}browser fetch failed: {type(e).__name__}: {exc_str}",
+                                url=url,
+                                method="GET",
+                            ),
                         }
                     )
 
@@ -345,6 +388,7 @@ class ScraplingFetcher(Fetcher):
                 headers = dict(resp.headers)
             except Exception:
                 pass
+        method, request_headers = request_method_and_headers(resp)
         if ct == "application/pdf" and not normalize_content_type(headers.get("content-type", "")):
             headers["content-type"] = "application/pdf"
 
@@ -361,6 +405,8 @@ class ScraplingFetcher(Fetcher):
             html_content=html_content,
             body=body,
             headers=headers,
+            method=method,
+            request_headers=request_headers,
             used_browser=used_browser,
             page=resp,
             **dashboard,
@@ -435,7 +481,15 @@ async def fetch_pdf(
     """
     result = await fetch(url, exclude_domains=exclude_domains, wait_for=wait_for)
     if result.error:
-        raise RuntimeError(result.error)
+        raise RuntimeError(
+            explain_request_failure(
+                result.error,
+                url=result.url,
+                method=result.method,
+                headers=result.request_headers,
+                response_headers=result.headers,
+            )
+        )
     if result.body and result.body.startswith(PDF_MAGIC_BYTES):
         return result.body
     raise RuntimeError(f"response is not a PDF: {url}")

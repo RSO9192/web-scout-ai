@@ -206,6 +206,26 @@ async def test_respects_max_results_cap():
 
 
 @pytest.mark.asyncio
+async def test_post_failure_names_method_url_and_redacts_api_key():
+    """A failed search request traceback includes the call and hides the API key."""
+    backend = SerperBackend(api_key="super-secret")
+    client = AsyncMock()
+    client.post = AsyncMock(side_effect=httpx.ConnectError("connection refused"))
+
+    with (
+        patch("web_scout.scraping._resources.search_client", return_value=client),
+        pytest.raises(httpx.ConnectError) as raised,
+    ):
+        await backend.search("fish")
+
+    message = str(raised.value)
+    assert "POST https://google.serper.dev/search" in message
+    assert "headers:" in message
+    assert "X-API-KEY: <redacted>" in message
+    assert "super-secret" not in message
+
+
+@pytest.mark.asyncio
 async def test_retries_on_429_then_succeeds():
     """A 429 response triggers one retry and ultimately returns results."""
     backend = SerperBackend(api_key="test-key")

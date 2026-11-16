@@ -48,6 +48,13 @@ async def stealthy_fetch(url: str, *, wait_ready: bool = True, **kwargs: Any):
 
     kwargs["page_action"] = ready
 
+    from .utils import annotate_network_error
+
+    request_headers = kwargs.get("extra_headers") or kwargs.get("headers")
+
+    def _annotate(exc: BaseException) -> BaseException:
+        return annotate_network_error(exc, url=url, method="GET", headers=request_headers)
+
     try:
         response = await fetch_via_session(url, **kwargs)
     except TypeError as exc:
@@ -57,10 +64,10 @@ async def stealthy_fetch(url: str, *, wait_ready: bool = True, **kwargs: Any):
                 "Run: pip install 'scrapling[fetchers]>=0.4.9'"
             ) from exc
         log_fetch(url, status="error", via="browser", error=f"{type(exc).__name__}: {exc}")
-        raise
+        raise _annotate(exc)
     except Exception as exc:
         log_fetch(url, status="error", via="browser", error=f"{type(exc).__name__}: {exc}")
-        raise
+        raise _annotate(exc)
 
     status = getattr(response, "status", None) or getattr(response, "status_code", "?")
     body = getattr(response, "body", None)

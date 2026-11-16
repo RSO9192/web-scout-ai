@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from collections.abc import Mapping
 from email.message import Message
 from typing import Any, Optional
 from urllib.parse import urlparse
@@ -71,6 +72,185 @@ def is_network_error(value: object) -> bool:
     """Return True when an exception or message represents a transport failure."""
     message = str(value).lower()
     return any(marker in message for marker in _NETWORK_ERROR_MARKERS)
+
+
+_HTTP_STATUS_ERROR = re.compile(r"\bHTTP\s+\d{3}\b", re.IGNORECASE)
+_SECRET_HEADERS = frozenset(
+    {
+        "authorization",
+        "proxy-authorization",
+        "cookie",
+        "set-cookie",
+        "x-api-key",
+        "api-key",
+        "apikey",
+    }
+)
+
+
+def is_request_failure_message(message: str) -> bool:
+    """Return True when *message* describes a failed HTTP request.
+
+    Policy skips and content problems are not request failures: no exchange
+    failed, so there are no request headers to report.
+    """
+    lower = message.lower()
+    if "blocked domain" in lower or lower.startswith("invalid url"):
+        return False
+    if lower.startswith("unsupported") or "unsupported legacy" in lower:
+        return False
+    return (
+        "source_http_error" in lower
+        or "http fetch failed" in lower
+        or "browser fetch failed" in lower
+        or "browser returned http" in lower
+        or _HTTP_STATUS_ERROR.search(message) is not None
+        or is_network_error(message)
+    )
+
+
+def header_mapping(headers: object) -> dict[str, str]:
+    """Copy headers to strings, redacting credentials and cookies."""
+    if not headers:
+        return {}
+    try:
+        items = headers.items() if isinstance(headers, Mapping) else []
+    except Exception:
+        return {}
+    rendered: dict[str, str] = {}
+    for key, value in items:
+        name = str(key)
+        shown = "<redacted>" if name.lower() in _SECRET_HEADERS else str(value)
+        if len(shown) > 300:
+            shown = shown[:300] + "…"
+        rendered[name] = shown
+    return rendered
+
+
+def _render_headers(headers: object) -> str:
+    mapped = header_mapping(headers)
+    if not mapped:
+        return "unavailable"
+    return "; ".join(f"{key}: {value}" for key, value in mapped.items())
+
+
+def format_request_context(
+    *,
+    url: str,
+    method: str,
+    headers: object = None,
+    response_headers: object = None,
+) -> str:
+    """Describe the request a network error belongs to."""
+    request = header_mapping(headers)
+    response = header_mapping(response_headers)
+    if request:
+        header_text = _render_headers(request)
+    elif response:
+        header_text = _render_headers(response)
+        response = {}
+    else:
+        header_text = "unavailable"
+    parts = [f"{method} {url}", f"headers: {header_text}"]
+    if response and response != request:
+        parts.append(f"response headers: {_render_headers(response)}")
+    return " | ".join(parts)
+
+
+def with_request_context(
+    message: str,
+    *,
+    url: str,
+    method: str,
+    headers: object = None,
+    response_headers: object = None,
+) -> str:
+    """Append URL, method, and headers when *message* does not already carry them."""
+    if "| headers:" in message:
+        return message
+    context = format_request_context(url=url, method=method, headers=headers, response_headers=response_headers)
+    return f"{message} | {context}"
+
+
+def request_method_and_headers(
+    response: object,
+    *,
+    method: str = "GET",
+    headers: object = None,
+) -> tuple[str, dict[str, str]]:
+    """Return the method and request headers recorded on *response*."""
+    resolved_method = str(getattr(response, "method", None) or method or "GET")
+    request_headers = getattr(response, "request_headers", None)
+    request = getattr(response, "request", None)
+    if not request_headers and request is not None and not isinstance(request, (str, bytes)):
+        request_headers = getattr(request, "headers", None)
+        resolved_method = str(getattr(request, "method", None) or resolved_method)
+    mapped = header_mapping(request_headers if request_headers else headers)
+    return resolved_method, mapped
+
+
+def _attached_request(exc: BaseException) -> object | None:
+    """Return a request object stored on *exc*, without calling raising properties.
+
+    ``httpx.RequestError.request`` raises when no request was attached.
+    """
+    state = getattr(exc, "__dict__", None)
+    if not isinstance(state, dict):
+        return None
+    request = state.get("request", state.get("_request"))
+    if request is None or isinstance(request, (str, bytes)):
+        return None
+    return request
+
+
+def annotate_network_error(
+    exc: BaseException,
+    *,
+    url: str,
+    method: str,
+    headers: object = None,
+) -> BaseException:
+    """Put the failed request on *exc* so its traceback names URL, method, and headers."""
+    request = _attached_request(exc)
+    if request is not None:
+        url = str(getattr(request, "url", None) or url)
+        method = str(getattr(request, "method", None) or method)
+        request_headers = getattr(request, "headers", None)
+        if request_headers:
+            headers = request_headers
+    response_headers = None
+    response = getattr(exc, "response", None)
+    if response is not None:
+        response_headers = getattr(response, "headers", None)
+    message = str(exc) or type(exc).__name__
+    updated = with_request_context(message, url=url, method=method, headers=headers, response_headers=response_headers)
+    if exc.args:
+        if exc.args[0] == updated:
+            return exc
+        exc.args = (updated,) + tuple(exc.args[1:])
+    else:
+        exc.args = (updated,)
+    return exc
+
+
+def explain_request_failure(
+    message: str,
+    *,
+    url: str,
+    method: str,
+    headers: object = None,
+    response_headers: object = None,
+) -> str:
+    """Add request context to a network-failure message that will be raised."""
+    if not is_request_failure_message(message):
+        return message
+    return with_request_context(
+        message,
+        url=url,
+        method=method or "GET",
+        headers=headers,
+        response_headers=response_headers,
+    )
 
 
 def is_blocked_domain(url: str, exclude_domains: Optional[frozenset] = None) -> bool:

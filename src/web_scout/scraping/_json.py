@@ -14,7 +14,7 @@ from web_scout.config import ROUTING_HEURISTICS
 
 from ._scrapling import stealthy_fetch
 from .types import SourceArtifact
-from .utils import trim_json_value
+from .utils import request_method_and_headers, trim_json_value, with_request_context
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,16 @@ async def scrape_json(url: str, *, needs_browser: bool = False) -> Tuple[SourceA
             )
 
         if resp.status >= 400:
-            raise ValueError(f"HTTP {resp.status}")
+            method, request_headers = request_method_and_headers(resp)
+            raise ValueError(
+                with_request_context(
+                    f"HTTP {resp.status}",
+                    url=url,
+                    method=method,
+                    headers=request_headers,
+                    response_headers=getattr(resp, "headers", None),
+                )
+            )
 
         try:
             data = resp.json()

@@ -122,7 +122,31 @@ async def test_parser_preserves_fetch_error_when_status_is_zero():
         URLContext(url=result.url, depth=0),
     )
 
-    assert parsed.error == error
+    assert parsed.error.startswith(error)
+    assert "GET https://example.org/report" in parsed.error
+    assert "headers:" in parsed.error
+
+
+@pytest.mark.asyncio
+async def test_http_status_error_includes_method_url_and_headers():
+    result = _make_result(
+        "https://example.org/secret",
+        status=403,
+        html_content=None,
+        body=None,
+        method="GET",
+        request_headers={"User-Agent": "web-scout", "Authorization": "secret-token"},
+        headers={"server": "cloudflare", "cf-ray": "abc"},
+    )
+
+    parsed = await DefaultParser().dispatch(result, URLContext(url=result.url, depth=0))
+
+    assert parsed.error.startswith("HTTP 403 | GET https://example.org/secret | headers: ")
+    assert "User-Agent: web-scout" in parsed.error
+    assert "Authorization: <redacted>" in parsed.error
+    assert "secret-token" not in parsed.error
+    assert "response headers:" in parsed.error
+    assert "cf-ray: abc" in parsed.error
 
 
 def test_classify_legacy_doc_extension_is_skip():
@@ -506,6 +530,36 @@ async def test_fetcher_keeps_content_type_header_for_pdf_body(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_fetcher_403_records_the_request(monkeypatch):
+    """A non-challenge 403 keeps the method and request headers for the error traceback."""
+    url = "https://example.org/denied"
+
+    class _Response:
+        status = 403
+        body = b""
+        html_content = "<html>forbidden</html>"
+        headers = {"server": "example", "www-authenticate": "Bearer"}
+        method = "GET"
+        request_headers = {"User-Agent": "web-scout", "Accept": "text/html"}
+
+    async def _get(requested, **kwargs):
+        return _Response()
+
+    monkeypatch.setattr("web_scout.scraping._resources.http_get", _get)
+
+    result = await ScraplingFetcher().fetch(url, URLContext(url=url, depth=0))
+    parsed = await DefaultParser().dispatch(result, URLContext(url=url, depth=0))
+
+    assert result.method == "GET"
+    assert result.request_headers["User-Agent"] == "web-scout"
+    assert parsed.error is not None
+    assert parsed.error.startswith("HTTP 403 | GET https://example.org/denied | headers: ")
+    assert "User-Agent: web-scout" in parsed.error
+    assert "Accept: text/html" in parsed.error
+    assert "www-authenticate: Bearer" in parsed.error
+
+
+@pytest.mark.asyncio
 async def test_files_url_timeout_is_not_misclassified_as_download(monkeypatch):
 
     from web_scout.scraping import _scrapling
@@ -525,6 +579,8 @@ async def test_files_url_timeout_is_not_misclassified_as_download(monkeypatch):
 
     assert result.error.startswith("source_http_error: HTTP fetch failed:")
     assert result.error != "__DOWNLOAD_REDIRECT__"
+    assert "GET https://example.org/files/report?id=123" in result.error
+    assert "headers:" in result.error
 
 
 def test_download_navigation_detection_requires_explicit_playwright_signal():

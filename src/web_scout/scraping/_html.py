@@ -23,6 +23,7 @@ from web_scout.config import ROUTING_HEURISTICS
 from ._markdown import append_links
 from ._scrapling import stealthy_fetch
 from .types import SourceArtifact
+from .utils import request_method_and_headers, with_request_context
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +156,14 @@ async def scrape_html(
         return SourceArtifact(kind="text", title=""), "Browser crawl returned no response"
 
     if page.status >= 400:
-        return SourceArtifact(kind="text", title=""), f"Browser returned HTTP {page.status}"
+        method, request_headers = request_method_and_headers(page)
+        return SourceArtifact(kind="text", title=""), with_request_context(
+            f"Browser returned HTTP {page.status}",
+            url=url,
+            method=method,
+            headers=request_headers,
+            response_headers=getattr(page, "headers", None),
+        )
 
     content, title = _parse_page(page)
     return SourceArtifact(kind="text", title=title, text_content=content), None

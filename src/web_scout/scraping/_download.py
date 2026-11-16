@@ -210,14 +210,28 @@ async def download_pdf(url: str, *, needs_browser: bool = False) -> tuple[Option
         async with asyncio.timeout(ROUTING_HEURISTICS.pdf_download_deadline_s), pdf_admission():
             pdf_bytes = await chain.download(url)
     except TimeoutError:
-        error = f"source_http_error: PDF download deadline exceeded: {url}"
+        from .utils import with_request_context
+
+        error = with_request_context(
+            f"source_http_error: PDF download deadline exceeded: {url}",
+            url=url,
+            method="GET",
+            headers={**FETCH_HEADERS, "referer": "https://www.google.com/"},
+        )
         log_fetch(url, status="timeout", via="pdf", error=error)
         return None, error
     finally:
         logger.debug("[download-timing] seconds=%.3f url=%s", time.perf_counter() - started, url)
     if pdf_bytes is None:
         methods = "StealthyBrowser → Scrapling → urllib" if needs_browser else "Scrapling → urllib → StealthyBrowser"
-        error = f"source_http_error: PDF download failed after all fallback methods ({methods}): {url}"
+        from .utils import with_request_context
+
+        error = with_request_context(
+            f"source_http_error: PDF download failed after all fallback methods ({methods}): {url}",
+            url=url,
+            method="GET",
+            headers={**FETCH_HEADERS, "referer": "https://www.google.com/"},
+        )
         log_fetch(url, status="error", via="pdf", error=error)
         return None, error
     log_fetch(url, status=200, via="pdf", bytes_=len(pdf_bytes))

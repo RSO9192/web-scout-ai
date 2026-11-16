@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from ._data_sources import DashboardKind, DataSource
 
@@ -61,6 +61,8 @@ class FetchResult(BaseModel):
     html_content: str | None  # None for binary responses (PDFs, images)
     body: bytes | None  # None for text responses; raw bytes for PDFs, images
     headers: dict[str, str]
+    method: str = "GET"
+    request_headers: dict[str, str] = Field(default_factory=dict)
     used_browser: bool
     page: Any = None  # Scrapling page object (for CSS selector access in Parser)
     error: str | None = None  # set when fetch failed or URL was blocked before network call

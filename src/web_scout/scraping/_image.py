@@ -14,7 +14,7 @@ from web_scout.config import ROUTING_HEURISTICS
 
 from ._scrapling import stealthy_fetch
 from .types import SourceArtifact
-from .utils import normalize_content_type
+from .utils import normalize_content_type, request_method_and_headers, with_request_context
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,16 @@ async def scrape_image(url: str, *, needs_browser: bool = False) -> Tuple[Source
             )
 
         if resp.status >= 400:
-            raise ValueError(f"HTTP {resp.status}")
+            method, request_headers = request_method_and_headers(resp)
+            raise ValueError(
+                with_request_context(
+                    f"HTTP {resp.status}",
+                    url=url,
+                    method=method,
+                    headers=request_headers,
+                    response_headers=getattr(resp, "headers", None),
+                )
+            )
 
         mime_type = (
             normalize_content_type(resp.headers.get("content-type", "")) or mimetypes.guess_type(url)[0] or "image/png"
