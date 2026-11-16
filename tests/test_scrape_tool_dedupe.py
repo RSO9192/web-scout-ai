@@ -5,13 +5,15 @@ import pytest
 from agents import Runner
 
 import web_scout.tools.scraper as _tools_scraper
+from web_scout._classification import ClassificationError
+from web_scout._pipeline_flow import _gather_scrapes
 from web_scout.config import (
     EXTRACTOR_HEURISTICS,
     FOLLOWUP_HEURISTICS,
     ROUTING_HEURISTICS,
 )
 from web_scout.scraping import DefaultParser, FetchResult, ParseResult, ScraplingFetcher
-from web_scout.scraping.types import SourceArtifact
+from web_scout.scraping.types import PdfDocumentLayout, SourceArtifact
 from web_scout.tools import (
     ResearchTracker,
     create_scrape_and_extract_tool,
@@ -153,6 +155,73 @@ async def test_scrape_tool_recovers_prefetched_content_when_extractor_fails(monk
     assert "Extractor failed after successful scrape" in result
     assert "Recoverable source facts" in result
     assert tracker.count_for_action("scraped") == 1
+
+
+@pytest.mark.asyncio
+async def test_classification_error_discards_only_that_scrape(monkeypatch):
+    tracker = ResearchTracker()
+    good_url = "https://good.example/report"
+    thin_url = "https://thin.example/report"
+    pdf_url = "https://pdf.example/report.pdf"
+
+    async def _run(agent, input_text, max_turns=15):
+        if thin_url in input_text:
+            raise ClassificationError("jev down")
+        return _FakeRunResult(
+            ExtractorOutput(
+                title="Good",
+                relevant_content="Kept finding",
+                page_type="content",
+                relevant_links=[],
+            )
+        )
+
+    async def _no_cleanup():
+        pass
+
+    async def _pdf_claims_fail(**kwargs):
+        raise ClassificationError("claim check failed")
+
+    async def _fetch(self, url, context):
+        return FetchResult(
+            url=url,
+            status=200,
+            content_type="text/html",
+            content_disposition="",
+            html_content="<html></html>",
+            body=None,
+            headers={},
+            used_browser=False,
+        )
+
+    async def _dispatch(self, result, context):
+        if result.url == pdf_url:
+            artifact = SourceArtifact(
+                kind="text",
+                title="Doc",
+                text_content="pdf text",
+                layout=PdfDocumentLayout(document_title="Doc"),
+            )
+            return ParseResult(url=result.url, title="Doc", text_content="pdf text", links=[], artifact=artifact)
+        content = "thin" if result.url == thin_url else "Useful extracted facts. " * 80
+        title = "Thin" if result.url == thin_url else "Good"
+        artifact = SourceArtifact(kind="text", title=title, text_content=content)
+        return ParseResult(url=result.url, title=title, text_content=content, links=[], artifact=artifact)
+
+    monkeypatch.setattr(_tools_scraper, "build_extractor_agent", lambda *args, **kwargs: (object(), _no_cleanup))
+    monkeypatch.setattr(_tools_scraper, "extract_pdf_for_query", _pdf_claims_fail)
+    monkeypatch.setattr(DefaultParser, "dispatch", _dispatch)
+    monkeypatch.setattr(ScraplingFetcher, "fetch", _fetch)
+    monkeypatch.setattr(Runner, "run", _run)
+
+    scrape_tool = create_scrape_and_extract_tool(extractor_model="dummy", tracker=tracker, query="test")
+    good, thin, pdf = await _gather_scrapes([scrape_tool(good_url), scrape_tool(thin_url), scrape_tool(pdf_url)])
+
+    assert "Kept finding" in good
+    assert "ClassificationError: jev down" in thin
+    assert "ClassificationError: claim check failed" in pdf
+    assert [entry.url for entry in tracker.entries_for_action("scraped")] == [good_url]
+    assert {entry.url for entry in tracker.entries_for_action("scrape_failed")} == {thin_url, pdf_url}
 
 
 @pytest.mark.asyncio

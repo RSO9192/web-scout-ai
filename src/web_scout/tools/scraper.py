@@ -17,7 +17,6 @@ from contextlib import nullcontext
 from typing import Any, Dict, Optional
 from urllib.parse import urlsplit
 
-from web_scout._classification import ClassificationError
 from web_scout._classification import backend as classification_backend
 from web_scout._extractor_contract import ExtractorOutcome
 from web_scout.config import EXTRACTOR_HEURISTICS, ROUTING_HEURISTICS
@@ -99,8 +98,6 @@ def create_scrape_and_extract_tool(
         if existing is not None:
             try:
                 return await asyncio.shield(existing)
-            except ClassificationError:
-                raise
             except Exception as e:
                 return f"Failed to extract content from {url}: {e}"
 
@@ -338,8 +335,6 @@ def create_scrape_and_extract_tool(
                             max_turns=EXTRACTOR_HEURISTICS.max_extractor_turns,
                         )
                     output = result.final_output_as(ExtractorOutput)
-                except ClassificationError:
-                    raise
                 except Exception as e:
                     logger.error(
                         "[extract] sub-agent failed for %s (type=%s): %s",
@@ -467,8 +462,6 @@ def create_scrape_and_extract_tool(
                 future.set_result(outcome.rendered_text)
                 return outcome.rendered_text
 
-        except ClassificationError:
-            raise
         except Exception as exc:
             logger.error(
                 "[extract] unexpected scrape failure for %s (type=%s): %s",
