@@ -45,6 +45,15 @@ _NO_EVIDENCE_RULE = (
     "is not evidence. "
 )
 
+# Evidence text stays in the source language: supported_evidence matches quoted
+# strings verbatim against the cited pages, so translated quotes would be dropped.
+_OUTPUT_LANGUAGE_RULE = (
+    "Write `relevant_content` in English, regardless of the source language; translate "
+    "faithfully, keeping proper names, official titles, units, and quoted terms in the "
+    "original where needed. Keep each `evidence` item's `text` in the source language, "
+    "as the document states it. "
+)
+
 _PDF_RESULT_OUTPUT_CONTRACT = (
     "Output contract (required in both evidence and no-evidence cases):\n"
     "- Return one JSON object with exactly `has_evidence`, `relevant_content`, "
@@ -445,6 +454,7 @@ async def _final_answer_from_evidence(
         "Answer the research query using ONLY these evidence items. "
         "Tag each fact with [pp. X–Y] or [p. X] matching the evidence pages. "
         f"{_NO_EVIDENCE_RULE}"
+        f"{_OUTPUT_LANGUAGE_RULE}"
         f"{_guidance_block(extractor_guidance)}"
         "The evidence field must contain only the subset you relied on.\n"
         f"{_PDF_RESULT_OUTPUT_CONTRACT}"
@@ -472,6 +482,7 @@ async def _short_path_extract(
         "Every fact MUST cite physical pages present in the markdown using "
         "[pp. X–Y] or [p. X]. Do not invent pages. "
         f"{_NO_EVIDENCE_RULE}"
+        f"{_OUTPUT_LANGUAGE_RULE}"
         f"{_guidance_block(extractor_guidance)}"
         f"{_PDF_RESULT_OUTPUT_CONTRACT}"
     )

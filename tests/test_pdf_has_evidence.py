@@ -185,3 +185,21 @@ async def test_disable_jev_uses_gpt_pdf_claim_verification(monkeypatch):
     assert pages == [1]
     gpt.assert_awaited_once()
     jev.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_pdf_prose_prompts_require_english_content_and_source_language_evidence(monkeypatch):
+    prompts = _patch_llm(
+        monkeypatch,
+        PdfExtractResult(has_evidence=False, relevant_content=_NO_RELEVANT, evidence=[]),
+    )
+    await pdf_mod._short_path_extract(
+        model="dummy", query="Chad gender policy", document_title="Plan d'actions", markdown=_MARKDOWN
+    )
+    await pdf_mod._final_answer_from_evidence(
+        model="dummy", query="Chad gender policy", document_title="Plan d'actions", evidence=[]
+    )
+    for prompt in prompts:
+        assert "Write `relevant_content` in English" in prompt
+        # Evidence text stays verbatim so quote checks against the source pages still match.
+        assert "Keep each `evidence` item's `text` in the source language" in prompt
