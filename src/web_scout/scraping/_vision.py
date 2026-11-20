@@ -222,23 +222,6 @@ async def scrape_url_via_vision(
     return SourceArtifact(kind="text", title="", text_content=content), None
 
 
-def _reasoning_kwargs(model: str, effort: Optional[str]) -> dict[str, str]:
-    """Return ``reasoning_effort`` for Gemini models that accept it, else nothing.
-
-    Only Gemini was measured. LiteLLM maps the same value to *enabling* thinking
-    on Claude (with a small output cap), so other providers get nothing.
-    """
-    import litellm
-
-    if not effort or "gemini" not in model.lower():
-        return {}
-    try:
-        supported = litellm.supports_reasoning(model=model)
-    except Exception:
-        supported = False
-    return {"reasoning_effort": effort} if supported else {}
-
-
 def _extract_json_object(text: str) -> dict[str, Any]:
     text = text.strip()
     if text.startswith("```"):
@@ -339,7 +322,9 @@ async def describe_section_visuals(
                 # Plain JSON mode let Gemini emit bare lists and invalid escapes (LaTeX, raw newlines).
                 response_format=SectionVisualSummaries,
                 api_key=resolve_api_key(vision_model),
-                **_reasoning_kwargs(vision_model, reasoning_effort),
+                reasoning_effort=reasoning_effort,
+                # The vision model is user-configurable; non-reasoning models reject reasoning_effort.
+                drop_params=True,
             )
         raw = (response.choices[0].message.content or "").strip()
         if not raw:

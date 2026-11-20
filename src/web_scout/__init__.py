@@ -36,7 +36,7 @@ Public API
 - ``ResearchTracker`` — URL/query bookkeeping
 """
 
-__version__ = "1.14.5"
+__version__ = "1.14.6"
 
 import logging as _logging
 import os as _os

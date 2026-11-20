@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 
 import litellm
+import pytest
 from agents.extensions.models.litellm_model import LitellmModel
 
 from web_scout.scraping import _vision
@@ -106,30 +107,19 @@ async def _describe_one(model: str, **kwargs) -> None:
     )
 
 
-async def test_section_visuals_pass_reasoning_effort_when_supported(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "g")
+@pytest.mark.parametrize(
+    ("model", "env"),
+    [
+        ("gemini/gemini-3.8-flash", "GEMINI_API_KEY"),
+        ("bedrock_mantle/openai.gpt-6-luna", "AWS_BEARER_TOKEN_BEDROCK"),
+        ("anthropic/claude-sonnet-4-5", "ANTHROPIC_API_KEY"),
+        ("openai/gpt-4o-mini", "OPENAI_API_KEY"),
+    ],
+)
+async def test_section_visuals_pass_reasoning_effort_to_every_model(monkeypatch, model, env):
+    # LiteLLM drops the parameter for models that do not support reasoning.
+    monkeypatch.setenv(env, "k")
     seen = capture_acompletion(monkeypatch, litellm, content='{"request_id":"","visuals":[]}')
-    await _describe_one("gemini/gemini-3.8-flash", reasoning_effort="low")
+    await _describe_one(model, reasoning_effort="low")
     assert seen[0]["reasoning_effort"] == "low"
-
-
-async def test_section_visuals_omit_reasoning_effort_when_unsupported(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "o")
-    seen = capture_acompletion(monkeypatch, litellm, content='{"request_id":"","visuals":[]}')
-    await _describe_one("openai/gpt-4o-mini", reasoning_effort="low")
-    assert "reasoning_effort" not in seen[0]
-
-
-async def test_section_visuals_omit_reasoning_effort_when_none(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "g")
-    seen = capture_acompletion(monkeypatch, litellm, content='{"request_id":"","visuals":[]}')
-    await _describe_one("gemini/gemini-3.8-flash", reasoning_effort=None)
-    assert "reasoning_effort" not in seen[0]
-
-
-async def test_section_visuals_omit_reasoning_effort_for_claude(monkeypatch):
-    # LiteLLM maps "low" to *enabling* Claude thinking with a small max_tokens cap.
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "a")
-    seen = capture_acompletion(monkeypatch, litellm, content='{"request_id":"","visuals":[]}')
-    await _describe_one("anthropic/claude-sonnet-4-5", reasoning_effort="low")
-    assert "reasoning_effort" not in seen[0]
+    assert seen[0]["drop_params"] is True
