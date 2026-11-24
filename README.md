@@ -96,7 +96,7 @@ pip install web-scout-ai
 web-scout-setup
 ```
 
-`web-scout-setup` installs the Patchright-managed Chromium browser and its system dependencies. It may request `sudo` for OS-level browser libraries.
+`web-scout-setup` installs the Patchright-managed Chromium browser and its system dependencies, then downloads Docling and RapidOCR model weights with `pdf_extractor_download_models`. It may request `sudo` for OS-level browser libraries.
 
 The default research models run on Amazon Bedrock Mantle, vision fallback uses Gemini, and open-web search uses Serper:
 
